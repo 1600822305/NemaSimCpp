@@ -165,6 +165,15 @@ AVB 从 -52.8mV 去极化至 **-36.9mV** (释放率 ~70%), 头部驱动→运动
 - **连接组修复**: AIA ⊣ AIB 改为抑制性 (Chalasani 2007), 新增 AIY→AVB (Gray 2005)
 - **结果**: 趋化指数 CI = **+0.213**, 距食物 14.1→11.1mm (60s), 速度 0.06-0.09 mm/s
 
+### Step 15: 速度调优 + Weathervane 趋化策略 ✅ (2026-02-10)
+> 详细文档: [steps/step15_speed_weathervane.md](steps/step15_speed_weathervane.md)
+
+基于 Iino & Yoshida 2009 实现第二种趋化策略 Weathervane，与 pirouette 并行工作:
+- **Weathervane**: ∇C_⊥ → SMD 差异驱动 (gain=50pA), run 期间渐进弯曲朝向高浓度
+- **速度调优**: v_max 0.4→0.6, 实际速度 0.09-0.16 mm/s (文献 ~0.15)
+- **梯度计算**: ChemicalField.gradient() 中心差分 (eps=0.05mm)
+- **结果**: CI **+0.213→+0.312** (+46%), 距食物 14.1→**9.7mm** (60s)
+
 ---
 
 ## 当前系统状态
@@ -182,7 +191,7 @@ AVB 从 -52.8mV 去极化至 **-36.9mV** (释放率 ~70%), 头部驱动→运动
 环境: 50×50 mm, 化学扩散场 + 高斯点源
 仿真: dt=0.5ms, 单核 CPU 实时 (10000步 < 1s)
 构建: CMake + MSVC 19.44 + C++20
-状态: 趋化性涌现 (CI=+0.213, 向食物源趋近, pirouette概率模型)
+状态: 双策略趋化 (CI=+0.312, pirouette+weathervane并行, 14.1→9.7mm/60s)
 
 运动驱动 (Step 13 — 生物学机制):
   感觉基线: 12 感觉神经元 × 15pA 自发活动 (Bargmann 2006)
@@ -204,11 +213,12 @@ AVB 从 -52.8mV 去极化至 **-36.9mV** (释放率 ~70%), 头部驱动→运动
   交叉抑制: DD ↔ VD (背腹交替), SMD dorsal↔ventral (头部半中心)
   左右耦合: AVA L-R / AVB L-R / AVD L-R (间隙连接)
 
-感觉转导 (Step 14):
+感觉转导 + 趋化 (Step 14-15):
   化学感觉: Weber-Fechner 双滤波器, ON/OFF 分类, 8 个化学感觉神经元
   运动学: dθ/dt = v × κ_head, pirouette 概率模型 (AVA 调制)
-  趋化指数: CI = +0.213, 距食物 14.1→11.1mm (60s)
-  速度: 0.06-0.09 mm/s (文献值 ~0.15 mm/s)
+  Weathervane: ∇C_⊥ → SMD 差异驱动 (Iino & Yoshida 2009)
+  趋化指数: CI = +0.312, 距食物 14.1→9.7mm (60s)
+  速度: 0.09-0.16 mm/s (文献值 ~0.15 mm/s)
 
 文件结构:
   src/core/         — 4 文件 (types/config/logger .h/.cpp)

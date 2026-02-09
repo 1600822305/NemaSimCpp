@@ -50,6 +50,14 @@ double ChemicalField::sample(Vector2d pos) const {
            c01 * (1 - tx) * ty + c11 * tx * ty;
 }
 
+Vector2d ChemicalField::gradient(Vector2d pos) const {
+    // Central difference with small offset (0.05 mm ≈ worm head width)
+    double eps = 0.05;
+    double dCdx = (sample({pos.x + eps, pos.y}) - sample({pos.x - eps, pos.y})) / (2.0 * eps);
+    double dCdy = (sample({pos.x, pos.y + eps}) - sample({pos.x, pos.y - eps})) / (2.0 * eps);
+    return {dCdx, dCdy};
+}
+
 void ChemicalField::step(double dt) {
     if (concentration_.empty()) return;
     // Simple explicit diffusion (for MVP, not performance-critical)

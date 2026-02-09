@@ -80,7 +80,7 @@ void BodyModel::update_positions(double dt) {
     muscle_work /= NUM_BODY_SEGMENTS;
 
     // REF: Fang-Yen 2010 — wild-type speed on agar ~0.15 mm/s
-    double v_max = 0.4; // mm/s; muscle_work ~0.3-0.5 → effective speed ~0.12-0.20
+    double v_max = 0.6; // mm/s; muscle_work ~0.3-0.5 → effective speed ~0.15-0.30
     double forward_speed = v_max * muscle_work;
 
     // --- 2. Heading update: dθ/dt = v × κ_head ---

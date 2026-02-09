@@ -18,6 +18,9 @@ public:
     // Sample concentration at a position
     double sample(Vector2d pos) const;
 
+    // Sample spatial gradient at a position (central difference)
+    Vector2d gradient(Vector2d pos) const;
+
     // Diffusion step (simple explicit finite difference)
     void step(double dt);
 

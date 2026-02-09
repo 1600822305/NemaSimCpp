@@ -150,6 +150,9 @@ void SimulationEngine::step() {
     // REF: Bargmann 2006, Suzuki 2008
     apply_sensory_input();
 
+    // 2b. Weathervane: gradient ⊥ heading → differential SMD bias
+    apply_weathervane();
+
     // 3. Head motor tonic: upstream interneuron drive (RIA→SMD already in connectome)
     // Small tonic represents the net excitatory input from the head circuit
     apply_head_tonic();
@@ -243,6 +246,60 @@ void SimulationEngine::apply_head_tonic() {
             neurons_[id]->set_external_current(head_tonic_);
         }
     }
+}
+
+void SimulationEngine::apply_weathervane() {
+    // Weathervane mechanism: gradient ⊥ heading → differential SMD drive
+    // REF: Iino & Yoshida 2009 — curving rate bias = 12.7 °/mm × ∇C_normal
+    // Implementation: compute gradient perpendicular to heading direction,
+    // then apply differential current to dorsal vs ventral SMD neurons.
+    // This biases the half-center oscillator, causing gradual curving toward food.
+    //
+    // Neural basis: head oscillation samples gradient laterally → ASE → AIZ → SMD
+    // We approximate this by directly biasing SMD based on the normal gradient component.
+
+    Vector2d head_pos = body_.get_head_position();
+    Vector2d grad = environment_.chemical_field().gradient(head_pos);
+
+    // Decompose gradient into tangential (along heading) and normal (perpendicular) components
+    double heading = body_.get_head_angle();
+    double cos_h = std::cos(heading);
+    double sin_h = std::sin(heading);
+
+    // Normal component: gradient projected onto the direction 90° left of heading
+    // Positive = gradient points to the left → curve left (dorsal activation)
+    // In C. elegans body coordinates: dorsal turn = positive curvature
+    double grad_normal = -sin_h * grad.x + cos_h * grad.y;
+
+    // Convert to differential current bias
+    // 12.7 °/mm per mM/mm gradient (Iino 2009), but our gradient is in concentration/mm
+    // Scale factor calibrated for our chemical field (Gaussian, peak=1.0, sigma²=25)
+    // At 14mm from source: gradient ~0.011 conc/mm → bias ~0.14 °/mm → small but cumulative
+    double weathervane_gain = 50.0; // pA per (concentration/mm) — strong enough to bias SMD
+    double bias_current = weathervane_gain * grad_normal;
+
+    // Clamp to ±5 pA (should not overwhelm the half-center oscillator)
+    if (bias_current > 5.0) bias_current = 5.0;
+    if (bias_current < -5.0) bias_current = -5.0;
+
+    int n = static_cast<int>(neurons_.size());
+
+    // Apply: positive bias → more dorsal drive (curve toward gradient)
+    //        negative bias → more ventral drive
+    // Use add_synaptic_current to accumulate (external current is set by other stages)
+    auto apply_bias = [&](const char* name, double current) {
+        int id = connectome_.get_neuron_id(name);
+        if (id >= 0 && id < n) {
+            neurons_[id]->add_synaptic_current(current);
+        }
+    };
+
+    // Dorsal SMD gets positive bias when gradient is to the left
+    apply_bias("SMDDL", bias_current);
+    apply_bias("SMDDR", bias_current);
+    // Ventral SMD gets negative bias (opposite)
+    apply_bias("SMDVL", -bias_current);
+    apply_bias("SMDVR", -bias_current);
 }
 
 void SimulationEngine::apply_proprioceptive_stretch() {

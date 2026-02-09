@@ -58,6 +58,7 @@ private:
 
     // Step 13: Biologically grounded locomotion (replaces Step 12 placeholders)
     void apply_sensory_input();          // chemosensory neurons sample gradient, others get baseline
+    void apply_weathervane();            // gradient ⊥ heading → SMD bias (Iino & Yoshida 2009)
     void apply_proprioceptive_stretch(); // body curvature → MEC channels in motor neurons
     void apply_head_tonic();             // tonic drive to head motor neurons (from upstream)
 
