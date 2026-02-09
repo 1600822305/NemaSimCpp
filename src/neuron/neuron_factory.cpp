@@ -101,14 +101,19 @@ std::unique_ptr<SingleCompartmentNeuron> NeuronFactory::create_motor_head(const 
     neuron->set_resting_potential(-60.0);
 
     // Head motor neurons (RMD/SMD): CCA-1 intrinsic bursting oscillator
-    // Strong leak ensures burst terminates when CCA-1 h inactivates
+    // Oscillation mechanism: CCA-1 burst → Ca²⁺ rise → SLO-1 adaptation → repolarize → Ca decay → repeat
     // REF: Hendricks 2012, Nicoletti 2019 - CCA-1 critical for head oscillation
     neuron->add_channel(std::make_unique<EGL19Channel>(0.3));
     neuron->add_channel(std::make_unique<CCA1Channel>(5.0));   // dominant inward for burst
     neuron->add_channel(std::make_unique<SHL1Channel>(1.5));
     neuron->add_channel(std::make_unique<KQT3Channel>(0.3));
-    neuron->add_channel(std::make_unique<SLO1Channel>(1.0));
+    neuron->add_channel(std::make_unique<SLO1Channel>(5.0));   // strong BK for Ca-dependent adaptation
     neuron->add_channel(std::make_unique<NCAChannel>(0.02));   // minimal persistent inward
+
+    // Fast calcium dynamics for bursting: 10x sensitivity, 100ms decay
+    // Standard neurons: buffer_ratio=0.01, tau=200ms → too slow for oscillation
+    // Head motor: buffer_ratio=0.1, tau=100ms → Ca rises fast during burst, decays in ~300ms
+    neuron->set_calcium_params(0.05, 100.0, 0.1);
 
     return neuron;
 }

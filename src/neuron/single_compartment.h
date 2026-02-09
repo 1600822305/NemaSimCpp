@@ -67,6 +67,11 @@ public:
 
     double V() const { return V_; }
 
+    // Configure calcium dynamics (for bursting neurons)
+    void set_calcium_params(double baseline, double tau, double buffer_ratio) {
+        calcium_ = CalciumDynamics(baseline, tau, buffer_ratio);
+    }
+
     // Set stretch input for mechanosensitive channels (proprioception)
     void set_stretch_input(double stretch);
 

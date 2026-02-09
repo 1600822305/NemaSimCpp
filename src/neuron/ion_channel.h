@@ -224,9 +224,10 @@ public:
     }
 
     void step(double V, double Ca, double dt) override {
-        // Calcium-dependent voltage shift
-        double Ca_shift = 40.0 * Ca / (Ca + 0.5); // μM
-        double m_inf = boltzmann(V, -10.0 - Ca_shift, 20.0);
+        // BK channel: essentially closed without Ca, opens with high Ca
+        // REF: Bhatt 2014 - at low Ca (<0.1μM) V_half > +50mV, at high Ca (>1μM) V_half ≈ -30mV
+        double Ca_shift = 120.0 * Ca / (Ca + 1.0); // large shift at high Ca
+        double m_inf = boltzmann(V, 50.0 - Ca_shift, 15.0);
         double tau_m = 5.0;
         m_ = relax(m_, m_inf, tau_m, dt);
     }

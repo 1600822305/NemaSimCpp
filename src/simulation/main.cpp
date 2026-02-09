@@ -70,12 +70,12 @@ int main(int argc, char* argv[]) {
                       << " mm/s";
 
             // Print a few key neuron potentials
-            if (!monitor_ids.empty()) {
-                std::cout << " | V_AVAL="
+            if (monitor_ids.size() >= 12) {
+                std::cout << " | Vd="
                           << std::setprecision(1)
-                          << engine.neurons()[monitor_ids[2]]->get_membrane_potential()
-                          << " V_AVBL="
-                          << engine.neurons()[monitor_ids[4]]->get_membrane_potential();
+                          << engine.neurons()[monitor_ids[10]]->get_membrane_potential()
+                          << " Vv="
+                          << engine.neurons()[monitor_ids[11]]->get_membrane_potential();
             }
             // Diagnostic: head muscle differential and max curvature
             double max_diff = 0.0, max_curv = 0.0;

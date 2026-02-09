@@ -148,13 +148,13 @@ AVB 从 -52.8mV 去极化至 **-36.9mV** (释放率 ~70%), 头部驱动→运动
 
 移除 Step 12 的 3 个硬编码占位符(tonic/正弦/直注)，替换为生物学合理机制:
 - **TD-01**: AVB tonic 20pA → 感觉基线 15pA + AIY/RIB→AVB 突触通路
-- **TD-02**: SMD 正弦注入 → CCA-1 T-type Ca²⁺ 通道 + 背腹交叉抑制(半中心振荡器架构)
+- **TD-02**: SMD 正弦注入 → CCA-1 T-type Ca²⁺ 通道 + 背腹交叉抑制 + Ca²⁺→SLO-1 适应振荡
 - **TD-03**: 本体感觉直注 → MEC 膜通道(stretch-activated cation channel)
 - **TD-04**: 简化速度公式 → 肌肉功率模型(做功 × 波形效率 × 时间活动)
 
 额外修复: set_muscle_activation 覆盖 bug、DD/VD 抑制逻辑、曲率时间步、离子通道噪声。
 神经元兴奋性调优: NCA 电导增大(0.03→0.10~0.15)、突触权重缩放(0.1→0.3)。
-**结果**: 速度 0.10-0.18 mm/s, 5秒前进 0.64mm, 全部由神经回路涌现驱动。
+**结果**: 速度 0.05-0.24 mm/s, 头部背腹交替振荡 ~2Hz, 全部由神经回路涌现驱动。
 
 ---
 
@@ -173,17 +173,18 @@ AVB 从 -52.8mV 去极化至 **-36.9mV** (释放率 ~70%), 头部驱动→运动
 环境: 50×50 mm, 化学扩散场 + 高斯点源
 仿真: dt=0.5ms, 单核 CPU 实时 (10000步 < 1s)
 构建: CMake + MSVC 19.44 + C++20
-状态: 线虫蠕动前进 (0.10-0.18 mm/s, 涌现驱动)
+状态: 线虫蠕动前进 (0.05-0.24 mm/s, 头部振荡 ~2Hz, 涌现驱动)
 
 运动驱动 (Step 13 — 生物学机制):
   感觉基线: 12 感觉神经元 × 15pA 自发活动 (Bargmann 2006)
   头部tonic: 8 头部运动神经元 × 3pA (上游中间神经元驱动)
   本体感觉: MEC stretch-activated 通道 (body curvature → B类 MN)
   通道噪声: 3pA 高斯噪声 (White 1998, 热涨落)
-  头部振荡: CCA-1 T-type Ca²⁺ + SMD 背腹交叉抑制 (半中心CPG架构)
+  头部振荡: CCA-1 burst → Ca²⁺ → SLO-1(BK) 适应 → 复极化 → 周期 ~500ms
+  半中心CPG: SMD dorsal↔ventral 交叉抑制 → 背腹交替 burst (~2Hz)
   速度模型: 肌肉功率 × 波形效率 × 时间活动 (Fang-Yen 2010)
-  V_AVA ≈ -33mV (release ~60%), V_AVB ≈ -39mV (release ~27%)
-  速度: 0.10-0.18 mm/s (真实 ~0.2 mm/s, 接近生物学范围)
+  V_SMDDL: -65↔-30mV 交替 burst, V_SMDVL: 反相
+  速度: 0.05-0.24 mm/s (真实 ~0.2 mm/s, 在生物学范围内)
 
 核心回路 (默认连接组, 70 突触):
   趋化性: ASE/AWC/AWA → AIA/AIB/AIY/AIZ → RIA → SMD (头部转向)
