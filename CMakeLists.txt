@@ -8,6 +8,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # Options
 option(CELEGANS_BUILD_TESTS "Build tests" ON)
 option(CELEGANS_USE_OPENMP "Enable OpenMP parallelization" OFF)
+option(CELEGANS_BUILD_VIS "Build real-time visualization (requires SDL2+ImGui+ImPlot)" ON)
 
 if(CELEGANS_USE_OPENMP)
     find_package(OpenMP REQUIRED)
@@ -70,9 +71,30 @@ target_link_libraries(celegans_simulation PUBLIC
     celegans_environment
 )
 
-# Main executable
+# Main executable (headless)
 add_executable(celegans_sim src/simulation/main.cpp)
 target_link_libraries(celegans_sim PRIVATE celegans_simulation)
+
+# Visualization executable (Dear ImGui + ImPlot + SDL2 + OpenGL)
+if(CELEGANS_BUILD_VIS)
+    find_package(imgui CONFIG REQUIRED)
+    find_package(implot CONFIG REQUIRED)
+    find_package(glfw3 CONFIG REQUIRED)
+    find_package(OpenGL REQUIRED)
+
+    add_executable(celegans_vis
+        src/visualization/vis_main.cpp
+        src/visualization/vis_app.cpp
+    )
+    target_link_libraries(celegans_vis PRIVATE
+        celegans_simulation
+        imgui::imgui
+        implot::implot
+        glfw
+        OpenGL::GL
+    )
+    target_include_directories(celegans_vis PRIVATE ${CMAKE_SOURCE_DIR}/src)
+endif()
 
 if(CELEGANS_USE_OPENMP)
     target_link_libraries(celegans_core PUBLIC OpenMP::OpenMP_CXX)

@@ -32,6 +32,7 @@ public:
     // Access
     double current_time() const { return current_time_; }
     double dt() const { return dt_; }
+    int get_step_count() const { return step_count_; }
     const BodyModel& body() const { return body_; }
     const Environment& environment() const { return environment_; }
     const Connectome& connectome() const { return connectome_; }

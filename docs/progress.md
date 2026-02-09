@@ -174,6 +174,15 @@ AVB 从 -52.8mV 去极化至 **-36.9mV** (释放率 ~70%), 头部驱动→运动
 - **梯度计算**: ChemicalField.gradient() 中心差分 (eps=0.05mm)
 - **结果**: CI **+0.213→+0.312** (+46%), 距食物 14.1→**9.7mm** (60s)
 
+### Step 16: 实时可视化仪表盘 ✅ (2026-02-10)
+> 详细文档: [steps/step16_realtime_visualization.md](steps/step16_realtime_visualization.md)
+
+Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
+- **依赖管理**: vcpkg (C:\vcpkg) 自动安装 imgui/implot/glfw3
+- **4面板布局**: 轨迹图 + 神经元膜电位曲线 + 距离/CI指标 + 控制面板
+- **实时仿真**: 每帧 N 步 (可调 1-200), 暂停/继续/重置
+- **双目标**: celegans_sim.exe (headless) + celegans_vis.exe (GUI) 并行构建
+
 ---
 
 ## 当前系统状态

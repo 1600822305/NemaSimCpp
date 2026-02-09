@@ -19,6 +19,7 @@ public:
     double height() const { return height_; }
 
     ChemicalField& chemical_field() { return chem_field_; }
+    const ChemicalField& chemical_field() const { return chem_field_; }
 
 private:
     double width_ = 50.0;   // mm
