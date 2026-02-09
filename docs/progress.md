@@ -156,6 +156,15 @@ AVB 从 -52.8mV 去极化至 **-36.9mV** (释放率 ~70%), 头部驱动→运动
 神经元兴奋性调优: NCA 电导增大(0.03→0.10~0.15)、突触权重缩放(0.1→0.3)。
 **结果**: 速度 0.05-0.24 mm/s, 头部背腹交替振荡 ~2Hz, 全部由神经回路涌现驱动。
 
+### Step 14: 感觉转导层 — 趋化性涌现 ✅ (2026-02-10)
+> 详细文档: [steps/step14_sensory_chemotaxis.md](steps/step14_sensory_chemotaxis.md)
+
+基于 Pierce-Shimomura 1999 / Padmanabhan 2012 / Chalasani 2007 实现化学感觉转导 + 趋化性涌现:
+- **化学感觉转导**: Weber-Fechner 双滤波器 (fast 500ms / slow 5s), ON/OFF 分类 (ASEL/AWA vs ASER/AWC)
+- **运动学**: dθ/dt = v × κ_head (clamp 50°/s) + pirouette 概率模型 (rate = 0.05Hz × exp(8×AVA_dev))
+- **连接组修复**: AIA ⊣ AIB 改为抑制性 (Chalasani 2007), 新增 AIY→AVB (Gray 2005)
+- **结果**: 趋化指数 CI = **+0.213**, 距食物 14.1→11.1mm (60s), 速度 0.06-0.09 mm/s
+
 ---
 
 ## 当前系统状态
@@ -166,14 +175,14 @@ AVB 从 -52.8mV 去极化至 **-36.9mV** (释放率 ~70%), 头部驱动→运动
   感觉: 12 (ASE/AWC/AWA/ASH/ALM/PLM, L/R)
   中间: 20 (AIA/AIB/AIY/AIZ/RIA/RIB/AVA/AVB/AVD/AVE, L/R)
   运动: 26 (SMD/RMD 4×2 + DA/DB/VA/VB/DD/VD 各3)
-突触: 70 化学 + 6 间隙连接 (7000+ 全集待加载)
+突触: 72 化学 + 6 间隙连接 (7000+ 全集待加载)
 离子通道: 8/14 种 (EGL-19/UNC-2/CCA-1/SHL-1/KQT-3/SLO-1/NCA/MEC)
 神经元模型: 单隔室 HH 分级电位 (L2) + 钙动力学
 身体: 2D 弹性杆 48 段, 22 个运动神经元-肌肉映射
 环境: 50×50 mm, 化学扩散场 + 高斯点源
 仿真: dt=0.5ms, 单核 CPU 实时 (10000步 < 1s)
 构建: CMake + MSVC 19.44 + C++20
-状态: 线虫蠕动前进 (0.05-0.24 mm/s, 头部振荡 ~2Hz, 涌现驱动)
+状态: 趋化性涌现 (CI=+0.213, 向食物源趋近, pirouette概率模型)
 
 运动驱动 (Step 13 — 生物学机制):
   感觉基线: 12 感觉神经元 × 15pA 自发活动 (Bargmann 2006)
@@ -188,27 +197,18 @@ AVB 从 -52.8mV 去极化至 **-36.9mV** (释放率 ~70%), 头部驱动→运动
 
 核心回路 (默认连接组, 72 突触):
   趋化性: ASE/AWC/AWA → AIA/AIB/AIY/AIZ → RIA → SMD (头部转向)
-  关键修复: AIA ⊣ AIB (抑制性, Chalasani 2007) — pirouette抑制通路
-  新增: AIY → AVB (促进前进, Gray 2005)
+  关键: AIA ⊣ AIB (抑制性, Chalasani 2007), AIY → AVB (Gray 2005)
   触觉: ALM → AVD (前触) / PLM → AVA (后触)
   前进: 感觉→AIY→AVB→DB/VB → 背/腹侧体壁肌肉
-  后退: AVA → DA/VA → 背/腹侧体壁肌肉
+  后退: AWC→AIB→AVA → DA/VA → 背/腹侧体壁肌肉
   交叉抑制: DD ↔ VD (背腹交替), SMD dorsal↔ventral (头部半中心)
   左右耦合: AVA L-R / AVB L-R / AVD L-R (间隙连接)
 
-Step 14 — 感觉转导层 + 趋化性涌现:
-  化学感觉转导: Weber-Fechner双滤波器 (fast 500ms / slow 5000ms)
-    ASEL/AWA: ON响应(浓度升高→兴奋), ASER/AWC: OFF响应(浓度降低→兴奋)
-    信号: relative_change = (fast - slow) / (slow + ε), 饱和非线性
-  运动学: dθ/dt = v × κ_head (Padmanabhan 2012), clamp到50°/s
-  pirouette概率模型 (Pierce-Shimomura 1999):
-    rate = base_rate × exp(k × AVA_deviation), base_rate=0.05Hz
-    AVA release rate 经由神经回路调制: AWC(OFF)→AIB→AVA↑, ASEL(ON)→AIA⊣AIB→AVA↓
-    pirouette = 随机重定向 ∈ [-π, π]
-  验证结果 (60s仿真):
-    趋化指数 CI = +0.213 (approaching food)
-    距食物: 14.1mm → 11.1mm (持续下降)
-    速度: 0.06-0.09 mm/s (文献值 ~0.15 mm/s)
+感觉转导 (Step 14):
+  化学感觉: Weber-Fechner 双滤波器, ON/OFF 分类, 8 个化学感觉神经元
+  运动学: dθ/dt = v × κ_head, pirouette 概率模型 (AVA 调制)
+  趋化指数: CI = +0.213, 距食物 14.1→11.1mm (60s)
+  速度: 0.06-0.09 mm/s (文献值 ~0.15 mm/s)
 
 文件结构:
   src/core/         — 4 文件 (types/config/logger .h/.cpp)
@@ -216,7 +216,7 @@ Step 14 — 感觉转导层 + 趋化性涌现:
   src/connectome/   — 8 文件 (synapse/gap_junction/connectome/loader .h/.cpp)
   src/body/         — 4 文件 (body_model/muscle_system .h/.cpp)
   src/motor/        — 2 文件 (motor_controller .h/.cpp)
-  src/environment/  — 4 文件 (environment/chemical_field .h/.cpp)
+  src/environment/  — 5 文件 (environment/chemical_field/sensory_transducer .h/.cpp)
   src/simulation/   — 3 文件 (simulation_engine .h/.cpp + main.cpp)
   docs/             — 2+ 文件 (blueprint.md + progress.md + steps/)
   总计: 35 文件 (CMakeLists.txt + 33 源文件 + 文档)
