@@ -9,6 +9,7 @@
 #include "body/body_model.h"
 #include "motor/motor_controller.h"
 #include "environment/environment.h"
+#include "environment/sensory_transducer.h"
 #include <vector>
 #include <memory>
 #include <string>
@@ -56,13 +57,20 @@ private:
     void create_neurons();
 
     // Step 13: Biologically grounded locomotion (replaces Step 12 placeholders)
-    void apply_sensory_baseline();       // sensory neurons sample environment continuously
+    void apply_sensory_input();          // chemosensory neurons sample gradient, others get baseline
     void apply_proprioceptive_stretch(); // body curvature → MEC channels in motor neurons
     void apply_head_tonic();             // tonic drive to head motor neurons (from upstream)
 
-    // Sensory neuron IDs (for baseline environmental activity)
-    std::vector<int> sensory_ids_;
-    double sensory_baseline_ = 15.0; // pA, spontaneous activity (Bargmann 2006)
+    // Chemosensory transduction: neuron_id → transducer
+    struct ChemoMapping {
+        int neuron_id;
+        ChemoTransducer transducer;
+    };
+    std::vector<ChemoMapping> chemo_mappings_;
+
+    // Non-chemosensory neurons (touch, etc.) get fixed baseline
+    std::vector<int> other_sensory_ids_;
+    double sensory_baseline_ = 3.0; // pA, low baseline for touch neurons (no stimulus)
 
     // Head motor neuron IDs (for tonic upstream drive)
     std::vector<int> head_motor_ids_;

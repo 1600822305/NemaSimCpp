@@ -39,8 +39,10 @@ int main(int argc, char* argv[]) {
     traj_file << "\n";
 
     // Set up step callback for periodic logging and recording
-    int report_interval = 1000; // every 1000 steps
-    int record_interval = 10;   // record every 10 steps
+    int report_interval = 10000; // every 5000ms (5s)
+    int record_interval = 10;    // record every 10 steps
+    Vector2d food_pos{35.0, 35.0};
+    double initial_dist_to_food = (sim.body().get_head_position() - food_pos).norm();
 
     sim.set_step_callback([&](const SimulationEngine& engine, int step_num) {
         // Record trajectory
@@ -69,30 +71,17 @@ int main(int argc, char* argv[]) {
                       << "speed=" << std::setprecision(4) << engine.body().get_speed()
                       << " mm/s";
 
-            // Print a few key neuron potentials
-            if (monitor_ids.size() >= 12) {
-                std::cout << " | Vd="
-                          << std::setprecision(1)
-                          << engine.neurons()[monitor_ids[10]]->get_membrane_potential()
-                          << " Vv="
-                          << engine.neurons()[monitor_ids[11]]->get_membrane_potential();
-            }
-            // Diagnostic: head muscle differential and max curvature
-            double max_diff = 0.0, max_curv = 0.0;
-            for (int s = 0; s < NUM_BODY_SEGMENTS; ++s) {
-                auto& seg = engine.body().segments()[s];
-                double diff = std::abs(seg.dorsal_activation - seg.ventral_activation);
-                if (diff > max_diff) max_diff = diff;
-                if (std::abs(seg.curvature) > max_curv) max_curv = std::abs(seg.curvature);
-            }
-            std::cout << " | mdiff=" << std::setprecision(4) << max_diff
-                      << " mcurv=" << max_curv;
+            // Distance to food and heading angle
+            double dist = (head - food_pos).norm();
+            double angle_deg = engine.body().get_head_angle() * 180.0 / 3.14159265;
+            std::cout << " dist=" << std::setprecision(2) << dist
+                      << " ang=" << std::setprecision(1) << angle_deg << "deg";
             std::cout << std::endl;
         }
     });
 
-    // Run for 5 seconds (5000 ms)
-    double sim_duration = 5000.0; // ms
+    // Run for 30 seconds (30000 ms) — enough for chemotaxis to emerge
+    double sim_duration = 30000.0; // ms
     std::cout << "\n=== C. elegans Neural Simulation ===" << std::endl;
     std::cout << "Neurons: " << sim.connectome().num_neurons() << std::endl;
     std::cout << "Chemical synapses: " << sim.connectome().num_synapses() << std::endl;
@@ -106,14 +95,21 @@ int main(int argc, char* argv[]) {
     traj_file.close();
     std::cout << "\nTrajectory saved to trajectory.csv" << std::endl;
 
-    // Print final state summary
+    // Print final state summary with chemotaxis metric
     auto head = sim.body().get_head_position();
     auto tail = sim.body().get_tail_position();
+    double final_dist = (head - food_pos).norm();
+    double chemotaxis_index = (initial_dist_to_food - final_dist) / initial_dist_to_food;
+
     std::cout << "\n--- Final State ---" << std::endl;
     std::cout << "Head position: (" << head.x << ", " << head.y << ")" << std::endl;
     std::cout << "Tail position: (" << tail.x << ", " << tail.y << ")" << std::endl;
     std::cout << "Distance from start: "
               << (head - Vector2d{25.0, 25.0}).norm() << " mm" << std::endl;
+    std::cout << "Distance to food: " << final_dist << " mm (initial: "
+              << initial_dist_to_food << " mm)" << std::endl;
+    std::cout << "Chemotaxis index: " << chemotaxis_index
+              << (chemotaxis_index > 0 ? " (approaching)" : " (not approaching)") << std::endl;
 
     return 0;
 }

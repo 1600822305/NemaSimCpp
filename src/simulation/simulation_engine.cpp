@@ -48,10 +48,29 @@ void SimulationEngine::initialize_default() {
     environment_.chemical_field().add_point_source(Vector2d{35.0, 35.0}, 1.0);
     LOG_INFO("Environment initialized (50x50 mm), food source at (35, 35)");
 
-    // 7. Collect sensory neuron IDs (they receive baseline environmental input)
+    // 7. Classify sensory neurons: chemosensory get transducers, others get baseline
     for (auto& info : neuron_infos) {
-        if (info.type == NeuronType::SENSORY) {
-            sensory_ids_.push_back(info.id);
+        if (info.type != NeuronType::SENSORY) continue;
+
+        // Chemosensory neurons: detect concentration temporal derivative
+        // ASEL: ON (excited by [NaCl] increase)
+        // ASER: OFF (excited by [NaCl] decrease)
+        // AWC:  OFF (excited by odor removal)
+        // AWA:  ON (excited by odor addition)
+        // ASH:  nociceptive, also responds to high osmolarity (ON-like)
+        if (starts_with(info.name, "ASEL")) {
+            chemo_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::ON, 100.0, 5.0)});
+        } else if (starts_with(info.name, "ASER")) {
+            chemo_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::OFF, 100.0, 5.0)});
+        } else if (starts_with(info.name, "AWC")) {
+            chemo_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::OFF, 80.0, 5.0)});
+        } else if (starts_with(info.name, "AWA")) {
+            chemo_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::ON, 80.0, 5.0)});
+        } else if (starts_with(info.name, "ASH")) {
+            chemo_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::ON, 60.0, 3.0)});
+        } else {
+            // Touch neurons (ALM, PLM): low baseline, no stimulus
+            other_sensory_ids_.push_back(info.id);
         }
     }
 
@@ -73,7 +92,14 @@ void SimulationEngine::initialize_default() {
     add_pm("DA01", 0, true);  add_pm("DA02", 5, true);  add_pm("DA03", 15, true);
     add_pm("VA01", 0, false); add_pm("VA02", 5, false); add_pm("VA03", 15, false);
 
-    LOG_INFO("Sensory baseline: ", sensory_ids_.size(), " sensory neurons, ", sensory_baseline_, " pA");
+    // Initialize transducers with current concentration at head
+    double init_conc = environment_.sample_chemical(body_.get_head_position());
+    for (auto& cm : chemo_mappings_) {
+        cm.transducer.reset(init_conc);
+    }
+
+    LOG_INFO("Chemosensory: ", chemo_mappings_.size(), " neurons with gradient transduction");
+    LOG_INFO("Other sensory: ", other_sensory_ids_.size(), " neurons, baseline ", sensory_baseline_, " pA");
     LOG_INFO("Head tonic: ", head_motor_ids_.size(), " head motor neurons, ", head_tonic_, " pA");
     LOG_INFO("Proprioceptive MEC: ", proprio_mappings_.size(), " motor neuron stretch mappings");
     LOG_INFO("Initialization complete. dt = ", dt_, " ms");
@@ -118,10 +144,11 @@ void SimulationEngine::step() {
     // 1. Environment update
     environment_.step(dt_ * 0.001);
 
-    // 2. Sensory baseline: sensory neurons continuously sample environment
-    // This is NOT cheating — sensory neurons ARE in contact with the environment
-    // REF: Bargmann 2006 - chemosensory neurons have baseline activity
-    apply_sensory_baseline();
+    // 2. Sensory input: chemosensory neurons detect gradient, others get baseline
+    // Chemosensory: concentration temporal derivative → graded input current
+    // Touch: low baseline (no stimulus in current environment)
+    // REF: Bargmann 2006, Suzuki 2008
+    apply_sensory_input();
 
     // 3. Head motor tonic: upstream interneuron drive (RIA→SMD already in connectome)
     // Small tonic represents the net excitatory input from the head circuit
@@ -166,13 +193,21 @@ void SimulationEngine::run(double duration_ms) {
     LOG_INFO("Simulation complete. Final time: ", current_time_, " ms");
 }
 
-void SimulationEngine::apply_sensory_baseline() {
-    // Sensory neurons have spontaneous activity even in featureless environment
-    // This represents continuous environmental sampling (thermal noise, baseline chem levels)
-    // The current flows through the connectome: sensory → interneurons → command → motor
-    // REF: Bargmann 2006, Ward 1973 - sensory neuron baseline activity
+void SimulationEngine::apply_sensory_input() {
     int n = static_cast<int>(neurons_.size());
-    for (int id : sensory_ids_) {
+
+    // Chemosensory neurons: sample concentration at head position, compute dC/dt
+    Vector2d head_pos = body_.get_head_position();
+    double concentration = environment_.sample_chemical(head_pos);
+
+    for (auto& cm : chemo_mappings_) {
+        if (cm.neuron_id < 0 || cm.neuron_id >= n) continue;
+        double I_sensory = cm.transducer.update(concentration, dt_);
+        neurons_[cm.neuron_id]->set_external_current(I_sensory);
+    }
+
+    // Touch/other sensory: low baseline (no active stimulus)
+    for (int id : other_sensory_ids_) {
         if (id >= 0 && id < n) {
             neurons_[id]->set_external_current(sensory_baseline_);
         }

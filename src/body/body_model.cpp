@@ -62,12 +62,15 @@ void BodyModel::compute_curvatures(double dt) {
 }
 
 void BodyModel::update_positions(double dt) {
-    // Head segment drives forward, subsequent segments follow
-    // Update angles from curvatures
-    for (int i = 0; i < NUM_BODY_SEGMENTS; ++i) {
-        if (i > 0) {
-            segments_[i].angle = segments_[i - 1].angle - segments_[i].curvature * segment_length_;
-        }
+    // Head segment: curvature drives heading change (kinematic steering)
+    // dθ/dt = curvature * forward_speed — a curved body moving forward naturally turns
+    // REF: Boyle et al. 2012 - worm body kinematics in viscous medium
+    double head_curv = segments_[0].curvature;
+    segments_[0].angle += head_curv * dt * 5.0; // angular rate scaling
+
+    // Subsequent segments: angle from anterior neighbor's angle minus local curvature
+    for (int i = 1; i < NUM_BODY_SEGMENTS; ++i) {
+        segments_[i].angle = segments_[i - 1].angle - segments_[i].curvature * segment_length_;
     }
 
     // Muscle power model for forward velocity
