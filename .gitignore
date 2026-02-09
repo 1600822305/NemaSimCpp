@@ -1,0 +1,31 @@
+# Build
+build/
+out/
+cmake-build-*/
+*.exe
+*.obj
+*.o
+*.lib
+*.dll
+*.pdb
+*.ilk
+*.exp
+
+# IDE
+.vs/
+.vscode/
+*.user
+*.suo
+*.sln
+*.vcxproj*
+CMakeSettings.json
+.idea/
+
+# Output
+trajectory.csv
+*.csv
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
