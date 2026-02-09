@@ -58,79 +58,90 @@ void BodyModel::compute_curvatures(double dt) {
         // Damped spring toward target curvature
         double dcurv = stiffness_ * (target_curvature - seg.curvature) - damping_ * seg.curvature;
         seg.curvature += dcurv * dt;
+        // Clamp curvature to physiological range (~10/mm max for C. elegans)
+        if (seg.curvature > 3.0) seg.curvature = 3.0;
+        if (seg.curvature < -3.0) seg.curvature = -3.0;
     }
 }
 
 void BodyModel::update_positions(double dt) {
-    // Head segment: curvature drives heading change (kinematic steering)
-    // dθ/dt = curvature * forward_speed — a curved body moving forward naturally turns
-    // REF: Boyle et al. 2012 - worm body kinematics in viscous medium
-    double head_curv = segments_[0].curvature;
-    segments_[0].angle += head_curv * dt * 5.0; // angular rate scaling
+    // ===================================================================
+    // C. elegans locomotion kinematics
+    // REF: Pierce-Shimomura 1999 (pirouette model of chemotaxis)
+    //      Padmanabhan 2012 (curvature wave representation)
+    //      Fang-Yen 2010 (speed ~0.15 mm/s on agar)
+    // ===================================================================
 
-    // Subsequent segments: angle from anterior neighbor's angle minus local curvature
-    for (int i = 1; i < NUM_BODY_SEGMENTS; ++i) {
-        segments_[i].angle = segments_[i - 1].angle - segments_[i].curvature * segment_length_;
-    }
-
-    // Muscle power model for forward velocity
-    // REF: Fang-Yen et al. 2010, Boyle et al. 2012
-    // Speed = muscle_work × wave_efficiency × (C_N/C_T - 1) / C_T
-    // muscle_work: mean |dorsal - ventral| activation (fraction of max muscle force)
-    // wave_efficiency: spatial curvature variance → traveling wave is more efficient
-    // C_N/C_T ratio: anisotropic drag converts lateral undulation to forward thrust
-
-    // 1. Muscle work: mean differential activation across body
+    // --- 1. Forward speed from muscle activity ---
     double muscle_work = 0.0;
     for (auto& seg : segments_) {
         muscle_work += std::abs(seg.dorsal_activation - seg.ventral_activation);
     }
     muscle_work /= NUM_BODY_SEGMENTS;
 
-    // 2. Wave efficiency: curvature spatial variance (1.0 for perfect S-wave, ~0 for uniform)
-    // A traveling wave has alternating positive/negative curvature → high variance
-    double mean_curv = 0.0;
-    for (auto& seg : segments_) mean_curv += seg.curvature;
-    mean_curv /= NUM_BODY_SEGMENTS;
-    double curv_variance = 0.0;
-    for (auto& seg : segments_) {
-        double dc = seg.curvature - mean_curv;
-        curv_variance += dc * dc;
+    // REF: Fang-Yen 2010 — wild-type speed on agar ~0.15 mm/s
+    double v_max = 0.4; // mm/s; muscle_work ~0.3-0.5 → effective speed ~0.12-0.20
+    double forward_speed = v_max * muscle_work;
+
+    // --- 2. Heading update: dθ/dt = v × κ_head ---
+    // REF: Padmanabhan 2012 — body with curvature κ moving at speed v turns at v·κ
+    double head_curv = segments_[0].curvature;
+    double dtheta = forward_speed * head_curv * dt;
+    // Clamp to 50°/s = 0.87 rad/s (run regime)
+    // REF: Pierce-Shimomura 1999 — runs: |dθ/dt| ≤ 50°/s
+    double max_dtheta = 0.87 * dt;
+    if (dtheta > max_dtheta) dtheta = max_dtheta;
+    if (dtheta < -max_dtheta) dtheta = -max_dtheta;
+    segments_[0].angle += dtheta;
+
+    // --- 3. Pirouette probability model ---
+    // REF: Pierce-Shimomura 1999 — pirouette rate is sigmoid of dC/dt
+    // Here: AVA release rate modulates pirouette probability (via neural circuit)
+    // Higher AVA → higher pirouette rate. This emerges from:
+    //   concentration decrease → AWC(OFF) → AIB → AVA → more pirouettes
+    //   concentration increase → ASEL(ON) → AIA ⊣ AIB → suppresses AVA → fewer pirouettes
+    //
+    // Smooth AVA signal (500ms tau for stable probability estimate)
+    smooth_rev_ += (reverse_drive_ - smooth_rev_) * dt / 0.5;
+    mean_rev_ += (smooth_rev_ - mean_rev_) * dt / 5.0; // 5s slow baseline
+
+    // Pirouette rate: base rate modulated exponentially by AVA deviation from mean
+    // base_rate ~0.05 Hz = one per 20 sec (normal exploratory rate)
+    // When AVA is elevated: rate increases; when suppressed: rate decreases
+    double base_rate = 0.05; // Hz (pirouettes per second)
+    double ava_deviation = smooth_rev_ - mean_rev_;
+    double rate = base_rate * std::exp(8.0 * ava_deviation); // k=8 sensitivity
+    if (rate > 2.0) rate = 2.0; // cap at 2 Hz
+    if (rate < 0.005) rate = 0.005; // minimum rate
+
+    // Stochastic pirouette: probability per time step
+    double p_pirouette = rate * dt;
+    // Use a simple deterministic pseudo-random test based on RNG
+    std::uniform_real_distribution<double> uniform(0.0, 1.0);
+    if (uniform(rng_) < p_pirouette) {
+        // Pirouette: random reorientation
+        // REF: Pierce-Shimomura 1999 — post-pirouette bearing distribution
+        segments_[0].angle += angle_dist_(rng_); // uniform [-π, π]
     }
-    curv_variance /= NUM_BODY_SEGMENTS;
-    // Normalize: variance of 0.01 → efficiency 0.5, variance of 0.1 → efficiency ~1.0
-    double wave_eff = 1.0 - std::exp(-curv_variance * 100.0);
-    if (wave_eff < 0.1) wave_eff = 0.1; // minimum efficiency for any bending
 
-    // 3. Temporal activity: curvature change rate boosts efficiency (true undulation)
-    double temporal_activity = 0.0;
-    for (int i = 0; i < NUM_BODY_SEGMENTS; ++i) {
-        double dc = segments_[i].curvature - segments_[i].prev_curvature;
-        temporal_activity += dc * dc;
-    }
-    temporal_activity = std::sqrt(temporal_activity / NUM_BODY_SEGMENTS) / dt;
-    double temporal_boost = 1.0 + std::min(temporal_activity * 10.0, 2.0);
-
-    // 4. Forward speed: v_max × muscle_work × efficiency × temporal_boost
-    // v_max ≈ 0.3 mm/s for C. elegans on agar (Fang-Yen et al. 2010)
-    double v_max = 0.8; // mm/s (compensates for sparse motor mapping: 30/48 segments)
-    double forward_speed = v_max * muscle_work * wave_eff * temporal_boost;
-
+    // --- 4. Update head position (always forward) ---
     Vector2d head_dir = Vector2d::from_angle(segments_[0].angle);
     segments_[0].position += head_dir * forward_speed * dt;
 
-    // Save curvatures for temporal activity calculation
+    // --- 5. Save curvatures ---
     for (int i = 0; i < NUM_BODY_SEGMENTS; ++i) {
         segments_[i].prev_curvature = segments_[i].curvature;
     }
 
-    // Each subsequent segment follows the one in front
+    // --- 6. Body segments follow head ---
+    // REF: Padmanabhan 2012 — θ_i = θ_{i-1} - κ_i × ds
     for (int i = 1; i < NUM_BODY_SEGMENTS; ++i) {
+        segments_[i].angle = segments_[i - 1].angle - segments_[i].curvature * segment_length_;
         Vector2d dir = Vector2d::from_angle(segments_[i].angle);
         segments_[i].position = segments_[i - 1].position - dir * segment_length_;
     }
 
-    // Compute speed
+    // --- 7. Compute speed ---
     Vector2d head_pos = segments_[0].position;
     speed_ = (head_pos - prev_head_pos_).norm() / dt;
     prev_head_pos_ = head_pos;

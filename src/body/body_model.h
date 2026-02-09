@@ -3,6 +3,7 @@
 #include "core/types.h"
 #include <array>
 #include <vector>
+#include <random>
 
 namespace celegans {
 
@@ -36,6 +37,13 @@ public:
     double get_speed() const { return speed_; }
     double get_body_length() const { return body_length_; }
 
+    // Forward/reverse state from command neuron balance
+    // forward_drive: AVB release rate, reverse_drive: AVA release rate
+    void set_locomotion_state(double forward_drive, double reverse_drive) {
+        forward_drive_ = forward_drive;
+        reverse_drive_ = reverse_drive;
+    }
+
     const std::array<BodySegment, NUM_BODY_SEGMENTS>& segments() const { return segments_; }
     std::array<BodySegment, NUM_BODY_SEGMENTS>& segments() { return segments_; }
 
@@ -57,6 +65,14 @@ private:
     double drag_coeff_normal_ = 10.0;   // normal drag (anisotropic for low Re)
     double speed_ = 0.0;             // current locomotion speed (mm/s)
     Vector2d prev_head_pos_;
+    double forward_drive_ = 0.5;     // AVB release rate (instantaneous)
+    double reverse_drive_ = 0.0;     // AVA release rate (instantaneous)
+    double smooth_fwd_ = 0.5;        // smoothed forward drive (100ms tau)
+    double smooth_rev_ = 0.0;        // smoothed reverse drive (100ms tau)
+    double mean_rev_ = 0.0;          // running mean of AVA (2s tau, for adaptive threshold)
+    bool was_reversing_ = false;     // for detecting reversal transitions
+    std::mt19937 rng_{42};           // RNG for pirouette random reorientation
+    std::uniform_real_distribution<double> angle_dist_{-3.14159, 3.14159}; // ±π
 
     void compute_curvatures(double dt);
     void update_positions(double dt);

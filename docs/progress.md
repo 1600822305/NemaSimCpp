@@ -186,14 +186,29 @@ AVB 从 -52.8mV 去极化至 **-36.9mV** (释放率 ~70%), 头部驱动→运动
   V_SMDDL: -65↔-30mV 交替 burst, V_SMDVL: 反相
   速度: 0.05-0.24 mm/s (真实 ~0.2 mm/s, 在生物学范围内)
 
-核心回路 (默认连接组, 70 突触):
+核心回路 (默认连接组, 72 突触):
   趋化性: ASE/AWC/AWA → AIA/AIB/AIY/AIZ → RIA → SMD (头部转向)
+  关键修复: AIA ⊣ AIB (抑制性, Chalasani 2007) — pirouette抑制通路
+  新增: AIY → AVB (促进前进, Gray 2005)
   触觉: ALM → AVD (前触) / PLM → AVA (后触)
   前进: 感觉→AIY→AVB→DB/VB → 背/腹侧体壁肌肉
   后退: AVA → DA/VA → 背/腹侧体壁肌肉
   交叉抑制: DD ↔ VD (背腹交替), SMD dorsal↔ventral (头部半中心)
   左右耦合: AVA L-R / AVB L-R / AVD L-R (间隙连接)
-  新增: AIY/RIB→AVB, SMD/RMD 背腹互抑(GABA), SMD→RMD 同侧兴奋
+
+Step 14 — 感觉转导层 + 趋化性涌现:
+  化学感觉转导: Weber-Fechner双滤波器 (fast 500ms / slow 5000ms)
+    ASEL/AWA: ON响应(浓度升高→兴奋), ASER/AWC: OFF响应(浓度降低→兴奋)
+    信号: relative_change = (fast - slow) / (slow + ε), 饱和非线性
+  运动学: dθ/dt = v × κ_head (Padmanabhan 2012), clamp到50°/s
+  pirouette概率模型 (Pierce-Shimomura 1999):
+    rate = base_rate × exp(k × AVA_deviation), base_rate=0.05Hz
+    AVA release rate 经由神经回路调制: AWC(OFF)→AIB→AVA↑, ASEL(ON)→AIA⊣AIB→AVA↓
+    pirouette = 随机重定向 ∈ [-π, π]
+  验证结果 (60s仿真):
+    趋化指数 CI = +0.213 (approaching food)
+    距食物: 14.1mm → 11.1mm (持续下降)
+    速度: 0.06-0.09 mm/s (文献值 ~0.15 mm/s)
 
 文件结构:
   src/core/         — 4 文件 (types/config/logger .h/.cpp)

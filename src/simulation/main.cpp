@@ -80,8 +80,8 @@ int main(int argc, char* argv[]) {
         }
     });
 
-    // Run for 30 seconds (30000 ms) — enough for chemotaxis to emerge
-    double sim_duration = 30000.0; // ms
+    // Run for 60 seconds (60000 ms) — observe chemotaxis over longer time
+    double sim_duration = 60000.0; // ms
     std::cout << "\n=== C. elegans Neural Simulation ===" << std::endl;
     std::cout << "Neurons: " << sim.connectome().num_neurons() << std::endl;
     std::cout << "Chemical synapses: " << sim.connectome().num_synapses() << std::endl;

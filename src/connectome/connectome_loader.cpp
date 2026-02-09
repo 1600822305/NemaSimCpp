@@ -262,10 +262,16 @@ void ConnectomeLoader::generate_default_connectome(
     add_syn("ALML", "AVDL", 3); add_syn("ALMR", "AVDR", 3);
     add_syn("PLML", "AVAL", 3); add_syn("PLMR", "AVAR", 3);
     // Interneuron → Command interneuron
-    add_syn("AIAL", "AIBL", 5); add_syn("AIAR", "AIBR", 5);
+    // AIA ⊣ AIB: inhibitory (suppresses pirouettes when ON chemosensory active)
+    // REF: Chalasani 2007 — AIA inhibits AIB via inhibitory ACh receptors
+    // NOTE: uses add_syn_inh defined below for inhibitory synapse
+    // (moved to after add_syn_inh lambda definition)
     add_syn("AIBL", "AVAL", 3); add_syn("AIBR", "AVAR", 3);
     add_syn("AIYL", "RIAR", 4); add_syn("AIYR", "RIAL", 4);
     add_syn("AIYL", "AIZL", 3); add_syn("AIYR", "AIZR", 3);
+    // AIY → AVB: promotes forward locomotion
+    // REF: Gray 2005 — AIY ablation reduces forward runs
+    add_syn("AIYL", "AVBL", 3); add_syn("AIYR", "AVBR", 3);
     // Command → Motor
     add_syn("AVAL", "DA01", 5); add_syn("AVAL", "DA02", 4); add_syn("AVAL", "DA03", 3);
     add_syn("AVAL", "VA01", 4); add_syn("AVAL", "VA02", 3); add_syn("AVAL", "VA03", 3);
@@ -300,6 +306,10 @@ void ConnectomeLoader::generate_default_connectome(
             synapses.push_back(s);
         }
     };
+    // AIA ⊣ AIB: inhibitory — suppresses pirouettes when ON chemosensory active
+    // REF: Chalasani 2007 — AIA inhibits AIB, critical for pirouette suppression
+    add_syn_inh("AIAL", "AIBL", 5); add_syn_inh("AIAR", "AIBR", 5);
+
     // Dorsal SMD inhibits ventral SMD (and vice versa) → half-center oscillator
     // Strong inhibition needed: must overcome tonic drive to suppress contralateral side
     add_syn_inh("SMDDL", "SMDVL", 8); add_syn_inh("SMDDR", "SMDVR", 8);

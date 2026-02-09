@@ -170,7 +170,24 @@ void SimulationEngine::step() {
     // 7. Motor output: motor neurons → muscle activations
     motor_controller_.update(neurons_, body_);
 
-    // 8. Body physics update
+    // 8. Command neuron balance → locomotion direction
+    // AVA dominant → reverse, AVB dominant → forward
+    {
+        int ava_l = connectome_.get_neuron_id("AVAL");
+        int ava_r = connectome_.get_neuron_id("AVAR");
+        int avb_l = connectome_.get_neuron_id("AVBL");
+        int avb_r = connectome_.get_neuron_id("AVBR");
+        double ava_rel = 0.0, avb_rel = 0.0;
+        int n = static_cast<int>(neurons_.size());
+        if (ava_l >= 0 && ava_l < n) ava_rel += neurons_[ava_l]->get_transmitter_release_rate();
+        if (ava_r >= 0 && ava_r < n) ava_rel += neurons_[ava_r]->get_transmitter_release_rate();
+        if (avb_l >= 0 && avb_l < n) avb_rel += neurons_[avb_l]->get_transmitter_release_rate();
+        if (avb_r >= 0 && avb_r < n) avb_rel += neurons_[avb_r]->get_transmitter_release_rate();
+        ava_rel *= 0.5; avb_rel *= 0.5; // average L/R
+        body_.set_locomotion_state(avb_rel, ava_rel);
+    }
+
+    // 9. Body physics update
     body_.update_physics(dt_ * 0.001);
 
     // 9. Callback
