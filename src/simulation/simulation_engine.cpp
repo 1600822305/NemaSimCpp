@@ -1247,8 +1247,9 @@ void SimulationEngine::update_food_memory() {
         effective_decay_tau = 5000.0;  // 5s fast clearance (vs normal 90s)
     }
 
-    if (on_food > food_memory_) {
+    if (on_food > food_memory_ && sickness_ < 0.3) {
         // Rising: fast phosphorylation (on food)
+        // Step 26c: ONLY when healthy — sick worm doesn't encode toxic food as "good"
         food_memory_ += (on_food - food_memory_) * dt_ / food_memory_tau_rise_;
     } else {
         // Decaying: slow dephosphorylation (off food), fast if sick
