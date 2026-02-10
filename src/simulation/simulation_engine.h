@@ -137,6 +137,15 @@ private:
     double ria_curv_filtered_ = 0.0;   // filtered cross-correlation output
     double sensory_diff_mean_ = 0.0;   // DC baseline of sensory ON-OFF diff (2s tau)
 
+    // Thermosensory transduction (Step 23 — Mori 1995)
+    struct ThermoMapping {
+        int neuron_id;
+        ThermoTransducer transducer;
+    };
+    std::vector<ThermoMapping> thermo_mappings_;
+    void apply_thermo_input();              // AFD samples temperature field
+    double cultivation_temp_ = 20.0;        // °C, initial cultivation temperature
+
     // Satiety internal state (Step 20c)
     // Models feeding → insulin signaling → reduced NSM sensitivity
     double satiety_ = 0.0;             // [0,1] — 0=hungry, 1=full

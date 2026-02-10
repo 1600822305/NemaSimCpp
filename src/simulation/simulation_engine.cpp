@@ -81,6 +81,10 @@ void SimulationEngine::initialize_default() {
             // TONIC: fires when on food lawn, not responding to changes
             // REF: Sawin 2000 — CEP active on bacterial lawn
             chemo_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::TONIC, 20.0, 1.0, 500.0)});
+        } else if (starts_with(info.name, "AFD")) {
+            // AFD: thermosensory neuron — handled by thermo_mappings, not chemo
+            // ThermoTransducer: gain=60pA/°C, baseline=5pA, Tc_tau=120s, fast_tau=200ms
+            thermo_mappings_.push_back({info.id, ThermoTransducer(60.0, 5.0, 120000.0, 200.0)});
         } else if (!starts_with(info.name, "ALM") && !starts_with(info.name, "PLM")) {
             // Non-touch sensory neurons: low baseline
             other_sensory_ids_.push_back(info.id);
@@ -117,6 +121,17 @@ void SimulationEngine::initialize_default() {
     double init_conc = environment_.sample_chemical(body_.get_head_position());
     for (auto& cm : chemo_mappings_) {
         cm.transducer.reset(init_conc);
+    }
+
+    // 10b. Setup temperature field and thermosensory transducers (Step 23)
+    // Default: linear gradient from left (cold) to right (warm), 0.5°C/mm
+    // Cultivation temperature = arena center temperature (20°C)
+    // This creates a 25mm × 0.5 = 12.5°C range across arena (7.5°C to 32.5°C)
+    environment_.set_temperature_gradient(cultivation_temp_, {1.0, 0.0}, 0.5);
+    double init_temp = environment_.sample_temperature(body_.get_head_position());
+    for (auto& tm : thermo_mappings_) {
+        tm.transducer.reset(init_temp);
+        tm.transducer.set_cultivation_temp(cultivation_temp_);
     }
 
     // 11. Setup neuromodulation (Step 20, Layer 6)
@@ -184,6 +199,9 @@ void SimulationEngine::step() {
     // Touch: low baseline (no stimulus in current environment)
     // REF: Bargmann 2006, Suzuki 2008
     apply_sensory_input();
+
+    // 2b. Thermosensory input: AFD samples temperature field (Step 23)
+    apply_thermo_input();
 
     // 2c. Touch stimulus: wall collision → ALM/PLM activation (Step 18)
     apply_touch_stimulus();
@@ -329,6 +347,23 @@ void SimulationEngine::apply_sensory_input() {
         if (id >= 0 && id < n) {
             neurons_[id]->set_external_current(sensory_baseline_);
         }
+    }
+}
+
+void SimulationEngine::apply_thermo_input() {
+    // Step 23: AFD thermosensory neurons sample temperature at head position
+    // AFD responds to temperature relative to cultivation temperature (Tc)
+    // AFD→AIY: excitatory, drives thermotaxis via shared AIY→RIA→SMD pathway
+    // REF: Mori & Ohshima 1995, Clark 2006, Luo 2014 PNAS
+    int n = static_cast<int>(neurons_.size());
+    Vector2d head_pos = body_.get_head_position();
+    double temperature = environment_.sample_temperature(head_pos);
+
+    for (auto& tm : thermo_mappings_) {
+        if (tm.neuron_id < 0 || tm.neuron_id >= n) continue;
+        double I_thermo = tm.transducer.update(temperature, dt_);
+        // AFD current adds to (not replaces) any existing external current
+        neurons_[tm.neuron_id]->add_synaptic_current(I_thermo);
     }
 }
 

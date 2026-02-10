@@ -333,8 +333,38 @@ int main() {
         }
     }
 
+    // Step 23: Thermotaxis diagnostic
+    {
+        std::cout << "\n14. THERMOTAXIS (Step 23):" << std::endl;
+        Vector2d hp = sim.body().get_head_position();
+        double temp_now = sim.environment().sample_temperature(hp);
+        Vector2d tgrad = sim.environment().temperature_gradient(hp);
+        double tgrad_mag = std::sqrt(tgrad.x * tgrad.x + tgrad.y * tgrad.y);
+        int afdl_id = conn.get_neuron_id("AFDL");
+        int afdr_id = conn.get_neuron_id("AFDR");
+        double afdl_v = (afdl_id >= 0) ? sim.neurons()[afdl_id]->get_membrane_potential() : 0;
+        double afdr_v = (afdr_id >= 0) ? sim.neurons()[afdr_id]->get_membrane_potential() : 0;
+        std::cout << "   Temperature at head: " << std::setprecision(1) << std::fixed << temp_now << " C" << std::endl;
+        std::cout << "   Temp gradient: " << std::setprecision(3) << tgrad_mag << " C/mm"
+                  << " (dir: " << std::setprecision(2) << tgrad.x << ", " << tgrad.y << ")" << std::endl;
+        std::cout << "   AFD: L=" << std::setprecision(2) << afdl_v << " mV  R=" << afdr_v << " mV" << std::endl;
+        // Show AFD→AIY synapse state
+        for (const auto& syn : sim.connectome().synapses()) {
+            int pre = syn.pre_id(), post = syn.post_id();
+            if (pre < 0 || post < 0) continue;
+            const auto& pn = sim.connectome().neuron_infos()[pre].name;
+            const auto& qn = sim.connectome().neuron_infos()[post].name;
+            if (pn == "AFDL" && qn == "AIYL") {
+                std::cout << "   AFDL->AIYL: n=" << std::setprecision(3) << syn.vesicle_pool()
+                          << " S=" << std::setprecision(3)
+                          << (1.0 / (1.0 + std::exp(-(afdl_v - (-35.0)) / 5.0))) << std::endl;
+            }
+        }
+        std::cout << std::defaultfloat;
+    }
+
     // Step 21: Short-term plasticity diagnostic
-    std::cout << "\n13. SYNAPTIC PLASTICITY (Step 21):" << std::endl;
+    std::cout << "\n15. SYNAPTIC PLASTICITY (Step 21):" << std::endl;
     const auto& synapses = sim.connectome().synapses();
     const auto& ninfos = sim.connectome().neuron_infos();
     double avg_vesicle = 0, min_vesicle = 1.0;

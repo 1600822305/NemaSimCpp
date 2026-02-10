@@ -269,22 +269,35 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 - **SimulationEngine 集成**: GPU/CPU 路径自动切换, gap junction 仍 CPU
 - **文件**: `src/compute/` (compute_backend.h, cpu_backend.h, opencl_backend.h/.cpp, kernels.cl)
 
+### Step 23: 温度趋性 (Thermotaxis) ✅ (2026-02-10)
+
+新感觉模态接入已有回路 — 验证架构通用性:
+- **AFD L/R**: 温度感觉神经元 (谷氨酸能), Mori & Ohshima 1995
+- **AFD→AIY** (3 sections): 共享 AIY→RIA→SMD 下游通路 (与趋化相同!)
+- **AFD→AIZ** (2 sections): 冷趋性分支 (Mori 1995 — AIZ 消融→嗜热)
+- **ThermoTransducer**: 培养温度记忆 Tc (tau=120s), dT 响应 (gain=60pA/°C)
+- **温度场**: 线性梯度 0.5°C/mm, 中心 20°C (7.5°C~32.5°C)
+- **饱食调制**: 已通过 AWC-AIA 通路自动实现 (eLife 2021 Hawk — INS-1 肠脑信号)
+- **结果**: AFD 活跃 (-39.9/-45.8 mV), 不破坏趋化 (CI 正常)
+- **架构验证**: 新感觉神经元接入共享节点 AIY, 无需修改下游回路
+- **REF**: Mori 1995, Clark 2006, Luo 2014 PNAS, eLife 2021 Hawk
+
 ---
 
 ## 当前系统状态
 
 ```
 架构: 8 层 (环境/躯体/感知/神经元/连接组/神经调质/运动/行为)
-神经元: 72 个 MVP 子集 (302 全集待加载)
-  感觉: 18 (ASE/AWC/AWA/ASH/ALM/PLM/NSM/CEP, L/R)
+神经元: 74 个 MVP 子集 (302 全集待加载)
+  感觉: 20 (ASE/AWC/AWA/ASH/ALM/PLM/NSM/CEP/AFD, L/R)
   中间: 24 (AIA/AIB/AIY/AIZ/RIA/RIB/RIM/RIC/AVA/AVB/AVD/AVE, L/R)
   运动: 30 (SMD/RMD/SMB 4×2+4 + DA/DB/VA/VB/DD/VD 各3)
-突触: ~110 化学 + 14 间隙连接 (全部带 Tsodyks-Markram STP)
+突触: ~114 化学 + 14 间隙连接 (全部带 Tsodyks-Markram STP)
 神经调质: 3 种 (5-HT, DA, OA) — volume transmission + 饱食度内部状态
 离子通道: 8/14 种 (EGL-19/UNC-2/CCA-1/SHL-1/KQT-3/SLO-1/NCA/MEC)
 神经元模型: 单隔室 HH 分级电位 (L2) + 钙动力学
 身体: 2D 弹性杆 48 段, 22 个运动神经元-肌肉映射
-环境: 50×50 mm, 化学扩散场 + 高斯点源
+环境: 50×50 mm, 化学扩散场 + 高斯点源 + 线性温度梯度 (0.5°C/mm)
 仿真: dt=0.5ms, CPU 实时 (10000步 < 1s), OpenMP 多核
 计算: CPU (默认) + OpenCL GPU 后端 (>500突触自动启用, AMD RX 6950 XT 就绪)
 构建: CMake + MSVC 19.44 + C++20 + vcpkg (OpenCL/ImGui/ImPlot/GLFW)

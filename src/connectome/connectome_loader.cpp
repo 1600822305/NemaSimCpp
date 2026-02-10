@@ -173,6 +173,10 @@ void ConnectomeLoader::generate_default_connectome(
         {"CEPDR", NeuronType::SENSORY, NeurotransmitterType::DOPAMINE},
         {"CEPVL", NeuronType::SENSORY, NeurotransmitterType::DOPAMINE},
         {"CEPVR", NeuronType::SENSORY, NeurotransmitterType::DOPAMINE},
+        // AFD: thermosensory neuron — senses temperature, drives thermotaxis
+        // REF: Mori & Ohshima 1995, Luo 2014 PNAS — AFD→AIY core thermotaxis circuit
+        {"AFDL", NeuronType::SENSORY, NeurotransmitterType::GLUTAMATE},
+        {"AFDR", NeuronType::SENSORY, NeurotransmitterType::GLUTAMATE},
         // Key interneurons
         {"AIAL", NeuronType::INTER, NeurotransmitterType::ACETYLCHOLINE},
         {"AIAR", NeuronType::INTER, NeurotransmitterType::ACETYLCHOLINE},
@@ -392,6 +396,15 @@ void ConnectomeLoader::generate_default_connectome(
     add_syn("AIBL", "RIML", 3); add_syn("AIBR", "RIMR", 3);
     // AVE → RIM: additional reversal input
     add_syn("AVEL", "RIML", 2); add_syn("AVER", "RIMR", 2);
+
+    // Step 23: Thermotaxis circuit — AFD→AIY (Mori & Ohshima 1995)
+    // AFD is the primary thermosensory neuron, AIY is the shared integration node
+    // AFD→AIY: excitatory, ~3 EM sections (Cook 2019)
+    // This shares the AIY→RIA→SMD downstream pathway with chemotaxis (ASE→AIA→AIY)
+    add_syn("AFDL", "AIYL", 3); add_syn("AFDR", "AIYR", 3);
+    // AFD→AIZ: weaker connection, contributes to cryophilic behavior
+    // REF: Mori 1995 — AIZ ablation → thermophilic (loses cold-seeking)
+    add_syn("AFDL", "AIZL", 2); add_syn("AFDR", "AIZR", 2);
 
     // Key gap junctions
     add_gj("AVAL", "AVAR", 10);  // left-right coupling of command interneurons
