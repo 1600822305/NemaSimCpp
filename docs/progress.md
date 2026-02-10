@@ -375,6 +375,19 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 - **REF**: Hendricks 2012 Nature, Ouellette 2018 eNeuro, Iino & Yoshida 2009
 - **文档**: docs/steps/step28_multi_compartment.md
 
+### Step 29: 本体感觉波传播 (Proprioceptive Wave)
+
+- **生物学**: Wen 2012 Neuron — B类MN自身转导本体感觉; Boyle 2012 — 双稳态+拉伸受体沿轴突整合
+- **B类顺序感知**: DB01→seg2(SMD领地), DB02→seg7(DB01领地), DB03→seg15(DB02领地)
+- **D/V交替接力**: DB01(+curv) → VB02(-curv) → DB03(+curv) = S波
+- **A类保持同步**: seg 0/5/15 原始映射不变 (提供基础肌肉驱动力)
+- **曲率扩散**: 0.5 体节间弹性耦合 (Boyle 2012)
+- **ProprioMapping扩展**: sense_start/sense_end字段 (预留多段整合)
+- **关键教训**: A类映射不可改 (改→肌肉驱动减半→speed 0.3→0.1)
+- **结果**: regtest 14 pass; speed 0.3, heading 17.1
+- **REF**: Wen 2012 Neuron, Boyle 2012 Frontiers, Yeon 2018 PLOS Biology
+- **文档**: docs/steps/step29_proprioceptive_wave.md
+
 ---
 
 ## 当前系统状态
@@ -390,7 +403,7 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
   5-HT 源: NSM(食物) + ADF(生病) — 4个源神经元
 离子通道: 8/14 种 (EGL-19/UNC-2/CCA-1/SHL-1/KQT-3/SLO-1/NCA/MEC)
 神经元模型: 单隔室 HH 分级电位 (L2) + 钙动力学
-身体: 2D 弹性杆 48 段, 22 个运动神经元-肌肉映射
+身体: 2D 弹性杆 48 段, 22 个运动神经元-肌肉映射, 体节间曲率扩散(弹性耦合)
 环境: 50×50 mm, 3化学场(food_odor+soluble+repellent) + 线性温度梯度 (0.5°C/mm)
 内部状态: satiety_(泵驱动), sickness_(有毒食物), food_memory_(ARS), fatigue_(睡眠驱动)
 学习: 盐学习(ASER w_mod) + 病原体学习(AWC翻转+WV反向+厌食) + STP习惯化
@@ -405,6 +418,7 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
   感觉基线: 12 感觉神经元 × 15pA 自发活动 (Bargmann 2006)
   头部tonic: 8 头部运动神经元 × 3pA (上游中间神经元驱动)
   本体感觉: MEC stretch-activated 通道 (body curvature → B类 MN)
+  波传播: B类顺序感知前一单元领地 (Wen 2012) + 体节间曲率扩散 0.5 (Boyle 2012)
   通道噪声: 3pA 高斯噪声 (White 1998, 热涨落)
   头部振荡: CCA-1 burst → Ca²⁺ → SLO-1(BK) 适应 → 复极化 → 周期 ~500ms
   半中心CPG: SMD dorsal↔ventral 交叉抑制(3 sections) → 背腹交替 burst (~2Hz)
