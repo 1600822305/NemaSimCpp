@@ -295,6 +295,31 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 - **结果**: CI≈0.4-0.5, satiety振荡0.4-0.55, FOOD↔TEMP切换正常
 - **REF**: Avery (WormBook 2012), Raizen & Avery 1994, Song & Avery 2012 eLife
 
+### Chemotaxis & Reversal 修复 (post-Step 24)
+
+- **pirouette系统**: dC/dt sigmoid 调制 pirouette rate (Pierce-Shimomura 1999)
+  - 饥饿时 dC/dt 调制, 饱食时 d|T-Tc|/dt 调制, satiety sigmoid 混合
+  - r_min=0.01/s, r_max=0.16/s, refractory=2s
+- **导航梯度 vs 食物密度分离**: σ²=144mm²(宽,导航) vs σ²=16mm²(窄,食物检测)
+- **omega atan2方向**: 用完整梯度角度替代仅垂直分量
+- **omega持续时间**: 与angle_to_target成正比 (300-2000ms, Gray 2005)
+- **curvature_bias保护**: omega期间跳过weathervane和SMB的set_curvature_bias
+- **结果**: CI=0.746, time_near_food=51.3%, reversal_rate=0.05/s
+
+### SMD 振荡器修复 (post-Step 24)
+
+- **根因**: omega转弯向SMD注入±200pA, C_m=1.8pF → dV/dt=111mV/ms, 破坏半中心振荡
+- **修复**: 移除omega SMD电流注入, 只保留curvature_bias=±8.0 bypass
+- **结果**: SMD振幅 222→115mV, curvature 0.57→0.19, CI 0.498→0.746
+
+### 回归测试工具 (celegans_regtest.exe)
+
+- **基线对比**: 30s仿真, 12个指标自动检测偏差
+- **电流溯源**: Connectome::trace_inputs() 分解I_syn到每个突触来源
+- **注入检测**: 区分连接组突触 vs 代码注入 (weathervane/omega/neuromod)
+- **自动跟踪**: 指标异常时自动触发电流预算分析
+- **文档**: docs/tools/regression_test.md
+
 ---
 
 ## 当前系统状态
@@ -315,7 +340,8 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 计算: CPU (默认) + OpenCL GPU 后端 (>500突触自动启用, AMD RX 6950 XT 就绪)
 构建: CMake + MSVC 19.44 + C++20 + vcpkg (OpenCL/ImGui/ImPlot/GLFW)
 可视化: Dear ImGui + ImPlot + GLFW, 3列布局, 实时调参+信号链诊断
-状态: 趋化+触觉回避+RIM稳定+神经调质+ARS+觅食循环+STP+盐学习+温度趋性+咽部泵食, 纯涌现 (CI≈0.4-0.5, 83神经元)
+状态: 趋化+触觉回避+RIM稳定+神经调质+ARS+觅食循环+STP+盐学习+温度趋性+咽部泵食, 纯涌现 (CI≈0.75, 83神经元)
+工具: celegans_diag.exe (信号链诊断) + celegans_regtest.exe (回归检测+电流溯源)
 
 运动驱动 (Step 13 — 生物学机制):
   感觉基线: 12 感觉神经元 × 15pA 自发活动 (Bargmann 2006)
@@ -347,7 +373,7 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
   运动学: dθ/dt = v × κ_head, pirouette 概率模型 (AVA 调制)
   Weathervane: ∇C_⊥ → SMD 差异驱动 + 直接曲率偏置 (Iino & Yoshida 2009)
   曲率偏置: curv_gain=45, 梯度法向→头部曲率偏移 (绕过SMD振荡瓶颈)
-  趋化指数: CI = +0.760, 距食物 14.1→3.4mm (60s)
+  趋化指数: CI ≈ 0.75, time_near_food ≈ 50% (300s)
   速度: 0.21 mm/s (speed_scale=2.0, 文献值 ~0.15-0.2 mm/s)
 
 文件结构:
@@ -358,10 +384,10 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
   src/motor/        — 2 文件 (motor_controller .h/.cpp)
   src/environment/  — 5 文件 (environment/chemical_field/sensory_transducer .h/.cpp)
   src/pharynx/      — 1 文件 (pharyngeal_pump.h)
-  src/simulation/   — 4 文件 (simulation_engine .h/.cpp + main.cpp + diag_main.cpp)
+  src/simulation/   — 5 文件 (simulation_engine .h/.cpp + main.cpp + diag_main.cpp + regression_test.cpp)
   src/visualization/ — 3 文件 (vis_app .h/.cpp + vis_main.cpp)
-  docs/             — 2+ 文件 (blueprint.md + progress.md + steps/)
-  总计: 43 文件 (CMakeLists.txt + 41 源文件 + 文档)
+  docs/             — 2+ 文件 (blueprint.md + progress.md + steps/ + tools/)
+  总计: 44 文件 (CMakeLists.txt + 42 源文件 + 文档)
 
 参考项目对标:
   OpenWorm: Sibernetic (SPH 物理) + c302 (NeuroML 神经元) + Geppetto (可视化)
