@@ -106,22 +106,46 @@ struct ProprioMapping {
 将 B 类感知点设在**自身领地边界** (如 DB01→seg4) 而非**前一单元领地内部** (DB01→seg2)
 会导致死锁：神经元需要曲率才能激活，但曲率只来自自身肌肉。
 
+### 曲率数值不稳定 (Forward Euler)
+
+**现象**: diag 300s 速度仅 0.076 mm/s（regtest 30s 显示 0.3）
+
+**根因分析**:
+- 曲率更新使用 Forward Euler: `curv += (stiffness*(target-curv) - damping*curv) * dt`
+- 稳定性条件: `(stiffness+damping)*dt < 2` → `10.5*0.5 = 5.25 >> 2` → **严重不稳定**
+- 曲率每步在 ±3（clamp 上限）之间振荡（1000 Hz 噪声）
+- 背腹两侧 MEC 通道都看到交替的 0/3.0 stretch → 都趋向 m≈0.5
+- 背腹肌肉**同时激活** → |d-v| ≈ 0 → muscle_work ≈ 0 → 速度 ≈ 0
+
+**修复**: 半隐式 Euler（对 stiffness+damping 项隐式处理，无条件稳定）:
+```cpp
+double denom = 1.0 + (stiffness_ + damping_) * dt;
+seg.curvature = (seg.curvature + dt * (stiffness_ * target + diffusion)) / denom;
+```
+
+**效果**: diag speed 0.076 → 0.192 mm/s (+153%)
+
 ## 文件变更
 
 ```
 src/simulation/simulation_engine.cpp  — B 类顺序感知映射 + apply_proprioceptive_stretch
 src/simulation/simulation_engine.h   — ProprioMapping 扩展 (sense_start/end)
-src/body/body_model.cpp              — 体节间曲率扩散代码
+src/body/body_model.cpp              — 半隐式 Euler 曲率动力学 + 体节间扩散
 src/body/body_model.h                — curvature_diffusion_ 成员变量
 ```
 
 ## 验证
 
 ```
-14 pass, 0 FAIL (3 次运行均稳定)
+regtest 30s: 14 pass, 0 FAIL (3 次运行均稳定)
 
 Speed mean:     0.3 mm/s    (baseline 0.3, within tolerance)
 Heading rate:   17.1 deg/s  (baseline 15.0, within tolerance)
+
+diag 300s:
+Speed mean:     0.192 mm/s  (从 0.076 提升 153%)
+Heading rate:   5.15 deg/s
+CI:            -0.31        (病原体学习预期行为)
 Curvature:      0.2 /mm     (正常)
 SMD swing:      60-80 mV    (正常)
 ```
