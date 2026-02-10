@@ -585,8 +585,28 @@ void SimulationEngine::apply_touch_stimulus() {
         if (dist(touch_rng_) < p_omega) {
             omega_pending_ = true;
             omega_end_time_ = current_time_ + 500.0;  // 500ms deep bend
-            // Mostly ventral (C. elegans omega turns are ventrally biased)
-            omega_direction_ = (dist(touch_rng_) < 0.8) ? 1.0 : -1.0;
+
+            // Step 21b: Gradient-biased omega direction (Pierce-Shimomura 1999)
+            // B_after distribution peaks at 0° (toward gradient) — error compensation.
+            // Pirouettes CORRECT course rather than randomize it.
+            // Compute gradient perpendicular to current (post-reversal) heading:
+            Vector2d head_pos = body_.get_head_position();
+            Vector2d grad = environment_.chemical_field().gradient(head_pos);
+            double heading = body_.get_head_angle();
+            double cos_h = std::cos(heading);
+            double sin_h = std::sin(heading);
+            double grad_normal = -sin_h * grad.x + cos_h * grad.y;
+            double grad_mag = std::sqrt(grad.x * grad.x + grad.y * grad.y);
+
+            if (grad_mag > 0.001 && dist(touch_rng_) < 0.70) {
+                // Gradient detected → bias omega toward food (70% probability)
+                // grad_normal > 0 → food is LEFT → dorsal omega (-1) → turn LEFT
+                // grad_normal < 0 → food is RIGHT → ventral omega (+1) → turn RIGHT
+                omega_direction_ = (grad_normal > 0) ? -1.0 : 1.0;
+            } else {
+                // No gradient or 30% random → default ventral bias
+                omega_direction_ = (dist(touch_rng_) < 0.8) ? 1.0 : -1.0;
+            }
         }
     }
 }

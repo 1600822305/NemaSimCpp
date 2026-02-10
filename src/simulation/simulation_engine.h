@@ -156,6 +156,8 @@ private:
     double omega_end_time_ = 0.0;
     double omega_direction_ = 1.0;  // +1 ventral, -1 dorsal
     std::mt19937 touch_rng_{123};
+public:
+    void set_rng_seed(unsigned int seed) { touch_rng_.seed(seed); }
 };
 
 } // namespace celegans

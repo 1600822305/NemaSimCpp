@@ -7,7 +7,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Options
 option(CELEGANS_BUILD_TESTS "Build tests" ON)
-option(CELEGANS_USE_OPENMP "Enable OpenMP parallelization" OFF)
+option(CELEGANS_USE_OPENMP "Enable OpenMP parallelization" ON)
 option(CELEGANS_BUILD_VIS "Build real-time visualization (requires SDL2+ImGui+ImPlot)" ON)
 
 if(CELEGANS_USE_OPENMP)
@@ -85,6 +85,9 @@ target_link_libraries(celegans_sim PRIVATE celegans_simulation)
 # Diagnostic executable (signal chain analysis)
 add_executable(celegans_diag src/simulation/diag_main.cpp)
 target_link_libraries(celegans_diag PRIVATE celegans_simulation)
+if(CELEGANS_USE_OPENMP)
+    target_link_libraries(celegans_diag PRIVATE OpenMP::OpenMP_CXX)
+endif()
 
 # Visualization executable (Dear ImGui + ImPlot + SDL2 + OpenGL)
 if(CELEGANS_BUILD_VIS)

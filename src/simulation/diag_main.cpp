@@ -5,6 +5,9 @@
 #include <cmath>
 #include <vector>
 #include <numeric>
+#ifdef _OPENMP
+#include <omp.h>
+#endif
 
 using namespace celegans;
 
@@ -408,6 +411,70 @@ int main() {
     if (!has_bottleneck) {
         std::cout << "\n  All stages look healthy!" << std::endl;
     }
+
+    // ================================================================
+    // Multi-seed robustness test (10 runs with different RNG seeds)
+    // ================================================================
+    std::cout << "\n========================================" << std::endl;
+    std::cout << "  MULTI-SEED ROBUSTNESS (10 runs, 300s)" << std::endl;
+    std::cout << "========================================\n" << std::endl;
+    std::cout << "  seed   CI     near%   rev/s   final_d" << std::endl;
+
+    const int N_SEEDS = 10;
+    double res_ci[10], res_near[10], res_rev[10], res_dist[10];
+
+    #pragma omp parallel for schedule(dynamic)
+    for (int idx = 0; idx < N_SEEDS; ++idx) {
+        int seed = 100 + idx;
+        SimulationEngine sim2;
+        sim2.initialize_default();
+        sim2.set_rng_seed(static_cast<unsigned int>(seed));
+
+        int nf_samples = 0, tot_samples = 0, rev_count = 0;
+        bool prev_rev = false;
+        double init_dist = 0, final_dist = 0;
+        int steps2 = (int)(duration / sim2.dt());
+        int samp2 = (int)(100.0 / sim2.dt());
+
+        for (int i = 0; i < steps2; ++i) {
+            sim2.step();
+            if (i % samp2 == 0) {
+                Vector2d hp = sim2.body().get_head_position();
+                double dx = hp.x - food.x, dy = hp.y - food.y;
+                double d = std::sqrt(dx*dx + dy*dy);
+                if (tot_samples == 0) init_dist = d;
+                final_dist = d;
+                tot_samples++;
+                if (d < 5.0) nf_samples++;
+                bool cur_rev = sim2.is_reversing();
+                if (cur_rev && !prev_rev) rev_count++;
+                prev_rev = cur_rev;
+            }
+        }
+        res_ci[idx] = (init_dist > 0.01) ? (init_dist - final_dist) / init_dist : 0;
+        res_near[idx] = (tot_samples > 0) ? 100.0 * nf_samples / tot_samples : 0;
+        res_rev[idx] = rev_count / (duration / 1000.0);
+        res_dist[idx] = final_dist;
+    }
+
+    double sum_ci = 0, sum_near = 0, sum_rev = 0;
+    int good_runs = 0;
+    for (int idx = 0; idx < N_SEEDS; ++idx) {
+        sum_ci += res_ci[idx]; sum_near += res_near[idx]; sum_rev += res_rev[idx];
+        if (res_ci[idx] > 0.3) good_runs++;
+        std::cout << "  " << (100+idx) << "  "
+                  << std::setw(6) << std::setprecision(3) << res_ci[idx] << "  "
+                  << std::setw(5) << std::setprecision(1) << std::fixed << res_near[idx] << "  "
+                  << std::setw(5) << std::setprecision(2) << std::fixed << res_rev[idx] << "  "
+                  << std::setw(6) << std::setprecision(1) << std::fixed << res_dist[idx]
+                  << std::defaultfloat << std::endl;
+    }
+    std::cout << "  ----" << std::endl;
+    std::cout << "  AVG: CI=" << std::setprecision(3) << sum_ci/N_SEEDS
+              << "  near=" << std::setprecision(1) << std::fixed << sum_near/N_SEEDS
+              << "%  rev=" << std::setprecision(2) << sum_rev/N_SEEDS
+              << "/s  good=" << good_runs << "/" << N_SEEDS
+              << std::defaultfloat << std::endl;
 
     std::cout << std::endl;
     return 0;
