@@ -529,7 +529,15 @@ void SimulationEngine::apply_touch_stimulus() {
     ava_rel *= 0.5;
 
     bool was_reversing = is_reversing_;
-    is_reversing_ = (ava_rel > 0.6);  // threshold for "actively reversing"
+    // Hysteresis: forward→reverse needs higher threshold (0.65)
+    //             reverse→forward needs lower threshold (0.35)
+    // This models behavioral inertia from RIM gap junctions (Ouellette 2022):
+    // once in a state, the circuit resists switching
+    if (!is_reversing_) {
+        is_reversing_ = (ava_rel > 0.65);  // harder to START reversal
+    } else {
+        is_reversing_ = (ava_rel > 0.35);  // easier to STAY reversing (lower exit threshold)
+    }
 
     if (is_reversing_ && !was_reversing) {
         // Reversal just started

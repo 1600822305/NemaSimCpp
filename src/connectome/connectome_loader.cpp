@@ -184,6 +184,10 @@ void ConnectomeLoader::generate_default_connectome(
         {"AVDR", NeuronType::INTER, NeurotransmitterType::GLUTAMATE},
         {"AVEL", NeuronType::INTER, NeurotransmitterType::ACETYLCHOLINE},
         {"AVER", NeuronType::INTER, NeurotransmitterType::ACETYLCHOLINE},
+        // RIM: reversal-active interneuron, stabilizes forward/reverse states
+        // REF: Ouellette 2022 eLife — RIM gap junctions create behavioral inertia
+        {"RIML", NeuronType::INTER, NeurotransmitterType::GLUTAMATE},
+        {"RIMR", NeuronType::INTER, NeurotransmitterType::GLUTAMATE},
         // Head motor neurons
         {"SMDVL", NeuronType::MOTOR, NeurotransmitterType::ACETYLCHOLINE},
         {"SMDVR", NeuronType::MOTOR, NeurotransmitterType::ACETYLCHOLINE},
@@ -301,7 +305,10 @@ void ConnectomeLoader::generate_default_connectome(
     add_syn("RIAL", "SMDVL", 4); add_syn("RIAR", "SMDVR", 4);
     add_syn("RIAL", "SMDDL", 3); add_syn("RIAR", "SMDDR", 3);
     // Nose touch → reverse
-    add_syn("ASHL", "AVAL", 4); add_syn("ASHR", "AVAR", 4);
+    // ASH→AVA: reduced from 4→2 sections
+    // ASH is primarily nociceptive; 4 sections provided too much tonic drive
+    // pushing AVA close to reversal threshold (release=0.565 vs threshold 0.6)
+    add_syn("ASHL", "AVAL", 2); add_syn("ASHR", "AVAR", 2);
     add_syn("ASHL", "AVDL", 3); add_syn("ASHR", "AVDR", 3);
 
     // Head oscillator: dorsal-ventral cross-inhibition (TD-02)
@@ -365,6 +372,12 @@ void ConnectomeLoader::generate_default_connectome(
     // RIB → AVB (additional forward drive)
     add_syn("RIBL", "AVBL", 2); add_syn("RIBR", "AVBR", 2);
 
+    // RIM connections (Step 19b — Ouellette 2022 eLife)
+    // AIB → RIM: activates RIM during reversals (reversal signal relay)
+    add_syn("AIBL", "RIML", 3); add_syn("AIBR", "RIMR", 3);
+    // AVE → RIM: additional reversal input
+    add_syn("AVEL", "RIML", 2); add_syn("AVER", "RIMR", 2);
+
     // Key gap junctions
     add_gj("AVAL", "AVAR", 10);  // left-right coupling of command interneurons
     add_gj("AVBL", "AVBR", 12);
@@ -372,6 +385,15 @@ void ConnectomeLoader::generate_default_connectome(
     add_gj("AVEL", "AVER", 4);
     add_gj("ASEL", "ASER", 2);
     add_gj("AIBL", "AIBR", 3);
+    // RIM ↔ AVA gap junctions: CRITICAL for forward run stabilization
+    // REF: Ouellette 2022 eLife — RIM gap junctions propagate hyperpolarization
+    //   Forward state: RIM at rest (-60mV) pulls AVA down via gap junction
+    //   → prevents spontaneous reversal initiation (behavioral inertia)
+    //   Reversal state: AIB activates both AVA and RIM → cooperative switch
+    // 2 sections = 1.0 nS — pulls AVA further from reversal threshold
+    add_gj("RIML", "AVAL", 2); add_gj("RIMR", "AVAR", 2);
+    // RIM L-R coupling
+    add_gj("RIML", "RIMR", 3);
     // Touch circuit gap junctions (Chalfie 1985: touch cells → agonist interneurons)
     // ALM → AVD: anterior touch excites backward interneuron
     add_gj("ALML", "AVDL", 4); add_gj("ALMR", "AVDR", 4);

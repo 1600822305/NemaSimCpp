@@ -215,7 +215,11 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
   - AC/DC 分离: 去除 DC 噪声，提取纯相位锁定振荡信号
   - 乘法门控 (Ouellette 2018): <sin(ωt) × sin(ωt)> = DC ≠ 0
 - **头部摆动采样**: sweep_radius=1.5mm, fast_tau=100ms
-- **结果**: CI=0.577 (双机制, 无旁路), 突触 84→96, 神经元 58→62
+- **Phase 3 (RIM稳定)**: 添加 RIM 神经元 + RIM↔AVA gap junction (Ouellette 2022 eLife)
+  - RIM 超极化时 gap junction 传播超极化到 AVA → 阻止自发 reversal
+  - 降低 ASH→AVA 4→2 sections (痛觉不应持续驱动 reversal)
+  - Reversal 检测迟滞: 0.65 入/0.35 出 (行为惯性)
+- **结果**: CI=0.564, reversals 115→8/min, 神经元 62→64
 
 ---
 
@@ -223,11 +227,11 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 
 ```
 架构: 8 层 (环境/躯体/感知/神经元/连接组/神经调质/运动/行为)
-神经元: 62 个 MVP 子集 (302 全集待加载)
+神经元: 64 个 MVP 子集 (302 全集待加载)
   感觉: 12 (ASE/AWC/AWA/ASH/ALM/PLM, L/R)
-  中间: 20 (AIA/AIB/AIY/AIZ/RIA/RIB/AVA/AVB/AVD/AVE, L/R)
+  中间: 22 (AIA/AIB/AIY/AIZ/RIA/RIB/RIM/AVA/AVB/AVD/AVE, L/R)
   运动: 30 (SMD/RMD/SMB 4×2+4 + DA/DB/VA/VB/DD/VD 各3)
-突触: 84 化学 + 8 间隙连接
+突触: ~100 化学 + 14 间隙连接
 离子通道: 8/14 种 (EGL-19/UNC-2/CCA-1/SHL-1/KQT-3/SLO-1/NCA/MEC)
 神经元模型: 单隔室 HH 分级电位 (L2) + 钙动力学
 身体: 2D 弹性杆 48 段, 22 个运动神经元-肌肉映射
@@ -235,7 +239,7 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 仿真: dt=0.5ms, 单核 CPU 实时 (10000步 < 1s)
 构建: CMake + MSVC 19.44 + C++20
 可视化: Dear ImGui + ImPlot + GLFW, 3列布局, 实时调参+信号链诊断
-状态: 趋化(双机制)+触觉回避, 纯神经回路涌现 (CI=0.577, 无旁路, 14.1→6.0mm/60s)
+状态: 趋化(双机制)+触觉回避+RIM稳定, 纯神经回路涌现 (CI=0.564, reversals 8/min, 14.1→6.2mm/60s)
 
 运动驱动 (Step 13 — 生物学机制):
   感觉基线: 12 感觉神经元 × 15pA 自发活动 (Bargmann 2006)
