@@ -60,6 +60,8 @@ int main() {
     bool prev_reversing = false;
     bool prev_omega = false;
     int wall_touch_count = 0;
+    int near_food_samples = 0;   // dist < 5mm
+    int total_samples = 0;
     int total_steps = (int)(duration / sim.dt());
     int sample_interval = (int)(100.0 / sim.dt()); // every 100ms
 
@@ -124,6 +126,10 @@ int main() {
             double dx = head.x - food.x;
             double dy = head.y - food.y;
             double dist = std::sqrt(dx * dx + dy * dy);
+
+            // Track near-food time
+            total_samples++;
+            if (dist < 5.0) near_food_samples++;
 
             // Track touch/reversal/omega events
             bool cur_rev = sim.is_reversing();
@@ -241,6 +247,11 @@ int main() {
               << "  final=" << dists.back() << " mm" << std::endl;
     double ci = (dists.front() - dists.back()) / dists.front();
     std::cout << "   CI=" << std::setprecision(3) << ci << std::endl;
+    double near_pct = (total_samples > 0) ? 100.0 * near_food_samples / total_samples : 0;
+    std::cout << "   time_near_food(<5mm): " << std::setprecision(1) << near_pct << "% ("
+              << std::setprecision(1) << near_food_samples * 0.1 << "s / " << duration/1000.0 << "s)" << std::endl;
+    std::cout << "   reversal_rate: " << std::setprecision(2) << reversal_count / (duration/1000.0) << " /s ("
+              << reversal_count << " total, target ~0.1/s)" << std::endl;
 
     // Step 19b: Intermediate neuron diagnostic — pirouette pathway
     std::cout << "\n11. PIROUETTE SIGNAL CHAIN:" << std::endl;

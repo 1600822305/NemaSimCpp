@@ -862,9 +862,9 @@ void SimulationEngine::update_food_memory() {
     int n = static_cast<int>(neurons_.size());
     int aval = connectome_.get_neuron_id("AVAL");
     if (aval >= 0 && aval < n) {
-        // Scale: 0→0 pA at no memory, up to +4 pA at full memory
-        // 4 pA gently biases AVA toward reversal without constant triggering
-        double ars_current = 4.0 * food_memory_;
+        // Scale: 0→0 pA at no memory, up to +2.5 pA at full memory
+        // 2.5 pA gently biases AVA toward reversal without constant triggering
+        double ars_current = 2.5 * food_memory_;
         neurons_[aval]->add_synaptic_current(ars_current);
     }
 }
