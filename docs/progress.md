@@ -239,8 +239,9 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
   - 神经元 70→72 (RIC L/R)
 - **Step 20d (ARS 局部搜索)**: 防止觅食逃逸
   - food_memory_ (DARPP-32磷酸化): tau_rise=5s, tau_decay=90s
-  - 效应: food_memory→AVA +4pA → 刚离开食物时高频reversal → 留在附近
+  - 效应: food_memory→AVA +2.5pA → 刚离开食物时高频reversal → 留在附近
   - 局部搜索(90s)→全局搜索(food_memory衰减后长距离跑)
+  - **300s结果**: time_near_food=51.6%, CI=0.520, reversal=0.21/s
 - **REF**: Flavell 2013, Sawin 2000, Alkema 2005, You 2008, **Hills 2004**, Calhoun 2014
 
 ---
@@ -262,7 +263,7 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 仿真: dt=0.5ms, 单核 CPU 实时 (10000步 < 1s)
 构建: CMake + MSVC 19.44 + C++20
 可视化: Dear ImGui + ImPlot + GLFW, 3列布局, 实时调参+信号链诊断
-状态: 趋化+触觉回避+RIM稳定+神经调质+行为循环, 纯神经回路涌现 (roaming↔dwelling循环, 72神经元)
+状态: 趋化+触觉回避+RIM稳定+神经调质+ARS+觅食循环, 纯神经回路涌现 (300s near_food=52%, 72神经元)
 
 运动驱动 (Step 13 — 生物学机制):
   感觉基线: 12 感觉神经元 × 15pA 自发活动 (Bargmann 2006)
