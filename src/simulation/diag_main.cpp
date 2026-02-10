@@ -88,6 +88,7 @@ int main() {
     std::vector<double> aval_vs, rial_vs, riar_vs;
     std::vector<double> sht_vs, da_vs, oa_vs, satiety_vs, spd_scale_vs, fmem_vs, dist_vs_time, xpos_vs;
     std::vector<double> pump_rate_vs, pharynx_v_vs;  // Step 24: pharyngeal diagnostics
+    std::vector<double> actual_speed_vs;  // Step 27b: actual body speed for sleep verification
     std::vector<double> rep_dist_vs, ypos_vs, ash_i_vs;  // Step 25: nociception tracking
     std::vector<double> sick_vs;  // Step 26: sickness tracking
     std::vector<double> fatigue_vs;  // Step 27: fatigue/sleep tracking
@@ -216,6 +217,7 @@ int main() {
             sick_vs.push_back(sim.sickness());  // Step 26
             fatigue_vs.push_back(sim.fatigue());  // Step 27
             sleep_vs.push_back(sim.is_sleeping() ? 1 : 0);  // Step 27
+            actual_speed_vs.push_back(speed);  // Step 27b: actual speed
             pump_rate_vs.push_back(sim.pump_rate_hz());
             pharynx_v_vs.push_back(sim.pharynx_V());
 
@@ -369,7 +371,7 @@ int main() {
 
     // Time series: 5-HT, DA, OA, satiety, distance every 20s
     std::cout << "   Time series (every 20s):" << std::endl;
-    std::cout << "     t(s)  dist   x_pos  y_pos  r_dist ASH_I  5-HT   sat   sick  fmem  fatg  slp  spd" << std::endl;
+    std::cout << "     t(s)  dist   x_pos  y_pos  r_dist ASH_I  5-HT   sat   sick  fmem  fatg  slp  speed" << std::endl;
     int samples_per_20s = (int)(20000.0 / 100.0); // 200 samples per 20s
     for (int t = 0; t < 15; ++t) {
         int idx = (t + 1) * samples_per_20s - 1;
@@ -389,7 +391,7 @@ int main() {
                       << std::setprecision(3) << std::setw(5) << fmem_vs[idx] << "  "
                       << std::setprecision(3) << std::setw(5) << fatigue_vs[idx] << "  "
                       << std::setw(3) << sleep_vs[idx] << "  "
-                      << std::setprecision(3) << spd_scale_vs[idx]
+                      << std::setprecision(4) << std::setw(6) << actual_speed_vs[idx]
                       << "  " << mode << std::endl;
         }
     }

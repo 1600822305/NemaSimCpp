@@ -339,7 +339,7 @@ void SimulationEngine::step() {
         if (ris_id_ >= 0 && ris_id_ < nn) {
             double rv = neurons_[ris_id_]->get_membrane_potential();
             double flp11 = 1.0 / (1.0 + std::exp(-(rv - (-35.0)) / 5.0));
-            sleep_speed_factor = 1.0 - 0.9 * flp11;  // up to 90% speed reduction
+            sleep_speed_factor = 1.0 - 0.97 * flp11;  // up to 97% speed reduction (near-atonia)
         }
     }
     body_.set_speed_scale(params.speed_scale * neuromod_.get_speed_scale() * sleep_speed_factor);
@@ -509,10 +509,20 @@ void SimulationEngine::apply_head_tonic() {
     // This small tonic keeps the head circuit near oscillation threshold
     // The actual oscillation emerges from: CCA-1 rebound + cross-inhibition
     // REF: Hendricks 2012, Shen 2016
+    //
+    // Step 27: During sleep, FLP-11 suppresses upstream interneuron drive
+    // RIS inhibits RIA/RIB (approach circuit) → tonic drive drops
+    // REF: Konietzka 2020 — RIS depolarization → cessation of head movement
+    double tonic = head_tonic_;
+    if (is_sleeping_ && ris_id_ >= 0 && ris_id_ < static_cast<int>(neurons_.size())) {
+        double rv = neurons_[ris_id_]->get_membrane_potential();
+        double flp11 = 1.0 / (1.0 + std::exp(-(rv - (-35.0)) / 5.0));
+        tonic *= (1.0 - 0.95 * flp11);  // near-zero tonic during deep sleep
+    }
     int n = static_cast<int>(neurons_.size());
     for (int id : head_motor_ids_) {
         if (id >= 0 && id < n) {
-            neurons_[id]->set_external_current(head_tonic_);
+            neurons_[id]->set_external_current(tonic);
         }
     }
 }
@@ -1835,10 +1845,32 @@ void SimulationEngine::apply_sleep_effects() {
 
     // Effect 4: Suppress head motor oscillation
     // FLP-11 → head motor neurons → reduce head swing amplitude
-    double head_inhibition = -8.0 * flp11;  // up to -8 pA
+    // Strong inhibition needed to overcome CCA-1 rebound oscillator
+    double head_inhibition = -20.0 * flp11;  // up to -20 pA (must exceed tonic 3pA + channel noise)
     for (int id : head_motor_ids_) {
         if (id >= 0 && id < n) {
             neurons_[id]->add_synaptic_current(head_inhibition);
+        }
+    }
+
+    // Effect 5: Suppress ventral cord motor neurons (body wall muscle drive)
+    // FLP-11 → NPR-22 on body wall muscle + motor neurons → atonia
+    // REF: Turek 2016 — FLP-11 receptors include NPR-22 expressed in muscle
+    //      Konietzka 2020 — RIS activation stops ALL locomotion, not just head
+    // These are the DIRECT drivers of muscle_work → speed
+    // Without inhibiting these, residual muscle activity keeps the worm creeping
+    // Strong: must push motor neurons well below threshold to stop muscle contraction
+    // REF: NPR-22 expressed in body wall muscle → direct hyperpolarization
+    double motor_inhibition = -30.0 * flp11;  // up to -30 pA (deep atonia, overcome CCA-1 rebound)
+    const char* motor_names[] = {
+        "DA01", "DA02", "DA03", "DB01", "DB02", "DB03",
+        "VA01", "VA02", "VA03", "VB01", "VB02", "VB03",
+        "DD01", "DD02", "DD03", "VD01", "VD02", "VD03"
+    };
+    for (auto name : motor_names) {
+        int id = connectome_.get_neuron_id(name);
+        if (id >= 0 && id < n) {
+            neurons_[id]->add_synaptic_current(motor_inhibition);
         }
     }
 }
