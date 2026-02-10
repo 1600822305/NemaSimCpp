@@ -61,6 +61,11 @@ struct SimMetrics {
     // Neuromodulation
     double sht_final, oa_final;
     double satiety_max;
+
+    // Step 27: Sleep / Fatigue
+    double fatigue_final;
+    bool is_sleeping_final;
+    double ris_v_final;
 };
 
 SimMetrics run_and_measure(int duration_ms = 30000) {
@@ -184,6 +189,13 @@ SimMetrics run_and_measure(int duration_ms = 30000) {
     m.sht_final = sim.neuromodulation().get_concentration("5-HT");
     m.oa_final = sim.neuromodulation().get_concentration("OA");
 
+    // Step 27: fatigue/sleep state at end of simulation
+    m.fatigue_final = sim.fatigue();
+    m.is_sleeping_final = sim.is_sleeping();
+    int ris_id = conn.get_neuron_id("RIS");
+    m.ris_v_final = (ris_id >= 0 && ris_id < (int)sim.neurons().size())
+        ? sim.neurons()[ris_id]->get_membrane_potential() : -65.0;
+
     return m;
 }
 
@@ -277,7 +289,7 @@ void trace_neuron(const std::string& name) {
                   << std::setw(8) << std::setprecision(2) << non_connectome << " pA"
                   << flag << std::endl;
         std::cout << "\n  NOTE: Non-connectome injection detected!" << std::endl;
-        std::cout << "  Sources: weathervane bias, omega turn, neuromodulation tonic" << std::endl;
+        std::cout << "  Sources: weathervane bias, omega turn, neuromodulation tonic, FLP-11 sleep" << std::endl;
     }
 }
 
@@ -330,6 +342,12 @@ int main(int argc, char* argv[]) {
         // Behavioral (wider tolerance — stochastic)
         {"Reversal count",      (double)m.reversal_count,        5.0,   150, "", ""},
         {"Omega count",         (double)m.omega_count,           3.0,   150, "", ""},
+
+        // Step 27: Sleep system sanity (30s test should NOT trigger sleep)
+        // fatigue should be ~0.1-0.3 at 30s (accumulating but below 0.7 threshold)
+        // is_sleeping must be false (0.0), RIS should be near resting (-50 to -65 mV)
+        {"Fatigue @30s",        m.fatigue_final,                 0.2,   100, "", ""},
+        {"Sleep @30s",          m.is_sleeping_final ? 1.0 : 0.0, 0.0,   10,  "", "RIS"},
     };
 
     // ---- Check each metric ----
