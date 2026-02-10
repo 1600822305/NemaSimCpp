@@ -143,6 +143,11 @@ private:
     double food_memory_tau_decay_ = 90000.0; // ms, slow decay off food (90s, minutes-scale)
     void update_food_memory();          // called each step
 
+    // Short-term plasticity setup (Step 21)
+    void setup_stp_params();            // per-circuit tau_recovery tuning
+    // Salt chemotaxis learning (Step 21c)
+    void update_salt_learning();        // called each step
+
     // Reversal & omega turn tracking
     bool is_reversing_ = false;
     double reversal_start_time_ = 0.0;

@@ -244,6 +244,18 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
   - **300s结果**: time_near_food=51.6%, CI=0.520, reversal=0.21/s
 - **REF**: Flavell 2013, Sawin 2000, Alkema 2005, You 2008, **Hills 2004**, Calhoun 2014
 
+### Step 21: 突触可塑性 (Layer 5) — STD/STF + 盐学习 ✅ (2026-02-10)
+> 详细文档: [steps/step21_synaptic_plasticity.md](steps/step21_synaptic_plasticity.md)
+
+为所有 ~110 个化学突触添加 Tsodyks-Markram 短时可塑性:
+- **STD (囊泡耗竭)**: n(t) ∈ [0,1], dn/dt = (1-n)/τ - α_d·S·n
+- **STF (释放概率易化)**: p(t), dp/dt = (p0-p)/τ_f + α_f·S·(1-p)
+- **分回路 τ**: CPG快(400ms/0.0003), 触觉慢(4000ms/0.0005), 感觉中(1500ms/0.0003)
+- **⚠️ 分级突触适配**: α_d 比脉冲突触小 ~1000× (S 始终>0)
+- **盐学习 (Step 21c)**: satiety→ASER突触权重调制, Δw∝(sat-0.5)×S_pre×S_post
+- **结果**: CI 0.52→0.90, CPG n=0.98(稳定), 触觉 n_min=0.33(习惯化), ASER w_mod=0.97(学习)
+- **REF**: Liu 2009 PNAS, Tsodyks & Markram 1997, Rankin 1990, Tomioka 2006 Neuron
+
 ---
 
 ## 当前系统状态
@@ -254,7 +266,7 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
   感觉: 18 (ASE/AWC/AWA/ASH/ALM/PLM/NSM/CEP, L/R)
   中间: 24 (AIA/AIB/AIY/AIZ/RIA/RIB/RIM/RIC/AVA/AVB/AVD/AVE, L/R)
   运动: 30 (SMD/RMD/SMB 4×2+4 + DA/DB/VA/VB/DD/VD 各3)
-突触: ~110 化学 + 14 间隙连接
+突触: ~110 化学 + 14 间隙连接 (全部带 Tsodyks-Markram STP)
 神经调质: 3 种 (5-HT, DA, OA) — volume transmission + 饱食度内部状态
 离子通道: 8/14 种 (EGL-19/UNC-2/CCA-1/SHL-1/KQT-3/SLO-1/NCA/MEC)
 神经元模型: 单隔室 HH 分级电位 (L2) + 钙动力学
@@ -263,7 +275,7 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 仿真: dt=0.5ms, 单核 CPU 实时 (10000步 < 1s)
 构建: CMake + MSVC 19.44 + C++20
 可视化: Dear ImGui + ImPlot + GLFW, 3列布局, 实时调参+信号链诊断
-状态: 趋化+触觉回避+RIM稳定+神经调质+ARS+觅食循环, 纯神经回路涌现 (300s near_food=52%, 72神经元)
+状态: 趋化+触觉回避+RIM稳定+神经调质+ARS+觅食循环+STP+盐学习, 纯涌现 (CI=0.90, 72神经元)
 
 运动驱动 (Step 13 — 生物学机制):
   感觉基线: 12 感觉神经元 × 15pA 自发活动 (Bargmann 2006)

@@ -41,7 +41,7 @@ void Connectome::build(const std::vector<NeuronInfo>& neuron_infos,
              synapses_.size(), " synapses, ", gap_junctions_.size(), " gap junctions");
 }
 
-void Connectome::compute_synaptic_currents(std::vector<std::unique_ptr<Neuron>>& neurons) {
+void Connectome::compute_synaptic_currents(std::vector<std::unique_ptr<Neuron>>& neurons, double dt) {
     // Reset all synaptic currents
     for (auto& n : neurons) {
         n->reset_synaptic_current();
@@ -57,7 +57,7 @@ void Connectome::compute_synaptic_currents(std::vector<std::unique_ptr<Neuron>>&
 
         double V_pre = neurons[pre]->get_membrane_potential();
         double V_post = neurons[post]->get_membrane_potential();
-        double I = syn.compute_current(V_pre, V_post) * synapse_runtime_scale_;
+        double I = syn.compute_current(V_pre, V_post, dt) * synapse_runtime_scale_;
         neurons[post]->add_synaptic_current(I);
     }
 

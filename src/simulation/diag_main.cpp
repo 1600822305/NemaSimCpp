@@ -304,6 +304,37 @@ int main() {
         }
     }
 
+    // Step 21: Short-term plasticity diagnostic
+    std::cout << "\n13. SYNAPTIC PLASTICITY (Step 21):" << std::endl;
+    const auto& synapses = sim.connectome().synapses();
+    const auto& ninfos = sim.connectome().neuron_infos();
+    double avg_vesicle = 0, min_vesicle = 1.0;
+    int syn_count = 0;
+    for (const auto& syn : synapses) {
+        avg_vesicle += syn.vesicle_pool();
+        if (syn.vesicle_pool() < min_vesicle) min_vesicle = syn.vesicle_pool();
+        syn_count++;
+    }
+    if (syn_count > 0) avg_vesicle /= syn_count;
+    std::cout << "   vesicle_pool: mean=" << std::setprecision(3) << avg_vesicle
+              << "  min=" << min_vesicle << "  (1.0=full, 0.01=depleted)" << std::endl;
+    // Show representative synapses by circuit
+    for (const auto& syn : synapses) {
+        int pre = syn.pre_id(), post = syn.post_id();
+        if (pre < 0 || post < 0 || pre >= (int)ninfos.size() || post >= (int)ninfos.size()) continue;
+        const auto& pn = ninfos[pre].name;
+        const auto& qn = ninfos[post].name;
+        // Show one from each circuit type
+        if ((pn == "SMDDL" && qn == "SMDVL") ||
+            (pn == "ALML" && (qn == "AVDL" || qn == "AVAL")) ||
+            (pn == "ASER" && (qn == "AIAR" || qn == "AIYR"))) {
+            std::cout << "   " << pn << "->" << qn
+                      << ": n=" << std::setprecision(3) << syn.vesicle_pool()
+                      << " p=" << syn.release_prob()
+                      << " w_mod=" << syn.weight_mod() << std::endl;
+        }
+    }
+
     // BOTTLENECK ANALYSIS
     std::cout << "\n========================================" << std::endl;
     std::cout << "  BOTTLENECK ANALYSIS" << std::endl;

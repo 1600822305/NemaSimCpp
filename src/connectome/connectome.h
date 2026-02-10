@@ -19,8 +19,8 @@ public:
                const std::vector<SynapseInfo>& synapse_infos,
                const std::vector<GapJunctionInfo>& gj_infos);
 
-    // Compute all synaptic currents and apply to neurons
-    void compute_synaptic_currents(std::vector<std::unique_ptr<Neuron>>& neurons);
+    // Compute all synaptic currents and apply to neurons (with STP update)
+    void compute_synaptic_currents(std::vector<std::unique_ptr<Neuron>>& neurons, double dt);
 
     // Access
     size_t num_neurons() const { return neuron_infos_.size(); }
@@ -28,6 +28,7 @@ public:
     size_t num_gap_junctions() const { return gap_junctions_.size(); }
 
     const std::vector<ChemicalSynapse>& synapses() const { return synapses_; }
+    std::vector<ChemicalSynapse>& synapses_mut() { return synapses_; }
     const std::vector<GapJunction>& gap_junctions() const { return gap_junctions_; }
     const std::vector<NeuronInfo>& neuron_infos() const { return neuron_infos_; }
 

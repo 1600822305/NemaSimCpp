@@ -122,6 +122,9 @@ void SimulationEngine::initialize_default() {
     // 11. Setup neuromodulation (Step 20, Layer 6)
     setup_neuromodulation();
 
+    // 12. Setup short-term plasticity per circuit (Step 21)
+    setup_stp_params();
+
     LOG_INFO("Chemosensory: ", chemo_mappings_.size(), " neurons with gradient transduction");
     LOG_INFO("Other sensory: ", other_sensory_ids_.size(), " neurons, baseline ", sensory_baseline_, " pA");
     LOG_INFO("Head tonic: ", head_motor_ids_.size(), " head motor neurons, ", head_tonic_, " pA");
@@ -196,7 +199,7 @@ void SimulationEngine::step() {
 
     // 5. Compute synaptic currents (chemical + electrical)
     // NOTE: This resets I_syn_ for all neurons, then adds connectome synaptic currents.
-    connectome_.compute_synaptic_currents(neurons_);
+    connectome_.compute_synaptic_currents(neurons_, dt_);
 
     // Step 19 Phase 2: SMB neck curvature bias (klinotaxis effector)
     apply_smb_neck_bias();
@@ -206,6 +209,9 @@ void SimulationEngine::step() {
 
     // 5b2. Update food memory / ARS (Step 20d)
     update_food_memory();
+
+    // 5b3. Salt chemotaxis learning (Step 21c)
+    update_salt_learning();
 
     // 5c. Neuromodulation update (Step 20, Layer 6)
     // Slow timescale: 5-HT/DA/OA concentrations rise/fall over seconds
@@ -866,6 +872,135 @@ void SimulationEngine::update_food_memory() {
         // 2.5 pA gently biases AVA toward reversal without constant triggering
         double ars_current = 2.5 * food_memory_;
         neurons_[aval]->add_synaptic_current(ars_current);
+    }
+}
+
+// ================================================================
+// Short-Term Plasticity Parameter Setup (Step 21a/b)
+//
+// Different circuits need different recovery time constants:
+// - Motor CPG (SMD/DD/VD cross-inhibition): fast recovery (300-500ms)
+//   to maintain stable oscillation despite continuous activity
+// - Touch (ALM/PLM→AVD/AVA): slow recovery (3-5s)
+//   enables tap habituation (Rankin 1990, Wicks & Rankin 1997)
+// - Sensory (ASE→AIA, AWC→AIB): medium recovery (1-2s)
+//   enables sensory adaptation
+// - Default: moderate recovery (2s)
+//
+// REF: Liu 2009 PNAS (C. elegans graded synaptic depression)
+//      Tsodyks & Markram 1997 (vesicle depletion model)
+// ================================================================
+void SimulationEngine::setup_stp_params() {
+    const auto& ninfos = connectome_.neuron_infos();
+    auto& synapses = connectome_.synapses_mut();
+    int n = static_cast<int>(ninfos.size());
+
+    auto starts_with_any = [](const std::string& name, std::initializer_list<const char*> prefixes) {
+        for (auto p : prefixes) {
+            if (name.compare(0, std::strlen(p), p) == 0) return true;
+        }
+        return false;
+    };
+
+    int cpg_count = 0, touch_count = 0, sensory_count = 0, default_count = 0;
+
+    for (auto& syn : synapses) {
+        int pre = syn.pre_id();
+        int post = syn.post_id();
+        if (pre < 0 || pre >= n || post < 0 || post >= n) continue;
+
+        const std::string& pre_name = ninfos[pre].name;
+        const std::string& post_name = ninfos[post].name;
+
+        // Motor CPG synapses: fast recovery to preserve oscillation
+        // SMD↔SMD, DD↔VD cross-inhibition, RMD connections
+        // n_ss(S=0.5) = 1/(1+0.0003*0.5*400) = 0.94 — CPG stable
+        if (starts_with_any(pre_name, {"SMD", "RMD", "DD", "VD"}) &&
+            starts_with_any(post_name, {"SMD", "RMD", "DD", "VD"})) {
+            //                    tau_rec  alpha_d   tau_f   alpha_f  p0
+            syn.set_stp_params(   400.0,   0.0003,   100.0,  0.001,   0.6);
+            cpg_count++;
+        }
+        // Touch circuit: slow recovery for habituation
+        // ALM/PLM at rest: S≈0.003 → n≈1.0 (full pool)
+        // During touch: S≈0.8 → n_ss=1/(1+0.0005*0.8*4000)=0.38 (strong habituation)
+        else if (starts_with_any(pre_name, {"ALM", "PLM", "ASH"}) &&
+                 starts_with_any(post_name, {"AVD", "AVA", "AVB", "PVC"})) {
+            syn.set_stp_params(  4000.0,   0.0005,   300.0,  0.003,   0.5);
+            touch_count++;
+        }
+        // Sensory → interneuron: medium recovery for adaptation
+        // n_ss(S=0.35) = 1/(1+0.0003*0.35*1500) = 0.86 (mild tonic depression)
+        // n_ss(S=0.7)  = 1/(1+0.0003*0.7*1500)  = 0.76 (visible adaptation)
+        else if (starts_with_any(pre_name, {"ASE", "AWC", "AWA"}) &&
+                 starts_with_any(post_name, {"AIA", "AIB", "AIY", "AIZ"})) {
+            syn.set_stp_params(  1500.0,   0.0003,   200.0,  0.003,   0.5);
+            sensory_count++;
+        }
+        // Default: moderate parameters
+        // n_ss(S=0.3) = 1/(1+0.0003*0.3*2000) = 0.85
+        else {
+            syn.set_stp_params(  2000.0,   0.0003,   200.0,  0.001,   0.5);
+            default_count++;
+        }
+    }
+
+    LOG_INFO("STP setup: CPG=", cpg_count, " touch=", touch_count,
+             " sensory=", sensory_count, " default=", default_count);
+}
+
+// ================================================================
+// Salt Chemotaxis Learning (Step 21c)
+//
+// Models the insulin/PI3K pathway that modulates ASER synaptic output:
+//   Starvation + NaCl → AIA releases INS-1 → DAF-2 on ASER
+//   → PI3K/AGE-1 activation → attenuates ASER→AIA attractive drive
+//
+// Simplified: Δw ∝ -(satiety - 0.5) × pre_activity × post_activity
+//   - satiety > 0.5 (fed): strengthen ASER→AIA (maintain attraction)
+//   - satiety < 0.5 (hungry on food): weaken ASER→AIA (learn aversion)
+//   - Very slow timescale: weight changes ~0.001 per second
+//
+// REF: Tomioka 2006 Neuron, Adachi 2010 Nat Commun
+// ================================================================
+void SimulationEngine::update_salt_learning() {
+    // Only update every 100ms (not every 0.5ms step)
+    if (static_cast<int>(current_time_ / dt_) % 200 != 0) return;
+
+    int n = static_cast<int>(neurons_.size());
+    auto& synapses = connectome_.synapses_mut();
+    const auto& ninfos = connectome_.neuron_infos();
+
+    // Learning signal: how satisfied is the worm?
+    // satiety > 0.5 → reinforce current preferences (fed = good association)
+    // satiety < 0.5 → weaken current preferences (hungry = bad association)
+    double learn_signal = satiety_ - 0.5;  // [-0.5, +0.5]
+
+    // Learning rate: very slow, ~0.001 per second × dt_effective(100ms)
+    double lr = 0.0001;
+
+    for (auto& syn : synapses) {
+        int pre = syn.pre_id();
+        int post = syn.post_id();
+        if (pre < 0 || pre >= n || post < 0 || post >= n) continue;
+
+        const std::string& pre_name = ninfos[pre].name;
+
+        // Only modulate ASER output synapses (salt learning locus)
+        if (pre_name != "ASERL" && pre_name != "ASERR" &&
+            pre_name != "ASER" && pre_name.compare(0, 4, "ASER") != 0) continue;
+
+        // Pre and post activity (sigmoid release)
+        double V_pre = neurons_[pre]->get_membrane_potential();
+        double V_post = neurons_[post]->get_membrane_potential();
+        double S_pre = 1.0 / (1.0 + std::exp(-(V_pre - (-35.0)) / 5.0));
+        double S_post = 1.0 / (1.0 + std::exp(-(V_post - (-35.0)) / 5.0));
+
+        // Hebbian-like: Δw = lr × learn_signal × pre × post
+        // Positive learn_signal (fed) → strengthen active synapses
+        // Negative learn_signal (hungry) → weaken active synapses
+        double dw = lr * learn_signal * S_pre * S_post;
+        syn.adjust_weight_mod(dw);
     }
 }
 
