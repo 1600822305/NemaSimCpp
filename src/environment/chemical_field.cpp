@@ -13,7 +13,7 @@ void ChemicalField::initialize(double width, double height, int grid_nx, int gri
     concentration_.assign(nx_ * ny_, 0.0);
 }
 
-void ChemicalField::add_point_source(Vector2d pos, double strength) {
+void ChemicalField::add_point_source(Vector2d pos, double strength, double sigma2) {
     sources_.push_back({pos, strength});
     // Initialize Gaussian around source
     for (int iy = 0; iy < ny_; ++iy) {
@@ -21,7 +21,6 @@ void ChemicalField::add_point_source(Vector2d pos, double strength) {
             double cx = (ix + 0.5) * dx_;
             double cy = (iy + 0.5) * dy_;
             double r2 = (cx - pos.x) * (cx - pos.x) + (cy - pos.y) * (cy - pos.y);
-            double sigma2 = 144.0; // mm² (σ≈12mm, matches biological diffusion: 2Dt≈144mm²)
             concentration_[idx(ix, iy)] += strength * std::exp(-r2 / (2.0 * sigma2));
         }
     }

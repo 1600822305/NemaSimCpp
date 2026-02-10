@@ -22,9 +22,10 @@ public:
                     double fast_tau = 100.0,      // ms, fast tracker (Step 19: 500→100ms)
                                                   // Must track 2Hz head oscillation for klinotaxis
                                                   // REF: Suzuki 2008 — ASE response ~50-200ms
-                    double slow_tau = 5000.0)     // ms, slow adaptation (seconds)
+                    double slow_tau = 5000.0,     // ms, slow adaptation (seconds)
+                    double half_max = 0.1)        // TONIC half-max concentration
         : type_(type), gain_(gain), baseline_(baseline),
-          fast_tau_(fast_tau), slow_tau_(slow_tau) {}
+          fast_tau_(fast_tau), slow_tau_(slow_tau), half_max_(half_max) {}
 
     // Update with new concentration sample, returns input current (pA)
     // Uses fast-slow dual filter: detects RELATIVE concentration changes
@@ -56,7 +57,7 @@ public:
 
         // Saturating nonlinearity
         double sat_response = (type_ == ResponseType::TONIC)
-            ? response / (response + 0.1)  // half-max at C=0.1
+            ? response / (response + half_max_)  // half-max configurable
             : response / (1.0 + std::abs(response) * 2.0);
 
         // Total current = baseline + modulation (clamped)
@@ -78,6 +79,7 @@ private:
     double baseline_;
     double fast_tau_;
     double slow_tau_;
+    double half_max_;
 
     double fast_ = 0.0;     // fast-tracking filter
     double slow_ = 0.0;     // slow-adapting filter

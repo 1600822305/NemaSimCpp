@@ -17,8 +17,8 @@ public:
 
     void initialize(double width, double height, int grid_nx = 100, int grid_ny = 100);
 
-    // Add a point source of attractant
-    void add_point_source(Vector2d pos, double strength);
+    // Add a point source of attractant (sigma2: Gaussian spread in mm²)
+    void add_point_source(Vector2d pos, double strength, double sigma2 = 144.0);
 
     // Sample concentration at a position
     double sample(Vector2d pos) const;

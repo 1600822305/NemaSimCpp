@@ -71,9 +71,13 @@ void SimulationEngine::initialize_default() {
             chemo_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::ON, 80.0, 5.0, 100.0)});
         } else if (starts_with(info.name, "ASH")) {
             // Step 25: ASH nociceptors sample REPELLENT field (not attractant)
-            // ON-type: excited by repellent concentration increase
+            // TONIC: responds to absolute repellent concentration (not dC/dt)
+            // gain=40: C=0.7 → sat=0.875 → I=3+40×0.875=38pA (matches ASE ~20-30pA range)
             // REF: Summers 2015 JNeurosci — ASH→AIB→AVA nociceptive circuit
-            noci_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::ON, 60.0, 3.0)});
+            //      Bargmann & Kaplan 1998 — ASH tonic response to noxious stimuli
+            // half_max=0.5: only strong response at high concentration (near source)
+            // At C=0.5: I=3+40×0.5=23pA, at C=0.2: I=3+40×0.29=14pA, at C=0.05: I=3+40×0.09=7pA
+            noci_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::TONIC, 40.0, 3.0, 500.0, 5000.0, 0.5)});
         } else if (starts_with(info.name, "NSM")) {
             // NSM: pharyngeal neuron, detects food (absolute concentration)
             // TONIC: fires proportionally to food concentration, not dC/dt

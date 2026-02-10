@@ -47,7 +47,9 @@ int main() {
     // Step 25: repellent at (30,30) — between start and food, blocking direct path
     Vector2d food{35.0, 35.0};
     Vector2d repellent{30.0, 30.0};
-    sim.environment().repellent_field().add_point_source(repellent, 0.8);
+    // σ²=25mm² (σ≈5mm): localized toxin, not wide diffusion like attractant σ²=144
+    // At 5mm: C=0.8×exp(-25/50)=0.49, at 8mm: C=0.8×exp(-64/50)=0.22, at 12mm: C≈0.06
+    sim.environment().repellent_field().add_point_source(repellent, 0.8, 25.0);
 
     auto& conn = sim.connectome();
 
