@@ -488,6 +488,18 @@ void SimulationEngine::apply_weathervane() {
     double chemo_wv_gain = 1.0 - 0.85 * sat_switch_wv;  // fed: 0.15, hungry: 1.0
     double bias_current = weathervane_gain * grad_normal * chemo_wv_gain;
 
+    // Step 25: Repellent weathervane — turn AWAY from repellent gradient
+    // Symmetric to attractant weathervane but with reversed sign
+    // Without this: worm bounces back and forth (hit→reverse→attract→hit)
+    // With this: worm continuously deflects around repellent zone
+    Vector2d rep_grad = environment_.repellent_field().gradient(head_pos);
+    double rep_grad_normal = -sin_h * rep_grad.x + cos_h * rep_grad.y;
+    // Negative sign: curve AWAY from repellent gradient (opposite to attractant)
+    // Gain matches attractant weathervane so forces compete symmetrically
+    // Not modulated by satiety: nociceptive avoidance is unconditional
+    double rep_bias = -weathervane_gain * rep_grad_normal;
+    bias_current += rep_bias;
+
     // Step 23c: Temperature weathervane — turn toward Tc when fed
     // Navigate to minimize |T - Tc|: bias = -sign(T-Tc) × grad_T_normal
     // This steers toward Tc regardless of which side the worm is on
@@ -532,6 +544,9 @@ void SimulationEngine::apply_weathervane() {
     //   0.15 → 0.035 to maintain same turning radius (~2mm at 14mm from food)
     double curv_gain = weathervane_gain * 0.06;
     double curv_bias = curv_gain * grad_normal * chemo_wv_gain;
+    // Step 25: Repellent curvature bias (same bypass, opposite sign)
+    double rep_curv_bias = -curv_gain * rep_grad_normal;
+    curv_bias += rep_curv_bias;
     // Add temperature curvature bias (same bypass for temp weathervane)
     double temp_curv_bias = 30.0 * 0.15 * temp_sign * temp_grad_normal * thermo_wv_gain;
     curv_bias += temp_curv_bias;
