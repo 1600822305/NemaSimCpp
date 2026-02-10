@@ -337,12 +337,15 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 - **生物学**: Zhang 2005 Nature — 吃致病菌→生病→学会回避同种气味 (条件性味觉厌恶)
 - **新增神经元**: ADF L/R (5-HT源) — 85总神经元
 - **新增突触**: ADF→AIY(2, MOD-1抑制), ADF→AIZ(1) — ~120总突触
-- **Sickness状态**: 在有毒食物区进食时累积 (τ_rise=30s, τ_decay=120s)
+- **Sickness状态**: 在有毒食物区进食时累积 (τ_rise=30s, τ_decay=600s 持久记忆)
 - **ADF驱动**: I_ext = 2 + 30×sickness_ (最高32pA → 5-HT释放 → MOD-1抑制AIY)
-- **AWC突触翻转**: AWC→AIY w_mod↓ (-12%), AWC→AIB w_mod↑ (+12%) — 趋近→回避
-- **三层化学回避**: 先天ASH(即时) + 学习AWC翻转(~30s) + 5-HT调制(秒级)
-- **结果**: regtest 12 pass; sickness=1.0, ADF=32pA, CI=0.655
-- **REF**: Zhang 2005 Nature, Ha 2010 Neuron, Frontiers Immunol 2024
+- **AWC突触翻转**: lr=0.003(15x), AWC→AIY w_mod↓0.1(底限), AWC→AIB w_mod↑2.3(+130%)
+- **Weathervane AWC偏好翻转**: awc_pref=(w_mod-0.55)×3.0, 学后=-1.35(排斥力>引诱力)
+- **疾病性厌食**: sick_suppression=1-0.85×sickness(化学感觉降到15%)
+- **多化学物种**: soluble_field_基础设施(ASE独立通道就绪)
+- **三层化学回避**: 先天ASH(即时) + 学习AWC翻转(~60s) + 5-HT调制(秒级)
+- **结果**: regtest 12 pass; **CI=-0.46(反向!)**, dist=14.6mm, time_near=18%
+- **REF**: Zhang 2005 Nature, Ha 2010 Neuron, Bargmann 2006
 - **文档**: docs/steps/step26_pathogen_learning.md
 
 ---
@@ -361,14 +364,14 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 离子通道: 8/14 种 (EGL-19/UNC-2/CCA-1/SHL-1/KQT-3/SLO-1/NCA/MEC)
 神经元模型: 单隔室 HH 分级电位 (L2) + 钙动力学
 身体: 2D 弹性杆 48 段, 22 个运动神经元-肌肉映射
-环境: 50×50 mm, 化学扩散场(引诱+排斥) + 高斯点源 + 线性温度梯度 (0.5°C/mm)
+环境: 50×50 mm, 3化学场(food_odor+soluble+repellent) + 线性温度梯度 (0.5°C/mm)
 内部状态: satiety_(泵驱动), sickness_(有毒食物), food_memory_(ARS)
-学习: 盐学习(ASER w_mod) + 病原体学习(AWC翻转) + STP习惯化
+学习: 盐学习(ASER w_mod) + 病原体学习(AWC翻转+WV反向+厌食) + STP习惯化
 仿真: dt=0.5ms, CPU 实时 (10000步 < 1s), OpenMP 多核
 计算: CPU (默认) + OpenCL GPU 后端 (>500突触自动启用, AMD RX 6950 XT 就绪)
 构建: CMake + MSVC 19.44 + C++20 + vcpkg (OpenCL/ImGui/ImPlot/GLFW)
 可视化: Dear ImGui + ImPlot + GLFW, 3列布局, 实时调参+信号链诊断
-状态: 趋化+触觉回避+化学回避+排斥weathervane+病原体学习+RIM稳定+神经调质+ARS+觅食循环+STP+盐学习+温度趋性+咽部泵食, 纯涌现 (CI≈0.65, 85神经元)
+状态: 趋化+触觉回避+化学回避+排斥weathervane+病原体学习(CI反向!)+多化学物种+RIM稳定+神经调质+ARS+觅食循环+STP+盐学习+温度趋性+咽部泵食, 纯涌现 (85神经元)
 工具: celegans_diag.exe (信号链诊断) + celegans_regtest.exe (回归检测+电流溯源)
 
 运动驱动 (Step 13 — 生物学机制):

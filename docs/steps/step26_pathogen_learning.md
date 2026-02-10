@@ -82,7 +82,7 @@ if (eating_toxic) {
     double toxicity = toxin_here / (toxin_here + 0.3);  // 饱和函数
     sickness_ += toxicity * dt / tau_rise;  // tau_rise = 30s (加速版4-6小时)
 } else {
-    sickness_ -= sickness_ * dt / tau_decay;  // tau_decay = 120s (缓慢恢复)
+    sickness_ -= sickness_ * dt / tau_decay;  // tau_decay = 600s (持久记忆, ~10分钟)
 }
 ```
 
@@ -90,31 +90,65 @@ if (eating_toxic) {
 
 ```cpp
 // 每 100ms 更新, 仅当 sickness_ > 0.05
-double lr = 0.0002 * sickness_;  // 学习率 ∝ 生病程度
+double lr = 0.003 * sickness_;  // 学习率 ∝ 生病程度 (15x原始值)
+// w_mod 在 ~80s 持续生病内变化 ±50% (800更新 × 0.003 × S_pre≈0.2 = 0.48)
 
 // AWC→AIY: 减弱趋近通路
-syn.adjust_weight_mod(-lr * S_pre);
+syn.adjust_weight_mod(-lr * S_pre);  // → 降到 0.1 (底限)
 
 // AWC→AIB: 增强回避通路
-syn.adjust_weight_mod(+lr * S_pre);
+syn.adjust_weight_mod(+lr * S_pre);  // → 升到 ~2.8
 ```
+
+### 5. Weathervane AWC 偏好翻转 (Step 26b)
+
+```cpp
+// AWC→AIY w_mod → awc_pref: 不对称缩放
+// 回避代价 > 错过食物代价 → 排斥力 > 引诱力
+awc_pref = (mean_w_mod - 0.55) * 3.0;  // clamp [-2.0, +1.0]
+// w_mod=1.0 → pref=+1.0 (天真吸引)
+// w_mod=0.1 → pref=-1.35 (强排斥, 1.35× 吸引力!)
+
+// 食物气味 weathervane *= awc_pref
+// 学习后: weathervane 反向, 主动推离食物!
+```
+
+### 6. Sickness 化学感觉抑制 (疾病性厌食)
+
+```cpp
+// REF: DAF-7 (TGF-β) from ASI 减少食物吸引
+double sick_suppression = 1.0 - 0.85 * sickness_;  // 生病: 15% 残余
+// 作用于 ASE/AWC/AWA 神经驱动 (NOT NSM/CEP 食物检测)
+// Weathervane 不受影响 (独立通路, 由 awc_pref 调制)
+```
+
+### 7. 多化学物种基础设施 (Step 26b)
+
+- 新增 `soluble_field_` (水溶性化学物: 盐/氨基酸)
+- 食物源同时发射 food_odor (σ²=144) + soluble (σ²=144, strength=0.4)
+- ASE 暂留 chemo_mappings_ (回归安全); soluble_mappings_ 就绪
+- REF: Bargmann 2006 — AWC 检测挥发性气味, ASE 检测离子
 
 ## 信号链
 
 ```
 第一次 (天真):
   食物气味 → AWC(OFF) → AIY(强) → 趋近 → 到达食物
+  weathervane: food_odor 梯度 → awc_pref=+1.0 → 曲向食物
   进食 → 咽部泵(Step 24) → 摄入有毒食物
   sickness_ ↑ → ADF TPH-1 ↑ → 5-HT ↑
 
-学习过程:
+学习过程 (~60s):
   5-HT → MOD-1 → AIY 被抑制 (趋近受阻)
-  sickness → AWC→AIY w_mod ↓ (长期减弱)
-  sickness → AWC→AIB w_mod ↑ (长期增强)
+  sickness → AWC→AIY w_mod ↓ → 0.1 (底限! 趋近关闭)
+  sickness → AWC→AIB w_mod ↑ → 2.8 (回避增强 3×)
+  sickness → 化学感觉增益 × 0.15 (厌食)
 
-第二次 (学会了):
+学习后 (永久):
   同样气味 → AWC → AIB(增强) → AVA → 回避!
-  同样气味 → AWC → AIY(减弱 + 被5-HT抑制) → 不趋近
+  同样气味 → AWC → AIY(w_mod=0.1, 几乎无效) → 不趋近
+  weathervane: awc_pref=-1.35 → 主动推离食物气味!
+  化学感觉: 15% 残余 → klinokinesis 无法拉回
 ```
 
 ## 三层化学回避体系
@@ -129,34 +163,38 @@ syn.adjust_weight_mod(+lr * S_pre);
 
 ### Regtest (无排斥源): 12 pass, 0 FAIL
 - 无排斥物时 sickness_=0, ADF 只有 2pA baseline → 无影响
+- awc_pref=+1.0 (天真) → weathervane 行为不变
 
 ### Diag (有毒食物: 食物和排斥物同在 35,25):
 
 ```
-t=20:  dist=5.41, sick=0.224  → 接近食物 (天真)
-t=40:  dist=1.46, sick=0.671  → 到达食物！开始生病
-t=60:  dist=2.62, sick=1.000  → MAX sickness, 离开
-t=100: dist=8.36, sick=1.000  → 远离食物
-t=200: dist=3.58, sick=1.000  → 又靠近 (趋化拉力)
-t=280: dist=9.62, sick=0.881  → 最终远离
-t=300: dist=3.45, sick=1.000  → CI=0.655
+t=20:  dist=5.92, sick=0.198  → 接近食物 (天真)
+t=40:  dist=1.83, sick=0.635  → 到达食物！开始生病
+t=60:  dist=2.42, sick=1.000  → MAX sickness, 离开
+t=100: dist=9.59, sick=0.996  → 远离食物
+t=120: dist=11.12            → 很远! 学会了
+t=200: dist=6.90, sick=1.000  → 短暂接近但不到食物
+t=260: dist=15.09             → 最远！完全回避
+t=300: dist=14.62, sick=0.858 → CI=-0.463 (反向趋化!)
 ```
 
-- **sickness = 1.0** (最大值, 持续吃毒食)
-- **ADFL I_ext = 32pA** (被 sickness 强烈激活)
-- **AWC→AIY w_mod = 0.880** (-12%, 趋近减弱)
-- **AWC→AIB w_mod = 1.120** (+12%, 回避增强)
-- **5-HT = 0.787** (NSM+ADF 双源释放)
-- All stages healthy, CI=0.655
+- **CI = -0.463** (反向! 主动远离有毒食物)
+- **time_near_food = 18.0%** (vs 天真时 40.6%)
+- **AWC→AIY w_mod = 0.10** (底限! 趋近通路关闭)
+- **AWC→AIB w_mod = 2.32** (+132%, 回避通路大幅增强)
+- **ADFL I_ext = 28-32pA** (被 sickness 强烈激活)
+- **awc_pref ≈ -1.35** (weathervane 排斥食物气味)
+- **sick_suppression ≈ 0.15** (化学感觉大幅抑制)
 
 ## 修改文件
 
 | 文件 | 修改 |
 |------|------|
 | `connectome_loader.cpp` | 新增 ADFL/ADFR (5-HT), ADF→AIY(2), ADF→AIZ(1) |
-| `simulation_engine.h` | sickness_, adf_ids_, aiy_ids_, update_sickness(), update_pathogen_learning() |
-| `simulation_engine.cpp` | ADF 驱动, ADF 5-HT源注册, sickness累积, AWC突触翻转, ADF排除 |
-| `diag_main.cpp` | 有毒食物场景, sickness追踪, PATHOGEN LEARNING诊断输出 |
+| `simulation_engine.h` | sickness_, adf_ids_, aiy_ids_, tau_decay=600s, soluble_mappings_ |
+| `simulation_engine.cpp` | lr=0.003, AWC偏好weathervane, sick_suppression, soluble_field_基础设施 |
+| `environment.h/.cpp` | 新增 soluble_field_ (水溶性化学通道) |
+| `diag_main.cpp` | 有毒食物场景, sickness追踪, 多化学物种源 |
 
 ## 参考文献
 
