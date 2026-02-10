@@ -60,6 +60,8 @@ public:
 
     // Satiety (Step 20c)
     double satiety() const { return satiety_; }
+    // Food memory / ARS (Step 20d)
+    double food_memory() const { return food_memory_; }
 
     // Callback for each step (for logging/visualization)
     using StepCallback = std::function<void(const SimulationEngine&, int step_num)>;
@@ -132,6 +134,14 @@ private:
     double satiety_tau_deplete_ = 40000.0; // ms to get hungry (40s off food)
     void update_satiety();              // called each step
     std::vector<int> ric_ids_;          // RIC neuron IDs (OA source, tonic drive)
+
+    // Area-Restricted Search (Step 20d)
+    // Models DA → DARPP-32 phosphorylation → GLR-1 enhancement → more reversals
+    // REF: Hills 2004 J Neurosci, Wakabayashi 2004, Calhoun 2014 eLife
+    double food_memory_ = 0.0;          // [0,1] DARPP-32 phosphorylation level
+    double food_memory_tau_rise_ = 5000.0;   // ms, fast rise on food (5s)
+    double food_memory_tau_decay_ = 90000.0; // ms, slow decay off food (90s, minutes-scale)
+    void update_food_memory();          // called each step
 
     // Reversal & omega turn tracking
     bool is_reversing_ = false;

@@ -239,6 +239,7 @@ void VisApp::update_neuromod() {
     da_history_.push_back(engine_.neuromodulation().get_concentration("DA"));
     oa_history_.push_back(engine_.neuromodulation().get_concentration("OA"));
     satiety_history_.push_back(engine_.satiety());
+    fmem_history_.push_back(engine_.food_memory());
     speed_mod_history_.push_back(engine_.neuromodulation().get_speed_scale());
     // Keep last 60000 points (~600s at 10ms interval)
     if (neuromod_times_.size() > 60000) {
@@ -247,6 +248,7 @@ void VisApp::update_neuromod() {
         da_history_.erase(da_history_.begin(), da_history_.begin() + 30000);
         oa_history_.erase(oa_history_.begin(), oa_history_.begin() + 30000);
         satiety_history_.erase(satiety_history_.begin(), satiety_history_.begin() + 30000);
+        fmem_history_.erase(fmem_history_.begin(), fmem_history_.begin() + 30000);
         speed_mod_history_.erase(speed_mod_history_.begin(), speed_mod_history_.begin() + 30000);
     }
 }
@@ -508,9 +510,12 @@ void VisApp::render_neuron_panel() {
                 // OA: orange
                 ImPlot::SetNextLineStyle(ImVec4(1.0f, 0.6f, 0.1f, 1), 2.0f);
                 ImPlot::PlotLine("OA", neuromod_times_.data(), oa_history_.data(), (int)neuromod_times_.size());
-                // Satiety: white dashed
+                // Satiety: white
                 ImPlot::SetNextLineStyle(ImVec4(0.8f, 0.8f, 0.8f, 0.7f), 1.5f);
                 ImPlot::PlotLine(u8"\u9971\u98df\u5ea6", neuromod_times_.data(), satiety_history_.data(), (int)neuromod_times_.size());
+                // Food memory (DARPP-32): yellow
+                ImPlot::SetNextLineStyle(ImVec4(1.0f, 1.0f, 0.2f, 0.8f), 1.5f);
+                ImPlot::PlotLine(u8"\u98df\u7269\u8bb0\u5fc6", neuromod_times_.data(), fmem_history_.data(), (int)neuromod_times_.size());
                 ImPlot::EndPlot();
             }
             double sht_now = sht_history_.back();
@@ -524,6 +529,9 @@ void VisApp::render_neuron_panel() {
             ImGui::TextColored(ImVec4(1,0.6f,0.1f,1), u8"  OA=%.3f", oa_now);
             ImGui::SameLine();
             ImGui::TextColored(ImVec4(0.8f,0.8f,0.8f,1), u8"  \u9971\u98df=%.2f", sat_now);
+            ImGui::SameLine();
+            double fmem_now = fmem_history_.back();
+            ImGui::TextColored(ImVec4(1,1,0.2f,1), u8"  \u8bb0\u5fc6=%.2f", fmem_now);
         }
     }
 

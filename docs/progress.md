@@ -237,7 +237,11 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
   - 饱食度: on-food累积(tau=20s), NSM抑制+RIC激励+ASE/AWC趋化抑制
   - 循环: roam→dwell(5-HT峰)→satiety↑→leave food→hungry→roam
   - 神经元 70→72 (RIC L/R)
-- **REF**: Flavell 2013 Cell, Sawin 2000, Chase & Koelle 2007, Alkema 2005, You 2008
+- **Step 20d (ARS 局部搜索)**: 防止觅食逃逸
+  - food_memory_ (DARPP-32磷酸化): tau_rise=5s, tau_decay=90s
+  - 效应: food_memory→AVA +4pA → 刚离开食物时高频reversal → 留在附近
+  - 局部搜索(90s)→全局搜索(food_memory衰减后长距离跑)
+- **REF**: Flavell 2013, Sawin 2000, Alkema 2005, You 2008, **Hills 2004**, Calhoun 2014
 
 ---
 

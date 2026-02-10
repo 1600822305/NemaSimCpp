@@ -204,6 +204,9 @@ void SimulationEngine::step() {
     // 5b. Update satiety + RIC tonic drive (Step 20c)
     update_satiety();
 
+    // 5b2. Update food memory / ARS (Step 20d)
+    update_food_memory();
+
     // 5c. Neuromodulation update (Step 20, Layer 6)
     // Slow timescale: 5-HT/DA/OA concentrations rise/fall over seconds
     // Effects: tonic currents on target neurons, speed modulation
@@ -808,7 +811,7 @@ void SimulationEngine::update_satiety() {
     // REF: Tomioka 2006 — insulin signaling modulates chemotaxis
     //      Chalasani 2010 — neuropeptide modulation of AWC sensitivity
     if (satiety_ > 0.3) {
-        double suppress = -8.0 * (satiety_ - 0.3) / 0.7;  // 0 at sat=0.3, -8pA at sat=1.0
+        double suppress = -5.0 * (satiety_ - 0.3) / 0.7;  // 0 at sat=0.3, -5pA at sat=1.0
         const auto& ninfos = connectome_.neuron_infos();
         for (size_t i = 0; i < chemo_mappings_.size(); ++i) {
             int nid = chemo_mappings_[i].neuron_id;
@@ -818,6 +821,51 @@ void SimulationEngine::update_satiety() {
                 neurons_[nid]->add_synaptic_current(suppress);
             }
         }
+    }
+}
+
+// ================================================================
+// Area-Restricted Search (Step 20d)
+//
+// Models the DA → DARPP-32 phosphorylation → GLR-1 enhancement cascade.
+// This is the intracellular memory of recent food exposure:
+//   - On food: DARPP-32 rapidly phosphorylated (tau_rise ~5s)
+//   - Off food: slowly dephosphorylated (tau_decay ~60s)
+//   - High phosphorylation → GLR-1 enhanced → AVA more excitable → more reversals
+//   → worm stays near where food was (LOCAL SEARCH)
+//   - Phosphorylation decays → fewer reversals → longer runs → GLOBAL SEARCH
+//
+// REF: Hills 2004 J Neurosci — DA + GLR-1/GLR-2 control ARS
+//      Wakabayashi 2004 — pirouette frequency decay after food removal
+//      Calhoun 2014 eLife — local→global search transition
+// ================================================================
+void SimulationEngine::update_food_memory() {
+    // Sample food concentration at head
+    double food_conc = environment_.sample_chemical(body_.get_head_position());
+
+    // Update food_memory: fast rise on food, slow decay off food
+    // Uses same on_food detection as DA (CEP mechanosensory threshold)
+    double on_food = food_conc / (food_conc + 0.1);  // half-max at C=0.1
+    if (on_food > food_memory_) {
+        // Rising: fast phosphorylation (on food)
+        food_memory_ += (on_food - food_memory_) * dt_ / food_memory_tau_rise_;
+    } else {
+        // Decaying: slow dephosphorylation (off food)
+        food_memory_ -= food_memory_ * dt_ / food_memory_tau_decay_;
+    }
+    if (food_memory_ < 0.0) food_memory_ = 0.0;
+    if (food_memory_ > 1.0) food_memory_ = 1.0;
+
+    // Effect: food_memory → excite AVA (via enhanced GLR-1)
+    // High food_memory → AVA more excitable → more reversals → LOCAL SEARCH
+    // This keeps the worm near the food patch after leaving
+    int n = static_cast<int>(neurons_.size());
+    int aval = connectome_.get_neuron_id("AVAL");
+    if (aval >= 0 && aval < n) {
+        // Scale: 0→0 pA at no memory, up to +4 pA at full memory
+        // 4 pA gently biases AVA toward reversal without constant triggering
+        double ars_current = 4.0 * food_memory_;
+        neurons_[aval]->add_synaptic_current(ars_current);
     }
 }
 

@@ -66,6 +66,7 @@ private:
     std::vector<double> da_history_;      // DA concentration [0,1]
     std::vector<double> oa_history_;      // OA concentration [0,1]
     std::vector<double> satiety_history_; // satiety [0,1]
+    std::vector<double> fmem_history_;     // food memory / DARPP-32 [0,1]
     std::vector<double> speed_mod_history_; // effective speed scale
     void update_neuromod();
 

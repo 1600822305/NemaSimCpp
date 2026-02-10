@@ -205,6 +205,51 @@ t(s)  dist   5-HT   OA    sat   spd    行为
   → 离开食物 → satiety↓ → NSM恢复 → 回到饥饿状态
 ```
 
+## Step 20d: Area-Restricted Search (ARS) — 局部搜索→全局搜索
+
+### 问题
+
+Step 20c 实现了完整觅食循环，但虫子离开食物后直线跑走，出了梯度场（σ~10mm）就永远迷失。
+真实线虫解决方案：**刚离开食物时高频转弯（局部搜索），留在食物附近**。
+
+### 生物学机制 (Hills 2004 J Neurosci)
+
+```
+食物 → CEP释放DA → DA激活DARPP-32磷酸化级联
+     → DARPP-32抑制蛋白磷酸酶 → GLR-1(AMPA型)保持磷酸化
+     → GLR-1增强 → AVA命令中间神经元更易激活 → 更多reversal
+     → 虫子在食物附近"打转" = 局部搜索
+
+离开食物后：
+  DA迅速下降(秒级) → 但DARPP-32去磷酸化很慢(分钟级)
+  → reversal频率仍高 → 局部搜索持续~15min
+  → DARPP-32最终去磷酸化 → reversal降低 → 长距离跑 = 全局搜索
+```
+
+### 实现
+
+**内部状态**: `food_memory_` [0,1] — 代表 DARPP-32 磷酸化水平
+- on_food sigmoid: C/(C+0.1), 半最大值 C=0.1
+- tau_rise = 5s (快速磷酸化)
+- tau_decay = 90s (缓慢去磷酸化, 比 DA 本身慢 ~18×)
+
+**效应**: food_memory → AVA 兴奋电流 (+4 pA × food_memory)
+- 高 food_memory (刚离开食物) → AVA 更易触发 reversal → 多转弯 → 留在附近
+- food_memory 衰减后 → reversal 恢复基线 → 长跑 → 全局搜索
+
+### 验证结果 (300s)
+
+无 ARS 时：虫子 t=80 后逃逸到 36mm → 永远迷失
+有 ARS 时：虫子 t=60-200s 在食物附近 2-8mm 振荡，多次接近
+
+| 指标 | 无 ARS | 有 ARS | 说明 |
+|------|--------|--------|------|
+| 最大逃逸距离 | 36mm | ~15mm | 大幅减少 ✅ |
+| 食物附近停留 | 80s | >200s | 2.5x ✅ |
+| 再次接近 | 0次 | 2-3次 | 多次觅食 ✅ |
+| food_memory@离开 | N/A | 0.83 | 局部搜索 ✅ |
+| food_memory@远处 | N/A | 0.42 | 仍在衰减 ✅ |
+
 ## 未来扩展
 
 - **Tyramine**: RIM 已在模型中，添加 TA 释放和效应即可
