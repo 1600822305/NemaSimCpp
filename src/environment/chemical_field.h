@@ -8,6 +8,11 @@ namespace celegans {
 
 class ChemicalField {
 public:
+    struct Source {
+        Vector2d pos;
+        double strength;
+    };
+
     ChemicalField() = default;
 
     void initialize(double width, double height, int grid_nx = 100, int grid_ny = 100);
@@ -20,6 +25,9 @@ public:
 
     // Sample spatial gradient at a position (central difference)
     Vector2d gradient(Vector2d pos) const;
+
+    // Access point sources (for food density calculation with different σ²)
+    const std::vector<Source>& sources() const { return sources_; }
 
     // Diffusion step (simple explicit finite difference)
     void step(double dt);
@@ -35,10 +43,6 @@ private:
 
     std::vector<double> concentration_;
 
-    struct Source {
-        Vector2d pos;
-        double strength;
-    };
     std::vector<Source> sources_;
 
     int idx(int ix, int iy) const { return iy * nx_ + ix; }

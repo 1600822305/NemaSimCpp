@@ -16,6 +16,12 @@ public:
     double sample_temperature(Vector2d pos) const;
     Vector2d temperature_gradient(Vector2d pos) const;
 
+    // Food density: narrow Gaussian around food sources (σ²=9mm², σ≈3mm)
+    // Biologically: volatile attractants diffuse widely (σ≈12mm) for navigation,
+    // but bacteria (food) are localized in a small colony (~3mm radius).
+    // Used for feeding/satiety, NOT for gradient-based navigation.
+    double sample_food_density(Vector2d pos) const;
+
     double width() const { return width_; }
     double height() const { return height_; }
 

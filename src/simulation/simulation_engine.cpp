@@ -75,12 +75,14 @@ void SimulationEngine::initialize_default() {
             // NSM: pharyngeal neuron, detects food (absolute concentration)
             // TONIC: fires proportionally to food concentration, not dC/dt
             // REF: Flavell 2013 — NSM tonically active on food
-            chemo_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::TONIC, 30.0, 1.0, 500.0)});
+            // uses_food_density=true: bacteria are localized (σ=3mm), not diffuse
+            chemo_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::TONIC, 30.0, 1.0, 500.0), true});
         } else if (starts_with(info.name, "CEP")) {
             // CEP: head mechanosensory, detects bacteria (food presence)
             // TONIC: fires when on food lawn, not responding to changes
             // REF: Sawin 2000 — CEP active on bacterial lawn
-            chemo_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::TONIC, 20.0, 1.0, 500.0)});
+            // uses_food_density=true: detects physical bacteria contact
+            chemo_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::TONIC, 20.0, 1.0, 500.0), true});
         } else if (starts_with(info.name, "AFD")) {
             // AFD: thermosensory neuron — handled by thermo_mappings, not chemo
             // ThermoTransducer: gain=150, baseline=5pA, Tc_tau=3600s(1hr), fast_tau=200ms
@@ -204,22 +206,16 @@ void SimulationEngine::step() {
     environment_.step(dt_ * 0.001);
 
     // 2. Sensory input: chemosensory neurons detect gradient, others get baseline
-    // Chemosensory: concentration temporal derivative → graded input current
-    // Touch: low baseline (no stimulus in current environment)
+    // These use set_external_current() → writes to I_ext_ → survives I_syn_ reset
     // REF: Bargmann 2006, Suzuki 2008
     apply_sensory_input();
 
-    // 2b. Thermosensory input: AFD samples temperature field (Step 23)
-    apply_thermo_input();
-
     // 2c. Touch stimulus: wall collision → ALM/PLM activation (Step 18)
+    // Uses set_external_current() → I_ext_ → survives reset
     apply_touch_stimulus();
 
-    // 2d. Omega turn: post-reversal deep ventral bend (Step 18)
-    apply_omega_turn();
-
     // 3. Head motor tonic: upstream interneuron drive (RIA→SMD already in connectome)
-    // Small tonic represents the net excitatory input from the head circuit
+    // Uses set_external_current() → I_ext_ → survives reset
     apply_head_tonic();
 
     // 4. Proprioceptive stretch: set MEC channel stretch from body curvature
@@ -228,7 +224,8 @@ void SimulationEngine::step() {
     apply_proprioceptive_stretch();
 
     // 5. Compute synaptic currents (chemical + electrical)
-    // NOTE: This resets I_syn_ for all neurons, then adds connectome synaptic currents.
+    // NOTE: This RESETS I_syn_ for all neurons, then adds connectome synaptic currents.
+    // ALL add_synaptic_current() calls MUST come AFTER this point!
     if (use_gpu_ && gpu_backend_) {
         // GPU path: upload voltages, compute on GPU, download currents
         int nn = static_cast<int>(neurons_.size());
@@ -252,12 +249,20 @@ void SimulationEngine::step() {
         connectome_.compute_synaptic_currents(neurons_, dt_);
     }
 
+    // === All add_synaptic_current() calls below — safe from I_syn_ reset ===
+
+    // 2b. Thermosensory input: AFD samples temperature field (Step 23)
+    // Uses add_synaptic_current() → MUST be after reset
+    apply_thermo_input();
+
+    // 2d. Omega turn: post-reversal deep ventral bend (Step 18)
+    // Uses add_synaptic_current() on SMD → MUST be after reset
+    apply_omega_turn();
+
     // Step 15/19: Weathervane — gradient ⊥ heading → SMD bias (Iino & Yoshida 2009)
-    // MUST be after compute_synaptic_currents (which resets I_syn)
     apply_weathervane();
 
     // Step 19: RIA → SMD neuromodulation via CCA-1 threshold shift
-    // Modulates oscillator duty cycle for klinotaxis direction signal
     apply_ria_smd_modulation();
 
     // Step 19 Phase 2: SMB neck curvature bias (klinotaxis effector)
@@ -363,9 +368,14 @@ void SimulationEngine::apply_sensory_input() {
     double sat_switch = 1.0 / (1.0 + std::exp(-10.0 * (satiety_ - 0.5)));
     double chemo_sat_gain = 1.0 - 0.85 * sat_switch;  // hungry: 1.0, fed: 0.15
 
+    // Food density at head (narrow σ=3mm for NSM/CEP food detectors)
+    double food_density = environment_.sample_food_density(head_pos);
+
     for (auto& cm : chemo_mappings_) {
         if (cm.neuron_id < 0 || cm.neuron_id >= n) continue;
-        double I_sensory = cm.transducer.update(concentration, dt_);
+        // NSM/CEP: use narrow food density; ASE/AWC/etc: use wide navigation gradient
+        double input_conc = cm.uses_food_density ? food_density : concentration;
+        double I_sensory = cm.transducer.update(input_conc, dt_);
         I_sensory *= static_cast<double>(params.sensory_gain) * chemo_sat_gain;
         neurons_[cm.neuron_id]->set_external_current(I_sensory);
     }
@@ -489,9 +499,23 @@ void SimulationEngine::apply_weathervane() {
     apply_bias("SMDVL", -bias_current);
     apply_bias("SMDVR", -bias_current);
 
-    // Step 19: REMOVED direct curvature bias bypass (was curv_gain=45 × grad_normal → body)
-    // The weathervane signal now flows through the neural circuit:
-    //   gradient ⊥ heading → SMD bias current → duty cycle asymmetry → curvature → turning
+    // Direct curvature bias: bypass SMD oscillator bottleneck (110mV amplitude drowns ±24pA bias)
+    // REF: diagnosed in Step 15 — SMD bias alone gives CI=0.07, with curv_bias CI=0.76
+    // Recalibrated for σ²=144 gradient (4.5x stronger than old σ²=25):
+    //   0.15 → 0.035 to maintain same turning radius (~2mm at 14mm from food)
+    double curv_gain = weathervane_gain * 0.06;
+    double curv_bias = curv_gain * grad_normal * chemo_wv_gain;
+    // Add temperature curvature bias (same bypass for temp weathervane)
+    double temp_curv_bias = 30.0 * 0.15 * temp_sign * temp_grad_normal * thermo_wv_gain;
+    curv_bias += temp_curv_bias;
+    // Clamp curvature bias
+    double curv_clamp = clamp * 0.15;
+    if (curv_bias > curv_clamp) curv_bias = curv_clamp;
+    if (curv_bias < -curv_clamp) curv_bias = -curv_clamp;
+    // Don't override omega turn's ±8.0 curvature_bias (set by apply_omega_turn)
+    if (!omega_pending_) {
+        body_.set_curvature_bias(curv_bias);
+    }
 }
 
 void SimulationEngine::apply_smb_neck_bias() {
@@ -558,7 +582,10 @@ void SimulationEngine::apply_smb_neck_bias() {
     if (curvature_offset > max_bias) curvature_offset = max_bias;
     if (curvature_offset < -max_bias) curvature_offset = -max_bias;
 
-    body_.set_curvature_bias(curvature_offset);
+    // Don't override omega turn's ±8.0 curvature_bias
+    if (!omega_pending_) {
+        body_.set_curvature_bias(curvature_offset);
+    }
 }
 
 void SimulationEngine::apply_ria_smd_modulation() {
@@ -668,24 +695,87 @@ void SimulationEngine::apply_touch_stimulus() {
         }
     }
 
-    // Track reversal state for omega turn decision
-    // AVA release rate > threshold → reversing
-    int ava_l = connectome_.get_neuron_id("AVAL");
-    int ava_r = connectome_.get_neuron_id("AVAR");
-    double ava_rel = 0.0;
-    if (ava_l >= 0 && ava_l < n) ava_rel += neurons_[ava_l]->get_transmitter_release_rate();
-    if (ava_r >= 0 && ava_r < n) ava_rel += neurons_[ava_r]->get_transmitter_release_rate();
-    ava_rel *= 0.5;
+    // ======================================================================
+    // Pirouette model (Pierce-Shimomura et al. 1999, J Neurosci 19:9557)
+    // ======================================================================
+    // Biased random walk: pirouette initiation rate r is a sigmoid of dC/dt.
+    // dC/dt < 0 (heading down gradient) → elevated r → more pirouettes
+    // dC/dt > 0 (heading up gradient)   → suppressed r → fewer pirouettes
+    // dC/dt = 0 (flat field)            → spontaneous rate ~0.025/s
+    //
+    // This bypasses the noisy klinokinesis neural pathway (ASE→AIB→AVA),
+    // same principle as the curvature_bias_ bypass for weathervane (Iino 2009).
+    // Both mechanisms operate in parallel for efficient chemotaxis (Iino 2009 Fig 3).
+    //
+    // Post-pirouette bearing is biased toward gradient (course correction,
+    // not random reorientation) — implemented via gradient-biased omega turns.
+    // ======================================================================
 
+    // 1. Compute sensory derivatives and low-pass filter (tau=4s)
+    //    Chemical: dC/dt (Pierce-Shimomura 1999 Fig 7)
+    //    Thermal: d|T-Tc|/dt (Ryu & Samuel 2002, Luo 2014)
+    Vector2d head_pos = body_.get_head_position();
+
+    // 1a. Chemical derivative
+    double conc_now = environment_.sample_chemical(head_pos);
+    double raw_dCdt = (conc_now - prev_concentration_) / (dt_ / 1000.0);
+    prev_concentration_ = conc_now;
+    double alpha_filt = dt_ / 4000.0;  // tau=4s
+    dCdt_filtered_ += (raw_dCdt - dCdt_filtered_) * alpha_filt;
+
+    // 1b. Thermal deviation derivative: d|T - Tc|/dt
+    //     |T-Tc| increasing → moving AWAY from Tc → more pirouettes
+    //     |T-Tc| decreasing → moving TOWARD Tc → fewer pirouettes
+    //     REF: Ryu & Samuel 2002 — pirouette rate rises when warming above Tc
+    double temp_now = environment_.sample_temperature(head_pos);
+    double temp_dev = std::abs(temp_now - cultivation_temp_);
+    double raw_dTdev = (temp_dev - prev_temp_dev_) / (dt_ / 1000.0);
+    prev_temp_dev_ = temp_dev;
+    dTdev_filtered_ += (raw_dTdev - dTdev_filtered_) * alpha_filt;
+
+    // 2. Combined pirouette signal: satiety-weighted blend of chemical and thermal
+    //    Hungry → chemical klinokinesis: dC/dt < 0 triggers pirouettes
+    //    Fed    → thermal klinokinesis: d|T-Tc|/dt > 0 triggers pirouettes
+    //    Both use the same biased random walk strategy (Pierce-Shimomura 1999)
+    double sat_switch = 1.0 / (1.0 + std::exp(-10.0 * (satiety_ - 0.5)));
+    // Normalize signals to comparable scales:
+    //   dCdt_filtered_: typical range ±0.005 → k_chem=1500 → sigmoid range 0.01-0.06
+    //   dTdev_filtered_: typical range ±0.1°C/s → k_therm=30 → similar sigmoid range
+    // Combined: negative = "bad direction" → more pirouettes
+    double combined = (1.0 - sat_switch) * (-dCdt_filtered_ * 1500.0)  // chemical: dC/dt<0 → positive
+                    + sat_switch * (dTdev_filtered_ * 30.0);            // thermal: d|T-Tc|/dt>0 → positive
+
+    // 3. Pirouette initiation rate: sigmoid of combined signal
+    //    r(x) = r_min + (r_max - r_min) / (1 + exp(-x))
+    //    x > 0 (bad direction) → r → r_max (more pirouettes)
+    //    x < 0 (good direction) → r → r_min (fewer pirouettes)
+    //    x = 0 (flat field) → r = r_mid ≈ 0.035/s (spontaneous)
     bool was_reversing = is_reversing_;
-    // Hysteresis: forward→reverse needs higher threshold (0.65)
-    //             reverse→forward needs lower threshold (0.35)
-    // This models behavioral inertia from RIM gap junctions (Ouellette 2022):
-    // once in a state, the circuit resists switching
     if (!is_reversing_) {
-        is_reversing_ = (ava_rel > 0.65);  // harder to START reversal
+        double r_min = 0.01;   // /s, strongly suppressed when heading up gradient
+        double r_max = 0.16;   // /s, elevated rate when heading down gradient
+        // Asymmetry ratio 16:1 ensures long runs toward food, short runs away
+        // REF: Pierce-Shimomura 1999 — pirouette rate heavily suppressed during approach
+        double pir_rate = r_min + (r_max - r_min) /
+                          (1.0 + std::exp(-combined));
+
+        double p_pir = pir_rate * (dt_ / 1000.0);
+        std::uniform_real_distribution<double> rdist(0.0, 1.0);
+        if (current_time_ > reversal_refractory_end_ && rdist(touch_rng_) < p_pir) {
+            is_reversing_ = true;
+            // Draw reversal duration: exponential with mean 1000ms
+            // REF: Gray 2005 — mean reversal ~1s; Luo 2014 — τ_run=6.2s, τ_pir=7.4s
+            std::exponential_distribution<double> dur_dist(1.0 / 1000.0);
+            double rev_dur = dur_dist(touch_rng_);
+            if (rev_dur < 300.0) rev_dur = 300.0;
+            if (rev_dur > 3000.0) rev_dur = 3000.0;
+            planned_reversal_end_ = current_time_ + rev_dur;
+        }
     } else {
-        is_reversing_ = (ava_rel > 0.35);  // easier to STAY reversing (lower exit threshold)
+        if (current_time_ >= planned_reversal_end_) {
+            is_reversing_ = false;
+            reversal_refractory_end_ = current_time_ + 2000.0;  // 2s (adjusted: bio tcrit=6s includes 7.4s pirouette)
+        }
     }
 
     if (is_reversing_ && !was_reversing) {
@@ -701,29 +791,53 @@ void SimulationEngine::apply_touch_stimulus() {
         std::uniform_real_distribution<double> dist(0.0, 1.0);
         if (dist(touch_rng_) < p_omega) {
             omega_pending_ = true;
-            omega_end_time_ = current_time_ + 500.0;  // 500ms deep bend
+            omega_heading_before_ = body_.get_head_angle();
+            Vector2d hp2 = body_.get_head_position();
+            Vector2d fp2 = {35.0, 35.0};
+            omega_dist_before_ = std::sqrt((hp2.x-fp2.x)*(hp2.x-fp2.x)+(hp2.y-fp2.y)*(hp2.y-fp2.y));
 
-            // Step 21b: Gradient-biased omega direction (Pierce-Shimomura 1999)
-            // B_after distribution peaks at 0° (toward gradient) — error compensation.
-            // Pirouettes CORRECT course rather than randomize it.
-            // Compute gradient perpendicular to current (post-reversal) heading:
+            // Gradient-biased omega direction (Pierce-Shimomura 1999 Fig 9)
             Vector2d head_pos = body_.get_head_position();
-            Vector2d grad = environment_.chemical_field().gradient(head_pos);
             double heading = body_.get_head_angle();
             double cos_h = std::cos(heading);
             double sin_h = std::sin(heading);
-            double grad_normal = -sin_h * grad.x + cos_h * grad.y;
+
+            // Select target gradient based on satiety mode
+            double omega_sat_switch = 1.0 / (1.0 + std::exp(-10.0 * (satiety_ - 0.5)));
+            Vector2d chem_grad = environment_.chemical_field().gradient(head_pos);
+            Vector2d tgrad = environment_.temperature_gradient(head_pos);
+            double temp_here = environment_.sample_temperature(head_pos);
+            double tsign = (temp_here > cultivation_temp_) ? -1.0 : 1.0;
+            Vector2d temp_target_grad = {tsign * tgrad.x, tsign * tgrad.y};
+
+            // Blend: hungry → chem_grad, fed → temp_target_grad
+            Vector2d grad;
+            grad.x = (1.0 - omega_sat_switch) * chem_grad.x + omega_sat_switch * temp_target_grad.x;
+            grad.y = (1.0 - omega_sat_switch) * chem_grad.y + omega_sat_switch * temp_target_grad.y;
+
+            double grad_along = cos_h * grad.x + sin_h * grad.y;
+            double grad_perp  = -sin_h * grad.x + cos_h * grad.y;
             double grad_mag = std::sqrt(grad.x * grad.x + grad.y * grad.y);
 
+            double angle_to_target = 0.0;
             if (grad_mag > 0.001 && dist(touch_rng_) < 0.70) {
-                // Gradient detected → bias omega toward food (70% probability)
-                // grad_normal > 0 → food is LEFT → dorsal omega (-1) → turn LEFT
-                // grad_normal < 0 → food is RIGHT → ventral omega (+1) → turn RIGHT
-                omega_direction_ = (grad_normal > 0) ? -1.0 : 1.0;
+                angle_to_target = std::atan2(grad_perp, grad_along);
+                omega_direction_ = (angle_to_target > 0) ? -1.0 : 1.0;
             } else {
-                // No gradient or 30% random → default ventral bias
                 omega_direction_ = (dist(touch_rng_) < 0.8) ? 1.0 : -1.0;
+                angle_to_target = omega_direction_ * 1.57;  // default ~90deg for random
             }
+
+            // Omega duration proportional to |angle_to_target|
+            // dtheta/dt = speed × curv_bias ≈ 0.21 × 8.0 = 1.68 rad/s
+            // duration = |angle| / 1.68, range 300-2000ms
+            // REF: Gray 2005 — omega turn duration 0.5-3s, mean ~1.5s
+            double omega_rate = 1.68;  // rad/s (speed × curv_bias, approximate)
+            double omega_dur_ms = std::abs(angle_to_target) / omega_rate * 1000.0;
+            if (omega_dur_ms < 300.0) omega_dur_ms = 300.0;
+            if (omega_dur_ms > 2000.0) omega_dur_ms = 2000.0;
+            omega_end_time_ = current_time_ + omega_dur_ms;
+
         }
     }
 }
@@ -740,18 +854,26 @@ void SimulationEngine::apply_omega_turn() {
         return;
     }
 
-    // Omega turn: strong asymmetric SMD drive → deep bend >140° (Gray 2005)
-    // SMD neurons are the biological effectors of omega turn amplitude.
-    // Inject 200 pA to one side of SMD to overwhelm the oscillation.
+    // Omega turn: deep bend >140° (Gray 2005)
+    // The muscle_gain (0.3) limits SMD→curvature to ~0.3/mm, far too weak for omega.
+    // Real omega turns involve extreme body wall contraction (curvature ~10-15/mm).
+    // Solution: direct curvature_bias_ bypass (same principle as weathervane bypass).
+    // SMD injection kept for biological authenticity; curvature_bias_ does the actual turn.
     body_.set_omega_mode(true);
+
+    // Direct curvature bias: ±8.0/mm during omega → ~150° turn in 500ms
+    // omega_direction: -1.0 = LEFT (SMDD/dorsal), +1.0 = RIGHT (SMDV/ventral)
+    // curvature_bias > 0 → positive curvature → LEFT turn (matches omega_direction=-1.0)
+    body_.set_curvature_bias(-omega_direction_ * 8.0);
+
+    // Also inject SMD for neural circuit consistency
     int n = static_cast<int>(neurons_.size());
-    double omega_current = 200.0;  // pA, strong enough to dominate SMD oscillation
+    double omega_current = 200.0;
     auto inject = [&](const char* name, double I) {
         int id = connectome_.get_neuron_id(name);
         if (id >= 0 && id < n) neurons_[id]->add_synaptic_current(I);
     };
     if (omega_direction_ > 0) {
-        // Ventral omega: drive ventral SMD, suppress dorsal
         inject("SMDVL", omega_current);
         inject("SMDVR", omega_current);
         inject("SMDDL", -omega_current);
@@ -920,7 +1042,8 @@ void SimulationEngine::update_satiety() {
     // The pharynx update_pharynx() already computed the pump event this step.
     // Here we just apply depletion + clamp.
 
-    double food_conc = environment_.sample_chemical(body_.get_head_position());
+    // Use FOOD DENSITY (narrow σ=3mm) not navigation gradient (wide σ=12mm)
+    double food_conc = environment_.sample_food_density(body_.get_head_position());
     double on_food = food_conc * food_conc / (food_conc * food_conc + 0.09);
 
     // Depletion: always metabolizing (faster when not on food)
@@ -987,8 +1110,8 @@ void SimulationEngine::update_satiety() {
 //      Calhoun 2014 eLife — local→global search transition
 // ================================================================
 void SimulationEngine::update_food_memory() {
-    // Sample food concentration at head
-    double food_conc = environment_.sample_chemical(body_.get_head_position());
+    // Sample food density (narrow σ=3mm bacterial colony)
+    double food_conc = environment_.sample_food_density(body_.get_head_position());
 
     // Update food_memory: fast rise on food, slow decay off food
     // Uses same on_food detection as DA (CEP mechanosensory threshold)
@@ -1290,7 +1413,7 @@ void SimulationEngine::apply_pharyngeal_modulation() {
         if (id >= 0 && id < n) {
             // MC tonic drive: baseline + food detection + neuromodulation
             // MC has mechanosensory ending that detects bacteria in pharynx
-            double food_conc = environment_.sample_chemical(body_.get_head_position());
+            double food_conc = environment_.sample_food_density(body_.get_head_position());
             double food_drive = 8.0 * food_conc / (food_conc + 0.1);  // 0-8 pA, half-max at 0.1
             double mc_tonic = 3.0 + food_drive + mc_5ht_current + mc_oa_current;
             neurons_[id]->add_synaptic_current(mc_tonic);
@@ -1362,9 +1485,9 @@ void SimulationEngine::update_pharynx() {
     // Update pharyngeal muscle state machine
     bool pump_event = pharynx_.update(mc_release, m3_release, dt_);
 
-    // Food ingestion: pump near food → satiety
+    // Food ingestion: pump near food → satiety (narrow σ=3mm food zone)
     if (pump_event) {
-        double food_conc = environment_.sample_chemical(body_.get_head_position());
+        double food_conc = environment_.sample_food_density(body_.get_head_position());
         double food_ingested = pharynx_.compute_food_intake(food_conc, true);
         satiety_ += food_ingested;
         if (satiety_ > 1.0) satiety_ = 1.0;

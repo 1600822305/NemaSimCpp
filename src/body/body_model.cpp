@@ -58,9 +58,11 @@ void BodyModel::compute_curvatures(double dt) {
         // Damped spring toward target curvature
         double dcurv = stiffness_ * (target_curvature - seg.curvature) - damping_ * seg.curvature;
         seg.curvature += dcurv * dt;
-        // Clamp curvature to physiological range (~10/mm max for C. elegans)
-        if (seg.curvature > 3.0) seg.curvature = 3.0;
-        if (seg.curvature < -3.0) seg.curvature = -3.0;
+        // Clamp curvature: normal locomotion ~3/mm, omega turn ~15/mm (Gray 2005)
+        // Head segments (0-3) get higher clamp during omega for deep ventral bend
+        double max_curv = (omega_mode_ && i < 4) ? 15.0 : 3.0;
+        if (seg.curvature > max_curv) seg.curvature = max_curv;
+        if (seg.curvature < -max_curv) seg.curvature = -max_curv;
     }
 }
 
@@ -95,35 +97,13 @@ void BodyModel::update_positions(double dt) {
     if (dtheta < -max_dtheta) dtheta = -max_dtheta;
     segments_[0].angle += dtheta;
 
-    // --- 3. Pirouette probability model ---
-    // REF: Pierce-Shimomura 1999 — pirouette rate is sigmoid of dC/dt
-    // Here: AVA release rate modulates pirouette probability (via neural circuit)
-    // Higher AVA → higher pirouette rate. This emerges from:
-    //   concentration decrease → AWC(OFF) → AIB → AVA → more pirouettes
-    //   concentration increase → ASEL(ON) → AIA ⊣ AIB → suppresses AVA → fewer pirouettes
-    //
-    // Smooth AVA signal (500ms tau for stable probability estimate)
+    // --- 3. Pirouette model ---
+    // DISABLED: Random uniform[-π,π] heading resets destroyed weathervane chemotaxis.
+    // Replaced by engine-based reversal + gradient-biased omega turn (Step 18):
+    //   AVA > threshold → reversal → omega turn biased toward food (70% probability)
+    // The AVA smoothing is kept for diagnostic/monitoring purposes only.
     smooth_rev_ += (reverse_drive_ - smooth_rev_) * dt / 0.5;
-    mean_rev_ += (smooth_rev_ - mean_rev_) * dt / 5.0; // 5s slow baseline
-
-    // Pirouette rate: base rate modulated exponentially by AVA deviation from mean
-    // base_rate ~0.05 Hz = one per 20 sec (normal exploratory rate)
-    // When AVA is elevated: rate increases; when suppressed: rate decreases
-    double base_rate = 0.05; // Hz (pirouettes per second)
-    double ava_deviation = smooth_rev_ - mean_rev_;
-    double rate = base_rate * std::exp(8.0 * ava_deviation); // k=8 sensitivity
-    if (rate > 2.0) rate = 2.0; // cap at 2 Hz
-    if (rate < 0.005) rate = 0.005; // minimum rate
-
-    // Stochastic pirouette: probability per time step
-    double p_pirouette = rate * dt;
-    // Use a simple deterministic pseudo-random test based on RNG
-    std::uniform_real_distribution<double> uniform(0.0, 1.0);
-    if (uniform(rng_) < p_pirouette) {
-        // Pirouette: random reorientation
-        // REF: Pierce-Shimomura 1999 — post-pirouette bearing distribution
-        segments_[0].angle += angle_dist_(rng_); // uniform [-π, π]
-    }
+    mean_rev_ += (smooth_rev_ - mean_rev_) * dt / 5.0;
 
     // --- 4. Update head position (always forward) ---
     Vector2d head_dir = Vector2d::from_angle(segments_[0].angle);

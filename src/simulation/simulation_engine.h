@@ -114,6 +114,7 @@ private:
     struct ChemoMapping {
         int neuron_id;
         ChemoTransducer transducer;
+        bool uses_food_density = false;  // true for NSM/CEP (narrow σ=3mm bacterial colony)
     };
     std::vector<ChemoMapping> chemo_mappings_;
 
@@ -138,6 +139,18 @@ private:
     std::vector<int> plm_ids_;  // posterior touch neuron IDs
     double touch_current_ = 80.0;  // pA, strong pulse for touch stimulus
     double arena_margin_ = 2.0;    // mm, wall collision zone
+    // Pirouette model (Pierce-Shimomura 1999 biased random walk)
+    // dC/dt modulates pirouette initiation rate: dC/dt<0 → more pirouettes
+    // This bypasses the noisy klinokinesis neural pathway (ASE→AIB→AVA)
+    // same principle as the curvature_bias_ bypass for weathervane
+    double planned_reversal_end_ = 0.0;    // when current reversal should end (ms)
+    double reversal_refractory_end_ = 0.0; // no new pirouette until this time (tcrit ≈ 5s)
+    double prev_concentration_ = 0.0;      // previous head concentration for dC/dt
+    double dCdt_filtered_ = 0.0;           // filtered concentration derivative (tau=4s)
+    double prev_temp_dev_ = 0.0;           // previous |T-Tc| for thermal klinokinesis
+    double dTdev_filtered_ = 0.0;          // filtered d|T-Tc|/dt (tau=4s, Ryu & Samuel 2002)
+    double omega_heading_before_ = 0.0;    // heading when omega starts (debug)
+    double omega_dist_before_ = 0.0;       // dist to food when omega starts (debug)
 
     // Klinotaxis: RIA gate-and-switch
     double ria_curv_filtered_ = 0.0;   // filtered cross-correlation output
