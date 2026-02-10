@@ -60,6 +60,12 @@ add_library(celegans_environment STATIC
 )
 target_link_libraries(celegans_environment PUBLIC celegans_core)
 
+# Neuromodulation library (Layer 6)
+add_library(celegans_neuromodulation STATIC
+    src/neuromodulation/neuromodulation.cpp
+)
+target_link_libraries(celegans_neuromodulation PUBLIC celegans_neuron celegans_connectome)
+
 # Simulation engine
 add_library(celegans_simulation STATIC
     src/simulation/simulation_engine.cpp
@@ -69,6 +75,7 @@ target_link_libraries(celegans_simulation PUBLIC
     celegans_body
     celegans_motor
     celegans_environment
+    celegans_neuromodulation
 )
 
 # Main executable (headless)

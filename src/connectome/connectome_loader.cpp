@@ -162,6 +162,17 @@ void ConnectomeLoader::generate_default_connectome(
         {"ALMR", NeuronType::SENSORY, NeurotransmitterType::GLUTAMATE},
         {"PLML", NeuronType::SENSORY, NeurotransmitterType::GLUTAMATE},
         {"PLMR", NeuronType::SENSORY, NeurotransmitterType::GLUTAMATE},
+        // Neuromodulatory sensory neurons (Step 20, Layer 6)
+        // NSM: pharyngeal neuron, detects food → releases 5-HT → dwelling
+        // REF: Flavell 2013 Cell — NSM drives dwelling via serotonin
+        {"NSML", NeuronType::SENSORY, NeurotransmitterType::SEROTONIN},
+        {"NSMR", NeuronType::SENSORY, NeurotransmitterType::SEROTONIN},
+        // CEP: head mechanosensory, detects bacteria → releases DA → basal slowing
+        // REF: Sawin 2000 — dopamine basal slowing response
+        {"CEPDL", NeuronType::SENSORY, NeurotransmitterType::DOPAMINE},
+        {"CEPDR", NeuronType::SENSORY, NeurotransmitterType::DOPAMINE},
+        {"CEPVL", NeuronType::SENSORY, NeurotransmitterType::DOPAMINE},
+        {"CEPVR", NeuronType::SENSORY, NeurotransmitterType::DOPAMINE},
         // Key interneurons
         {"AIAL", NeuronType::INTER, NeurotransmitterType::ACETYLCHOLINE},
         {"AIAR", NeuronType::INTER, NeurotransmitterType::ACETYLCHOLINE},

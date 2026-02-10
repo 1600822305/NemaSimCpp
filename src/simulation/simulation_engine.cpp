@@ -71,6 +71,16 @@ void SimulationEngine::initialize_default() {
             chemo_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::ON, 80.0, 5.0, 100.0)});
         } else if (starts_with(info.name, "ASH")) {
             chemo_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::ON, 60.0, 3.0)});
+        } else if (starts_with(info.name, "NSM")) {
+            // NSM: pharyngeal neuron, detects food (absolute concentration)
+            // TONIC: fires proportionally to food concentration, not dC/dt
+            // REF: Flavell 2013 — NSM tonically active on food
+            chemo_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::TONIC, 30.0, 1.0, 500.0)});
+        } else if (starts_with(info.name, "CEP")) {
+            // CEP: head mechanosensory, detects bacteria (food presence)
+            // TONIC: fires when on food lawn, not responding to changes
+            // REF: Sawin 2000 — CEP active on bacterial lawn
+            chemo_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::TONIC, 20.0, 1.0, 500.0)});
         } else if (!starts_with(info.name, "ALM") && !starts_with(info.name, "PLM")) {
             // Non-touch sensory neurons: low baseline
             other_sensory_ids_.push_back(info.id);
@@ -108,10 +118,14 @@ void SimulationEngine::initialize_default() {
         cm.transducer.reset(init_conc);
     }
 
+    // 11. Setup neuromodulation (Step 20, Layer 6)
+    setup_neuromodulation();
+
     LOG_INFO("Chemosensory: ", chemo_mappings_.size(), " neurons with gradient transduction");
     LOG_INFO("Other sensory: ", other_sensory_ids_.size(), " neurons, baseline ", sensory_baseline_, " pA");
     LOG_INFO("Head tonic: ", head_motor_ids_.size(), " head motor neurons, ", head_tonic_, " pA");
     LOG_INFO("Proprioceptive MEC: ", proprio_mappings_.size(), " motor neuron stretch mappings");
+    LOG_INFO("Neuromodulators: ", neuromod_.modulators().size(), " species configured");
     LOG_INFO("Initialization complete. dt = ", dt_, " ms");
 }
 
@@ -184,10 +198,15 @@ void SimulationEngine::step() {
     connectome_.compute_synaptic_currents(neurons_);
 
     // Step 19 Phase 2: SMB neck curvature bias (klinotaxis effector)
-    // Signal chain: gradient → head sweep → ASE → AIY → AIZ → SMB → neck curvature
-    // No current injection — SMB activity flows through the connectome naturally.
-    // SMB dorsal-ventral balance determines neck curvature DC offset.
     apply_smb_neck_bias();
+
+    // 5b. Neuromodulation update (Step 20, Layer 6)
+    // Slow timescale: 5-HT/DA concentrations rise/fall over seconds
+    // Effects: tonic currents on target neurons, speed modulation
+    neuromod_.update(neurons_, dt_);
+
+    // Apply neuromodulation speed scaling to body
+    body_.set_speed_scale(params.speed_scale * neuromod_.get_speed_scale());
 
     // 6. Update all neuron membrane potentials
     for (auto& neuron : neurons_) {
@@ -593,6 +612,91 @@ void SimulationEngine::apply_omega_turn() {
         inject("SMDVL", -omega_current);
         inject("SMDVR", -omega_current);
     }
+}
+
+void SimulationEngine::setup_neuromodulation() {
+    // ================================================================
+    // Step 20: Neuromodulation Layer (Layer 6) — "Wireless Connectome"
+    //
+    // Unlike synapses (point-to-point, ms), neuromodulators act via
+    // volume transmission (diffuse, seconds-minutes).
+    //
+    // Two modulators for MVP:
+    //   1. Serotonin (5-HT): food → NSM → dwelling (slow, low reversal)
+    //   2. Dopamine (DA): food → CEP → basal slowing response
+    //
+    // REF: Flavell 2013 Cell — 5-HT/PDF roaming/dwelling
+    //      Sawin 2000 — DA basal slowing response
+    //      Chase & Koelle 2007 — monoamine signaling review
+    // ================================================================
+
+    // --- Serotonin (5-HT) ---
+    // Source: NSM pharyngeal neurons (detect food via bacteria ingestion)
+    // Effect: promotes dwelling state
+    //   - MOD-1 on AIY: inhibitory Cl- channel → reduces AIY activity → less forward
+    //   - SER-4 on AIB: inhibitory → reduces AIB → fewer pirouettes
+    //   - Global: reduce speed slightly (enhanced slowing response)
+    {
+        Neuromodulator serotonin;
+        serotonin.name = "5-HT";
+        serotonin.tau_rise = 3000.0;    // 3s to build up (slow volume transmission)
+        serotonin.tau_decay = 8000.0;   // 8s to clear (long-lasting dwelling)
+        serotonin.release_threshold = 0.3;
+
+        // Source neurons: NSM (pharyngeal, food detection)
+        int nsml = connectome_.get_neuron_id("NSML");
+        int nsmr = connectome_.get_neuron_id("NSMR");
+        if (nsml >= 0) serotonin.source_neuron_ids.push_back(nsml);
+        if (nsmr >= 0) serotonin.source_neuron_ids.push_back(nsmr);
+
+        // Target: AIY via MOD-1 (inhibitory Cl- channel)
+        // 5-HT → MOD-1 on AIY → hyperpolarize → reduce forward drive
+        // REF: Flavell 2013 — NSM 5-HT inhibits AIY
+        int aiyl = connectome_.get_neuron_id("AIYL");
+        int aiyr = connectome_.get_neuron_id("AIYR");
+        if (aiyl >= 0) serotonin.targets.push_back(
+            {aiyl, "MOD-1", ModulationEffect::EXCITABILITY, -5.0}); // -5 pA inhibitory
+        if (aiyr >= 0) serotonin.targets.push_back(
+            {aiyr, "MOD-1", ModulationEffect::EXCITABILITY, -5.0});
+
+        // Target: speed reduction (enhanced slowing on food)
+        // REF: Sawin 2000 — serotonin reduces locomotion speed
+        serotonin.targets.push_back(
+            {-1, "SER-7", ModulationEffect::SPEED_SCALE, -0.15}); // 15% slower at max
+
+        neuromod_.add_modulator(std::move(serotonin));
+    }
+
+    // --- Dopamine (DA) ---
+    // Source: CEP head neurons (detect bacteria mechanically)
+    // Effect: basal slowing response — slow down when encountering food
+    //   - DOP-3 on motor neurons: inhibitory → reduces speed
+    //   - DOP-1 on RIA: excitatory → enhances head oscillation (foraging)
+    // REF: Sawin 2000 — CEP DA drives basal slowing
+    //      Chase 2004 — DOP-3 inhibitory on locomotion
+    {
+        Neuromodulator dopamine;
+        dopamine.name = "DA";
+        dopamine.tau_rise = 2000.0;     // 2s to build up
+        dopamine.tau_decay = 5000.0;    // 5s to clear
+        dopamine.release_threshold = 0.3;
+
+        // Source neurons: CEP (4 neurons, head mechanosensory)
+        const char* cep_names[] = {"CEPDL", "CEPDR", "CEPVL", "CEPVR"};
+        for (auto name : cep_names) {
+            int id = connectome_.get_neuron_id(name);
+            if (id >= 0) dopamine.source_neuron_ids.push_back(id);
+        }
+
+        // Target: global speed reduction (basal slowing response)
+        // REF: Sawin 2000 — cat-2 mutants (no DA) fail to slow on food
+        dopamine.targets.push_back(
+            {-1, "DOP-3", ModulationEffect::SPEED_SCALE, -0.25}); // 25% slower at max
+
+        neuromod_.add_modulator(std::move(dopamine));
+    }
+
+    LOG_INFO("Neuromodulation setup: 5-HT (NSM→AIY dwelling), DA (CEP→basal slowing)");
 }
 
 } // namespace celegans

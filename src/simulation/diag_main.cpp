@@ -254,6 +254,17 @@ int main() {
               << "  AIBR=" << release(mean(aibr_vs)) << std::endl;
     std::cout << "     AVAL=" << release(mean(aval_vs)) << std::endl;
 
+    // Step 20: Neuromodulation diagnostic
+    std::cout << "\n12. NEUROMODULATION (Layer 6):" << std::endl;
+    const auto& mods = sim.neuromodulation().modulators();
+    for (const auto& mod : mods) {
+        std::cout << "   " << mod.name << ": conc=" << std::setprecision(4) << mod.concentration
+                  << "  sources=" << mod.source_neuron_ids.size()
+                  << "  targets=" << mod.targets.size() << std::endl;
+    }
+    std::cout << "   speed_scale=" << std::setprecision(3) << sim.neuromodulation().get_speed_scale()
+              << "  (effective=" << sim.neuromodulation().get_speed_scale() * sim.params.speed_scale << ")" << std::endl;
+
     // BOTTLENECK ANALYSIS
     std::cout << "\n========================================" << std::endl;
     std::cout << "  BOTTLENECK ANALYSIS" << std::endl;

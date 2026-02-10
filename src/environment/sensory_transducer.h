@@ -14,7 +14,7 @@ namespace celegans {
 // AWA:  ON response (excited by odor addition)
 class ChemoTransducer {
 public:
-    enum class ResponseType { ON, OFF };
+    enum class ResponseType { ON, OFF, TONIC };
 
     ChemoTransducer(ResponseType type = ResponseType::ON,
                     double gain = 100.0,         // pA per relative change unit
@@ -41,15 +41,23 @@ public:
         double signal = (fast_ - slow_) / (slow_ + 1e-4);
 
         // ON neurons respond to increases, OFF neurons respond to decreases
+        // TONIC neurons respond to absolute concentration level
         double response;
-        if (type_ == ResponseType::ON) {
+        if (type_ == ResponseType::TONIC) {
+            // Tonic: output proportional to absolute concentration
+            // REF: NSM detects food via bacterial ingestion (tonic when on food)
+            //      CEP detects bacteria mechanically (tonic on food lawn)
+            response = fast_;  // use fast-filtered concentration directly
+        } else if (type_ == ResponseType::ON) {
             response = signal;
         } else {
             response = -signal;
         }
 
         // Saturating nonlinearity
-        double sat_response = response / (1.0 + std::abs(response) * 2.0);
+        double sat_response = (type_ == ResponseType::TONIC)
+            ? response / (response + 0.1)  // half-max at C=0.1
+            : response / (1.0 + std::abs(response) * 2.0);
 
         // Total current = baseline + modulation (clamped)
         double I_out = baseline_ + gain_ * sat_response;

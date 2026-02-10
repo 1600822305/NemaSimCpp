@@ -10,6 +10,7 @@
 #include "motor/motor_controller.h"
 #include "environment/environment.h"
 #include "environment/sensory_transducer.h"
+#include "neuromodulation/neuromodulation.h"
 #include <vector>
 #include <memory>
 #include <string>
@@ -50,6 +51,7 @@ public:
     const Connectome& connectome() const { return connectome_; }
     Connectome& connectome_mut() { return connectome_; }
     const std::vector<std::unique_ptr<Neuron>>& neurons() const { return neurons_; }
+    const NeuromodulationManager& neuromodulation() const { return neuromod_; }
 
     // Touch/behavior state (Step 18)
     bool is_reversing() const { return is_reversing_; }
@@ -69,6 +71,7 @@ private:
     BodyModel body_;
     Connectome connectome_;
     MotorController motor_controller_;
+    NeuromodulationManager neuromod_;
     std::vector<std::unique_ptr<Neuron>> neurons_;
 
     StepCallback step_callback_;
@@ -84,6 +87,7 @@ private:
     void apply_head_tonic();             // tonic drive to head motor neurons (from upstream)
     void apply_touch_stimulus();         // wall collision → ALM/PLM activation (Chalfie 1985)
     void apply_omega_turn();             // post-reversal deep ventral bend (Gray 2005)
+    void setup_neuromodulation();         // configure 5-HT, DA, TA modulators (Step 20)
 
     // Chemosensory transduction: neuron_id → transducer
     struct ChemoMapping {
