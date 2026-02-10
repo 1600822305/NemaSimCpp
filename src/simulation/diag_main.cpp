@@ -45,6 +45,7 @@ int main() {
     std::vector<double> aiyl_vs, aiyr_vs, aibl_vs, aibr_vs;
     std::vector<double> aial_vs, aiar_vs, awcl_vs, awcr_vs;
     std::vector<double> aval_vs, rial_vs, riar_vs;
+    std::vector<double> sht_vs, da_vs, dist_vs_time;
 
     double prev_heading = sim.body().get_head_angle() * 180.0 / 3.14159265;
     double prev_time = 0;
@@ -134,6 +135,11 @@ int main() {
                 wall_touch_count++;
             prev_reversing = cur_rev;
             prev_omega = cur_omega;
+
+            // Neuromodulation time series
+            sht_vs.push_back(sim.neuromodulation().get_concentration("5-HT"));
+            da_vs.push_back(sim.neuromodulation().get_concentration("DA"));
+            dist_vs_time.push_back(dist);
 
             // Store
             grad_mags.push_back(grad_mag);
@@ -264,6 +270,22 @@ int main() {
     }
     std::cout << "   speed_scale=" << std::setprecision(3) << sim.neuromodulation().get_speed_scale()
               << "  (effective=" << sim.neuromodulation().get_speed_scale() * sim.params.speed_scale << ")" << std::endl;
+
+    // Time series: 5-HT, DA, distance every 10s
+    std::cout << "   Time series (every 10s):" << std::endl;
+    std::cout << "     t(s)  dist(mm)  5-HT   DA     speed_eff" << std::endl;
+    int samples_per_10s = (int)(10000.0 / 100.0); // 100 samples per 10s
+    for (int t = 0; t < 6; ++t) {
+        int idx = (t + 1) * samples_per_10s - 1;
+        if (idx < (int)sht_vs.size()) {
+            double eff_speed = (1.0 - 0.15 * sht_vs[idx]) * (1.0 - 0.25 * da_vs[idx]) * sim.params.speed_scale;
+            std::cout << "     " << std::setw(4) << (t + 1) * 10 << "  "
+                      << std::setprecision(2) << std::setw(7) << dist_vs_time[idx] << "  "
+                      << std::setprecision(3) << std::setw(5) << sht_vs[idx] << "  "
+                      << std::setw(5) << da_vs[idx] << "  "
+                      << std::setprecision(3) << eff_speed << std::endl;
+        }
+    }
 
     // BOTTLENECK ANALYSIS
     std::cout << "\n========================================" << std::endl;

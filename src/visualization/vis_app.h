@@ -60,6 +60,13 @@ private:
     std::vector<double> heading_values_;  // degrees
     void update_heading();
 
+    // Neuromodulation history (Step 20)
+    std::vector<double> neuromod_times_;
+    std::vector<double> sht_history_;     // 5-HT concentration [0,1]
+    std::vector<double> da_history_;      // DA concentration [0,1]
+    std::vector<double> speed_mod_history_; // effective speed scale
+    void update_neuromod();
+
     // Stats
     double ci_sum_ = 0.0;
     int ci_count_ = 0;

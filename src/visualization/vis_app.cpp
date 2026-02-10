@@ -216,6 +216,7 @@ void VisApp::sim_step_batch(int steps) {
         // Record heading every 20 steps (10ms)
         if (engine_.get_step_count() % 20 == 0) {
             update_heading();
+            update_neuromod();
         }
     }
 }
@@ -228,6 +229,21 @@ void VisApp::update_heading() {
     if (heading_times_.size() > 20000) {
         heading_times_.erase(heading_times_.begin(), heading_times_.begin() + 10000);
         heading_values_.erase(heading_values_.begin(), heading_values_.begin() + 10000);
+    }
+}
+
+void VisApp::update_neuromod() {
+    double t = engine_.current_time();
+    neuromod_times_.push_back(t);
+    sht_history_.push_back(engine_.neuromodulation().get_concentration("5-HT"));
+    da_history_.push_back(engine_.neuromodulation().get_concentration("DA"));
+    speed_mod_history_.push_back(engine_.neuromodulation().get_speed_scale());
+    // Keep last 60000 points (~600s at 10ms interval)
+    if (neuromod_times_.size() > 60000) {
+        neuromod_times_.erase(neuromod_times_.begin(), neuromod_times_.begin() + 30000);
+        sht_history_.erase(sht_history_.begin(), sht_history_.begin() + 30000);
+        da_history_.erase(da_history_.begin(), da_history_.begin() + 30000);
+        speed_mod_history_.erase(speed_mod_history_.begin(), speed_mod_history_.begin() + 30000);
     }
 }
 
@@ -378,7 +394,7 @@ void VisApp::render_neuron_panel() {
         double t_now = traces_[0].times.back();
         double t_window = 5000.0;
         float avail_h = ImGui::GetContentRegionAvail().y;
-        float plot_h = avail_h * 0.24f;
+        float plot_h = avail_h * 0.19f;
 
         // Helper: get last N values min/max for amplitude annotation
         auto get_range = [](const std::vector<double>& v, int last_n) -> std::pair<double,double> {
@@ -469,6 +485,35 @@ void VisApp::render_neuron_panel() {
                 ImGui::TextColored(ImVec4(1,1,0.3f,1), u8"  \u89d2\u901f\u5ea6: %.2f \u00b0/s   \u5f53\u524d\u65b9\u5411: %.1f\u00b0",
                     rate, heading_values_.back());
             }
+        }
+
+        // --- Plot 5: Neuromodulation (Step 20) ---
+        // Longer time window (30s) since modulators change on seconds timescale
+        if (!neuromod_times_.empty()) {
+            double nm_window = 30000.0;  // 30s window
+            if (ImPlot::BeginPlot(u8"\u795e\u7ecf\u8c03\u8d28 5-HT/DA (Layer 6)", ImVec2(-1, plot_h))) {
+                ImPlot::SetupAxes(u8"\u65f6\u95f4(ms)", u8"\u6d53\u5ea6");
+                ImPlot::SetupAxesLimits(t_now - nm_window, t_now, 0, 1.1, ImPlotCond_Always);
+                ImPlot::SetupLegend(ImPlotLocation_NorthEast);
+                // 5-HT: magenta/pink
+                ImPlot::SetNextLineStyle(ImVec4(1.0f, 0.3f, 0.7f, 1), 2.0f);
+                ImPlot::PlotLine("5-HT", neuromod_times_.data(), sht_history_.data(), (int)neuromod_times_.size());
+                // DA: cyan/blue
+                ImPlot::SetNextLineStyle(ImVec4(0.3f, 0.8f, 1.0f, 1), 2.0f);
+                ImPlot::PlotLine("DA", neuromod_times_.data(), da_history_.data(), (int)neuromod_times_.size());
+                // Speed scale: green dashed
+                ImPlot::SetNextLineStyle(ImVec4(0.3f, 1.0f, 0.3f, 1), 1.5f);
+                ImPlot::PlotLine(u8"\u901f\u5ea6\u8c03\u5236", neuromod_times_.data(), speed_mod_history_.data(), (int)neuromod_times_.size());
+                ImPlot::EndPlot();
+            }
+            double sht_now = sht_history_.back();
+            double da_now = da_history_.back();
+            double spd_now = speed_mod_history_.back();
+            ImGui::TextColored(ImVec4(1,0.3f,0.7f,1), u8"  5-HT=%.3f", sht_now);
+            ImGui::SameLine();
+            ImGui::TextColored(ImVec4(0.3f,0.8f,1,1), u8"  DA=%.3f", da_now);
+            ImGui::SameLine();
+            ImGui::TextColored(ImVec4(0.3f,1,0.3f,1), u8"  \u901f\u5ea6\u00d7%.2f", spd_now);
         }
     }
 
