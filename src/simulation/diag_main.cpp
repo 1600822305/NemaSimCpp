@@ -697,13 +697,28 @@ int main() {
         std::cout << "  [OK] Heading rate " << avg_rate << " deg/s" << std::endl;
     }
 
-    if (ci < 0.3) {
-        std::cout << "  [!!] CI poor (" << ci << ", target >0.5)" << std::endl;
-        has_bottleneck = true;
-    } else if (ci >= 0.5) {
-        std::cout << "  [OK] CI good (" << ci << " >= 0.5)" << std::endl;
+    // CI interpretation depends on whether food is toxic (Step 26 pathogen learning)
+    // Toxic food: CI < 0 = CORRECT (worm learned to avoid)
+    // Safe food:  CI > 0.5 = expected chemotaxis
+    double sickness_final = sim.sickness();
+    if (sickness_final > 0.5) {
+        // Pathogen learning active — low/negative CI is expected
+        if (ci < 0.0) {
+            std::cout << "  [OK] CI=" << ci << " (pathogen avoidance learned, sickness=" 
+                      << std::setprecision(2) << sickness_final << ")" << std::endl;
+        } else {
+            std::cout << "  [..] CI=" << ci << " (expected negative with sickness="
+                      << std::setprecision(2) << sickness_final << ")" << std::endl;
+        }
     } else {
-        std::cout << "  [..] CI moderate (" << ci << ", target >0.5)" << std::endl;
+        if (ci < 0.3) {
+            std::cout << "  [!!] CI poor (" << ci << ", target >0.5)" << std::endl;
+            has_bottleneck = true;
+        } else if (ci >= 0.5) {
+            std::cout << "  [OK] CI good (" << ci << " >= 0.5)" << std::endl;
+        } else {
+            std::cout << "  [..] CI moderate (" << ci << ", target >0.5)" << std::endl;
+        }
     }
 
     // Step 29: Wave propagation checks
