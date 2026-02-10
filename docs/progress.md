@@ -349,15 +349,29 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 - **REF**: Zhang 2005 Nature, Ha 2010 Neuron, Bargmann 2006
 - **文档**: docs/steps/step26_pathogen_learning.md
 
+### Step 27: 睡眠/静止 (Lethargus)
+
+- **生物学**: Turek 2016 eLife — RIS释放FLP-11神经肽→全身静止 (非行为睡眠)
+- **新增神经元**: RIS (1个, GABA+FLP-11肽能) — 84总神经元
+- **新增突触**: RIS⊣AVA(2), RIS⊣AVB(1), RIS⊣AIB(1) + RIS↔AIB gap(4)
+- **fatigue_状态**: [0,1] 活动累积(τ_rise=120s)/睡眠消退(τ_decay=60s)
+- **RIS激活**: 2+40×sigmoid(fatigue-0.7) + 25pA睡眠维持 - 3×self_inhibition
+- **FLP-11效应**: 速度×(1-0.9×flp11), AVA/AVB -15pA, MC -12pA, SMD/RMD -8pA
+- **睡眠-觉醒循环**: ~120s觉醒 → ~80s睡眠 → 自发恢复, 2个周期/300s
+- **唤醒阈值**: 涌现 — ALM 80pA >> FLP-11 15pA → 强刺激可打断睡眠
+- **结果**: regtest 12 pass; 睡眠期速度~0.02mm/s, FLP-11=0.98, 2个睡眠周期
+- **REF**: Turek 2016 eLife, Konietzka 2020 Nat Commun, Nagy 2014 eLife
+- **文档**: docs/steps/step27_sleep_lethargus.md
+
 ---
 
 ## 当前系统状态
 
 ```
 架构: 8 层 (环境/躯体/感知/神经元/连接组/神经调质/运动/行为)
-神经元: 85 个 MVP 子集 (302 全集待加载)
+神经元: 84 个 MVP 子集 (302 全集待加载)
   感觉: 22 (ASE/AWC/AWA/ASH/ALM/PLM/NSM/CEP/AFD/ADF, L/R)
-  中间: 28 (AIA/AIB/AIY/AIZ/RIA/RIB/RIM/RIC/AVA/AVB/AVD/AVE/I1/RIP, L/R)
+  中间: 27 (AIA/AIB/AIY/AIZ/RIA/RIB/RIM/RIC/AVA/AVB/AVD/AVE/I1/RIP L/R + RIS)
   运动: 35 (SMD/RMD/SMB 4×2+4 + DA/DB/VA/VB/DD/VD 各3 + MC/M3 L/R + M4)
 突触: ~140 化学 + ~25 间隙连接 (全部带 Tsodyks-Markram STP)
 神经调质: 3 种 (5-HT, DA, OA) — volume transmission + 饱食度(泵驱动)
@@ -366,13 +380,13 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 神经元模型: 单隔室 HH 分级电位 (L2) + 钙动力学
 身体: 2D 弹性杆 48 段, 22 个运动神经元-肌肉映射
 环境: 50×50 mm, 3化学场(food_odor+soluble+repellent) + 线性温度梯度 (0.5°C/mm)
-内部状态: satiety_(泵驱动), sickness_(有毒食物), food_memory_(ARS)
+内部状态: satiety_(泵驱动), sickness_(有毒食物), food_memory_(ARS), fatigue_(睡眠驱动)
 学习: 盐学习(ASER w_mod) + 病原体学习(AWC翻转+WV反向+厌食) + STP习惯化
 仿真: dt=0.5ms, CPU 实时 (10000步 < 1s), OpenMP 多核
 计算: CPU (默认) + OpenCL GPU 后端 (>500突触自动启用, AMD RX 6950 XT 就绪)
 构建: CMake + MSVC 19.44 + C++20 + vcpkg (OpenCL/ImGui/ImPlot/GLFW)
 可视化: Dear ImGui + ImPlot + GLFW, 3列布局, 实时调参+信号链诊断
-状态: 趋化+触觉回避+化学回避+排斥weathervane+病原体学习(CI反向!)+多化学物种+RIM稳定+神经调质+ARS+觅食循环+STP+盐学习+温度趋性+咽部泵食, 纯涌现 (85神经元)
+状态: 趋化+触觉回避+化学回避+排斥weathervane+病原体学习(CI反向!)+多化学物种+RIM稳定+神经调质+ARS+觅食循环+STP+盐学习+温度趋性+咽部泵食+睡眠/静止(RIS/FLP-11), 纯涌现 (84神经元)
 工具: celegans_diag.exe (信号链诊断) + celegans_regtest.exe (回归检测+电流溯源)
 
 运动驱动 (Step 13 — 生物学机制):

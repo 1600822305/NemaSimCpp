@@ -270,6 +270,11 @@ void ConnectomeLoader::generate_default_connectome(
         // REF: Albertson & Thomson 1976 — bilateral pair, gap junction to I1
         {"RIPL", NeuronType::INTER, NeurotransmitterType::ACETYLCHOLINE},
         {"RIPR", NeuronType::INTER, NeurotransmitterType::ACETYLCHOLINE},
+        // Step 27: RIS — sleep-active neuron, single (unpaired) GABAergic + peptidergic
+        // REF: Turek 2016 eLife — RIS releases FLP-11 (major sleep inducer, not GABA)
+        //      Konietzka 2020 Nat Commun — RIS also functions as locomotion stop neuron
+        //      Maluck 2023 PLOS Genetics — RIS promotes survival independently of sleep
+        {"RIS",  NeuronType::INTER, NeurotransmitterType::GABA},
     };
 
     for (size_t i = 0; i < defs.size(); ++i) {
@@ -502,6 +507,27 @@ void ConnectomeLoader::generate_default_connectome(
     // RIP ↔ I1: the SOLE bridge between somatic and pharyngeal nervous systems
     // REF: Albertson & Thomson 1976 — bilateral gap junction pair
     add_gj("RIPL", "I1L", 2); add_gj("RIPR", "I1R", 2);
+
+    // ================================================================
+    // Step 27: RIS sleep neuron connections
+    // REF: White 1986, Cook 2019 — RIS synaptic outputs
+    //      Turek 2016 eLife — FLP-11 is the major sleep transmitter (volume)
+    //      Konietzka 2020 — RIS as locomotion stop neuron
+    // NOTE: RIS sleep induction is primarily via FLP-11 volume transmission
+    //       (handled in neuromodulation system), NOT wired synapses.
+    //       The chemical synapses below provide fast GABA inhibition
+    //       to command interneurons for acute locomotion stop.
+    // ================================================================
+    // RIS ⊣ AVA: GABA inhibition of backward command (stop reversals during sleep)
+    add_syn_inh("RIS", "AVAL", 2); add_syn_inh("RIS", "AVAR", 2);
+    // RIS ⊣ AVB: GABA inhibition of forward command (stop forward during sleep)
+    add_syn_inh("RIS", "AVBL", 1); add_syn_inh("RIS", "AVBR", 1);
+    // RIS ⊣ AIB: GABA inhibition of reversal initiation
+    add_syn_inh("RIS", "AIBL", 1); add_syn_inh("RIS", "AIBR", 1);
+
+    // RIS gap junctions: AIB (5 sections in connectome, community 4)
+    // REF: Emmons 2024 PLOS Biology — RIS has 5 gap junctions to AIB
+    add_gj("RIS", "AIBL", 2); add_gj("RIS", "AIBR", 2);
 
     LOG_INFO("Generated default connectome: ", neurons.size(), " neurons, ",
              synapses.size(), " synapses, ", gap_junctions.size(), " gap junctions");

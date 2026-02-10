@@ -155,6 +155,8 @@ void SimulationEngine::initialize_default() {
         if (starts_with(info.name, "M3")) m3_ids_.push_back(info.id);
         if (info.name == "M4") m4_id_ = info.id;
         if (starts_with(info.name, "I1")) i1_ids_.push_back(info.id);
+        // Step 27: RIS sleep neuron
+        if (info.name == "RIS") ris_id_ = info.id;
     }
 
     // Initialize transducers with current concentration at head
@@ -320,13 +322,27 @@ void SimulationEngine::step() {
     update_sickness();           // accumulate sickness from toxic food
     update_pathogen_learning();  // AWC synapse plasticity flip
 
+    // 5b6. Step 27: Sleep / Quiescence (Lethargus)
+    update_fatigue();            // fatigue accumulation → RIS activation
+    apply_sleep_effects();       // FLP-11 → global motor inhibition
+
     // 5c. Neuromodulation update (Step 20, Layer 6)
     // Slow timescale: 5-HT/DA/OA concentrations rise/fall over seconds
     // Effects: tonic currents on target neurons, speed modulation
     neuromod_.update(neurons_, dt_);
 
-    // Apply neuromodulation speed scaling to body
-    body_.set_speed_scale(params.speed_scale * neuromod_.get_speed_scale());
+    // Apply neuromodulation + sleep speed scaling to body
+    // Step 27: FLP-11 sleep suppression stacks with neuromodulation
+    double sleep_speed_factor = 1.0;
+    {
+        int nn = static_cast<int>(neurons_.size());
+        if (ris_id_ >= 0 && ris_id_ < nn) {
+            double rv = neurons_[ris_id_]->get_membrane_potential();
+            double flp11 = 1.0 / (1.0 + std::exp(-(rv - (-35.0)) / 5.0));
+            sleep_speed_factor = 1.0 - 0.9 * flp11;  // up to 90% speed reduction
+        }
+    }
+    body_.set_speed_scale(params.speed_scale * neuromod_.get_speed_scale() * sleep_speed_factor);
 
     // 6. Update all neuron membrane potentials
     for (auto& neuron : neurons_) {
@@ -1706,6 +1722,124 @@ void SimulationEngine::update_pharynx() {
         double food_ingested = pharynx_.compute_food_intake(food_conc, true);
         satiety_ += food_ingested;
         if (satiety_ > 1.0) satiety_ = 1.0;
+    }
+}
+
+// ================================================================
+// Step 27: Sleep / Quiescence (Lethargus)
+//
+// Homeostatic sleep drive: activity → fatigue accumulates → threshold
+// → RIS depolarizes → FLP-11 release → systemic quiescence
+//
+// Wake: fatigue decays → RIS deactivates → locomotion resumes
+//
+// FLP-11 self-inhibition (2025 Current Biology):
+//   High FLP-11 → negative feedback on RIS → spontaneous awakening
+//
+// Arousal threshold: strong touch stimulus can override sleep
+//   ALM 80pA >> FLP-11 inhibition ~20pA → worm wakes
+//
+// REF: Turek 2016 eLife — FLP-11 is major sleep inducer
+//      Konietzka 2020 Nat Commun — RIS as locomotion stop neuron
+//      Nagy 2014 eLife — sleep homeostasis
+//      Maluck 2023 PLOS Genetics — RIS survival function
+// ================================================================
+
+void SimulationEngine::update_fatigue() {
+    // Fatigue accumulates proportionally to locomotion activity
+    // Models adenosine/somnogens buildup during wakefulness
+    double speed = body_.get_speed();
+    double activity = std::min(speed / 0.2, 1.0);  // normalize to ~0.2 mm/s typical speed
+
+    if (!is_sleeping_) {
+        // Awake: fatigue rises with activity
+        fatigue_ += activity * dt_ / fatigue_tau_rise_;
+    } else {
+        // Sleeping: fatigue decays (restorative process)
+        fatigue_ -= fatigue_ * dt_ / fatigue_tau_decay_;
+    }
+    if (fatigue_ < 0.0) fatigue_ = 0.0;
+    if (fatigue_ > 1.0) fatigue_ = 1.0;
+
+    // Sleep state transitions (flip-flop switch with hysteresis)
+    // REF: Saper 2005 — mutual inhibition between wake/sleep = flip-flop
+    if (!is_sleeping_ && fatigue_ > fatigue_threshold_) {
+        is_sleeping_ = true;  // fall asleep
+    } else if (is_sleeping_ && fatigue_ < 0.15) {
+        is_sleeping_ = false; // wake up (hysteresis: wake threshold << sleep threshold)
+    }
+
+    // Drive RIS neuron based on fatigue level + sleep state
+    // RIS is tonically silent (2pA) when awake, strongly activated during sleep
+    // Uses flip-flop hysteresis: once sleeping, RIS gets strong maintenance drive
+    // REF: Saper 2005 — mutual inhibition between wake/sleep = stable states
+    int n = static_cast<int>(neurons_.size());
+    if (ris_id_ >= 0 && ris_id_ < n) {
+        // Base drive: sigmoid of fatigue around threshold
+        double fatigue_drive = 40.0 / (1.0 + std::exp(-12.0 * (fatigue_ - fatigue_threshold_)));
+        // Sleep maintenance: once asleep, RIS gets extra sustained drive
+        // This models the flip-flop stable state — sleep is self-reinforcing
+        double sleep_maintenance = is_sleeping_ ? 25.0 : 0.0;
+        double ris_drive = 2.0 + fatigue_drive + sleep_maintenance;
+        // FLP-11 self-inhibition: high RIS activity feeds back negatively
+        // REF: 2025 Current Biology — FLP-11 induces and self-inhibits sleep
+        // Weak feedback: allows RIS to reach high activation during sleep
+        // Strong feedback would prevent sleep maintenance
+        double ris_V = neurons_[ris_id_]->get_membrane_potential();
+        double ris_release = 1.0 / (1.0 + std::exp(-(ris_V - (-35.0)) / 5.0));
+        double self_inhibition = -3.0 * ris_release;  // weak negative feedback
+        neurons_[ris_id_]->set_external_current(ris_drive + self_inhibition);
+    }
+}
+
+void SimulationEngine::apply_sleep_effects() {
+    // FLP-11 volume transmission: RIS release rate → global inhibition
+    // FLP-11 acts through GPCRs: FRPR-3, NPR-4, NPR-22 (multiple redundant)
+    // Targets: motor neurons, command interneurons, pharyngeal muscle
+    // REF: Turek 2016 eLife — FLP-11 overexpression → anachronistic quiescence
+    //      NPR-22 on pharynx muscle + head muscle → direct inhibition
+
+    int n = static_cast<int>(neurons_.size());
+    if (ris_id_ < 0 || ris_id_ >= n) return;
+
+    // Compute FLP-11 concentration from RIS release rate
+    double ris_V = neurons_[ris_id_]->get_membrane_potential();
+    double flp11 = 1.0 / (1.0 + std::exp(-(ris_V - (-35.0)) / 5.0));
+
+    // Only apply effects when FLP-11 is significant (>0.3)
+    if (flp11 < 0.1) return;
+
+    // Effect 1: Speed suppression handled in step() after neuromodulation
+    // (sleep_speed_factor applied to body_.set_speed_scale in step())
+
+    // Effect 2: Inhibit command interneurons (AVA/AVB)
+    // FLP-11 → FRPR-3/NPR-4 on command neurons → hyperpolarize
+    double cmd_inhibition = -15.0 * flp11;  // up to -15 pA
+    const char* cmd_names[] = {"AVAL", "AVAR", "AVBL", "AVBR"};
+    for (auto name : cmd_names) {
+        int id = connectome_.get_neuron_id(name);
+        if (id >= 0 && id < n) {
+            neurons_[id]->add_synaptic_current(cmd_inhibition);
+        }
+    }
+
+    // Effect 3: Suppress pharyngeal pumping
+    // FLP-11 → NPR-22 on pharynx muscle → pump rate drops
+    // REF: Konietzka 2020 — RIS activation inhibits pharyngeal pumping
+    double mc_inhibition = -12.0 * flp11;  // up to -12 pA on MC
+    for (int id : mc_ids_) {
+        if (id >= 0 && id < n) {
+            neurons_[id]->add_synaptic_current(mc_inhibition);
+        }
+    }
+
+    // Effect 4: Suppress head motor oscillation
+    // FLP-11 → head motor neurons → reduce head swing amplitude
+    double head_inhibition = -8.0 * flp11;  // up to -8 pA
+    for (int id : head_motor_ids_) {
+        if (id >= 0 && id < n) {
+            neurons_[id]->add_synaptic_current(head_inhibition);
+        }
     }
 }
 

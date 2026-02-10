@@ -72,6 +72,9 @@ public:
     int total_pumps() const { return pharynx_.total_pumps(); }
     double pharynx_V() const { return pharynx_.V_muscle(); }
     const PharyngealPump& pharynx() const { return pharynx_; }
+    // Sleep / fatigue (Step 27)
+    double fatigue() const { return fatigue_; }
+    bool is_sleeping() const { return is_sleeping_; }
 
     // Callback for each step (for logging/visualization)
     using StepCallback = std::function<void(const SimulationEngine&, int step_num)>;
@@ -210,6 +213,19 @@ private:
     std::vector<int> aiy_ids_;           // AIY interneuron IDs (approach pathway)
     void update_sickness();              // accumulate sickness from toxic food intake
     void update_pathogen_learning();     // AWC→AIY w_mod↓, AWC→AIB w_mod↑
+
+    // Step 27: Sleep / Quiescence (Lethargus)
+    // REF: Turek 2016 eLife — RIS releases FLP-11 to systemically induce sleep
+    //      Konietzka 2020 Nat Commun — RIS as locomotion stop neuron
+    //      Nagy 2014 eLife — sleep homeostasis (micro/macro)
+    double fatigue_ = 0.0;              // [0,1] homeostatic sleep drive
+    double fatigue_tau_rise_ = 120000.0;  // ms, ~120s to accumulate when active
+    double fatigue_tau_decay_ = 60000.0;  // ms, ~60s to clear during sleep
+    double fatigue_threshold_ = 0.7;      // RIS activation threshold
+    int ris_id_ = -1;                     // RIS neuron ID
+    bool is_sleeping_ = false;            // current sleep state
+    void update_fatigue();                // fatigue accumulation / decay
+    void apply_sleep_effects();           // FLP-11 global inhibition during sleep
 
     // Reversal & omega turn tracking
     bool is_reversing_ = false;

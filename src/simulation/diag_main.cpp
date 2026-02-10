@@ -77,6 +77,7 @@ int main() {
     int ashl_id = conn.get_neuron_id("ASHL");
     int ashr_id = conn.get_neuron_id("ASHR");
     int adfl_id = conn.get_neuron_id("ADFL");  // Step 26: ADF serotonin neuron
+    int ris_id = conn.get_neuron_id("RIS");      // Step 27: RIS sleep neuron
 
     // Accumulators
     std::vector<double> grad_mags, grad_normals, biases;
@@ -89,6 +90,8 @@ int main() {
     std::vector<double> pump_rate_vs, pharynx_v_vs;  // Step 24: pharyngeal diagnostics
     std::vector<double> rep_dist_vs, ypos_vs, ash_i_vs;  // Step 25: nociception tracking
     std::vector<double> sick_vs;  // Step 26: sickness tracking
+    std::vector<double> fatigue_vs;  // Step 27: fatigue/sleep tracking
+    std::vector<int> sleep_vs;       // Step 27: is_sleeping flag
     // SMD current diagnostics
     std::vector<double> smddl_v_vs, smdvl_v_vs, smddl_isyn_vs, smddl_iext_vs;
 
@@ -211,6 +214,8 @@ int main() {
                 ash_i_vs.push_back(ashl_id >= 0 && ashl_id < n ? neurons[ashl_id]->get_I_ext() : 0.0);
             }
             sick_vs.push_back(sim.sickness());  // Step 26
+            fatigue_vs.push_back(sim.fatigue());  // Step 27
+            sleep_vs.push_back(sim.is_sleeping() ? 1 : 0);  // Step 27
             pump_rate_vs.push_back(sim.pump_rate_hz());
             pharynx_v_vs.push_back(sim.pharynx_V());
 
@@ -364,7 +369,7 @@ int main() {
 
     // Time series: 5-HT, DA, OA, satiety, distance every 20s
     std::cout << "   Time series (every 20s):" << std::endl;
-    std::cout << "     t(s)  dist   x_pos  y_pos  r_dist ASH_I  5-HT   sat   sick  fmem  spd" << std::endl;
+    std::cout << "     t(s)  dist   x_pos  y_pos  r_dist ASH_I  5-HT   sat   sick  fmem  fatg  slp  spd" << std::endl;
     int samples_per_20s = (int)(20000.0 / 100.0); // 200 samples per 20s
     for (int t = 0; t < 15; ++t) {
         int idx = (t + 1) * samples_per_20s - 1;
@@ -382,6 +387,8 @@ int main() {
                       << std::setw(5) << satiety_vs[idx] << "  "
                       << std::setprecision(3) << std::setw(5) << sick_vs[idx] << "  "
                       << std::setprecision(3) << std::setw(5) << fmem_vs[idx] << "  "
+                      << std::setprecision(3) << std::setw(5) << fatigue_vs[idx] << "  "
+                      << std::setw(3) << sleep_vs[idx] << "  "
                       << std::setprecision(3) << spd_scale_vs[idx]
                       << "  " << mode << std::endl;
         }
@@ -504,6 +511,43 @@ int main() {
                           << std::setprecision(4) << syn.weight_mod() << std::endl;
             }
         }
+    }
+
+    // Step 27: Sleep / Quiescence diagnostic
+    std::cout << "\n18. SLEEP / QUIESCENCE (Step 27):" << std::endl;
+    std::cout << "   fatigue=" << std::setprecision(4) << sim.fatigue()
+              << "  is_sleeping=" << (sim.is_sleeping() ? "YES" : "NO") << std::endl;
+    {
+        const auto& ns = sim.neurons();
+        int nn = (int)ns.size();
+        if (ris_id >= 0 && ris_id < nn) {
+            double rv = ns[ris_id]->get_membrane_potential();
+            double flp11 = 1.0 / (1.0 + std::exp(-(rv - (-35.0)) / 5.0));
+            std::cout << "   RIS: " << std::setprecision(1) << rv << " mV"
+                      << "  I_ext=" << std::setprecision(2) << ns[ris_id]->get_I_ext() << " pA"
+                      << "  FLP-11=" << std::setprecision(3) << flp11 << std::endl;
+        }
+        // Sleep episode analysis
+        int sleep_episodes = 0;
+        double total_sleep_time = 0;
+        bool was_sleeping = false;
+        for (size_t i = 0; i < sleep_vs.size(); ++i) {
+            if (sleep_vs[i] && !was_sleeping) sleep_episodes++;
+            if (sleep_vs[i]) total_sleep_time += 0.1;  // 100ms per sample
+            was_sleeping = sleep_vs[i];
+        }
+        double sleep_pct = (sleep_vs.size() > 0) ? 100.0 * total_sleep_time / (sleep_vs.size() * 0.1) : 0;
+        std::cout << "   Sleep episodes: " << sleep_episodes
+                  << "  total_sleep=" << std::setprecision(1) << total_sleep_time << "s"
+                  << " (" << std::setprecision(1) << sleep_pct << "%)" << std::endl;
+        // Fatigue time course summary
+        double max_fatigue = 0, min_fatigue = 1.0;
+        for (double f : fatigue_vs) {
+            if (f > max_fatigue) max_fatigue = f;
+            if (f < min_fatigue) min_fatigue = f;
+        }
+        std::cout << "   Fatigue range: [" << std::setprecision(3) << min_fatigue
+                  << ", " << max_fatigue << "]" << std::endl;
     }
 
     // Step 21: Short-term plasticity diagnostic
