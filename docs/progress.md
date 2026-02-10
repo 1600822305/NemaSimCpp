@@ -343,8 +343,9 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 - **Weathervane AWC偏好翻转**: awc_pref=(w_mod-0.55)×3.0, 学后=-1.35(排斥力>引诱力)
 - **疾病性厌食**: sick_suppression=1-0.85×sickness(化学感觉降到15%)
 - **多化学物种**: soluble_field_基础设施(ASE独立通道就绪)
+- **fmem双重保护**: 快速衰减(tau 90s→5s) + 充值门控(生病时不记好食物)
 - **三层化学回避**: 先天ASH(即时) + 学习AWC翻转(~60s) + 5-HT调制(秒级)
-- **结果**: regtest 12 pass; **CI=-0.46(反向!)**, dist=14.6mm, time_near=18%
+- **结果**: regtest 12 pass; **CI=-0.18(反向!)**, fmem=0.000, near_food=29%
 - **REF**: Zhang 2005 Nature, Ha 2010 Neuron, Bargmann 2006
 - **文档**: docs/steps/step26_pathogen_learning.md
 
