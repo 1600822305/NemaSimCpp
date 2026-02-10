@@ -339,10 +339,17 @@ void SimulationEngine::apply_sensory_input() {
                            head_pos.y + lateral_offset * ny};
     double concentration = environment_.sample_chemical(sample_pos);
 
+    // Step 23c: Satiety modulates chemosensory gain (Mori 1995, Tomioka 2006)
+    // Sharp sigmoid switch at satiety=0.5:
+    //   Hungry (sat<0.3): full chemotaxis (find food!)
+    //   Fed (sat>0.7): chemotaxis nearly off (temperature priority)
+    double sat_switch = 1.0 / (1.0 + std::exp(-10.0 * (satiety_ - 0.5)));
+    double chemo_sat_gain = 1.0 - 0.85 * sat_switch;  // hungry: 1.0, fed: 0.15
+
     for (auto& cm : chemo_mappings_) {
         if (cm.neuron_id < 0 || cm.neuron_id >= n) continue;
         double I_sensory = cm.transducer.update(concentration, dt_);
-        I_sensory *= static_cast<double>(params.sensory_gain);
+        I_sensory *= static_cast<double>(params.sensory_gain) * chemo_sat_gain;
         neurons_[cm.neuron_id]->set_external_current(I_sensory);
     }
 
@@ -363,9 +370,17 @@ void SimulationEngine::apply_thermo_input() {
     Vector2d head_pos = body_.get_head_position();
     double temperature = environment_.sample_temperature(head_pos);
 
+    // Step 23c: Satiety modulates thermosensory gain (Mori 1995)
+    // Sharp sigmoid switch at satiety=0.5:
+    //   Hungry: weak thermotaxis (food priority)
+    //   Fed: strong thermotaxis (navigate to cultivation temperature)
+    double sat_switch_t = 1.0 / (1.0 + std::exp(-10.0 * (satiety_ - 0.5)));
+    double thermo_sat_gain = 0.2 + 1.8 * sat_switch_t;  // hungry: 0.2, fed: 2.0
+
     for (auto& tm : thermo_mappings_) {
         if (tm.neuron_id < 0 || tm.neuron_id >= n) continue;
         double I_thermo = tm.transducer.update(temperature, dt_);
+        I_thermo *= thermo_sat_gain;
         // AFD current adds to (not replaces) any existing external current
         neurons_[tm.neuron_id]->add_synaptic_current(I_thermo);
     }
@@ -413,7 +428,25 @@ void SimulationEngine::apply_weathervane() {
     // Scale factor calibrated for our chemical field (Gaussian, peak=1.0, sigma²=25)
     // At 14mm from source: gradient ~0.011 conc/mm → bias ~0.14 °/mm → small but cumulative
     double weathervane_gain = static_cast<double>(params.weathervane_gain);
-    double bias_current = weathervane_gain * grad_normal;
+
+    // Step 23c: Satiety modulates chemotaxis weathervane gain
+    double sat_switch_wv = 1.0 / (1.0 + std::exp(-10.0 * (satiety_ - 0.5)));
+    double chemo_wv_gain = 1.0 - 0.85 * sat_switch_wv;  // fed: 0.15, hungry: 1.0
+    double bias_current = weathervane_gain * grad_normal * chemo_wv_gain;
+
+    // Step 23c: Temperature weathervane — turn toward Tc when fed
+    // Navigate to minimize |T - Tc|: bias = -sign(T-Tc) × grad_T_normal
+    // This steers toward Tc regardless of which side the worm is on
+    Vector2d tgrad = environment_.temperature_gradient(head_pos);
+    double temp_grad_normal = -sin_h * tgrad.x + cos_h * tgrad.y;
+    double temp_at_head = environment_.sample_temperature(head_pos);
+    double tc = cultivation_temp_;  // 22.5°C
+    double temp_sign = (temp_at_head > tc) ? -1.0 : 1.0;  // toward Tc
+    double thermo_wv_gain = 0.0 + 2.0 * sat_switch_wv;    // hungry: 0, fed: 2.0
+    // Temperature weathervane gain: 30 pA per °C/mm
+    // At 0.5°C/mm gradient, fed(×2.0): 30×0.25×2.0 = 15 pA (competes with chemo ~5-20 pA)
+    double temp_bias = 30.0 * temp_sign * temp_grad_normal * thermo_wv_gain;
+    bias_current += temp_bias;
 
     // Clamp to ±bias_clamp pA (should not overwhelm the half-center oscillator)
     double clamp = static_cast<double>(params.bias_clamp);

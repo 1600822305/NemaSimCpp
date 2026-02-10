@@ -74,7 +74,7 @@ int main() {
     std::vector<double> aiyl_vs, aiyr_vs, aibl_vs, aibr_vs;
     std::vector<double> aial_vs, aiar_vs, awcl_vs, awcr_vs;
     std::vector<double> aval_vs, rial_vs, riar_vs;
-    std::vector<double> sht_vs, da_vs, oa_vs, satiety_vs, spd_scale_vs, fmem_vs, dist_vs_time;
+    std::vector<double> sht_vs, da_vs, oa_vs, satiety_vs, spd_scale_vs, fmem_vs, dist_vs_time, xpos_vs;
 
     double prev_heading = sim.body().get_head_angle() * 180.0 / 3.14159265;
     double prev_time = 0;
@@ -179,6 +179,7 @@ int main() {
             spd_scale_vs.push_back(sim.neuromodulation().get_speed_scale());
             fmem_vs.push_back(sim.food_memory());
             dist_vs_time.push_back(dist);
+            xpos_vs.push_back(head.x);
 
             // Store
             grad_mags.push_back(grad_mag);
@@ -317,19 +318,24 @@ int main() {
 
     // Time series: 5-HT, DA, OA, satiety, distance every 20s
     std::cout << "   Time series (every 20s):" << std::endl;
-    std::cout << "     t(s)  dist   5-HT   DA    OA    sat   fmem  spd" << std::endl;
+    std::cout << "     t(s)  dist   x_pos  5-HT   DA    OA    sat   fmem  spd" << std::endl;
     int samples_per_20s = (int)(20000.0 / 100.0); // 200 samples per 20s
     for (int t = 0; t < 15; ++t) {
         int idx = (t + 1) * samples_per_20s - 1;
         if (idx < (int)sht_vs.size()) {
+            // Compute satiety gain mode for this time point
+            double s_sw = 1.0 / (1.0 + std::exp(-10.0 * (satiety_vs[idx] - 0.5)));
+            const char* mode = (satiety_vs[idx] > 0.5) ? "<-Tc" : "->Fd";
             std::cout << "     " << std::setw(4) << (t + 1) * 20 << "  "
                       << std::setprecision(2) << std::setw(5) << dist_vs_time[idx] << "  "
+                      << std::setprecision(1) << std::setw(5) << xpos_vs[idx] << "  "
                       << std::setprecision(3) << std::setw(5) << sht_vs[idx] << "  "
                       << std::setw(5) << da_vs[idx] << "  "
                       << std::setw(5) << oa_vs[idx] << "  "
                       << std::setw(5) << satiety_vs[idx] << "  "
                       << std::setw(5) << fmem_vs[idx] << "  "
-                      << std::setprecision(3) << spd_scale_vs[idx] << std::endl;
+                      << std::setprecision(3) << spd_scale_vs[idx]
+                      << "  " << mode << std::endl;
         }
     }
 
@@ -360,11 +366,23 @@ int main() {
         std::cout << "   Signal strength: AFD_S=" << std::setprecision(3) << afd_S
                   << " vs ASE_S=" << ase_S
                   << " (ratio=" << std::setprecision(2) << (ase_S > 0.01 ? afd_S / ase_S : 0) << ")" << std::endl;
+        // Satiety gain modulation (Step 23c — sigmoid switch)
+        double sat = sim.satiety();
+        double sw = 1.0 / (1.0 + std::exp(-10.0 * (sat - 0.5)));
+        double chemo_g = 1.0 - 0.85 * sw;
+        double thermo_g = 0.2 + 1.8 * sw;
+        std::cout << "   Satiety gain: sat=" << std::setprecision(2) << sat
+                  << " → chemo×" << std::setprecision(2) << chemo_g
+                  << " thermo×" << std::setprecision(2) << thermo_g
+                  << (sat > 0.5 ? " [TEMP mode]" : " [FOOD mode]") << std::endl;
         // Conflict analysis: did worm go toward food (right) or Tc (left)?
+        // Tc target: T(x)=20+(-0.5)(x-25)=Tc → x=25-(Tc-20)/0.5
+        double tc_x = 25.0 - (22.5 - 20.0) / 0.5;  // = 20mm
         double dx = hp.x - 25.0;  // positive = went RIGHT (food), negative = went LEFT (Tc)
         std::cout << "   X displacement: " << std::setprecision(1) << std::fixed << dx << " mm"
-                  << (dx > 1.0 ? " → FOOD wins" : (dx < -1.0 ? " → TEMP wins" : " → undecided"))
-                  << "  (food@right, Tc@left)" << std::defaultfloat << std::endl;
+                  << (dx > 1.0 ? " -> FOOD wins" : (dx < -1.0 ? " -> TEMP wins" : " -> undecided"))
+                  << "  (food@right x=35, Tc@left x=" << std::setprecision(0) << tc_x << ")"
+                  << std::defaultfloat << std::endl;
     }
 
     // Step 21: Short-term plasticity diagnostic
