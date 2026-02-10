@@ -45,15 +45,15 @@ int main() {
     std::vector<double> aiyl_vs, aiyr_vs, aibl_vs, aibr_vs;
     std::vector<double> aial_vs, aiar_vs, awcl_vs, awcr_vs;
     std::vector<double> aval_vs, rial_vs, riar_vs;
-    std::vector<double> sht_vs, da_vs, dist_vs_time;
+    std::vector<double> sht_vs, da_vs, oa_vs, satiety_vs, spd_scale_vs, dist_vs_time;
 
     double prev_heading = sim.body().get_head_angle() * 180.0 / 3.14159265;
     double prev_time = 0;
     double heading_rate_sum = 0;
     int heading_rate_count = 0;
 
-    // Run 60 seconds
-    double duration = 60000.0;
+    // Run 120 seconds (see full roaming→dwelling→roaming cycle)
+    double duration = 120000.0;
     int pirouette_count = 0;
     int reversal_count = 0;
     int omega_count = 0;
@@ -139,6 +139,9 @@ int main() {
             // Neuromodulation time series
             sht_vs.push_back(sim.neuromodulation().get_concentration("5-HT"));
             da_vs.push_back(sim.neuromodulation().get_concentration("DA"));
+            oa_vs.push_back(sim.neuromodulation().get_concentration("OA"));
+            satiety_vs.push_back(sim.satiety());
+            spd_scale_vs.push_back(sim.neuromodulation().get_speed_scale());
             dist_vs_time.push_back(dist);
 
             // Store
@@ -271,19 +274,20 @@ int main() {
     std::cout << "   speed_scale=" << std::setprecision(3) << sim.neuromodulation().get_speed_scale()
               << "  (effective=" << sim.neuromodulation().get_speed_scale() * sim.params.speed_scale << ")" << std::endl;
 
-    // Time series: 5-HT, DA, distance every 10s
+    // Time series: 5-HT, DA, OA, satiety, distance every 10s
     std::cout << "   Time series (every 10s):" << std::endl;
-    std::cout << "     t(s)  dist(mm)  5-HT   DA     speed_eff" << std::endl;
+    std::cout << "     t(s)  dist   5-HT   DA    OA    sat   spd_mod" << std::endl;
     int samples_per_10s = (int)(10000.0 / 100.0); // 100 samples per 10s
-    for (int t = 0; t < 6; ++t) {
+    for (int t = 0; t < 12; ++t) {
         int idx = (t + 1) * samples_per_10s - 1;
         if (idx < (int)sht_vs.size()) {
-            double eff_speed = (1.0 - 0.15 * sht_vs[idx]) * (1.0 - 0.25 * da_vs[idx]) * sim.params.speed_scale;
             std::cout << "     " << std::setw(4) << (t + 1) * 10 << "  "
-                      << std::setprecision(2) << std::setw(7) << dist_vs_time[idx] << "  "
+                      << std::setprecision(2) << std::setw(5) << dist_vs_time[idx] << "  "
                       << std::setprecision(3) << std::setw(5) << sht_vs[idx] << "  "
                       << std::setw(5) << da_vs[idx] << "  "
-                      << std::setprecision(3) << eff_speed << std::endl;
+                      << std::setw(5) << oa_vs[idx] << "  "
+                      << std::setw(5) << satiety_vs[idx] << "  "
+                      << std::setprecision(3) << spd_scale_vs[idx] << std::endl;
         }
     }
 

@@ -58,6 +58,9 @@ public:
     bool is_omega_turning() const { return omega_pending_; }
     double reversal_duration() const { return reversal_duration_; }
 
+    // Satiety (Step 20c)
+    double satiety() const { return satiety_; }
+
     // Callback for each step (for logging/visualization)
     using StepCallback = std::function<void(const SimulationEngine&, int step_num)>;
     void set_step_callback(StepCallback cb) { step_callback_ = std::move(cb); }
@@ -121,6 +124,14 @@ private:
     // Klinotaxis: RIA gate-and-switch
     double ria_curv_filtered_ = 0.0;   // filtered cross-correlation output
     double sensory_diff_mean_ = 0.0;   // DC baseline of sensory ON-OFF diff (2s tau)
+
+    // Satiety internal state (Step 20c)
+    // Models feeding → insulin signaling → reduced NSM sensitivity
+    double satiety_ = 0.0;             // [0,1] — 0=hungry, 1=full
+    double satiety_tau_fill_ = 20000.0; // ms to fill up (20s on food)
+    double satiety_tau_deplete_ = 40000.0; // ms to get hungry (40s off food)
+    void update_satiety();              // called each step
+    std::vector<int> ric_ids_;          // RIC neuron IDs (OA source, tonic drive)
 
     // Reversal & omega turn tracking
     bool is_reversing_ = false;

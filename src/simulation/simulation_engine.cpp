@@ -110,6 +110,7 @@ void SimulationEngine::initialize_default() {
     for (auto& info : neuron_infos) {
         if (starts_with(info.name, "ALM")) alm_ids_.push_back(info.id);
         if (starts_with(info.name, "PLM")) plm_ids_.push_back(info.id);
+        if (starts_with(info.name, "RIC")) ric_ids_.push_back(info.id);
     }
 
     // Initialize transducers with current concentration at head
@@ -200,8 +201,11 @@ void SimulationEngine::step() {
     // Step 19 Phase 2: SMB neck curvature bias (klinotaxis effector)
     apply_smb_neck_bias();
 
-    // 5b. Neuromodulation update (Step 20, Layer 6)
-    // Slow timescale: 5-HT/DA concentrations rise/fall over seconds
+    // 5b. Update satiety + RIC tonic drive (Step 20c)
+    update_satiety();
+
+    // 5c. Neuromodulation update (Step 20, Layer 6)
+    // Slow timescale: 5-HT/DA/OA concentrations rise/fall over seconds
     // Effects: tonic currents on target neurons, speed modulation
     neuromod_.update(neurons_, dt_);
 
@@ -664,6 +668,16 @@ void SimulationEngine::setup_neuromodulation() {
         serotonin.targets.push_back(
             {-1, "SER-7", ModulationEffect::SPEED_SCALE, -0.15}); // 15% slower at max
 
+        // Target: RIC inhibition (cross-inhibit OA source during dwelling)
+        // 5-HT → SER-4 on RIC → inhibit → no OA during active dwelling
+        // REF: Chase & Koelle 2007 — 5-HT/OA antagonism
+        int ricl = connectome_.get_neuron_id("RICL");
+        int ricr = connectome_.get_neuron_id("RICR");
+        if (ricl >= 0) serotonin.targets.push_back(
+            {ricl, "SER-4", ModulationEffect::EXCITABILITY, -8.0}); // -8 pA inhibitory
+        if (ricr >= 0) serotonin.targets.push_back(
+            {ricr, "SER-4", ModulationEffect::EXCITABILITY, -8.0});
+
         neuromod_.add_modulator(std::move(serotonin));
     }
 
@@ -696,7 +710,115 @@ void SimulationEngine::setup_neuromodulation() {
         neuromod_.add_modulator(std::move(dopamine));
     }
 
-    LOG_INFO("Neuromodulation setup: 5-HT (NSM→AIY dwelling), DA (CEP→basal slowing)");
+    // --- Octopamine (OA) ---
+    // Source: RIC interneurons (tonically active, inhibited by 5-HT)
+    // Effect: promotes roaming — increase speed, decrease reversal rate
+    // OA is the functional antagonist of 5-HT
+    // REF: Alkema 2005 — tyramine/octopamine in C. elegans locomotion
+    //      Churgin 2017 — OA promotes roaming state
+    {
+        Neuromodulator octopamine;
+        octopamine.name = "OA";
+        octopamine.tau_rise = 2000.0;    // 2s to build up
+        octopamine.tau_decay = 4000.0;   // 4s to clear (faster than 5-HT)
+        octopamine.release_threshold = 0.3;
+
+        // Source neurons: RIC (tonically active when off-food/satiated)
+        int ricl = connectome_.get_neuron_id("RICL");
+        int ricr = connectome_.get_neuron_id("RICR");
+        if (ricl >= 0) octopamine.source_neuron_ids.push_back(ricl);
+        if (ricr >= 0) octopamine.source_neuron_ids.push_back(ricr);
+
+        // Target: global speed increase (antagonizes 5-HT/DA slowing)
+        // REF: Churgin 2017 — OA mutants have reduced roaming
+        octopamine.targets.push_back(
+            {-1, "SER-3", ModulationEffect::SPEED_SCALE, 0.30}); // +30% speed at max
+
+        // Target: AIY excitation (promotes forward runs)
+        // SER-6 on AIY: excitatory → more forward → roaming
+        int aiyl = connectome_.get_neuron_id("AIYL");
+        int aiyr = connectome_.get_neuron_id("AIYR");
+        if (aiyl >= 0) octopamine.targets.push_back(
+            {aiyl, "SER-6", ModulationEffect::EXCITABILITY, 4.0}); // +4 pA excitatory
+        if (aiyr >= 0) octopamine.targets.push_back(
+            {aiyr, "SER-6", ModulationEffect::EXCITABILITY, 4.0});
+
+        neuromod_.add_modulator(std::move(octopamine));
+    }
+
+    LOG_INFO("Neuromodulation setup: 5-HT (dwelling), DA (basal slowing), OA (roaming)");
+}
+
+// ================================================================
+// Satiety internal state (Step 20c)
+//
+// Models the feeding → insulin signaling → behavioral switch:
+//   hungry → find food → dwell → eat → satiety↑ → roam → leave → hungry
+//
+// Mechanism:
+//   1. On food: satiety increases (tau_fill ~20s)
+//   2. Off food: satiety decreases (tau_deplete ~40s)
+//   3. High satiety → reduce NSM sensitivity → 5-HT drops
+//   4. High satiety → excite RIC → OA rises → roaming
+//
+// REF: You 2008 — insulin/DAF-2 modulates foraging
+//      Shtonda & Bhatt 2010 — satiety quiescence
+// ================================================================
+void SimulationEngine::update_satiety() {
+    // Sample food concentration at head
+    double food_conc = environment_.sample_chemical(body_.get_head_position());
+
+    // Update satiety: rises on food, falls off food
+    // food_conc is ~0.5-1.0 near food source, ~0 far away
+    double on_food = food_conc * food_conc / (food_conc * food_conc + 0.09); // steep sigmoid, half-max at C=0.3
+    satiety_ += (on_food - satiety_) * dt_ / satiety_tau_fill_;
+    // Additional depletion when not on food
+    if (on_food < 0.3) {
+        satiety_ -= satiety_ * dt_ / satiety_tau_deplete_;
+    }
+    if (satiety_ < 0.0) satiety_ = 0.0;
+    if (satiety_ > 1.0) satiety_ = 1.0;
+
+    // --- Effect 1: Satiety reduces NSM gain ---
+    // High satiety → insulin → NSM less responsive to food
+    // Implemented: inject hyperpolarizing current into NSM proportional to satiety
+    // At satiety=1.0: -15 pA → NSM release drops below threshold → 5-HT decays
+    int n = static_cast<int>(neurons_.size());
+    double nsm_suppression = -15.0 * satiety_;  // pA, inhibitory
+    int nsml = connectome_.get_neuron_id("NSML");
+    int nsmr = connectome_.get_neuron_id("NSMR");
+    if (nsml >= 0 && nsml < n) neurons_[nsml]->add_synaptic_current(nsm_suppression);
+    if (nsmr >= 0 && nsmr < n) neurons_[nsmr]->add_synaptic_current(nsm_suppression);
+
+    // --- Effect 2: Satiety excites RIC ---
+    // High satiety → RIC fires → OA released → roaming
+    // Also: RIC gets tonic baseline (5 pA) representing hunger drive
+    // Net: RIC = baseline + satiety_excitation - 5-HT_inhibition (via neuromod)
+    double ric_baseline = 5.0;   // pA tonic (hunger drive)
+    double ric_satiety = 10.0 * satiety_;  // pA, satiety excitation
+    for (int rid : ric_ids_) {
+        if (rid >= 0 && rid < n) {
+            neurons_[rid]->add_synaptic_current(ric_baseline + ric_satiety);
+        }
+    }
+
+    // --- Effect 3: Satiety suppresses chemotaxis (ASE/AWC) ---
+    // High satiety → insulin/DAF-2 → reduced chemosensory gain
+    // Makes worm less responsive to food gradient → random movement → leaves food
+    // REF: Tomioka 2006 — insulin signaling modulates chemotaxis
+    //      Chalasani 2010 — neuropeptide modulation of AWC sensitivity
+    if (satiety_ > 0.3) {
+        double suppress = -8.0 * (satiety_ - 0.3) / 0.7;  // 0 at sat=0.3, -8pA at sat=1.0
+        const auto& ninfos = connectome_.neuron_infos();
+        for (size_t i = 0; i < chemo_mappings_.size(); ++i) {
+            int nid = chemo_mappings_[i].neuron_id;
+            if (nid < 0 || nid >= n) continue;
+            // Only suppress main chemotaxis neurons (ASE, AWC), not food detectors (NSM, CEP)
+            if (starts_with(ninfos[nid].name, "ASE") || starts_with(ninfos[nid].name, "AWC")) {
+                neurons_[nid]->add_synaptic_current(suppress);
+            }
+        }
+    }
 }
 
 } // namespace celegans

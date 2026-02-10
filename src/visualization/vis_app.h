@@ -64,6 +64,8 @@ private:
     std::vector<double> neuromod_times_;
     std::vector<double> sht_history_;     // 5-HT concentration [0,1]
     std::vector<double> da_history_;      // DA concentration [0,1]
+    std::vector<double> oa_history_;      // OA concentration [0,1]
+    std::vector<double> satiety_history_; // satiety [0,1]
     std::vector<double> speed_mod_history_; // effective speed scale
     void update_neuromod();
 

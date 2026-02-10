@@ -199,6 +199,10 @@ void ConnectomeLoader::generate_default_connectome(
         // REF: Ouellette 2022 eLife — RIM gap junctions create behavioral inertia
         {"RIML", NeuronType::INTER, NeurotransmitterType::GLUTAMATE},
         {"RIMR", NeuronType::INTER, NeurotransmitterType::GLUTAMATE},
+        // RIC: octopamine/tyramine source — promotes roaming when off food
+        // REF: Alkema 2005 — RIC produces OA, antagonizes 5-HT dwelling
+        {"RICL", NeuronType::INTER, NeurotransmitterType::OCTOPAMINE},
+        {"RICR", NeuronType::INTER, NeurotransmitterType::OCTOPAMINE},
         // Head motor neurons
         {"SMDVL", NeuronType::MOTOR, NeurotransmitterType::ACETYLCHOLINE},
         {"SMDVR", NeuronType::MOTOR, NeurotransmitterType::ACETYLCHOLINE},

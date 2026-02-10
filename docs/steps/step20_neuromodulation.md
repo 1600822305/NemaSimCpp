@@ -155,10 +155,60 @@
 - **修改**: `src/environment/sensory_transducer.h` — 添加 TONIC 响应类型
 - **修改**: `src/simulation/diag_main.cpp` — 添加调质诊断输出
 
+## Step 20c: OA + 饱食度 — 完整行为循环
+
+### 问题
+
+Step 20 只实现了 roaming→dwelling 单向切换。线虫到达食物后永远 dwelling，不会再探索。
+缺失：饱食后 dwelling→roaming 的反向切换。
+
+### 新增组件
+
+**Octopamine (OA)**:
+- 源: RIC L/R (新增 2 个中间神经元, 72 总)
+- tau_rise=2s, tau_decay=4s
+- 靶点:
+  - SER-3: SPEED_SCALE +30% (促进快速运动)
+  - SER-6 on AIY: +4 pA (促进前进)
+- 5-HT→RIC 交叉抑制: SER-4 -8 pA (dwelling 时抑制 OA)
+
+**饱食度 (Satiety)**:
+- 内部状态变量 [0, 1]: 0=饥饿, 1=饱食
+- on_food 检测: C²/(C²+0.09), 半最大值 C=0.3 (只有真正在食物上才算进食)
+- tau_fill = 20s, tau_deplete = 40s
+- 效应 1: NSM 抑制 (-15 pA × satiety) → 5-HT 下降
+- 效应 2: RIC 激励 (5 pA baseline + 10 pA × satiety) → OA 上升
+- 效应 3: ASE/AWC 趋化抑制 (-8 pA × (sat-0.3)/0.7) → 饱食时不再趋化
+- REF: You 2008 — insulin/DAF-2, Tomioka 2006 — chemotaxis modulation
+
+### 验证结果 (120s 仿真)
+
+完整行为循环涌现:
+```
+t(s)  dist   5-HT   OA    sat   spd    行为
+ 10  12.4   0.15  0.18  0.00  1.01   ROAMING (快速, OA>5-HT)
+ 40   9.9   0.46  0.10  0.04  0.90   → DWELLING 过渡
+ 50   8.0   0.64  0.08  0.15  0.83   DWELLING 峰值 (最慢)
+ 70   5.6   0.59  0.22  0.50  0.84   饱食度>0.5, 5-HT下降
+ 80   7.1   0.46  0.31  0.57  0.90   ★ 离开食物 ★
+110  12.5   0.16  0.25  0.19  1.02   ROAMING (speed>1.0!)
+120  13.8   0.07  0.24  0.09  1.05   饥饿, 准备再次觅食
+```
+
+### 机制总结
+
+```
+饥饿 → 高OA/低5-HT → roaming(快直走) → 发现食物
+  → NSM检测食物 → 5-HT↑ → 抑制AIY+RIC → dwelling(慢多转)
+  → 进食 → satiety↑ → 抑制NSM → 5-HT↓
+  → satiety↑ → 激励RIC → OA↑ → 抑制趋化 → 随机运动
+  → 离开食物 → satiety↓ → NSM恢复 → 回到饥饿状态
+```
+
 ## 未来扩展
 
 - **Tyramine**: RIM 已在模型中，添加 TA 释放和效应即可
-- **Octopamine**: 添加 RIC 神经元
 - **神经肽**: FLP-1, PDF 等 — 驱动 roaming 状态
-- **受体多样性**: SER-1 (兴奋性), SER-4 (抑制性), DOP-1 (D1-like)
+- **受体多样性**: SER-1 (兴奋性), DOP-1 (D1-like)
 - **空间扩散**: 目前用全局浓度，未来可加空间衰减
+- **多食物源**: 测试在多个食物斑块间的最优觅食策略

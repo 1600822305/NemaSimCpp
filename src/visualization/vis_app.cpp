@@ -237,12 +237,16 @@ void VisApp::update_neuromod() {
     neuromod_times_.push_back(t);
     sht_history_.push_back(engine_.neuromodulation().get_concentration("5-HT"));
     da_history_.push_back(engine_.neuromodulation().get_concentration("DA"));
+    oa_history_.push_back(engine_.neuromodulation().get_concentration("OA"));
+    satiety_history_.push_back(engine_.satiety());
     speed_mod_history_.push_back(engine_.neuromodulation().get_speed_scale());
     // Keep last 60000 points (~600s at 10ms interval)
     if (neuromod_times_.size() > 60000) {
         neuromod_times_.erase(neuromod_times_.begin(), neuromod_times_.begin() + 30000);
         sht_history_.erase(sht_history_.begin(), sht_history_.begin() + 30000);
         da_history_.erase(da_history_.begin(), da_history_.begin() + 30000);
+        oa_history_.erase(oa_history_.begin(), oa_history_.begin() + 30000);
+        satiety_history_.erase(satiety_history_.begin(), satiety_history_.begin() + 30000);
         speed_mod_history_.erase(speed_mod_history_.begin(), speed_mod_history_.begin() + 30000);
     }
 }
@@ -501,19 +505,25 @@ void VisApp::render_neuron_panel() {
                 // DA: cyan/blue
                 ImPlot::SetNextLineStyle(ImVec4(0.3f, 0.8f, 1.0f, 1), 2.0f);
                 ImPlot::PlotLine("DA", neuromod_times_.data(), da_history_.data(), (int)neuromod_times_.size());
-                // Speed scale: green dashed
-                ImPlot::SetNextLineStyle(ImVec4(0.3f, 1.0f, 0.3f, 1), 1.5f);
-                ImPlot::PlotLine(u8"\u901f\u5ea6\u8c03\u5236", neuromod_times_.data(), speed_mod_history_.data(), (int)neuromod_times_.size());
+                // OA: orange
+                ImPlot::SetNextLineStyle(ImVec4(1.0f, 0.6f, 0.1f, 1), 2.0f);
+                ImPlot::PlotLine("OA", neuromod_times_.data(), oa_history_.data(), (int)neuromod_times_.size());
+                // Satiety: white dashed
+                ImPlot::SetNextLineStyle(ImVec4(0.8f, 0.8f, 0.8f, 0.7f), 1.5f);
+                ImPlot::PlotLine(u8"\u9971\u98df\u5ea6", neuromod_times_.data(), satiety_history_.data(), (int)neuromod_times_.size());
                 ImPlot::EndPlot();
             }
             double sht_now = sht_history_.back();
             double da_now = da_history_.back();
-            double spd_now = speed_mod_history_.back();
+            double oa_now = oa_history_.back();
+            double sat_now = satiety_history_.back();
             ImGui::TextColored(ImVec4(1,0.3f,0.7f,1), u8"  5-HT=%.3f", sht_now);
             ImGui::SameLine();
             ImGui::TextColored(ImVec4(0.3f,0.8f,1,1), u8"  DA=%.3f", da_now);
             ImGui::SameLine();
-            ImGui::TextColored(ImVec4(0.3f,1,0.3f,1), u8"  \u901f\u5ea6\u00d7%.2f", spd_now);
+            ImGui::TextColored(ImVec4(1,0.6f,0.1f,1), u8"  OA=%.3f", oa_now);
+            ImGui::SameLine();
+            ImGui::TextColored(ImVec4(0.8f,0.8f,0.8f,1), u8"  \u9971\u98df=%.2f", sat_now);
         }
     }
 

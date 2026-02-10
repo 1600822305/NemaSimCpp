@@ -232,7 +232,12 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
   - 受体介导效应: EXCITABILITY(tonic电流), SPEED_SCALE, REVERSAL_RATE
 - **TONIC 感觉转导**: 新增 ChemoTransducer::TONIC 类型，响应绝对浓度
 - **结果**: 5-HT=0.84, DA=0.51, speed_scale=0.76 (-24%), CI=0.579, 神经元 64→70
-- **REF**: Flavell 2013 Cell, Sawin 2000, Chase & Koelle 2007
+- **Step 20c (OA+饱食度)**: 完整 roaming↔dwelling 循环
+  - OA (章鱼胺): RIC(2) → SER-3(+30%速度) + SER-6(AIY+4pA) + 5-HT交叉抑制
+  - 饱食度: on-food累积(tau=20s), NSM抑制+RIC激励+ASE/AWC趋化抑制
+  - 循环: roam→dwell(5-HT峰)→satiety↑→leave food→hungry→roam
+  - 神经元 70→72 (RIC L/R)
+- **REF**: Flavell 2013 Cell, Sawin 2000, Chase & Koelle 2007, Alkema 2005, You 2008
 
 ---
 
@@ -240,12 +245,12 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 
 ```
 架构: 8 层 (环境/躯体/感知/神经元/连接组/神经调质/运动/行为)
-神经元: 70 个 MVP 子集 (302 全集待加载)
+神经元: 72 个 MVP 子集 (302 全集待加载)
   感觉: 18 (ASE/AWC/AWA/ASH/ALM/PLM/NSM/CEP, L/R)
-  中间: 22 (AIA/AIB/AIY/AIZ/RIA/RIB/RIM/AVA/AVB/AVD/AVE, L/R)
+  中间: 24 (AIA/AIB/AIY/AIZ/RIA/RIB/RIM/RIC/AVA/AVB/AVD/AVE, L/R)
   运动: 30 (SMD/RMD/SMB 4×2+4 + DA/DB/VA/VB/DD/VD 各3)
 突触: ~110 化学 + 14 间隙连接
-神经调质: 2 种 (5-HT, DA) — volume transmission
+神经调质: 3 种 (5-HT, DA, OA) — volume transmission + 饱食度内部状态
 离子通道: 8/14 种 (EGL-19/UNC-2/CCA-1/SHL-1/KQT-3/SLO-1/NCA/MEC)
 神经元模型: 单隔室 HH 分级电位 (L2) + 钙动力学
 身体: 2D 弹性杆 48 段, 22 个运动神经元-肌肉映射
@@ -253,7 +258,7 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 仿真: dt=0.5ms, 单核 CPU 实时 (10000步 < 1s)
 构建: CMake + MSVC 19.44 + C++20
 可视化: Dear ImGui + ImPlot + GLFW, 3列布局, 实时调参+信号链诊断
-状态: 趋化(双机制)+触觉回避+RIM稳定+神经调质, 纯神经回路涌现 (CI=0.579, 5-HT/DA活跃, 食物上减速24%)
+状态: 趋化+触觉回避+RIM稳定+神经调质+行为循环, 纯神经回路涌现 (roaming↔dwelling循环, 72神经元)
 
 运动驱动 (Step 13 — 生物学机制):
   感觉基线: 12 感觉神经元 × 15pA 自发活动 (Bargmann 2006)
