@@ -63,7 +63,7 @@ public:
         // Total current = baseline + modulation (clamped)
         double I_out = baseline_ + gain_ * sat_response;
         if (I_out < 0.0) I_out = 0.0;
-        if (I_out > 50.0) I_out = 50.0;
+        if (I_out > 80.0) I_out = 80.0;
 
         return I_out;
     }

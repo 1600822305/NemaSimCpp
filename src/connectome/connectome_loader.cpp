@@ -347,11 +347,12 @@ void ConnectomeLoader::generate_default_connectome(
     // Head motor → SMD/RMD circuits
     add_syn("RIAL", "SMDVL", 4); add_syn("RIAR", "SMDVR", 4);
     add_syn("RIAL", "SMDDL", 3); add_syn("RIAR", "SMDDR", 3);
-    // Nose touch → reverse
-    // ASH→AVA: reduced from 4→2 sections
-    // ASH is primarily nociceptive; 4 sections provided too much tonic drive
-    // pushing AVA close to reversal threshold (release=0.565 vs threshold 0.6)
-    add_syn("ASHL", "AVAL", 2); add_syn("ASHR", "AVAR", 2);
+    // Nose touch / nociception → reverse
+    // ASH→AVA: restored to 3 sections (was 4→2→3)
+    // Original reduction: ASH sampled attractant, had tonic drive pushing AVA near threshold
+    // Now ASH only samples repellent field (Step 25): silent at 3pA baseline without repellent
+    // 3 sections provides strong avoidance drive when repellent is present
+    add_syn("ASHL", "AVAL", 3); add_syn("ASHR", "AVAR", 3);
     add_syn("ASHL", "AVDL", 3); add_syn("ASHR", "AVDR", 3);
     // Step 25: ASH nociceptive avoidance circuit (Cook 2019, Summers 2015)
     // ASH→AIB: glutamatergic excitatory via GLR-1 (AMPA-like)

@@ -26,6 +26,9 @@ public:
     // Sample spatial gradient at a position (central difference)
     Vector2d gradient(Vector2d pos) const;
 
+    // Clear all sources and reset concentration grid
+    void clear() { sources_.clear(); concentration_.assign(concentration_.size(), 0.0); }
+
     // Access point sources (for food density calculation with different σ²)
     const std::vector<Source>& sources() const { return sources_; }
 

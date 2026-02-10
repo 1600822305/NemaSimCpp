@@ -43,12 +43,14 @@ int main() {
     SimulationEngine sim;
     sim.initialize_default();
 
-    // Default: food at (35,35), start at (25,25)
-    // Step 25: repellent at (30,30) — between start and food, blocking direct path
-    Vector2d food{35.0, 35.0};
-    Vector2d repellent{30.0, 30.0};
+    // Step 25: straight-line test: start(25,25) → repellent(30,25) → food(35,25)
+    // Worm MUST pass through repellent zone to reach food
+    // Move food from default (35,35) to (35,25) for straight-line scenario
+    sim.environment().chemical_field().clear();
+    Vector2d food{35.0, 25.0};
+    sim.environment().chemical_field().add_point_source(food, 1.0);  // σ²=144 (default)
+    Vector2d repellent{30.0, 25.0};
     // σ²=25mm² (σ≈5mm): localized toxin, not wide diffusion like attractant σ²=144
-    // At 5mm: C=0.8×exp(-25/50)=0.49, at 8mm: C=0.8×exp(-64/50)=0.22, at 12mm: C≈0.06
     sim.environment().repellent_field().add_point_source(repellent, 0.8, 25.0);
 
     auto& conn = sim.connectome();
@@ -82,6 +84,7 @@ int main() {
     std::vector<double> aval_vs, rial_vs, riar_vs;
     std::vector<double> sht_vs, da_vs, oa_vs, satiety_vs, spd_scale_vs, fmem_vs, dist_vs_time, xpos_vs;
     std::vector<double> pump_rate_vs, pharynx_v_vs;  // Step 24: pharyngeal diagnostics
+    std::vector<double> rep_dist_vs, ypos_vs, ash_i_vs;  // Step 25: nociception tracking
     // SMD current diagnostics
     std::vector<double> smddl_v_vs, smdvl_v_vs, smddl_isyn_vs, smddl_iext_vs;
 
@@ -197,6 +200,12 @@ int main() {
             fmem_vs.push_back(sim.food_memory());
             dist_vs_time.push_back(dist);
             xpos_vs.push_back(head.x);
+            ypos_vs.push_back(head.y);
+            {
+                double rdx = repellent.x - head.x, rdy = repellent.y - head.y;
+                rep_dist_vs.push_back(std::sqrt(rdx*rdx + rdy*rdy));
+                ash_i_vs.push_back(ashl_id >= 0 && ashl_id < n ? neurons[ashl_id]->get_I_ext() : 0.0);
+            }
             pump_rate_vs.push_back(sim.pump_rate_hz());
             pharynx_v_vs.push_back(sim.pharynx_V());
 
@@ -350,7 +359,7 @@ int main() {
 
     // Time series: 5-HT, DA, OA, satiety, distance every 20s
     std::cout << "   Time series (every 20s):" << std::endl;
-    std::cout << "     t(s)  dist   x_pos  5-HT   DA    OA    sat   fmem  spd" << std::endl;
+    std::cout << "     t(s)  dist   x_pos  y_pos  r_dist ASH_I  5-HT   sat   fmem  spd" << std::endl;
     int samples_per_20s = (int)(20000.0 / 100.0); // 200 samples per 20s
     for (int t = 0; t < 15; ++t) {
         int idx = (t + 1) * samples_per_20s - 1;
@@ -361,9 +370,10 @@ int main() {
             std::cout << "     " << std::setw(4) << (t + 1) * 20 << "  "
                       << std::setprecision(2) << std::setw(5) << dist_vs_time[idx] << "  "
                       << std::setprecision(1) << std::setw(5) << xpos_vs[idx] << "  "
+                      << std::setprecision(1) << std::setw(5) << ypos_vs[idx] << "  "
+                      << std::setprecision(1) << std::setw(5) << rep_dist_vs[idx] << "  "
+                      << std::setprecision(1) << std::setw(5) << ash_i_vs[idx] << "  "
                       << std::setprecision(3) << std::setw(5) << sht_vs[idx] << "  "
-                      << std::setw(5) << da_vs[idx] << "  "
-                      << std::setw(5) << oa_vs[idx] << "  "
                       << std::setw(5) << satiety_vs[idx] << "  "
                       << std::setw(5) << fmem_vs[idx] << "  "
                       << std::setprecision(3) << spd_scale_vs[idx]
