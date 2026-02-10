@@ -74,10 +74,12 @@ self_inhibition = -3.0 × RIS_release_rate;
 ```cpp
 flp11 = sigmoid(RIS_V);  // 0-1, transmitter release rate
 
-// 1. Speed: × (1 - 0.9 × flp11) → up to 90% reduction
+// 1. Speed: × (1 - 0.97 × flp11) → up to 97% reduction (near-atonia)
 // 2. Command interneurons: AVA/AVB -= 15 × flp11 pA
 // 3. Pharyngeal MC: -= 12 × flp11 pA (pump cessation)
-// 4. Head motors (SMD/RMD): -= 8 × flp11 pA (head swing suppression)
+// 4. Head motors (SMD/RMD): -= 20 × flp11 pA (stop CCA-1 oscillation)
+// 5. Ventral cord motors (DA/DB/VA/VB/DD/VD): -= 30 × flp11 pA (deep atonia)
+// 6. Head tonic suppression: head_tonic × (1 - 0.95 × flp11) (upstream drive off)
 ```
 
 ### Arousal Threshold (Emergent)
@@ -91,21 +93,21 @@ No explicit arousal code — it emerges from the competition:
 ## Diag Results
 
 ```
-t=20:   fatigue=0.14, slp=0 → active foraging
-t=60:   fatigue=0.42, slp=0 → still active, approaching food
-t=100:  fatigue=0.67, slp=0 → nearing threshold
-t=120:  fatigue=0.58, slp=1 → SLEEP ONSET ✅
-t=140:  fatigue=0.41, slp=1 → sleeping, fatigue declining
-t=180:  fatigue=0.21, slp=1 → deep sleep, fatigue low
-t=200:  fatigue=0.15, slp=0 → WAKE UP ✅ (crossed 0.15 threshold)
-t=260:  fatigue=0.58, slp=0 → fatigue building again
-t=280:  fatigue=0.67, slp=1 → SECOND SLEEP ✅
+t=20:   fatigue=0.16, slp=0, speed=0.27 → active foraging
+t=60:   fatigue=0.47, slp=0, speed=0.23 → still active
+t=80:   fatigue=0.63, slp=0, speed=0.19 → nearing threshold
+t=100:  fatigue=0.65, slp=1, speed=0.012 → SLEEP ONSET ✅ (near-zero!)
+t=140:  fatigue=0.33, slp=1, speed=0.019 → deep sleep
+t=180:  fatigue=0.17, slp=1, speed=0.026 → fatigue nearly cleared
+t=200:  fatigue=0.25, slp=0, speed=0.24  → WAKE UP ✅
+t=260:  fatigue=0.69, slp=0, speed=0.06  → fatigue building again
+t=280:  fatigue=0.55, slp=1, speed=0.016 → SECOND SLEEP ✅
 
-RIS: V=-20mV, I_ext=32pA, FLP-11=0.976 (during sleep)
+RIS: V=-20mV, I_ext=25pA, FLP-11=0.95 (during sleep)
 Sleep episodes: 2
-Total sleep: ~100s (33% of 300s)
+Total sleep: ~120s (40% of 300s)
 Fatigue range: [0.000, 0.700]
-Speed: mean=0.12 mm/s (reduced from ~0.2 due to sleep)
+Awake speed: 0.19-0.27 mm/s | Sleep speed: 0.01-0.03 mm/s (~10:1 ratio)
 ```
 
 ### Sleep-Wake Cycle Timeline
@@ -115,7 +117,7 @@ Speed: mean=0.12 mm/s (reduced from ~0.2 due to sleep)
  AWAKE          SLEEP      AWAKE     SLEEP
  foraging       quiescent  foraging  quiescent
  fatigue↑       fatigue↓   fatigue↑  fatigue↓
- speed~0.2      speed~0.02 speed~0.2 speed~0.02
+ speed~0.2      speed~0.02 speed~0.2  speed~0.02
 ```
 
 ## Key References
@@ -133,7 +135,17 @@ Speed: mean=0.12 mm/s (reduced from ~0.2 due to sleep)
 - `src/connectome/connectome_loader.cpp` — RIS neuron + synapses + gap junctions
 - `src/simulation/simulation_engine.h` — fatigue_, ris_id_, is_sleeping_, accessors
 - `src/simulation/simulation_engine.cpp` — update_fatigue(), apply_sleep_effects(), step() integration
-- `src/simulation/diag_main.cpp` — fatigue/sleep time series + Section 18 diagnostic
+- `src/simulation/diag_main.cpp` — fatigue/sleep time series (actual speed) + Section 18 diagnostic
+
+## Step 27b: Sleep Speed Fix
+
+Initial implementation had residual speed ~0.04-0.07 mm/s during sleep. Root cause:
+1. **Ventral cord motor neurons** (DA/DB/VA/VB/DD/VD) not inhibited by FLP-11
+2. **head_tonic = 3pA** always on, kept head oscillator alive
+3. **Speed factor 0.9** (10% residual) too generous
+
+Fix: added Effect 5 (ventral cord -30pA), head_tonic suppression, speed factor 0.97.
+Result: sleep speed 0.01-0.03 mm/s (near-zero).
 
 ## Regression
 

@@ -356,10 +356,10 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 - **新增突触**: RIS⊣AVA(2), RIS⊣AVB(1), RIS⊣AIB(1) + RIS↔AIB gap(4)
 - **fatigue_状态**: [0,1] 活动累积(τ_rise=120s)/睡眠消退(τ_decay=60s)
 - **RIS激活**: 2+40×sigmoid(fatigue-0.7) + 25pA睡眠维持 - 3×self_inhibition
-- **FLP-11效应**: 速度×(1-0.9×flp11), AVA/AVB -15pA, MC -12pA, SMD/RMD -8pA
-- **睡眠-觉醒循环**: ~120s觉醒 → ~80s睡眠 → 自发恢复, 2个周期/300s
+- **FLP-11效应**: 速度×(1-0.97×flp11), AVA/AVB -15pA, MC -12pA, SMD/RMD -20pA, 体壁MN -30pA
+- **睡眠-觉醒循环**: ~100s觉醒 → ~80s睡眠 → 自发恢复, 2个周期/300s
 - **唤醒阈值**: 涌现 — ALM 80pA >> FLP-11 15pA → 强刺激可打断睡眠
-- **结果**: regtest 12 pass; 睡眠期速度~0.02mm/s, FLP-11=0.98, 2个睡眠周期
+- **结果**: regtest 12 pass; 睡眠速度0.01-0.03mm/s(觉醒0.19-0.27, 比值~10:1)
 - **REF**: Turek 2016 eLife, Konietzka 2020 Nat Commun, Nagy 2014 eLife
 - **文档**: docs/steps/step27_sleep_lethargus.md
 
