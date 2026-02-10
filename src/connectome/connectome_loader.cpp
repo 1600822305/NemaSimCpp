@@ -193,6 +193,12 @@ void ConnectomeLoader::generate_default_connectome(
         {"RMDVR", NeuronType::MOTOR, NeurotransmitterType::ACETYLCHOLINE},
         {"RMDDL", NeuronType::MOTOR, NeurotransmitterType::ACETYLCHOLINE},
         {"RMDDR", NeuronType::MOTOR, NeurotransmitterType::ACETYLCHOLINE},
+        // Neck motor neurons — klinotaxis effectors (Izquierdo 2015, Yamazaki 2022)
+        // SMB controls neck curvature DC bias, independent of SMD head oscillation
+        {"SMBDL", NeuronType::MOTOR, NeurotransmitterType::ACETYLCHOLINE},
+        {"SMBDR", NeuronType::MOTOR, NeurotransmitterType::ACETYLCHOLINE},
+        {"SMBVL", NeuronType::MOTOR, NeurotransmitterType::ACETYLCHOLINE},
+        {"SMBVR", NeuronType::MOTOR, NeurotransmitterType::ACETYLCHOLINE},
         // Ventral cord motor neurons (representative subset)
         {"DA01", NeuronType::MOTOR, NeurotransmitterType::ACETYLCHOLINE},
         {"DA02", NeuronType::MOTOR, NeurotransmitterType::ACETYLCHOLINE},
@@ -318,7 +324,7 @@ void ConnectomeLoader::generate_default_connectome(
     // Step 19: ASER→AIA/AIY INHIBITORY (eLife 2024, Matsumoto et al.)
     // ASER releases glutamate → GLC-3 (Cl⁻ channel) on AIY → inhibitory
     // Fixes pirouette modulation: C↓ → ASER↑ → AIA↓ → AIB↑(disinhibited) → more pirouettes
-    add_syn_inh("ASER", "AIAR", 5); add_syn_inh("ASER", "AIYR", 3);
+    add_syn_inh("ASER", "AIAR", 2); add_syn_inh("ASER", "AIYR", 2);
     // AIA ⊣ AIB: inhibitory — suppresses pirouettes when ON chemosensory active
     // REF: Chalasani 2007 — AIA inhibits AIB, critical for pirouette suppression
     add_syn_inh("AIAL", "AIBL", 5); add_syn_inh("AIAR", "AIBR", 5);
@@ -341,6 +347,17 @@ void ConnectomeLoader::generate_default_connectome(
     // SMD → RMD excitatory (same side, co-activate dorsal or ventral)
     add_syn("SMDDL", "RMDDL", 3); add_syn("SMDDR", "RMDDR", 3);
     add_syn("SMDVL", "RMDVL", 3); add_syn("SMDVR", "RMDVR", 3);
+
+    // Step 19 Phase 2: Klinotaxis pathway — AIZ → SMB (Izquierdo 2015, Yamazaki 2022)
+    // SMB controls neck curvature DC bias, independent of SMD head oscillation CPG.
+    // Ipsilateral wiring: AIZL → dorsal SMB, AIZR → ventral SMB
+    // When AIZL > AIZR: dorsal bias → curvature offset
+    // Cross-inhibition (SMBDL ⊣ SMBVL) amplifies D-V difference
+    add_syn("AIZL", "SMBDL", 4);
+    add_syn("AIZR", "SMBVR", 4);
+    // SMB dorsal-ventral cross-inhibition: push-pull amplification of D-V asymmetry
+    add_syn_inh("SMBDL", "SMBVL", 3); add_syn_inh("SMBDR", "SMBVR", 3);
+    add_syn_inh("SMBVL", "SMBDL", 3); add_syn_inh("SMBVR", "SMBDR", 3);
 
     // AVB drive pathway: AIY → AVB (TD-01, excitatory interneuron drive)
     // REF: White 1986, WormAtlas

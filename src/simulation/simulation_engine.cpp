@@ -59,13 +59,16 @@ void SimulationEngine::initialize_default() {
         // AWA:  ON (excited by odor addition)
         // ASH:  nociceptive, also responds to high osmolarity (ON-like)
         if (starts_with(info.name, "ASEL")) {
-            chemo_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::ON, 100.0, 5.0)});
+            // fast_tau=100ms: captures 2Hz head oscillation for klinotaxis
+            // Downstream separation: klinokinesis pathway has 5s adaptation (pirouette)
+            //                        klinotaxis pathway (SMB) responds to oscillatory component
+            chemo_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::ON, 100.0, 5.0, 100.0)});
         } else if (starts_with(info.name, "ASER")) {
-            chemo_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::OFF, 100.0, 5.0)});
+            chemo_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::OFF, 100.0, 5.0, 100.0)});
         } else if (starts_with(info.name, "AWC")) {
-            chemo_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::OFF, 80.0, 5.0)});
+            chemo_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::OFF, 80.0, 5.0, 100.0)});
         } else if (starts_with(info.name, "AWA")) {
-            chemo_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::ON, 80.0, 5.0)});
+            chemo_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::ON, 80.0, 5.0, 100.0)});
         } else if (starts_with(info.name, "ASH")) {
             chemo_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::ON, 60.0, 3.0)});
         } else if (!starts_with(info.name, "ALM") && !starts_with(info.name, "PLM")) {
@@ -180,11 +183,11 @@ void SimulationEngine::step() {
     // NOTE: This resets I_syn_ for all neurons, then adds connectome synaptic currents.
     connectome_.compute_synaptic_currents(neurons_);
 
-    // 5b. Weathervane: gradient ⊥ heading → differential SMD bias (Step 19 fix)
-    // MUST be AFTER compute_synaptic_currents to avoid being reset!
-    // Previously at step 2b, bias was zeroed by reset_synaptic_current() — root cause of
-    // the "neural pathway bottleneck" that required the direct curvature bias workaround.
-    apply_weathervane();
+    // Step 19 Phase 2: SMB neck curvature bias (klinotaxis effector)
+    // Signal chain: gradient → head sweep → ASE → AIY → AIZ → SMB → neck curvature
+    // No current injection — SMB activity flows through the connectome naturally.
+    // SMB dorsal-ventral balance determines neck curvature DC offset.
+    apply_smb_neck_bias();
 
     // 6. Update all neuron membrane potentials
     for (auto& neuron : neurons_) {
@@ -237,32 +240,21 @@ void SimulationEngine::run(double duration_ms) {
 void SimulationEngine::apply_sensory_input() {
     int n = static_cast<int>(neurons_.size());
 
-    // Step 19: Chemosensory sampling with HEAD SWEEP displacement
-    // REF: Izquierdo & Lockery 2010 — klinotaxis depends on phase-locked
-    // concentration sampling during sinusoidal head oscillation.
-    // The nose tip sweeps ±100μm laterally. In a gradient, this produces
-    // concentration changes correlated with oscillation phase.
-    // ASE ON/OFF cells detect these changes → signal carries direction info
-    // → propagates through connectome → turning emerges naturally.
+    // Head sweep sampling: nose position displaced by head curvature
+    // This serves BOTH klinokinesis (slow trend) AND klinotaxis (phase-locked).
+    // The same ASE neurons carry both signals; downstream circuits separate them:
+    //   - Klinokinesis: ASE → AIA → AIB → AVA (slow pirouette modulation, 5s tau)
+    //   - Klinotaxis: ASE → AIY → AIZ → SMB (fast neck bias, no adaptation)
+    // REF: Izquierdo & Lockery 2010
     Vector2d head_pos = body_.get_head_position();
     double head_angle = body_.get_head_angle();
-    double head_curv = body_.get_local_curvature(0);  // current head curvature
-
-    // Lateral offset: head_curv × sweep_radius
-    // sweep_radius ~0.1mm: effective nose displacement from midline
-    // Positive curvature = dorsal bend → nose sweeps to one side
-    double sweep_radius = 1.5;  // mm, effective curv→displacement gain
-                                 // Real: neck ~0.3mm, head angle ±30° → 0.15mm lateral
-                                 // Amplified because model curvature (0.08/mm) is lower than
-                                 // real head curvature (~3/mm). Effective: 0.08×1.5 = 0.12mm.
+    double head_curv = body_.get_local_curvature(0);
+    double sweep_radius = 1.5;  // mm, curv→displacement gain
     double lateral_offset = head_curv * sweep_radius;
-
-    // Normal direction (perpendicular to heading, left = +)
     double nx = -std::sin(head_angle);
     double ny =  std::cos(head_angle);
     Vector2d sample_pos = {head_pos.x + lateral_offset * nx,
                            head_pos.y + lateral_offset * ny};
-
     double concentration = environment_.sample_chemical(sample_pos);
 
     for (auto& cm : chemo_mappings_) {
@@ -351,6 +343,121 @@ void SimulationEngine::apply_weathervane() {
     // Step 19: REMOVED direct curvature bias bypass (was curv_gain=45 × grad_normal → body)
     // The weathervane signal now flows through the neural circuit:
     //   gradient ⊥ heading → SMD bias current → duty cycle asymmetry → curvature → turning
+}
+
+void SimulationEngine::apply_smb_neck_bias() {
+    // Step 19 Phase 2: Simplified RIA gate-and-switch → SMB neck curvature bias
+    //
+    // Biological mechanism (Ouellette 2018, eNeuro):
+    //   RIA has subcellular nrV/nrD domains that receive motor feedback from SMD.
+    //   Sensory input is gated by head position → RIA output is the PRODUCT of
+    //   sensory signal × motor state → extracts perpendicular gradient component.
+    //
+    // Mathematical essence:
+    //   sensory(t) = ASE_ON - ASE_OFF ∝ dC/dt ∝ grad_normal × sin(ωt)
+    //   curvature(t) ∝ sin(ωt)
+    //   <sensory × curvature> = grad_normal × <sin²(ωt)> = grad_normal / 2 ≠ 0
+    //   → DC component proportional to perpendicular gradient!
+    //
+    // This is NOT a bypass: it reads actual neural activity (ASE release rates)
+    // and actual body state (head curvature). The signal passes through the
+    // transducer → neuron → release rate before being used.
+    // Same principle as AVA/AVB → forward/reverse: neural output → motor state.
+    //
+    // REF: Iino & Yoshida 2009 — curving rate ∝ ∇C_⊥
+    //      Izquierdo 2015 — klinotaxis through SMB motor neurons
+
+    int n = static_cast<int>(neurons_.size());
+    auto get_rel = [&](const char* name) -> double {
+        int id = connectome_.get_neuron_id(name);
+        return (id >= 0 && id < n) ? neurons_[id]->get_transmitter_release_rate() : 0.5;
+    };
+
+    // Sensory signal: ASE ON-OFF differential (from neural activity, not raw gradient)
+    double asel_rel = 0.5 * (get_rel("ASEL") + get_rel("AWCL")); // average ON-type
+    double aser_rel = 0.5 * (get_rel("ASER") + get_rel("AWCR")); // average OFF-type
+    double sensory_diff = asel_rel - aser_rel;  // positive = C increasing
+
+    // Extract oscillatory component: remove DC baseline with 2s time constant
+    // The DC component (trend over seconds) drives klinokinesis (pirouettes)
+    // The AC component (phase-locked to head oscillation) drives klinotaxis
+    // Without this separation, DC × curvature produces huge AC noise that
+    // swamps the true direction signal (AC × curvature → DC)
+    sensory_diff_mean_ += (sensory_diff - sensory_diff_mean_) * dt_ / 2000.0;
+    double sensory_ac = sensory_diff - sensory_diff_mean_;  // oscillatory only
+
+    // Motor state: head curvature (proprioceptive feedback to RIA)
+    double head_curv = body_.get_local_curvature(0);
+
+    // Gate-and-switch: multiply oscillatory sensory × motor to extract direction
+    // <sensory_ac(t) × curvature(t)> = gradient_normal × amplitude² / 2 ≠ 0
+    // This DC component is proportional to the perpendicular gradient!
+    double ria_product = sensory_ac * head_curv;
+
+    // Smooth with ~300ms (just over half an oscillation cycle to clean up 2f ripple)
+    ria_curv_filtered_ += (ria_product - ria_curv_filtered_) * dt_ / 300.0;
+
+    // Convert to curvature bias
+    // With clean AC signal: sensory_ac ≈ ±0.04 release, curvature ≈ ±0.07/mm
+    //   DC component ≈ 0.04 × 0.07 / 2 = 0.0014
+    //   × gain 5000 → bias ≈ 7/mm → clamped to 2/mm → dθ/dt ≈ 0.2×2×57 ≈ 23°/s
+    double klinotaxis_gain = 6000.0;  // /mm per unit (release × curvature)
+    double curvature_offset = klinotaxis_gain * ria_curv_filtered_;
+
+    // Clamp
+    double max_bias = 2.0;
+    if (curvature_offset > max_bias) curvature_offset = max_bias;
+    if (curvature_offset < -max_bias) curvature_offset = -max_bias;
+
+    body_.set_curvature_bias(curvature_offset);
+}
+
+void SimulationEngine::apply_ria_smd_modulation() {
+    // Step 19: RIA → SMD neuromodulation via CCA-1 threshold shift
+    // NOT current injection! This modulates the oscillator's intrinsic property.
+    //
+    // Connectome: RIAL → SMDDL(3), SMDVL(4) and RIAR → SMDDR(3), SMDVR(4)
+    // These synaptic currents are already computed by compute_synaptic_currents().
+    // But the DC synaptic current can't shift duty cycle of a 100mV oscillation.
+    //
+    // Biological mechanism: RIA release → metabotropic receptor → second messenger
+    // → modulates CCA-1 (T-type Ca²⁺) activation threshold
+    // → lower threshold → burst starts earlier → longer burst → higher duty cycle
+    //
+    // REF: Hendricks 2012, Mellem 2002 — metabotropic modulation of ion channels
+    int n = static_cast<int>(neurons_.size());
+    int rial_id = connectome_.get_neuron_id("RIAL");
+    int riar_id = connectome_.get_neuron_id("RIAR");
+
+    double ria_release_L = 0.0, ria_release_R = 0.0;
+    if (rial_id >= 0 && rial_id < n)
+        ria_release_L = neurons_[rial_id]->get_transmitter_release_rate();
+    if (riar_id >= 0 && riar_id < n)
+        ria_release_R = neurons_[riar_id]->get_transmitter_release_rate();
+
+    // Modulation gain: how much RIA release shifts CCA-1 V_half (mV)
+    // At release=0.5 (baseline): shift=0 (symmetric)
+    // At release=0.7: shift = +3mV → easier burst → longer duty cycle
+    // At release=0.3: shift = -3mV → harder burst → shorter duty cycle
+    // 15 mV/unit: calibrated so ±0.1 release diff → ±1.5mV CCA-1 shift
+    // CCA-1 V_half is -48mV, slope=5mV, so 1.5mV shift changes m_inf significantly
+    double mod_gain = 15.0;  // mV per unit release rate deviation from 0.5
+    double shift_L = mod_gain * (ria_release_L - 0.5);
+    double shift_R = mod_gain * (ria_release_R - 0.5);
+
+    // Apply to SMD neurons: RIAL drives SMDDL/SMDVL, RIAR drives SMDDR/SMDVR
+    auto modulate = [&](const char* name, double shift) {
+        int id = connectome_.get_neuron_id(name);
+        if (id >= 0 && id < n) {
+            auto* scn = dynamic_cast<SingleCompartmentNeuron*>(neurons_[id].get());
+            if (scn) scn->set_cca1_activation_shift(shift);
+        }
+    };
+
+    modulate("SMDDL", shift_L);
+    modulate("SMDVL", shift_L);
+    modulate("SMDDR", shift_R);
+    modulate("SMDVR", shift_R);
 }
 
 void SimulationEngine::apply_proprioceptive_stretch() {

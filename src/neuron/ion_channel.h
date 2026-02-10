@@ -188,12 +188,18 @@ public:
         E_rev_ = E_Ca;
     }
 
+    // Step 19: Neuromodulation of activation threshold
+    // RIA input shifts V_half_m → lower threshold → easier burst → longer duty cycle
+    // This is how the klinotaxis signal (ASE→AIY→RIA) modulates SMD oscillation
+    void set_activation_shift(double dV) { v_half_m_shift_ = dV; }
+    double get_activation_shift() const { return v_half_m_shift_; }
+
     void step(double V, double /*Ca*/, double dt) override {
         // T-type Ca: h_half at -55mV matches loser's voltage in half-center oscillator
         // Winner at ~-35mV: h≈0.02 (inactivated) → burst ends
         // Loser at ~-55mV: h→0.5 (de-inactivated) → ready for rebound
         // REF: Steger 2005, Bhatt 2014 - CCA-1 in C. elegans head motor neurons
-        double m_inf = boltzmann(V, -48.0, 5.0);
+        double m_inf = boltzmann(V, -48.0 + v_half_m_shift_, 5.0);
         double h_inf = boltzmann(V, -55.0, -5.0);
         double tau_m = 3.0;
         double tau_h = 80.0;  // slow recovery → ~0.5-1 Hz oscillation
@@ -213,6 +219,7 @@ protected:
 private:
     double m_ = 0.0;
     double h_ = 1.0;
+    double v_half_m_shift_ = 0.0;  // neuromodulatory shift of activation V_half (mV)
 };
 
 // SLO-1: BK (big conductance calcium-activated potassium channel)

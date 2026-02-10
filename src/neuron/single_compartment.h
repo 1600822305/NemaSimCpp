@@ -78,6 +78,15 @@ public:
     // Access channels by type (for stretch setting)
     const std::vector<std::unique_ptr<IonChannel>>& channels() const { return channels_; }
 
+    // Step 19: Neuromodulation — shift CCA-1 activation threshold
+    // RIA input modulates burst duty cycle via CCA-1 V_half shift
+    void set_cca1_activation_shift(double dV) {
+        for (auto& ch : channels_) {
+            auto* cca1 = dynamic_cast<CCA1Channel*>(ch.get());
+            if (cca1) { cca1->set_activation_shift(dV); return; }
+        }
+    }
+
 private:
     double V_ = -60.0;        // membrane potential (mV)
     double C_m_ = 1.5;        // membrane capacitance (pF)

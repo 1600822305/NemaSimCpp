@@ -78,6 +78,8 @@ private:
     // Step 13: Biologically grounded locomotion (replaces Step 12 placeholders)
     void apply_sensory_input();          // chemosensory neurons sample gradient, others get baseline
     void apply_weathervane();            // gradient ⊥ heading → SMD bias (Iino & Yoshida 2009)
+    void apply_ria_smd_modulation();     // RIA release → CCA-1 V_half shift on SMD (Step 19)
+    void apply_smb_neck_bias();          // SMB D-V balance → neck curvature DC offset (Step 19 P2)
     void apply_proprioceptive_stretch(); // body curvature → MEC channels in motor neurons
     void apply_head_tonic();             // tonic drive to head motor neurons (from upstream)
     void apply_touch_stimulus();         // wall collision → ALM/PLM activation (Chalfie 1985)
@@ -111,6 +113,10 @@ private:
     std::vector<int> plm_ids_;  // posterior touch neuron IDs
     double touch_current_ = 80.0;  // pA, strong pulse for touch stimulus
     double arena_margin_ = 2.0;    // mm, wall collision zone
+
+    // Klinotaxis: RIA gate-and-switch
+    double ria_curv_filtered_ = 0.0;   // filtered cross-correlation output
+    double sensory_diff_mean_ = 0.0;   // DC baseline of sensory ON-OFF diff (2s tau)
 
     // Reversal & omega turn tracking
     bool is_reversing_ = false;

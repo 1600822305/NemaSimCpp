@@ -99,39 +99,96 @@ add_syn_inh("ASER", "AIAR", 5); add_syn_inh("ASER", "AIYR", 3);
 | ASER→AIA | 兴奋(5) | 抑制(5) | pirouette 方向修复 |
 | 直接曲率偏置 | curv_gain=45 | **删除** | 不再需要 |
 
+## Phase 2: Klinotaxis (转向) — SMB + RIA gate-and-switch
+
+### 问题: 为什么 SMD 偏置电流无法驱动 klinotaxis
+
+SMD 半中心振荡器幅度 ~100mV。即使 ±50pA 的偏置电流也无法显著改变占空比。
+klinotaxis 在生物学上通过 **SMB 颈部运动神经元**实现，独立于 SMD 振荡。
+
+### 关键发现: 乘法门控 (RIA gate-and-switch)
+
+klinotaxis 的核心数学:
+```
+sensory(t) = ASE_ON - ASE_OFF ∝ dC/dt ∝ grad_normal × sin(ωt)  [头部摆动]
+curvature(t) ∝ sin(ωt)                                          [头部振荡]
+<sensory × curvature> = grad_normal × <sin²(ωt)> = grad_normal / 2 ≠ 0
+→ DC 分量 ∝ 垂直梯度分量！
+```
+
+RIA 的亚细胞 nrV/nrD 域(Ouellette 2018)通过接收感觉输入 × 运动反馈实现此乘法。
+单隔室模型无法表示亚细胞域，故直接计算此乘积。
+
+### 关键修复: AC/DC 分离
+
+感觉信号 = DC 分量(~0.14, 趋势) + AC 分量(~0.04, 振荡)。
+直接乘法: DC × curvature → 巨大 AC 噪声(~48/mm) 淹没真正的方向信号(~7/mm)。
+
+**解决**: 用 2s 时间常数提取 DC 基线，只用 AC 分量做乘法:
+```cpp
+sensory_diff_mean_ += (sensory_diff - sensory_diff_mean_) * dt / 2000.0;
+sensory_ac = sensory_diff - sensory_diff_mean_;  // 只保留振荡分量
+ria_product = sensory_ac * head_curvature;        // 乘法 → DC = 方向
+```
+
+### 新增神经元和连接
+
+| 新增 | 详情 |
+|------|------|
+| SMBDL/DR/VL/VR | 颈部运动神经元(无 CCA-1/SLO-1, 不振荡) |
+| AIZL → SMBDL (4) | klinotaxis 效应通路 |
+| AIZR → SMBVR (4) | klinotaxis 效应通路 |
+| SMB D↔V 交叉抑制 (3) | push-pull 放大 D-V 差异 |
+
+### 参数
+
+| 参数 | 值 | 说明 |
+|------|-----|------|
+| klinotaxis_gain | 6000 | sensory_AC × curvature → bias |
+| max_bias | 2.0 /mm | 曲率偏置限幅 |
+| DC filter tau | 2000 ms | 提取感觉信号 DC 基线 |
+| cross-corr filter tau | 300 ms | 平滑叉积信号 |
+
 ## 验证结果
 
 ```
-CI = 0.591 (目标 > 0.5) ✅
-距食物: 14.14 → 5.79 mm ✅
-ASEL-ASER: +13.1 mV (方向正确) ✅
-SMD差异: -16.5 mV (有效不对称) ✅
-曲率均值: -0.023 /mm (偏向食物) ✅
+Phase 2 最终 (klinokinesis + klinotaxis):
+CI = 0.577 (目标 > 0.5) ✅
+距食物: 14.14 → 5.99 mm ✅
+ASEL=0.768 > ASER=0.191 (ON 主导) ✅
+梯度: 0.053/mm (接近食物) ✅
 Pirouettes: 6 (0.10 Hz, 正常) ✅
-速度: 0.23 mm/s ✅
+速度: 0.22 mm/s ✅
 ```
 
-## 信号链对比
+## 信号链
 
 ```
-Step 17 (旁路):  梯度 → curv_gain → body曲率 → 转弯 (控制算法)
-Step 19 (神经):  梯度 → 头部摆动采样 → ASE ON/OFF → 连接组 → SMD占空比 → 曲率 → 转弯
-                                                                           (涌现)
+Klinokinesis (pirouette 调制):
+  dC/dt → ASE ON/OFF → AIA(抑制) → AIB(去抑制) → AVA → pirouette rate
+  (秒级趋势, 5s 适应)
+
+Klinotaxis (持续转向):
+  头部摆动 → 采样位移 → ASE AC → RIA(sensory_AC × curvature) → SMB bias → 颈部曲率
+  (2Hz 相位锁定, 乘法提取垂直梯度)
 ```
 
 ## 修改文件
 
 | 文件 | 变更 |
 |------|------|
-| `simulation_engine.cpp` | 偏置移到 compute_synaptic 之后; 移除曲率旁路; 头部摆动采样; omega 改 SMD 注入 |
-| `simulation_engine.h` | gain=500, clamp=50 |
-| `connectome_loader.cpp` | ASER→AIA/AIY 改抑制; SMD 交叉抑制 8→3 |
-| `sensory_transducer.h` | fast_tau 500→100ms |
+| `simulation_engine.cpp` | 移除 apply_weathervane 调用; 头部摆动采样; apply_smb_neck_bias (RIA gate-and-switch); AC/DC 分离 |
+| `simulation_engine.h` | ria_curv_filtered_, sensory_diff_mean_, apply_smb_neck_bias() 声明 |
+| `connectome_loader.cpp` | 添加 SMBDL/DR/VL/VR 神经元; AIZ→SMB 连接; SMB D↔V 交叉抑制 |
+| `ion_channel.h` | CCA-1 V_half 调制接口 (保留备用) |
+| `single_compartment.h` | set_cca1_activation_shift() (保留备用) |
 
 ## 参考文献
 
 - Izquierdo & Lockery 2010, J Neurosci — klinotaxis 最小回路与相位依赖机制
+- Izquierdo & Beer 2015, Phil Trans B — 连接组约束的 klinotaxis
+- Yamazaki et al. 2022 — SMB 作为 klinotaxis 效应器
+- Ouellette et al. 2018, eNeuro — RIA gate-and-switch 亚细胞机制
 - Matsumoto et al. 2024, eLife — ASER→AIY 抑制性传递 (GLC-3)
-- Li et al. 2014 — AIY→AIZ 抑制性传递 (ACC-2)
-- Suzuki et al. 2008 — ASE ON/OFF 响应动力学
 - Iino & Yoshida 2009, J Neurosci — weathervane 与 pirouette 双机制
+- Suzuki et al. 2008 — ASE ON/OFF 响应动力学

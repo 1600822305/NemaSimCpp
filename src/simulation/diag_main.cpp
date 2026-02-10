@@ -26,18 +26,32 @@ int main() {
     int smdvl_id = conn.get_neuron_id("SMDVL");
     int aval_id = conn.get_neuron_id("AVAL");
     int avbl_id = conn.get_neuron_id("AVBL");
+    // Step 19b: intermediate neuron tracking for pirouette pathway
+    int aiyl_id = conn.get_neuron_id("AIYL");
+    int aiyr_id = conn.get_neuron_id("AIYR");
+    int aibl_id = conn.get_neuron_id("AIBL");
+    int aibr_id = conn.get_neuron_id("AIBR");
+    int aial_id = conn.get_neuron_id("AIAL");
+    int aiar_id = conn.get_neuron_id("AIAR");
+    int awcl_id = conn.get_neuron_id("AWCL");
+    int awcr_id = conn.get_neuron_id("AWCR");
+    int rial_id = conn.get_neuron_id("RIAL");
+    int riar_id = conn.get_neuron_id("RIAR");
 
     // Accumulators
     std::vector<double> grad_mags, grad_normals, biases;
     std::vector<double> asel_vs, aser_vs, smd_diffs, curvatures;
     std::vector<double> speeds, headings, dists;
+    std::vector<double> aiyl_vs, aiyr_vs, aibl_vs, aibr_vs;
+    std::vector<double> aial_vs, aiar_vs, awcl_vs, awcr_vs;
+    std::vector<double> aval_vs, rial_vs, riar_vs;
 
     double prev_heading = sim.body().get_head_angle() * 180.0 / 3.14159265;
     double prev_time = 0;
     double heading_rate_sum = 0;
     int heading_rate_count = 0;
 
-    // Run 60 seconds, sample every 100ms
+    // Run 60 seconds
     double duration = 60000.0;
     int pirouette_count = 0;
     int reversal_count = 0;
@@ -75,6 +89,15 @@ int main() {
             double v_aser = (aser_id >= 0 && aser_id < n) ? neurons[aser_id]->get_membrane_potential() : 0;
             double v_smddl = (smddl_id >= 0 && smddl_id < n) ? neurons[smddl_id]->get_membrane_potential() : 0;
             double v_smdvl = (smdvl_id >= 0 && smdvl_id < n) ? neurons[smdvl_id]->get_membrane_potential() : 0;
+
+            // Intermediate neuron potentials
+            auto getV = [&](int id) { return (id >= 0 && id < n) ? neurons[id]->get_membrane_potential() : -65.0; };
+            aiyl_vs.push_back(getV(aiyl_id)); aiyr_vs.push_back(getV(aiyr_id));
+            aibl_vs.push_back(getV(aibl_id)); aibr_vs.push_back(getV(aibr_id));
+            aial_vs.push_back(getV(aial_id)); aiar_vs.push_back(getV(aiar_id));
+            awcl_vs.push_back(getV(awcl_id)); awcr_vs.push_back(getV(awcr_id));
+            aval_vs.push_back(getV(aval_id));
+            rial_vs.push_back(getV(rial_id)); riar_vs.push_back(getV(riar_id));
 
             // 5. Curvature, speed
             double curv = sim.body().segments()[0].curvature;
@@ -208,6 +231,28 @@ int main() {
               << "  final=" << dists.back() << " mm" << std::endl;
     double ci = (dists.front() - dists.back()) / dists.front();
     std::cout << "   CI=" << std::setprecision(3) << ci << std::endl;
+
+    // Step 19b: Intermediate neuron diagnostic — pirouette pathway
+    std::cout << "\n11. PIROUETTE SIGNAL CHAIN:" << std::endl;
+    std::cout << "   AWC (OFF): L=" << std::setprecision(2) << mean(awcl_vs)
+              << "  R=" << mean(awcr_vs) << " mV" << std::endl;
+    std::cout << "   AIA:       L=" << mean(aial_vs) << "  R=" << mean(aiar_vs) << " mV" << std::endl;
+    std::cout << "   AIB:       L=" << mean(aibl_vs) << "  R=" << mean(aibr_vs) << " mV" << std::endl;
+    std::cout << "   AIY:       L=" << mean(aiyl_vs) << "  R=" << mean(aiyr_vs) << " mV" << std::endl;
+    std::cout << "   RIA:       L=" << mean(rial_vs) << "  R=" << mean(riar_vs) << " mV" << std::endl;
+    std::cout << "   AVA:       L=" << mean(aval_vs) << " mV" << std::endl;
+    // Release rates at V_thresh=-35, slope=5
+    auto release = [](double V) { return 1.0 / (1.0 + std::exp(-(V - (-35.0)) / 5.0)); };
+    std::cout << "   Release rates (S = sigmoid(V)):" << std::endl;
+    std::cout << "     ASEL=" << std::setprecision(3) << release(mean(asel_vs))
+              << "  ASER=" << release(mean(aser_vs))
+              << "  AWCL=" << release(mean(awcl_vs))
+              << "  AWCR=" << release(mean(awcr_vs)) << std::endl;
+    std::cout << "     AIAL=" << release(mean(aial_vs))
+              << "  AIAR=" << release(mean(aiar_vs))
+              << "  AIBL=" << release(mean(aibl_vs))
+              << "  AIBR=" << release(mean(aibr_vs)) << std::endl;
+    std::cout << "     AVAL=" << release(mean(aval_vs)) << std::endl;
 
     // BOTTLENECK ANALYSIS
     std::cout << "\n========================================" << std::endl;
