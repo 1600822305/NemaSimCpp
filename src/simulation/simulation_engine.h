@@ -138,7 +138,9 @@ private:
     // Proprioceptive mapping: motor neuron → body segment
     struct ProprioMapping {
         int neuron_id;
-        int sample_segment;   // anterior segment to sense curvature from
+        int sample_segment;   // primary sense point (backward compat)
+        int sense_start;      // Step 29: range start for multi-segment integration
+        int sense_end;        // Step 29: range end (exclusive)
         bool is_dorsal;       // true=dorsal (negative curv excites), false=ventral
     };
     std::vector<ProprioMapping> proprio_mappings_;

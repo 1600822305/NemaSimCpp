@@ -136,15 +136,32 @@ void SimulationEngine::initialize_default() {
     }
 
     // 9. Build proprioceptive mappings (motor neuron → body segment for MEC channel)
-    // Dorsal B-class: sense anterior curvature, negative curv (ventral bend) excites
-    auto add_pm = [&](const char* name, int seg, bool dorsal) {
+    // Step 29: Proprioceptive wave propagation (Wen 2012 Neuron, Boyle 2012)
+    // B-class: sequential sensing inside PREVIOUS unit's territory
+    //   SMD(0-3) -> DB01 senses seg2 -> DB01(4-9) -> VB02 senses seg7
+    //   -> VB02(10-19) -> DB03 senses seg15 -> DB03(20-29)
+    // D/V alternation relay: DB01(+curv) -> VB02(-curv) -> DB03(+curv) = S-wave
+    // A-class: sync mapping (baseline muscle drive, unchanged from Step 28)
+    auto add_pm = [&](const char* name, int seg, int start, int end, bool dorsal) {
         int id = connectome_.get_neuron_id(name);
-        if (id >= 0) proprio_mappings_.push_back({id, seg, dorsal});
+        if (id >= 0) proprio_mappings_.push_back({id, seg, start, end, dorsal});
     };
-    add_pm("DB01", 0, true);  add_pm("DB02", 5, true);  add_pm("DB03", 15, true);
-    add_pm("VB01", 0, false); add_pm("VB02", 5, false); add_pm("VB03", 15, false);
-    add_pm("DA01", 0, true);  add_pm("DA02", 5, true);  add_pm("DA03", 15, true);
-    add_pm("VA01", 0, false); add_pm("VA02", 5, false); add_pm("VA03", 15, false);
+    // Step 29: B-class sequential proprioceptive wave (Wen 2012, Boyle 2012)
+    // Each B-neuron senses curvature INSIDE the previous unit's territory.
+    // D/V alternation relay: DB01(+) -> VB02(-) -> DB03(+) = S-wave
+    add_pm("DB01", 2,  0,  4,  true);   // senses SMD territory (seg 0-3)
+    add_pm("DB02", 7,  4,  10, true);   // senses DB01/VB01 territory
+    add_pm("DB03", 15, 10, 20, true);   // senses DB02/VB02 territory
+    add_pm("VB01", 2,  0,  4,  false);
+    add_pm("VB02", 7,  4,  10, false);
+    add_pm("VB03", 15, 10, 20, false);
+    // A-class: keep original sync mapping (baseline muscle drive)
+    add_pm("DA01", 0,  0,  4,  true);
+    add_pm("DA02", 5,  4,  10, true);
+    add_pm("DA03", 15, 10, 20, true);
+    add_pm("VA01", 0,  0,  4,  false);
+    add_pm("VA02", 5,  4,  10, false);
+    add_pm("VA03", 15, 10, 20, false);
 
     // 10. Collect touch neuron IDs (Step 18) + pharyngeal neuron IDs (Step 24)
     for (auto& info : neuron_infos) {
@@ -790,22 +807,20 @@ void SimulationEngine::apply_ria_smd_modulation() {
 }
 
 void SimulationEngine::apply_proprioceptive_stretch() {
-    // Set stretch input on MechanoSensitive channels in motor neurons
-    // The channel converts mechanical stretch into ionic current through the membrane equation
-    // NO external current injection — the current comes from g_MEC * m * (V - E_cat)
-    // REF: Wen et al. 2012, Li et al. 2006 - mechanosensitive channels in motor neurons
+    // Step 29: Proprioceptive wave propagation (Wen 2012, Boyle 2012)
+    // Each B-class motor neuron senses curvature at its sample_segment.
+    // Wave propagates via neural relay: head oscillation → DB01 → VB02 → DB03...
+    // REF: Wen 2012 Neuron — B-type MNs transduce proprioceptive signal
     int n = static_cast<int>(neurons_.size());
     for (auto& pm : proprio_mappings_) {
         if (pm.neuron_id < 0 || pm.neuron_id >= n) continue;
 
         double curv = body_.get_local_curvature(pm.sample_segment);
-
-        // Dorsal motor neurons: excited by ventral bend (negative curvature) of anterior segment
-        // Ventral motor neurons: excited by dorsal bend (positive curvature) of anterior segment
+        // Dorsal MN: excited by ventral bend (negative curv)
+        // Ventral MN: excited by dorsal bend (positive curv)
         double stretch = pm.is_dorsal ? -curv : curv;
-        if (stretch < 0.0) stretch = 0.0; // only positive stretch activates channel
+        if (stretch < 0.0) stretch = 0.0;
 
-        // Set stretch on the neuron's MEC channel (flows through membrane equation)
         auto* scn = dynamic_cast<SingleCompartmentNeuron*>(neurons_[pm.neuron_id].get());
         if (scn) {
             scn->set_stretch_input(stretch);
