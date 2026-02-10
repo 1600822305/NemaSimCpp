@@ -95,6 +95,10 @@ int main() {
     std::vector<int> sleep_vs;       // Step 27: is_sleeping flag
     // SMD current diagnostics
     std::vector<double> smddl_v_vs, smdvl_v_vs, smddl_isyn_vs, smddl_iext_vs;
+    // Step 29: Wave propagation diagnostics
+    std::vector<double> curv_seg2_vs, curv_seg7_vs, curv_seg15_vs, muscle_work_vs;
+    int curv7_sign_changes = 0;
+    double prev_curv7 = 0;
 
     double prev_heading = sim.body().get_head_angle() * 180.0 / 3.14159265;
     double prev_time = 0;
@@ -162,6 +166,24 @@ int main() {
             // 5. Curvature, speed
             double curv = sim.body().segments()[0].curvature;
             double speed = sim.body().get_speed();
+
+            // Step 29: Wave propagation curvatures
+            double c2 = sim.body().segments()[2].curvature;
+            double c7 = sim.body().segments()[7].curvature;
+            double c15 = sim.body().segments()[15].curvature;
+            curv_seg2_vs.push_back(c2);
+            curv_seg7_vs.push_back(c7);
+            curv_seg15_vs.push_back(c15);
+            if (!curv_seg7_vs.empty() && curv_seg7_vs.size() > 1 && c7 * prev_curv7 < 0)
+                curv7_sign_changes++;
+            prev_curv7 = c7;
+            {
+                double mw = 0;
+                const auto& segs = sim.body().segments();
+                for (int si = 0; si < 48; ++si)
+                    mw += std::abs(segs[si].dorsal_activation - segs[si].ventral_activation);
+                muscle_work_vs.push_back(mw / 48.0);
+            }
 
             // 6. Heading rate
             double heading_deg = heading_rad * 180.0 / 3.14159265;
@@ -583,6 +605,37 @@ int main() {
         }
     }
 
+    // Step 29: WAVE PROPAGATION DIAGNOSTICS
+    std::cout << "\n19. WAVE PROPAGATION (Step 29):" << std::endl;
+    {
+        auto [c2_min, c2_max] = minmax(curv_seg2_vs);
+        auto [c7_min, c7_max] = minmax(curv_seg7_vs);
+        auto [c15_min, c15_max] = minmax(curv_seg15_vs);
+        std::cout << "   Curvature at seg  2 (head): range=[" << std::setprecision(3) << c2_min << ", " << c2_max
+                  << "]  amp=" << (c2_max - c2_min) << " /mm" << std::endl;
+        std::cout << "   Curvature at seg  7 (mid1): range=[" << c7_min << ", " << c7_max
+                  << "]  amp=" << (c7_max - c7_min) << " /mm" << std::endl;
+        std::cout << "   Curvature at seg 15 (mid2): range=[" << c15_min << ", " << c15_max
+                  << "]  amp=" << (c15_max - c15_min) << " /mm" << std::endl;
+        double sign_change_hz = curv7_sign_changes / (duration * 0.001);  // duration in ms -> seconds
+        std::cout << "   Seg 7 sign-change rate: " << std::setprecision(1) << sign_change_hz
+                  << " Hz  (normal: 0.5-5, unstable: >100)" << std::endl;
+        std::cout << "   Muscle work: mean=" << std::setprecision(3) << mean(muscle_work_vs);
+        auto [mw_min, mw_max] = minmax(muscle_work_vs);
+        std::cout << "  range=[" << mw_min << ", " << mw_max << "]" << std::endl;
+        // Wave propagation quality assessment
+        double head_amp = c2_max - c2_min;
+        double mid_amp = c7_max - c7_min;
+        double tail_amp = c15_max - c15_min;
+        if (mid_amp > 0.3 * head_amp && tail_amp > 0.2 * head_amp) {
+            std::cout << "   Wave quality: GOOD (propagates to tail)" << std::endl;
+        } else if (mid_amp > 0.1 * head_amp) {
+            std::cout << "   Wave quality: PARTIAL (weakens before tail)" << std::endl;
+        } else {
+            std::cout << "   Wave quality: POOR (stuck at head)" << std::endl;
+        }
+    }
+
     // BOTTLENECK ANALYSIS
     std::cout << "\n========================================" << std::endl;
     std::cout << "  BOTTLENECK ANALYSIS" << std::endl;
@@ -651,6 +704,25 @@ int main() {
         std::cout << "  [OK] CI good (" << ci << " >= 0.5)" << std::endl;
     } else {
         std::cout << "  [..] CI moderate (" << ci << ", target >0.5)" << std::endl;
+    }
+
+    // Step 29: Wave propagation checks
+    {
+        double sign_hz = curv7_sign_changes / (duration * 0.001);
+        if (sign_hz > 50.0) {
+            std::cout << "  [!!] CURVATURE UNSTABLE (seg7 sign-change " << sign_hz << " Hz)" << std::endl;
+            std::cout << "       -> Check body_model curvature integrator (semi-implicit Euler?)" << std::endl;
+            has_bottleneck = true;
+        } else {
+            std::cout << "  [OK] Curvature stability " << std::setprecision(1) << sign_hz << " Hz" << std::endl;
+        }
+        if (mean(muscle_work_vs) < 0.1) {
+            std::cout << "  [!!] MUSCLE WORK too low (" << std::setprecision(3) << mean(muscle_work_vs) << ")" << std::endl;
+            std::cout << "       -> D/V cancellation? Check MEC channels and curvature stability" << std::endl;
+            has_bottleneck = true;
+        } else {
+            std::cout << "  [OK] Muscle work " << std::setprecision(3) << mean(muscle_work_vs) << std::endl;
+        }
     }
 
     if (!has_bottleneck) {

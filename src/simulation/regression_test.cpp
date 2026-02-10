@@ -66,6 +66,11 @@ struct SimMetrics {
     double fatigue_final;
     bool is_sleeping_final;
     double ris_v_final;
+
+    // Step 29: Wave propagation & curvature stability
+    double midbody_curv_amp;      // curvature amplitude at seg 10 (wave reaches mid-body?)
+    double curv_sign_change_hz;   // sign-change rate at seg 7 (numerical instability detector)
+    double muscle_work_mean;      // mean |dorsal-ventral| / N_seg (speed driver)
 };
 
 SimMetrics run_and_measure(int duration_ms = 30000) {
@@ -90,6 +95,11 @@ SimMetrics run_and_measure(int duration_ms = 30000) {
     double curv_min = 1e9, curv_max = -1e9;
     double speed_sum = 0, heading_rate_sum = 0;
     double asel_sum = 0, aser_sum = 0;
+    // Step 29: wave propagation accumulators
+    double midbody_curv_min = 1e9, midbody_curv_max = -1e9;
+    int curv_sign_changes = 0;
+    double prev_seg7_curv = 0;
+    double muscle_work_sum = 0;
     int samples = 0;
     double prev_heading = sim.body().get_head_angle() * 180.0 / 3.14159265;
     double prev_time = 0;
@@ -133,10 +143,29 @@ SimMetrics run_and_measure(int duration_ms = 30000) {
             smd_diff_min = std::min(smd_diff_min, diff);
             smd_diff_max = std::max(smd_diff_max, diff);
 
-            // Curvature
+            // Curvature (head)
             double curv = sim.body().segments()[0].curvature;
             curv_min = std::min(curv_min, curv);
             curv_max = std::max(curv_max, curv);
+
+            // Step 29: Mid-body curvature (wave propagation check)
+            double midbody_curv = sim.body().segments()[10].curvature;
+            midbody_curv_min = std::min(midbody_curv_min, midbody_curv);
+            midbody_curv_max = std::max(midbody_curv_max, midbody_curv);
+
+            // Step 29: Curvature sign-change rate at seg 7 (stability check)
+            double seg7_curv = sim.body().segments()[7].curvature;
+            if (samples > 0 && seg7_curv * prev_seg7_curv < 0) curv_sign_changes++;
+            prev_seg7_curv = seg7_curv;
+
+            // Step 29: Muscle work (D/V quality)
+            {
+                double mw = 0;
+                const auto& segs = sim.body().segments();
+                for (int si = 0; si < 48; ++si)
+                    mw += std::abs(segs[si].dorsal_activation - segs[si].ventral_activation);
+                muscle_work_sum += mw / 48.0;
+            }
 
             // Speed
             speed_sum += sim.body().get_speed();
@@ -188,6 +217,11 @@ SimMetrics run_and_measure(int duration_ms = 30000) {
     m.satiety_max = sim.satiety();
     m.sht_final = sim.neuromodulation().get_concentration("5-HT");
     m.oa_final = sim.neuromodulation().get_concentration("OA");
+
+    // Step 29: wave propagation & stability metrics
+    m.midbody_curv_amp = midbody_curv_max - midbody_curv_min;
+    m.curv_sign_change_hz = curv_sign_changes / (duration_ms * 0.001); // Hz
+    m.muscle_work_mean = muscle_work_sum / samples;
 
     // Step 27: fatigue/sleep state at end of simulation
     m.fatigue_final = sim.fatigue();
@@ -348,6 +382,14 @@ int main(int argc, char* argv[]) {
         // is_sleeping must be false (0.0), RIS should be near resting (-50 to -65 mV)
         {"Fatigue @30s",        m.fatigue_final,                 0.2,   100, "", ""},
         {"Sleep @30s",          m.is_sleeping_final ? 1.0 : 0.0, 0.0,   10,  "", "RIS"},
+
+        // Step 29: Wave propagation & curvature stability
+        // Mid-body curvature amplitude: wave must propagate past head (seg 10 amp > 0.05)
+        {"Midbody curv amp",    m.midbody_curv_amp,              0.35,  60,  "/mm", ""},
+        // Curvature sign-change rate at seg 7: ~0.2 Hz normal, >100 Hz = numerical instability
+        {"Curv stability",      m.curv_sign_change_hz,           0.5,   200, "Hz", ""},
+        // Muscle work: must be >0.1 for any forward motion (D/V cancellation -> 0)
+        {"Muscle work",         m.muscle_work_mean,              0.35,  60,  "", ""},
     };
 
     // ---- Check each metric ----
