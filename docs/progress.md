@@ -184,6 +184,7 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 - **双目标**: celegans_sim.exe (headless) + celegans_vis.exe (GUI) 并行构建
 
 ### Step 17: 实时调参 + 信号链诊断 + 转弯修复 ✅ (2026-02-10)
+> 详细文档: [steps/step17_tuning_diagnosis.md](steps/step17_tuning_diagnosis.md)
 
 利用 ImGui 实时调参工具定位并修复趋化转弯瓶颈:
 - **调参面板**: 5 个滑条 (梯度增益/突触倍率/速度倍率/感觉增益/偏置限幅)
