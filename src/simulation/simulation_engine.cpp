@@ -1180,7 +1180,74 @@ void SimulationEngine::setup_neuromodulation() {
         neuromod_.add_modulator(std::move(octopamine));
     }
 
-    LOG_INFO("Neuromodulation setup: 5-HT (dwelling), DA (basal slowing), OA (roaming)");
+    // --- Tyramine (TA) ---
+    // Step 30: RIM tyraminergic signaling for escape response coordination
+    // Source: RIM L/R (co-activated with AVA via gap junctions during reversal)
+    // TA temporally coordinates reversal phases:
+    //   Phase 1 (fast, LGC-55): suppress head oscillation + inhibit forward
+    //   Phase 2 (slow, TYRA-3): sensitize nociception for repeated threats
+    // REF: Alkema 2005 Neuron — TDC-1 in RIM synthesizes TA
+    //      Pirri 2009 Neuron — LGC-55 Cl⁻ channel coordinates escape
+    //      Donnelly 2013 PLOS Biology — TA orchestrates motor sequence
+    //      Rex 2005 — TYRA-3 GPCR modulates nociception
+    {
+        Neuromodulator tyramine;
+        tyramine.name = "TA";
+        tyramine.tau_rise = 500.0;     // 0.5s — fast, escape timescale (Pirri 2009)
+        tyramine.tau_decay = 2000.0;   // 2s — behavioral persistence
+        tyramine.release_threshold = 0.3;
+
+        // Source neurons: RIM (tyraminergic, TDC-1+, TBH-1-)
+        int riml = connectome_.get_neuron_id("RIML");
+        int rimr = connectome_.get_neuron_id("RIMR");
+        if (riml >= 0) tyramine.source_neuron_ids.push_back(riml);
+        if (rimr >= 0) tyramine.source_neuron_ids.push_back(rimr);
+
+        // Target 1: LGC-55 → SMD head motor neurons (Cl⁻ inhibitory)
+        // Suppress head oscillation during reversal — "committed reversal"
+        // REF: Pirri 2009 — lgc-55 mutants fail to suppress head movements
+        const char* smd_names[] = {"SMDDL", "SMDVL", "SMDDR", "SMDVR"};
+        for (auto name : smd_names) {
+            int id = connectome_.get_neuron_id(name);
+            if (id >= 0) tyramine.targets.push_back(
+                {id, "LGC-55", ModulationEffect::EXCITABILITY, -25.0});
+        }
+
+        // Target 2: LGC-55 → AVB forward command interneurons (Cl⁻ inhibitory)
+        // Inhibit forward locomotion → promotes longer reversals
+        // REF: Pirri 2009 — LGC-55 expressed in AVB
+        int avbl = connectome_.get_neuron_id("AVBL");
+        int avbr = connectome_.get_neuron_id("AVBR");
+        if (avbl >= 0) tyramine.targets.push_back(
+            {avbl, "LGC-55", ModulationEffect::EXCITABILITY, -10.0});
+        if (avbr >= 0) tyramine.targets.push_back(
+            {avbr, "LGC-55", ModulationEffect::EXCITABILITY, -10.0});
+
+        // Target 3: TYRA-3 → ASH nociceptive neurons (excitatory GPCR)
+        // Sensitize nociception — repeated threats → faster escape (emergent)
+        // REF: Rex 2005, Donnelly 2013 — TYRA-3 modulates pain-like responses
+        int ashl = connectome_.get_neuron_id("ASHL");
+        int ashr = connectome_.get_neuron_id("ASHR");
+        if (ashl >= 0) tyramine.targets.push_back(
+            {ashl, "TYRA-3", ModulationEffect::EXCITABILITY, 5.0});
+        if (ashr >= 0) tyramine.targets.push_back(
+            {ashr, "TYRA-3", ModulationEffect::EXCITABILITY, 5.0});
+
+        // Target 4: TA→OA biosynthetic coupling via RIC
+        // RIM releases TA → diffuses to RIC → TBH-1 converts TA→OA
+        // Modeled as weak excitation of RIC proportional to [TA]
+        // REF: Alkema 2005 — TDC-1/TBH-1 co-expression in RIC
+        int ricl = connectome_.get_neuron_id("RICL");
+        int ricr = connectome_.get_neuron_id("RICR");
+        if (ricl >= 0) tyramine.targets.push_back(
+            {ricl, "TBH-1", ModulationEffect::EXCITABILITY, 2.0}); // +2 pA substrate supply
+        if (ricr >= 0) tyramine.targets.push_back(
+            {ricr, "TBH-1", ModulationEffect::EXCITABILITY, 2.0});
+
+        neuromod_.add_modulator(std::move(tyramine));
+    }
+
+    LOG_INFO("Neuromodulation setup: 5-HT (dwelling), DA (basal slowing), OA (roaming), TA (escape)");
 }
 
 // ================================================================
