@@ -287,8 +287,10 @@ int main() {
     std::cout << "   range=[" << std::setprecision(1) << h_min << ", " << h_max << "] deg"
               << "  total_sweep=" << (h_max - h_min) << " deg" << std::endl;
     std::cout << "   avg |dtheta/dt|=" << std::setprecision(3) << avg_rate << " deg/s" << std::endl;
-    std::cout << "   pirouettes detected: " << pirouette_count << " (" 
-              << std::setprecision(2) << pirouette_count / (duration/1000.0) << " Hz)" << std::endl;
+    // Pirouette = reversal (± omega turn). Old heading-jump detection (>30°/100ms)
+    // doesn't work with smooth curvature_bias omega turns (~9.6°/100ms).
+    std::cout << "   pirouettes (=reversals): " << reversal_count << " (" 
+              << std::setprecision(2) << reversal_count / (duration/1000.0) << " Hz)" << std::endl;
 
     std::cout << "\n10. TOUCH AVOIDANCE:" << std::endl;
     std::cout << "   reversals: " << reversal_count << std::endl;
