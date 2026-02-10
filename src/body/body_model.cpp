@@ -55,18 +55,18 @@ void BodyModel::compute_curvatures(double dt) {
         // ventral > dorsal -> negative curvature (ventral bend)
         double target_curvature = muscle_gain_ * (seg.dorsal_activation - seg.ventral_activation);
 
-        // Damped spring toward target curvature
-        double dcurv = stiffness_ * (target_curvature - seg.curvature) - damping_ * seg.curvature;
-
         // Step 29: Passive elastic coupling between adjacent segments
         // REF: Boyle 2012 — body continuity allows curvature to spread
-        // mechanically from head to tail, enabling proprioceptive wave relay
         double curv_left  = (i > 0) ? segments_[i - 1].curvature : seg.curvature;
         double curv_right = (i < NUM_BODY_SEGMENTS - 1) ? segments_[i + 1].curvature : seg.curvature;
         double diffusion = curvature_diffusion_ * (curv_left - 2.0 * seg.curvature + curv_right);
-        dcurv += diffusion;
 
-        seg.curvature += dcurv * dt;
+        // Semi-implicit Euler (unconditionally stable for stiffness/damping):
+        // dcurv/dt = stiffness*(target - curv) - damping*curv + diffusion
+        // Treat stiffness*curv and damping*curv implicitly:
+        // curv_new*(1 + (stiffness+damping)*dt) = curv + dt*(stiffness*target + diffusion)
+        double denom = 1.0 + (stiffness_ + damping_) * dt;
+        seg.curvature = (seg.curvature + dt * (stiffness_ * target_curvature + diffusion)) / denom;
         // Clamp curvature: normal locomotion ~3/mm, omega turn ~15/mm (Gray 2005)
         // Head segments (0-3) get higher clamp during omega for deep ventral bend
         double max_curv = (omega_mode_ && i < 4) ? 15.0 : 3.0;
