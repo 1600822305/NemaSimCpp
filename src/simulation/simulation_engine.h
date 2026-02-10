@@ -219,8 +219,8 @@ private:
     //      Konietzka 2020 Nat Commun — RIS as locomotion stop neuron
     //      Nagy 2014 eLife — sleep homeostasis (micro/macro)
     double fatigue_ = 0.0;              // [0,1] homeostatic sleep drive
-    double fatigue_tau_rise_ = 120000.0;  // ms, ~120s to accumulate when active
-    double fatigue_tau_decay_ = 60000.0;  // ms, ~60s to clear during sleep
+    double fatigue_tau_rise_ = 240000.0;  // ms, ~240s to accumulate when active
+    double fatigue_tau_decay_ = 45000.0;  // ms, ~45s to clear during sleep
     double fatigue_threshold_ = 0.7;      // RIS activation threshold
     int ris_id_ = -1;                     // RIS neuron ID
     bool is_sleeping_ = false;            // current sleep state
