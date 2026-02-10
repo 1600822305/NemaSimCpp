@@ -1,0 +1,1661 @@
+
+---
+events:
+  -
+    kind: "message-v1"
+    backtrace:
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Lib/site-packages/cmake/data/share/cmake-4.2/Modules/CMakeDetermineSystem.cmake:212 (message)"
+      - "CMakeLists.txt:2 (project)"
+    message: |
+      The system is: Windows - 10.0.19045 - AMD64
+  -
+    kind: "find-v1"
+    backtrace:
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Lib/site-packages/cmake/data/share/cmake-4.2/Modules/CMakeDetermineCompilerId.cmake:462 (find_file)"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Lib/site-packages/cmake/data/share/cmake-4.2/Modules/CMakeDetermineCompilerId.cmake:500 (CMAKE_DETERMINE_COMPILER_ID_WRITE)"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Lib/site-packages/cmake/data/share/cmake-4.2/Modules/CMakeDetermineCompilerId.cmake:8 (CMAKE_DETERMINE_COMPILER_ID_BUILD)"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Lib/site-packages/cmake/data/share/cmake-4.2/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Lib/site-packages/cmake/data/share/cmake-4.2/Modules/CMakeDetermineCXXCompiler.cmake:125 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:2 (project)"
+    mode: "file"
+    variable: "src_in"
+    description: "Path to a file."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "CMakeCXXCompilerId.cpp.in"
+    candidate_directories:
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Lib/site-packages/cmake/data/share/cmake-4.2/Modules/"
+    found: "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Lib/site-packages/cmake/data/share/cmake-4.2/Modules/CMakeCXXCompilerId.cpp.in"
+    search_context:
+      ENV{PATH}:
+        - "C:\\Program Files\\PowerShell\\7"
+        - "E:\\Tools\\java21\\bin"
+        - "C:\\Program Files\\Common Files\\Oracle\\Java\\javapath"
+        - "C:\\Windows\\system32"
+        - "C:\\Windows"
+        - "C:\\Windows\\System32\\Wbem"
+        - "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\"
+        - "C:\\Windows\\System32\\OpenSSH\\"
+        - "E:\\Tools\\nodejs\\"
+        - "E:\\Tools\\Git\\cmd"
+        - "E:\\Tools\\cursor\\resources\\app\\bin"
+        - "C:\\Users\\Administrator\\.cargo\\bin"
+        - "C:\\Users\\Administrator\\AppData\\Roaming\\npm"
+        - "J:\\Rocn\\WiresharkPortable64\\App\\Wireshark"
+        - "C:\\Program Files\\PowerShell\\7\\"
+        - "C:\\Program Files\\dotnet\\"
+        - "C:\\Users\\Administrator\\AppData\\Local\\Programs\\Python\\Python311\\Scripts\\"
+        - "C:\\Users\\Administrator\\AppData\\Local\\Programs\\Python\\Python311\\"
+        - "J:\\seccc\\.venv\\Scripts"
+        - "K:\\Cherry\\Lyxn\\buildtools\\ninja"
+        - "E:\\Tools\\java21\\bin"
+        - "C:\\Program Files\\Common Files\\Oracle\\Java\\javapath"
+        - "C:\\Windows\\system32"
+        - "C:\\Windows"
+        - "C:\\Windows\\System32\\Wbem"
+        - "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\"
+        - "C:\\Windows\\System32\\OpenSSH\\"
+        - "E:\\Tools\\nodejs\\"
+        - "E:\\Tools\\Git\\cmd"
+        - "E:\\Tools\\cursor\\resources\\app\\bin"
+        - "C:\\Users\\Administrator\\.cargo\\bin"
+        - "C:\\Users\\Administrator\\AppData\\Roaming\\npm"
+        - "C:\\Users\\Administrator\\.local\\bin"
+        - "E:\\Tools\\ja"
+        - "E:\\Tools\\OpenSSL-Win64\\bin"
+        - "C:\\Program Files\\Docker\\Docker\\resources\\bin"
+        - "K:\\studiosdk\\platform-tools"
+        - "K:\\studiosdk\\tools"
+        - "K:\\studiosdk\\cmdline-tools\\latest\\bin"
+        - "K:\\FlutterSDK\\flutter\\bin"
+        - "E:\\Tools\\Windsurf\\bin"
+        - "E:\\Tools\\Kiro\\bin"
+        - "E:\\Tools\\Go\\bin"
+        - "E:\\Tools\\Qoder\\bin"
+        - "E:\\Tools\\Windsurf Next\\bin"
+  -
+    kind: "message-v1"
+    backtrace:
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Lib/site-packages/cmake/data/share/cmake-4.2/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Lib/site-packages/cmake/data/share/cmake-4.2/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Lib/site-packages/cmake/data/share/cmake-4.2/Modules/CMakeDetermineCXXCompiler.cmake:125 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:2 (project)"
+    message: |
+      Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" succeeded.
+      Compiler:  
+      Build flags: 
+      Id flags:  
+      
+      The output was:
+      0
+      閫傜敤浜?.NET Framework MSBuild 鐗堟湰 17.14.10+8b8e13593
+      鐢熸垚鍚姩鏃堕棿涓?2026/2/10 10:25:23銆?
+      
+      鑺傜偣 1 涓婄殑椤圭洰鈥淜:\\Cherry\\LLM\\AGI\\agi4\\build_test\\CMakeFiles\\4.2.0\\CompilerIdCXX\\CompilerIdCXX.vcxproj鈥?榛樿鐩爣)銆?
+      PrepareForBuild:
+        姝ｅ湪鍒涘缓鐩綍鈥淒ebug\\鈥濄€?
+        宸插惎鐢ㄧ粨鏋勫寲杈撳嚭銆傜紪璇戝櫒璇婃柇鐨勬牸寮忚缃皢鍙嶆槧閿欒灞傛缁撴瀯銆傛湁鍏宠缁嗕俊鎭紝璇峰弬闃?https://aka.ms/cpp/structured-output銆?
+        姝ｅ湪鍒涘缓鐩綍鈥淒ebug\\CompilerIdCXX.tlog\\鈥濄€?
+      InitializeBuildStatus:
+        姝ｅ湪鍒涘缓鈥淒ebug\\CompilerIdCXX.tlog\\unsuccessfulbuild鈥濓紝鍥犱负宸叉寚瀹氣€淎lwaysCreate鈥濄€?
+        姝ｅ湪瀵光€淒ebug\\CompilerIdCXX.tlog\\unsuccessfulbuild鈥濇墽琛?Touch 浠诲姟銆?
+      VcpkgTripletSelection:
+        Using triplet "x64-windows" from "C:\\vcpkg\\installed\\x64-windows\\"
+        Using normalized configuration "Release"
+      ClCompile:
+        K:\\vsbuild\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\CL.exe /c /I"C:\\vcpkg\\installed\\x64-windows\\include" /nologo /W0 /WX- /diagnostics:column /Od /D _MBCS /Gm- /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /Fo"Debug\\\\" /Fd"Debug\\vc143.pdb" /external:W0 /Gd /TP /FC /errorReport:queue CMakeCXXCompilerId.cpp
+        CMakeCXXCompilerId.cpp
+      Link:
+        K:\\vsbuild\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\link.exe /ERRORREPORT:QUEUE /OUT:".\\CompilerIdCXX.exe" /INCREMENTAL:NO /NOLOGO /LIBPATH:"C:\\vcpkg\\installed\\x64-windows\\lib" /LIBPATH:"C:\\vcpkg\\installed\\x64-windows\\lib\\manual-link" kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib "C:\\vcpkg\\installed\\x64-windows\\lib\\*.lib" /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /PDB:".\\CompilerIdCXX.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:".\\CompilerIdCXX.lib" /MACHINE:X64 Debug\\CMakeCXXCompilerId.obj
+        CompilerIdCXX.vcxproj -> K:\\Cherry\\LLM\\AGI\\agi4\\build_test\\CMakeFiles\\4.2.0\\CompilerIdCXX\\CompilerIdCXX.exe
+      AppLocalFromInstalled:
+        pwsh.exe -ExecutionPolicy Bypass -noprofile -File "C:\\vcpkg\\scripts\\buildsystems\\msbuild\\applocal.ps1" "K:\\Cherry\\LLM\\AGI\\agi4\\build_test\\CMakeFiles\\4.2.0\\CompilerIdCXX\\CompilerIdCXX.exe" "C:\\vcpkg\\installed\\x64-windows\\bin" "Debug\\CompilerIdCXX.tlog\\CompilerIdCXX.write.1u.tlog" "Debug\\vcpkg.applocal.log"
+      PostBuildEvent:
+        for %%i in (cl.exe) do @echo CMAKE_CXX_COMPILER=%%~$PATH:i
+        :VCEnd
+        CMAKE_CXX_COMPILER=K:\\vsbuild\\VC\\Tools\\MSVC\\14.44.35207\\bin\\Hostx64\\x64\\cl.exe
+      FinalizeBuildStatus:
+        姝ｅ湪鍒犻櫎鏂囦欢鈥淒ebug\\CompilerIdCXX.tlog\\unsuccessfulbuild鈥濄€?
+        姝ｅ湪瀵光€淒ebug\\CompilerIdCXX.tlog\\CompilerIdCXX.lastbuildstate鈥濇墽琛?Touch 浠诲姟銆?
+      宸插畬鎴愮敓鎴愰」鐩€淜:\\Cherry\\LLM\\AGI\\agi4\\build_test\\CMakeFiles\\4.2.0\\CompilerIdCXX\\CompilerIdCXX.vcxproj鈥?榛樿鐩爣)鐨勬搷浣溿€?
+      
+      宸叉垚鍔熺敓鎴愩€?
+          0 涓鍛?
+          0 涓敊璇?
+      
+      宸茬敤鏃堕棿 00:00:00.92
+      
+      
+      Compilation of the CXX compiler identification source "CMakeCXXCompilerId.cpp" produced "CompilerIdCXX.exe"
+      
+      Compilation of the CXX compiler identification source "CMakeCXXCompilerId.cpp" produced "CompilerIdCXX.vcxproj"
+      
+      The CXX compiler identification is MSVC, found in:
+        K:/Cherry/LLM/AGI/agi4/build_test/CMakeFiles/4.2.0/CompilerIdCXX/CompilerIdCXX.exe
+      
+  -
+    kind: "find-v1"
+    backtrace:
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Lib/site-packages/cmake/data/share/cmake-4.2/Modules/CMakeFindBinUtils.cmake:37 (find_program)"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Lib/site-packages/cmake/data/share/cmake-4.2/Modules/CMakeFindBinUtils.cmake:65 (__resolve_tool_path)"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Lib/site-packages/cmake/data/share/cmake-4.2/Modules/CMakeFindBinUtils.cmake:103 (__resolve_linker_path)"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Lib/site-packages/cmake/data/share/cmake-4.2/Modules/CMakeDetermineCXXCompiler.cmake:206 (include)"
+      - "CMakeLists.txt:2 (project)"
+    mode: "program"
+    variable: "_CMAKE_TOOL_WITH_PATH"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "link"
+    candidate_directories:
+      - "K:/vsbuild/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/"
+      - "C:/Program Files/PowerShell/7/"
+      - "E:/Tools/java21/bin/"
+      - "C:/Program Files/Common Files/Oracle/Java/javapath/"
+      - "C:/Windows/System32/"
+      - "C:/Windows/"
+      - "C:/Windows/System32/wbem/"
+      - "C:/Windows/System32/WindowsPowerShell/v1.0/"
+      - "C:/Windows/System32/OpenSSH/"
+      - "E:/Tools/nodejs/"
+      - "E:/Tools/Git/cmd/"
+      - "E:/Tools/cursor/resources/app/bin/"
+      - "C:/Users/Administrator/.cargo/bin/"
+      - "C:/Users/Administrator/AppData/Roaming/npm/"
+      - "J:/Rocn/WiresharkPortable64/App/Wireshark/"
+      - "C:/Program Files/dotnet/"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Scripts/"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/"
+      - "J:/seccc/.venv/Scripts/"
+      - "K:/Cherry/Lyxn/buildtools/ninja/"
+      - "C:/Users/Administrator/.local/bin/"
+      - "E:/Tools/ja/"
+      - "E:/Tools/OpenSSL-Win64/bin/"
+      - "C:/Program Files/Docker/Docker/resources/bin/"
+      - "K:/studiosdk/platform-tools/"
+      - "K:/studiosdk/tools/"
+      - "K:/studiosdk/cmdline-tools/latest/bin/"
+      - "K:/FlutterSDK/flutter/bin/"
+      - "E:/Tools/Windsurf/bin/"
+      - "E:/Tools/Kiro/bin/"
+      - "E:/Tools/Go/bin/"
+      - "E:/Tools/Qoder/bin/"
+      - "E:/Tools/Windsurf Next/bin/"
+    searched_directories:
+      - "K:/vsbuild/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/link.com"
+    found: "K:/vsbuild/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/link.exe"
+    search_context:
+      ENV{PATH}:
+        - "C:\\Program Files\\PowerShell\\7"
+        - "E:\\Tools\\java21\\bin"
+        - "C:\\Program Files\\Common Files\\Oracle\\Java\\javapath"
+        - "C:\\Windows\\system32"
+        - "C:\\Windows"
+        - "C:\\Windows\\System32\\Wbem"
+        - "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\"
+        - "C:\\Windows\\System32\\OpenSSH\\"
+        - "E:\\Tools\\nodejs\\"
+        - "E:\\Tools\\Git\\cmd"
+        - "E:\\Tools\\cursor\\resources\\app\\bin"
+        - "C:\\Users\\Administrator\\.cargo\\bin"
+        - "C:\\Users\\Administrator\\AppData\\Roaming\\npm"
+        - "J:\\Rocn\\WiresharkPortable64\\App\\Wireshark"
+        - "C:\\Program Files\\PowerShell\\7\\"
+        - "C:\\Program Files\\dotnet\\"
+        - "C:\\Users\\Administrator\\AppData\\Local\\Programs\\Python\\Python311\\Scripts\\"
+        - "C:\\Users\\Administrator\\AppData\\Local\\Programs\\Python\\Python311\\"
+        - "J:\\seccc\\.venv\\Scripts"
+        - "K:\\Cherry\\Lyxn\\buildtools\\ninja"
+        - "E:\\Tools\\java21\\bin"
+        - "C:\\Program Files\\Common Files\\Oracle\\Java\\javapath"
+        - "C:\\Windows\\system32"
+        - "C:\\Windows"
+        - "C:\\Windows\\System32\\Wbem"
+        - "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\"
+        - "C:\\Windows\\System32\\OpenSSH\\"
+        - "E:\\Tools\\nodejs\\"
+        - "E:\\Tools\\Git\\cmd"
+        - "E:\\Tools\\cursor\\resources\\app\\bin"
+        - "C:\\Users\\Administrator\\.cargo\\bin"
+        - "C:\\Users\\Administrator\\AppData\\Roaming\\npm"
+        - "C:\\Users\\Administrator\\.local\\bin"
+        - "E:\\Tools\\ja"
+        - "E:\\Tools\\OpenSSL-Win64\\bin"
+        - "C:\\Program Files\\Docker\\Docker\\resources\\bin"
+        - "K:\\studiosdk\\platform-tools"
+        - "K:\\studiosdk\\tools"
+        - "K:\\studiosdk\\cmdline-tools\\latest\\bin"
+        - "K:\\FlutterSDK\\flutter\\bin"
+        - "E:\\Tools\\Windsurf\\bin"
+        - "E:\\Tools\\Kiro\\bin"
+        - "E:\\Tools\\Go\\bin"
+        - "E:\\Tools\\Qoder\\bin"
+        - "E:\\Tools\\Windsurf Next\\bin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Lib/site-packages/cmake/data/share/cmake-4.2/Modules/CMakeFindBinUtils.cmake:37 (find_program)"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Lib/site-packages/cmake/data/share/cmake-4.2/Modules/CMakeFindBinUtils.cmake:65 (__resolve_tool_path)"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Lib/site-packages/cmake/data/share/cmake-4.2/Modules/CMakeFindBinUtils.cmake:104 (__resolve_linker_path)"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Lib/site-packages/cmake/data/share/cmake-4.2/Modules/CMakeDetermineCXXCompiler.cmake:206 (include)"
+      - "CMakeLists.txt:2 (project)"
+    mode: "program"
+    variable: "_CMAKE_TOOL_WITH_PATH"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "lld-link"
+    candidate_directories:
+      - "K:/vsbuild/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/"
+      - "C:/Program Files/PowerShell/7/"
+      - "E:/Tools/java21/bin/"
+      - "C:/Program Files/Common Files/Oracle/Java/javapath/"
+      - "C:/Windows/System32/"
+      - "C:/Windows/"
+      - "C:/Windows/System32/wbem/"
+      - "C:/Windows/System32/WindowsPowerShell/v1.0/"
+      - "C:/Windows/System32/OpenSSH/"
+      - "E:/Tools/nodejs/"
+      - "E:/Tools/Git/cmd/"
+      - "E:/Tools/cursor/resources/app/bin/"
+      - "C:/Users/Administrator/.cargo/bin/"
+      - "C:/Users/Administrator/AppData/Roaming/npm/"
+      - "J:/Rocn/WiresharkPortable64/App/Wireshark/"
+      - "C:/Program Files/dotnet/"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Scripts/"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/"
+      - "J:/seccc/.venv/Scripts/"
+      - "K:/Cherry/Lyxn/buildtools/ninja/"
+      - "C:/Users/Administrator/.local/bin/"
+      - "E:/Tools/ja/"
+      - "E:/Tools/OpenSSL-Win64/bin/"
+      - "C:/Program Files/Docker/Docker/resources/bin/"
+      - "K:/studiosdk/platform-tools/"
+      - "K:/studiosdk/tools/"
+      - "K:/studiosdk/cmdline-tools/latest/bin/"
+      - "K:/FlutterSDK/flutter/bin/"
+      - "E:/Tools/Windsurf/bin/"
+      - "E:/Tools/Kiro/bin/"
+      - "E:/Tools/Go/bin/"
+      - "E:/Tools/Qoder/bin/"
+      - "E:/Tools/Windsurf Next/bin/"
+    searched_directories:
+      - "K:/vsbuild/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/lld-link.com"
+      - "K:/vsbuild/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/lld-link.exe"
+      - "K:/vsbuild/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/lld-link"
+      - "C:/Program Files/PowerShell/7/lld-link.com"
+      - "C:/Program Files/PowerShell/7/lld-link.exe"
+      - "C:/Program Files/PowerShell/7/lld-link"
+      - "E:/Tools/java21/bin/lld-link.com"
+      - "E:/Tools/java21/bin/lld-link.exe"
+      - "E:/Tools/java21/bin/lld-link"
+      - "C:/Program Files/Common Files/Oracle/Java/javapath/lld-link.com"
+      - "C:/Program Files/Common Files/Oracle/Java/javapath/lld-link.exe"
+      - "C:/Program Files/Common Files/Oracle/Java/javapath/lld-link"
+      - "C:/Windows/System32/lld-link.com"
+      - "C:/Windows/System32/lld-link.exe"
+      - "C:/Windows/System32/lld-link"
+      - "C:/Windows/lld-link.com"
+      - "C:/Windows/lld-link.exe"
+      - "C:/Windows/lld-link"
+      - "C:/Windows/System32/wbem/lld-link.com"
+      - "C:/Windows/System32/wbem/lld-link.exe"
+      - "C:/Windows/System32/wbem/lld-link"
+      - "C:/Windows/System32/WindowsPowerShell/v1.0/lld-link.com"
+      - "C:/Windows/System32/WindowsPowerShell/v1.0/lld-link.exe"
+      - "C:/Windows/System32/WindowsPowerShell/v1.0/lld-link"
+      - "C:/Windows/System32/OpenSSH/lld-link.com"
+      - "C:/Windows/System32/OpenSSH/lld-link.exe"
+      - "C:/Windows/System32/OpenSSH/lld-link"
+      - "E:/Tools/nodejs/lld-link.com"
+      - "E:/Tools/nodejs/lld-link.exe"
+      - "E:/Tools/nodejs/lld-link"
+      - "E:/Tools/Git/cmd/lld-link.com"
+      - "E:/Tools/Git/cmd/lld-link.exe"
+      - "E:/Tools/Git/cmd/lld-link"
+      - "E:/Tools/cursor/resources/app/bin/lld-link.com"
+      - "E:/Tools/cursor/resources/app/bin/lld-link.exe"
+      - "E:/Tools/cursor/resources/app/bin/lld-link"
+      - "C:/Users/Administrator/.cargo/bin/lld-link.com"
+      - "C:/Users/Administrator/.cargo/bin/lld-link.exe"
+      - "C:/Users/Administrator/.cargo/bin/lld-link"
+      - "C:/Users/Administrator/AppData/Roaming/npm/lld-link.com"
+      - "C:/Users/Administrator/AppData/Roaming/npm/lld-link.exe"
+      - "C:/Users/Administrator/AppData/Roaming/npm/lld-link"
+      - "J:/Rocn/WiresharkPortable64/App/Wireshark/lld-link.com"
+      - "J:/Rocn/WiresharkPortable64/App/Wireshark/lld-link.exe"
+      - "J:/Rocn/WiresharkPortable64/App/Wireshark/lld-link"
+      - "C:/Program Files/dotnet/lld-link.com"
+      - "C:/Program Files/dotnet/lld-link.exe"
+      - "C:/Program Files/dotnet/lld-link"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Scripts/lld-link.com"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Scripts/lld-link.exe"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Scripts/lld-link"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/lld-link.com"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/lld-link.exe"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/lld-link"
+      - "J:/seccc/.venv/Scripts/lld-link.com"
+      - "J:/seccc/.venv/Scripts/lld-link.exe"
+      - "J:/seccc/.venv/Scripts/lld-link"
+      - "K:/Cherry/Lyxn/buildtools/ninja/lld-link.com"
+      - "K:/Cherry/Lyxn/buildtools/ninja/lld-link.exe"
+      - "K:/Cherry/Lyxn/buildtools/ninja/lld-link"
+      - "C:/Users/Administrator/.local/bin/lld-link.com"
+      - "C:/Users/Administrator/.local/bin/lld-link.exe"
+      - "C:/Users/Administrator/.local/bin/lld-link"
+      - "E:/Tools/ja/lld-link.com"
+      - "E:/Tools/ja/lld-link.exe"
+      - "E:/Tools/ja/lld-link"
+      - "E:/Tools/OpenSSL-Win64/bin/lld-link.com"
+      - "E:/Tools/OpenSSL-Win64/bin/lld-link.exe"
+      - "E:/Tools/OpenSSL-Win64/bin/lld-link"
+      - "C:/Program Files/Docker/Docker/resources/bin/lld-link.com"
+      - "C:/Program Files/Docker/Docker/resources/bin/lld-link.exe"
+      - "C:/Program Files/Docker/Docker/resources/bin/lld-link"
+      - "K:/studiosdk/platform-tools/lld-link.com"
+      - "K:/studiosdk/platform-tools/lld-link.exe"
+      - "K:/studiosdk/platform-tools/lld-link"
+      - "K:/studiosdk/tools/lld-link.com"
+      - "K:/studiosdk/tools/lld-link.exe"
+      - "K:/studiosdk/tools/lld-link"
+      - "K:/studiosdk/cmdline-tools/latest/bin/lld-link.com"
+      - "K:/studiosdk/cmdline-tools/latest/bin/lld-link.exe"
+      - "K:/studiosdk/cmdline-tools/latest/bin/lld-link"
+      - "K:/FlutterSDK/flutter/bin/lld-link.com"
+      - "K:/FlutterSDK/flutter/bin/lld-link.exe"
+      - "K:/FlutterSDK/flutter/bin/lld-link"
+      - "E:/Tools/Windsurf/bin/lld-link.com"
+      - "E:/Tools/Windsurf/bin/lld-link.exe"
+      - "E:/Tools/Windsurf/bin/lld-link"
+      - "E:/Tools/Kiro/bin/lld-link.com"
+      - "E:/Tools/Kiro/bin/lld-link.exe"
+      - "E:/Tools/Kiro/bin/lld-link"
+      - "E:/Tools/Go/bin/lld-link.com"
+      - "E:/Tools/Go/bin/lld-link.exe"
+      - "E:/Tools/Go/bin/lld-link"
+      - "E:/Tools/Qoder/bin/lld-link.com"
+      - "E:/Tools/Qoder/bin/lld-link.exe"
+      - "E:/Tools/Qoder/bin/lld-link"
+      - "E:/Tools/Windsurf Next/bin/lld-link.com"
+      - "E:/Tools/Windsurf Next/bin/lld-link.exe"
+      - "E:/Tools/Windsurf Next/bin/lld-link"
+    found: false
+    search_context:
+      ENV{PATH}:
+        - "C:\\Program Files\\PowerShell\\7"
+        - "E:\\Tools\\java21\\bin"
+        - "C:\\Program Files\\Common Files\\Oracle\\Java\\javapath"
+        - "C:\\Windows\\system32"
+        - "C:\\Windows"
+        - "C:\\Windows\\System32\\Wbem"
+        - "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\"
+        - "C:\\Windows\\System32\\OpenSSH\\"
+        - "E:\\Tools\\nodejs\\"
+        - "E:\\Tools\\Git\\cmd"
+        - "E:\\Tools\\cursor\\resources\\app\\bin"
+        - "C:\\Users\\Administrator\\.cargo\\bin"
+        - "C:\\Users\\Administrator\\AppData\\Roaming\\npm"
+        - "J:\\Rocn\\WiresharkPortable64\\App\\Wireshark"
+        - "C:\\Program Files\\PowerShell\\7\\"
+        - "C:\\Program Files\\dotnet\\"
+        - "C:\\Users\\Administrator\\AppData\\Local\\Programs\\Python\\Python311\\Scripts\\"
+        - "C:\\Users\\Administrator\\AppData\\Local\\Programs\\Python\\Python311\\"
+        - "J:\\seccc\\.venv\\Scripts"
+        - "K:\\Cherry\\Lyxn\\buildtools\\ninja"
+        - "E:\\Tools\\java21\\bin"
+        - "C:\\Program Files\\Common Files\\Oracle\\Java\\javapath"
+        - "C:\\Windows\\system32"
+        - "C:\\Windows"
+        - "C:\\Windows\\System32\\Wbem"
+        - "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\"
+        - "C:\\Windows\\System32\\OpenSSH\\"
+        - "E:\\Tools\\nodejs\\"
+        - "E:\\Tools\\Git\\cmd"
+        - "E:\\Tools\\cursor\\resources\\app\\bin"
+        - "C:\\Users\\Administrator\\.cargo\\bin"
+        - "C:\\Users\\Administrator\\AppData\\Roaming\\npm"
+        - "C:\\Users\\Administrator\\.local\\bin"
+        - "E:\\Tools\\ja"
+        - "E:\\Tools\\OpenSSL-Win64\\bin"
+        - "C:\\Program Files\\Docker\\Docker\\resources\\bin"
+        - "K:\\studiosdk\\platform-tools"
+        - "K:\\studiosdk\\tools"
+        - "K:\\studiosdk\\cmdline-tools\\latest\\bin"
+        - "K:\\FlutterSDK\\flutter\\bin"
+        - "E:\\Tools\\Windsurf\\bin"
+        - "E:\\Tools\\Kiro\\bin"
+        - "E:\\Tools\\Go\\bin"
+        - "E:\\Tools\\Qoder\\bin"
+        - "E:\\Tools\\Windsurf Next\\bin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Lib/site-packages/cmake/data/share/cmake-4.2/Modules/CMakeFindBinUtils.cmake:243 (find_program)"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Lib/site-packages/cmake/data/share/cmake-4.2/Modules/CMakeDetermineCXXCompiler.cmake:206 (include)"
+      - "CMakeLists.txt:2 (project)"
+    mode: "program"
+    variable: "CMAKE_LINKER"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "link"
+    candidate_directories:
+      - "K:/vsbuild/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/"
+      - "C:/Program Files/PowerShell/7/"
+      - "E:/Tools/java21/bin/"
+      - "C:/Program Files/Common Files/Oracle/Java/javapath/"
+      - "C:/Windows/System32/"
+      - "C:/Windows/"
+      - "C:/Windows/System32/wbem/"
+      - "C:/Windows/System32/WindowsPowerShell/v1.0/"
+      - "C:/Windows/System32/OpenSSH/"
+      - "E:/Tools/nodejs/"
+      - "E:/Tools/Git/cmd/"
+      - "E:/Tools/cursor/resources/app/bin/"
+      - "C:/Users/Administrator/.cargo/bin/"
+      - "C:/Users/Administrator/AppData/Roaming/npm/"
+      - "J:/Rocn/WiresharkPortable64/App/Wireshark/"
+      - "C:/Program Files/dotnet/"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Scripts/"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/"
+      - "J:/seccc/.venv/Scripts/"
+      - "K:/Cherry/Lyxn/buildtools/ninja/"
+      - "C:/Users/Administrator/.local/bin/"
+      - "E:/Tools/ja/"
+      - "E:/Tools/OpenSSL-Win64/bin/"
+      - "C:/Program Files/Docker/Docker/resources/bin/"
+      - "K:/studiosdk/platform-tools/"
+      - "K:/studiosdk/tools/"
+      - "K:/studiosdk/cmdline-tools/latest/bin/"
+      - "K:/FlutterSDK/flutter/bin/"
+      - "E:/Tools/Windsurf/bin/"
+      - "E:/Tools/Kiro/bin/"
+      - "E:/Tools/Go/bin/"
+      - "E:/Tools/Qoder/bin/"
+      - "E:/Tools/Windsurf Next/bin/"
+    searched_directories:
+      - "K:/vsbuild/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/link.com"
+    found: "K:/vsbuild/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/link.exe"
+    search_context:
+      ENV{PATH}:
+        - "C:\\Program Files\\PowerShell\\7"
+        - "E:\\Tools\\java21\\bin"
+        - "C:\\Program Files\\Common Files\\Oracle\\Java\\javapath"
+        - "C:\\Windows\\system32"
+        - "C:\\Windows"
+        - "C:\\Windows\\System32\\Wbem"
+        - "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\"
+        - "C:\\Windows\\System32\\OpenSSH\\"
+        - "E:\\Tools\\nodejs\\"
+        - "E:\\Tools\\Git\\cmd"
+        - "E:\\Tools\\cursor\\resources\\app\\bin"
+        - "C:\\Users\\Administrator\\.cargo\\bin"
+        - "C:\\Users\\Administrator\\AppData\\Roaming\\npm"
+        - "J:\\Rocn\\WiresharkPortable64\\App\\Wireshark"
+        - "C:\\Program Files\\PowerShell\\7\\"
+        - "C:\\Program Files\\dotnet\\"
+        - "C:\\Users\\Administrator\\AppData\\Local\\Programs\\Python\\Python311\\Scripts\\"
+        - "C:\\Users\\Administrator\\AppData\\Local\\Programs\\Python\\Python311\\"
+        - "J:\\seccc\\.venv\\Scripts"
+        - "K:\\Cherry\\Lyxn\\buildtools\\ninja"
+        - "E:\\Tools\\java21\\bin"
+        - "C:\\Program Files\\Common Files\\Oracle\\Java\\javapath"
+        - "C:\\Windows\\system32"
+        - "C:\\Windows"
+        - "C:\\Windows\\System32\\Wbem"
+        - "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\"
+        - "C:\\Windows\\System32\\OpenSSH\\"
+        - "E:\\Tools\\nodejs\\"
+        - "E:\\Tools\\Git\\cmd"
+        - "E:\\Tools\\cursor\\resources\\app\\bin"
+        - "C:\\Users\\Administrator\\.cargo\\bin"
+        - "C:\\Users\\Administrator\\AppData\\Roaming\\npm"
+        - "C:\\Users\\Administrator\\.local\\bin"
+        - "E:\\Tools\\ja"
+        - "E:\\Tools\\OpenSSL-Win64\\bin"
+        - "C:\\Program Files\\Docker\\Docker\\resources\\bin"
+        - "K:\\studiosdk\\platform-tools"
+        - "K:\\studiosdk\\tools"
+        - "K:\\studiosdk\\cmdline-tools\\latest\\bin"
+        - "K:\\FlutterSDK\\flutter\\bin"
+        - "E:\\Tools\\Windsurf\\bin"
+        - "E:\\Tools\\Kiro\\bin"
+        - "E:\\Tools\\Go\\bin"
+        - "E:\\Tools\\Qoder\\bin"
+        - "E:\\Tools\\Windsurf Next\\bin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Lib/site-packages/cmake/data/share/cmake-4.2/Modules/CMakeFindBinUtils.cmake:243 (find_program)"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Lib/site-packages/cmake/data/share/cmake-4.2/Modules/CMakeDetermineCXXCompiler.cmake:206 (include)"
+      - "CMakeLists.txt:2 (project)"
+    mode: "program"
+    variable: "CMAKE_MT"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "mt"
+    candidate_directories:
+      - "K:/vsbuild/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/"
+      - "C:/Program Files/PowerShell/7/"
+      - "E:/Tools/java21/bin/"
+      - "C:/Program Files/Common Files/Oracle/Java/javapath/"
+      - "C:/Windows/System32/"
+      - "C:/Windows/"
+      - "C:/Windows/System32/wbem/"
+      - "C:/Windows/System32/WindowsPowerShell/v1.0/"
+      - "C:/Windows/System32/OpenSSH/"
+      - "E:/Tools/nodejs/"
+      - "E:/Tools/Git/cmd/"
+      - "E:/Tools/cursor/resources/app/bin/"
+      - "C:/Users/Administrator/.cargo/bin/"
+      - "C:/Users/Administrator/AppData/Roaming/npm/"
+      - "J:/Rocn/WiresharkPortable64/App/Wireshark/"
+      - "C:/Program Files/dotnet/"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Scripts/"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/"
+      - "J:/seccc/.venv/Scripts/"
+      - "K:/Cherry/Lyxn/buildtools/ninja/"
+      - "C:/Users/Administrator/.local/bin/"
+      - "E:/Tools/ja/"
+      - "E:/Tools/OpenSSL-Win64/bin/"
+      - "C:/Program Files/Docker/Docker/resources/bin/"
+      - "K:/studiosdk/platform-tools/"
+      - "K:/studiosdk/tools/"
+      - "K:/studiosdk/cmdline-tools/latest/bin/"
+      - "K:/FlutterSDK/flutter/bin/"
+      - "E:/Tools/Windsurf/bin/"
+      - "E:/Tools/Kiro/bin/"
+      - "E:/Tools/Go/bin/"
+      - "E:/Tools/Qoder/bin/"
+      - "E:/Tools/Windsurf Next/bin/"
+    searched_directories:
+      - "K:/vsbuild/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/mt.com"
+      - "K:/vsbuild/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/mt.exe"
+      - "K:/vsbuild/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/mt"
+      - "C:/Program Files/PowerShell/7/mt.com"
+      - "C:/Program Files/PowerShell/7/mt.exe"
+      - "C:/Program Files/PowerShell/7/mt"
+      - "E:/Tools/java21/bin/mt.com"
+      - "E:/Tools/java21/bin/mt.exe"
+      - "E:/Tools/java21/bin/mt"
+      - "C:/Program Files/Common Files/Oracle/Java/javapath/mt.com"
+      - "C:/Program Files/Common Files/Oracle/Java/javapath/mt.exe"
+      - "C:/Program Files/Common Files/Oracle/Java/javapath/mt"
+      - "C:/Windows/System32/mt.com"
+      - "C:/Windows/System32/mt.exe"
+      - "C:/Windows/System32/mt"
+      - "C:/Windows/mt.com"
+      - "C:/Windows/mt.exe"
+      - "C:/Windows/mt"
+      - "C:/Windows/System32/wbem/mt.com"
+      - "C:/Windows/System32/wbem/mt.exe"
+      - "C:/Windows/System32/wbem/mt"
+      - "C:/Windows/System32/WindowsPowerShell/v1.0/mt.com"
+      - "C:/Windows/System32/WindowsPowerShell/v1.0/mt.exe"
+      - "C:/Windows/System32/WindowsPowerShell/v1.0/mt"
+      - "C:/Windows/System32/OpenSSH/mt.com"
+      - "C:/Windows/System32/OpenSSH/mt.exe"
+      - "C:/Windows/System32/OpenSSH/mt"
+      - "E:/Tools/nodejs/mt.com"
+      - "E:/Tools/nodejs/mt.exe"
+      - "E:/Tools/nodejs/mt"
+      - "E:/Tools/Git/cmd/mt.com"
+      - "E:/Tools/Git/cmd/mt.exe"
+      - "E:/Tools/Git/cmd/mt"
+      - "E:/Tools/cursor/resources/app/bin/mt.com"
+      - "E:/Tools/cursor/resources/app/bin/mt.exe"
+      - "E:/Tools/cursor/resources/app/bin/mt"
+      - "C:/Users/Administrator/.cargo/bin/mt.com"
+      - "C:/Users/Administrator/.cargo/bin/mt.exe"
+      - "C:/Users/Administrator/.cargo/bin/mt"
+      - "C:/Users/Administrator/AppData/Roaming/npm/mt.com"
+      - "C:/Users/Administrator/AppData/Roaming/npm/mt.exe"
+      - "C:/Users/Administrator/AppData/Roaming/npm/mt"
+      - "J:/Rocn/WiresharkPortable64/App/Wireshark/mt.com"
+      - "J:/Rocn/WiresharkPortable64/App/Wireshark/mt.exe"
+      - "J:/Rocn/WiresharkPortable64/App/Wireshark/mt"
+      - "C:/Program Files/dotnet/mt.com"
+      - "C:/Program Files/dotnet/mt.exe"
+      - "C:/Program Files/dotnet/mt"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Scripts/mt.com"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Scripts/mt.exe"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Scripts/mt"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/mt.com"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/mt.exe"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/mt"
+      - "J:/seccc/.venv/Scripts/mt.com"
+      - "J:/seccc/.venv/Scripts/mt.exe"
+      - "J:/seccc/.venv/Scripts/mt"
+      - "K:/Cherry/Lyxn/buildtools/ninja/mt.com"
+      - "K:/Cherry/Lyxn/buildtools/ninja/mt.exe"
+      - "K:/Cherry/Lyxn/buildtools/ninja/mt"
+      - "C:/Users/Administrator/.local/bin/mt.com"
+      - "C:/Users/Administrator/.local/bin/mt.exe"
+      - "C:/Users/Administrator/.local/bin/mt"
+      - "E:/Tools/ja/mt.com"
+      - "E:/Tools/ja/mt.exe"
+      - "E:/Tools/ja/mt"
+      - "E:/Tools/OpenSSL-Win64/bin/mt.com"
+      - "E:/Tools/OpenSSL-Win64/bin/mt.exe"
+      - "E:/Tools/OpenSSL-Win64/bin/mt"
+      - "C:/Program Files/Docker/Docker/resources/bin/mt.com"
+      - "C:/Program Files/Docker/Docker/resources/bin/mt.exe"
+      - "C:/Program Files/Docker/Docker/resources/bin/mt"
+      - "K:/studiosdk/platform-tools/mt.com"
+      - "K:/studiosdk/platform-tools/mt.exe"
+      - "K:/studiosdk/platform-tools/mt"
+      - "K:/studiosdk/tools/mt.com"
+      - "K:/studiosdk/tools/mt.exe"
+      - "K:/studiosdk/tools/mt"
+      - "K:/studiosdk/cmdline-tools/latest/bin/mt.com"
+      - "K:/studiosdk/cmdline-tools/latest/bin/mt.exe"
+      - "K:/studiosdk/cmdline-tools/latest/bin/mt"
+      - "K:/FlutterSDK/flutter/bin/mt.com"
+      - "K:/FlutterSDK/flutter/bin/mt.exe"
+      - "K:/FlutterSDK/flutter/bin/mt"
+      - "E:/Tools/Windsurf/bin/mt.com"
+      - "E:/Tools/Windsurf/bin/mt.exe"
+      - "E:/Tools/Windsurf/bin/mt"
+      - "E:/Tools/Kiro/bin/mt.com"
+      - "E:/Tools/Kiro/bin/mt.exe"
+      - "E:/Tools/Kiro/bin/mt"
+      - "E:/Tools/Go/bin/mt.com"
+      - "E:/Tools/Go/bin/mt.exe"
+      - "E:/Tools/Go/bin/mt"
+      - "E:/Tools/Qoder/bin/mt.com"
+      - "E:/Tools/Qoder/bin/mt.exe"
+      - "E:/Tools/Qoder/bin/mt"
+      - "E:/Tools/Windsurf Next/bin/mt.com"
+      - "E:/Tools/Windsurf Next/bin/mt.exe"
+      - "E:/Tools/Windsurf Next/bin/mt"
+    found: false
+    search_context:
+      ENV{PATH}:
+        - "C:\\Program Files\\PowerShell\\7"
+        - "E:\\Tools\\java21\\bin"
+        - "C:\\Program Files\\Common Files\\Oracle\\Java\\javapath"
+        - "C:\\Windows\\system32"
+        - "C:\\Windows"
+        - "C:\\Windows\\System32\\Wbem"
+        - "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\"
+        - "C:\\Windows\\System32\\OpenSSH\\"
+        - "E:\\Tools\\nodejs\\"
+        - "E:\\Tools\\Git\\cmd"
+        - "E:\\Tools\\cursor\\resources\\app\\bin"
+        - "C:\\Users\\Administrator\\.cargo\\bin"
+        - "C:\\Users\\Administrator\\AppData\\Roaming\\npm"
+        - "J:\\Rocn\\WiresharkPortable64\\App\\Wireshark"
+        - "C:\\Program Files\\PowerShell\\7\\"
+        - "C:\\Program Files\\dotnet\\"
+        - "C:\\Users\\Administrator\\AppData\\Local\\Programs\\Python\\Python311\\Scripts\\"
+        - "C:\\Users\\Administrator\\AppData\\Local\\Programs\\Python\\Python311\\"
+        - "J:\\seccc\\.venv\\Scripts"
+        - "K:\\Cherry\\Lyxn\\buildtools\\ninja"
+        - "E:\\Tools\\java21\\bin"
+        - "C:\\Program Files\\Common Files\\Oracle\\Java\\javapath"
+        - "C:\\Windows\\system32"
+        - "C:\\Windows"
+        - "C:\\Windows\\System32\\Wbem"
+        - "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\"
+        - "C:\\Windows\\System32\\OpenSSH\\"
+        - "E:\\Tools\\nodejs\\"
+        - "E:\\Tools\\Git\\cmd"
+        - "E:\\Tools\\cursor\\resources\\app\\bin"
+        - "C:\\Users\\Administrator\\.cargo\\bin"
+        - "C:\\Users\\Administrator\\AppData\\Roaming\\npm"
+        - "C:\\Users\\Administrator\\.local\\bin"
+        - "E:\\Tools\\ja"
+        - "E:\\Tools\\OpenSSL-Win64\\bin"
+        - "C:\\Program Files\\Docker\\Docker\\resources\\bin"
+        - "K:\\studiosdk\\platform-tools"
+        - "K:\\studiosdk\\tools"
+        - "K:\\studiosdk\\cmdline-tools\\latest\\bin"
+        - "K:\\FlutterSDK\\flutter\\bin"
+        - "E:\\Tools\\Windsurf\\bin"
+        - "E:\\Tools\\Kiro\\bin"
+        - "E:\\Tools\\Go\\bin"
+        - "E:\\Tools\\Qoder\\bin"
+        - "E:\\Tools\\Windsurf Next\\bin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Lib/site-packages/cmake/data/share/cmake-4.2/Modules/CMakeFindBinUtils.cmake:243 (find_program)"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Lib/site-packages/cmake/data/share/cmake-4.2/Modules/CMakeDetermineCXXCompiler.cmake:206 (include)"
+      - "CMakeLists.txt:2 (project)"
+    mode: "program"
+    variable: "CMAKE_AR"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "lib"
+    candidate_directories:
+      - "K:/vsbuild/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/"
+      - "C:/Program Files/PowerShell/7/"
+      - "E:/Tools/java21/bin/"
+      - "C:/Program Files/Common Files/Oracle/Java/javapath/"
+      - "C:/Windows/System32/"
+      - "C:/Windows/"
+      - "C:/Windows/System32/wbem/"
+      - "C:/Windows/System32/WindowsPowerShell/v1.0/"
+      - "C:/Windows/System32/OpenSSH/"
+      - "E:/Tools/nodejs/"
+      - "E:/Tools/Git/cmd/"
+      - "E:/Tools/cursor/resources/app/bin/"
+      - "C:/Users/Administrator/.cargo/bin/"
+      - "C:/Users/Administrator/AppData/Roaming/npm/"
+      - "J:/Rocn/WiresharkPortable64/App/Wireshark/"
+      - "C:/Program Files/dotnet/"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Scripts/"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/"
+      - "J:/seccc/.venv/Scripts/"
+      - "K:/Cherry/Lyxn/buildtools/ninja/"
+      - "C:/Users/Administrator/.local/bin/"
+      - "E:/Tools/ja/"
+      - "E:/Tools/OpenSSL-Win64/bin/"
+      - "C:/Program Files/Docker/Docker/resources/bin/"
+      - "K:/studiosdk/platform-tools/"
+      - "K:/studiosdk/tools/"
+      - "K:/studiosdk/cmdline-tools/latest/bin/"
+      - "K:/FlutterSDK/flutter/bin/"
+      - "E:/Tools/Windsurf/bin/"
+      - "E:/Tools/Kiro/bin/"
+      - "E:/Tools/Go/bin/"
+      - "E:/Tools/Qoder/bin/"
+      - "E:/Tools/Windsurf Next/bin/"
+    searched_directories:
+      - "K:/vsbuild/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/lib.com"
+    found: "K:/vsbuild/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/lib.exe"
+    search_context:
+      ENV{PATH}:
+        - "C:\\Program Files\\PowerShell\\7"
+        - "E:\\Tools\\java21\\bin"
+        - "C:\\Program Files\\Common Files\\Oracle\\Java\\javapath"
+        - "C:\\Windows\\system32"
+        - "C:\\Windows"
+        - "C:\\Windows\\System32\\Wbem"
+        - "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\"
+        - "C:\\Windows\\System32\\OpenSSH\\"
+        - "E:\\Tools\\nodejs\\"
+        - "E:\\Tools\\Git\\cmd"
+        - "E:\\Tools\\cursor\\resources\\app\\bin"
+        - "C:\\Users\\Administrator\\.cargo\\bin"
+        - "C:\\Users\\Administrator\\AppData\\Roaming\\npm"
+        - "J:\\Rocn\\WiresharkPortable64\\App\\Wireshark"
+        - "C:\\Program Files\\PowerShell\\7\\"
+        - "C:\\Program Files\\dotnet\\"
+        - "C:\\Users\\Administrator\\AppData\\Local\\Programs\\Python\\Python311\\Scripts\\"
+        - "C:\\Users\\Administrator\\AppData\\Local\\Programs\\Python\\Python311\\"
+        - "J:\\seccc\\.venv\\Scripts"
+        - "K:\\Cherry\\Lyxn\\buildtools\\ninja"
+        - "E:\\Tools\\java21\\bin"
+        - "C:\\Program Files\\Common Files\\Oracle\\Java\\javapath"
+        - "C:\\Windows\\system32"
+        - "C:\\Windows"
+        - "C:\\Windows\\System32\\Wbem"
+        - "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\"
+        - "C:\\Windows\\System32\\OpenSSH\\"
+        - "E:\\Tools\\nodejs\\"
+        - "E:\\Tools\\Git\\cmd"
+        - "E:\\Tools\\cursor\\resources\\app\\bin"
+        - "C:\\Users\\Administrator\\.cargo\\bin"
+        - "C:\\Users\\Administrator\\AppData\\Roaming\\npm"
+        - "C:\\Users\\Administrator\\.local\\bin"
+        - "E:\\Tools\\ja"
+        - "E:\\Tools\\OpenSSL-Win64\\bin"
+        - "C:\\Program Files\\Docker\\Docker\\resources\\bin"
+        - "K:\\studiosdk\\platform-tools"
+        - "K:\\studiosdk\\tools"
+        - "K:\\studiosdk\\cmdline-tools\\latest\\bin"
+        - "K:\\FlutterSDK\\flutter\\bin"
+        - "E:\\Tools\\Windsurf\\bin"
+        - "E:\\Tools\\Kiro\\bin"
+        - "E:\\Tools\\Go\\bin"
+        - "E:\\Tools\\Qoder\\bin"
+        - "E:\\Tools\\Windsurf Next\\bin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Lib/site-packages/cmake/data/share/cmake-4.2/Modules/CMakeDetermineRCCompiler.cmake:40 (find_program)"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Lib/site-packages/cmake/data/share/cmake-4.2/Modules/Platform/Windows-MSVC.cmake:580 (enable_language)"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Lib/site-packages/cmake/data/share/cmake-4.2/Modules/Platform/Windows-MSVC.cmake:553 (__windows_compiler_msvc_enable_rc)"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Lib/site-packages/cmake/data/share/cmake-4.2/Modules/Platform/Windows-MSVC-CXX.cmake:6 (__windows_compiler_msvc)"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Lib/site-packages/cmake/data/share/cmake-4.2/Modules/CMakeCXXInformation.cmake:48 (include)"
+      - "CMakeLists.txt:2 (project)"
+    mode: "program"
+    variable: "CMAKE_RC_COMPILER"
+    description: "RC compiler"
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "rc"
+    candidate_directories:
+      - "C:/Program Files/PowerShell/7/"
+      - "E:/Tools/java21/bin/"
+      - "C:/Program Files/Common Files/Oracle/Java/javapath/"
+      - "C:/Windows/System32/"
+      - "C:/Windows/"
+      - "C:/Windows/System32/wbem/"
+      - "C:/Windows/System32/WindowsPowerShell/v1.0/"
+      - "C:/Windows/System32/OpenSSH/"
+      - "E:/Tools/nodejs/"
+      - "E:/Tools/Git/cmd/"
+      - "E:/Tools/cursor/resources/app/bin/"
+      - "C:/Users/Administrator/.cargo/bin/"
+      - "C:/Users/Administrator/AppData/Roaming/npm/"
+      - "J:/Rocn/WiresharkPortable64/App/Wireshark/"
+      - "C:/Program Files/dotnet/"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Scripts/"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/"
+      - "J:/seccc/.venv/Scripts/"
+      - "K:/Cherry/Lyxn/buildtools/ninja/"
+      - "C:/Users/Administrator/.local/bin/"
+      - "E:/Tools/ja/"
+      - "E:/Tools/OpenSSL-Win64/bin/"
+      - "C:/Program Files/Docker/Docker/resources/bin/"
+      - "K:/studiosdk/platform-tools/"
+      - "K:/studiosdk/tools/"
+      - "K:/studiosdk/cmdline-tools/latest/bin/"
+      - "K:/FlutterSDK/flutter/bin/"
+      - "E:/Tools/Windsurf/bin/"
+      - "E:/Tools/Kiro/bin/"
+      - "E:/Tools/Go/bin/"
+      - "E:/Tools/Qoder/bin/"
+      - "E:/Tools/Windsurf Next/bin/"
+      - "C:/Program Files/bin/"
+      - "C:/Program Files/sbin/"
+      - "C:/Program Files/"
+      - "C:/Program Files (x86)/bin/"
+      - "C:/Program Files (x86)/sbin/"
+      - "C:/Program Files (x86)/"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Lib/site-packages/cmake/data/bin/"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Lib/site-packages/cmake/data/sbin/"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Lib/site-packages/cmake/data/"
+      - "C:/Program Files (x86)/CElegans/bin/"
+      - "C:/Program Files (x86)/CElegans/sbin/"
+      - "C:/Program Files (x86)/CElegans/"
+    searched_directories:
+      - "C:/Program Files/PowerShell/7/rc.com"
+      - "C:/Program Files/PowerShell/7/rc.exe"
+      - "C:/Program Files/PowerShell/7/rc"
+      - "E:/Tools/java21/bin/rc.com"
+      - "E:/Tools/java21/bin/rc.exe"
+      - "E:/Tools/java21/bin/rc"
+      - "C:/Program Files/Common Files/Oracle/Java/javapath/rc.com"
+      - "C:/Program Files/Common Files/Oracle/Java/javapath/rc.exe"
+      - "C:/Program Files/Common Files/Oracle/Java/javapath/rc"
+      - "C:/Windows/System32/rc.com"
+      - "C:/Windows/System32/rc.exe"
+      - "C:/Windows/System32/rc"
+      - "C:/Windows/rc.com"
+      - "C:/Windows/rc.exe"
+      - "C:/Windows/rc"
+      - "C:/Windows/System32/wbem/rc.com"
+      - "C:/Windows/System32/wbem/rc.exe"
+      - "C:/Windows/System32/wbem/rc"
+      - "C:/Windows/System32/WindowsPowerShell/v1.0/rc.com"
+      - "C:/Windows/System32/WindowsPowerShell/v1.0/rc.exe"
+      - "C:/Windows/System32/WindowsPowerShell/v1.0/rc"
+      - "C:/Windows/System32/OpenSSH/rc.com"
+      - "C:/Windows/System32/OpenSSH/rc.exe"
+      - "C:/Windows/System32/OpenSSH/rc"
+      - "E:/Tools/nodejs/rc.com"
+      - "E:/Tools/nodejs/rc.exe"
+      - "E:/Tools/nodejs/rc"
+      - "E:/Tools/Git/cmd/rc.com"
+      - "E:/Tools/Git/cmd/rc.exe"
+      - "E:/Tools/Git/cmd/rc"
+      - "E:/Tools/cursor/resources/app/bin/rc.com"
+      - "E:/Tools/cursor/resources/app/bin/rc.exe"
+      - "E:/Tools/cursor/resources/app/bin/rc"
+      - "C:/Users/Administrator/.cargo/bin/rc.com"
+      - "C:/Users/Administrator/.cargo/bin/rc.exe"
+      - "C:/Users/Administrator/.cargo/bin/rc"
+      - "C:/Users/Administrator/AppData/Roaming/npm/rc.com"
+      - "C:/Users/Administrator/AppData/Roaming/npm/rc.exe"
+      - "C:/Users/Administrator/AppData/Roaming/npm/rc"
+      - "J:/Rocn/WiresharkPortable64/App/Wireshark/rc.com"
+      - "J:/Rocn/WiresharkPortable64/App/Wireshark/rc.exe"
+      - "J:/Rocn/WiresharkPortable64/App/Wireshark/rc"
+      - "C:/Program Files/dotnet/rc.com"
+      - "C:/Program Files/dotnet/rc.exe"
+      - "C:/Program Files/dotnet/rc"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Scripts/rc.com"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Scripts/rc.exe"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Scripts/rc"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/rc.com"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/rc.exe"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/rc"
+      - "J:/seccc/.venv/Scripts/rc.com"
+      - "J:/seccc/.venv/Scripts/rc.exe"
+      - "J:/seccc/.venv/Scripts/rc"
+      - "K:/Cherry/Lyxn/buildtools/ninja/rc.com"
+      - "K:/Cherry/Lyxn/buildtools/ninja/rc.exe"
+      - "K:/Cherry/Lyxn/buildtools/ninja/rc"
+      - "C:/Users/Administrator/.local/bin/rc.com"
+      - "C:/Users/Administrator/.local/bin/rc.exe"
+      - "C:/Users/Administrator/.local/bin/rc"
+      - "E:/Tools/ja/rc.com"
+      - "E:/Tools/ja/rc.exe"
+      - "E:/Tools/ja/rc"
+      - "E:/Tools/OpenSSL-Win64/bin/rc.com"
+      - "E:/Tools/OpenSSL-Win64/bin/rc.exe"
+      - "E:/Tools/OpenSSL-Win64/bin/rc"
+      - "C:/Program Files/Docker/Docker/resources/bin/rc.com"
+      - "C:/Program Files/Docker/Docker/resources/bin/rc.exe"
+      - "C:/Program Files/Docker/Docker/resources/bin/rc"
+      - "K:/studiosdk/platform-tools/rc.com"
+      - "K:/studiosdk/platform-tools/rc.exe"
+      - "K:/studiosdk/platform-tools/rc"
+      - "K:/studiosdk/tools/rc.com"
+      - "K:/studiosdk/tools/rc.exe"
+      - "K:/studiosdk/tools/rc"
+      - "K:/studiosdk/cmdline-tools/latest/bin/rc.com"
+      - "K:/studiosdk/cmdline-tools/latest/bin/rc.exe"
+      - "K:/studiosdk/cmdline-tools/latest/bin/rc"
+      - "K:/FlutterSDK/flutter/bin/rc.com"
+      - "K:/FlutterSDK/flutter/bin/rc.exe"
+      - "K:/FlutterSDK/flutter/bin/rc"
+      - "E:/Tools/Windsurf/bin/rc.com"
+      - "E:/Tools/Windsurf/bin/rc.exe"
+      - "E:/Tools/Windsurf/bin/rc"
+      - "E:/Tools/Kiro/bin/rc.com"
+      - "E:/Tools/Kiro/bin/rc.exe"
+      - "E:/Tools/Kiro/bin/rc"
+      - "E:/Tools/Go/bin/rc.com"
+      - "E:/Tools/Go/bin/rc.exe"
+      - "E:/Tools/Go/bin/rc"
+      - "E:/Tools/Qoder/bin/rc.com"
+      - "E:/Tools/Qoder/bin/rc.exe"
+      - "E:/Tools/Qoder/bin/rc"
+      - "E:/Tools/Windsurf Next/bin/rc.com"
+      - "E:/Tools/Windsurf Next/bin/rc.exe"
+      - "E:/Tools/Windsurf Next/bin/rc"
+      - "C:/Program Files/bin/rc.com"
+      - "C:/Program Files/bin/rc.exe"
+      - "C:/Program Files/bin/rc"
+      - "C:/Program Files/sbin/rc.com"
+      - "C:/Program Files/sbin/rc.exe"
+      - "C:/Program Files/sbin/rc"
+      - "C:/Program Files/rc.com"
+      - "C:/Program Files/rc.exe"
+      - "C:/Program Files/rc"
+      - "C:/Program Files (x86)/bin/rc.com"
+      - "C:/Program Files (x86)/bin/rc.exe"
+      - "C:/Program Files (x86)/bin/rc"
+      - "C:/Program Files (x86)/sbin/rc.com"
+      - "C:/Program Files (x86)/sbin/rc.exe"
+      - "C:/Program Files (x86)/sbin/rc"
+      - "C:/Program Files (x86)/rc.com"
+      - "C:/Program Files (x86)/rc.exe"
+      - "C:/Program Files (x86)/rc"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Lib/site-packages/cmake/data/bin/rc.com"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Lib/site-packages/cmake/data/bin/rc.exe"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Lib/site-packages/cmake/data/bin/rc"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Lib/site-packages/cmake/data/sbin/rc.com"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Lib/site-packages/cmake/data/sbin/rc.exe"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Lib/site-packages/cmake/data/sbin/rc"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Lib/site-packages/cmake/data/rc.com"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Lib/site-packages/cmake/data/rc.exe"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Lib/site-packages/cmake/data/rc"
+      - "C:/Program Files (x86)/CElegans/bin/rc.com"
+      - "C:/Program Files (x86)/CElegans/bin/rc.exe"
+      - "C:/Program Files (x86)/CElegans/bin/rc"
+      - "C:/Program Files (x86)/CElegans/sbin/rc.com"
+      - "C:/Program Files (x86)/CElegans/sbin/rc.exe"
+      - "C:/Program Files (x86)/CElegans/sbin/rc"
+      - "C:/Program Files (x86)/CElegans/rc.com"
+      - "C:/Program Files (x86)/CElegans/rc.exe"
+      - "C:/Program Files (x86)/CElegans/rc"
+    found: false
+    search_context:
+      ENV{PATH}:
+        - "C:\\Program Files\\PowerShell\\7"
+        - "E:\\Tools\\java21\\bin"
+        - "C:\\Program Files\\Common Files\\Oracle\\Java\\javapath"
+        - "C:\\Windows\\system32"
+        - "C:\\Windows"
+        - "C:\\Windows\\System32\\Wbem"
+        - "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\"
+        - "C:\\Windows\\System32\\OpenSSH\\"
+        - "E:\\Tools\\nodejs\\"
+        - "E:\\Tools\\Git\\cmd"
+        - "E:\\Tools\\cursor\\resources\\app\\bin"
+        - "C:\\Users\\Administrator\\.cargo\\bin"
+        - "C:\\Users\\Administrator\\AppData\\Roaming\\npm"
+        - "J:\\Rocn\\WiresharkPortable64\\App\\Wireshark"
+        - "C:\\Program Files\\PowerShell\\7\\"
+        - "C:\\Program Files\\dotnet\\"
+        - "C:\\Users\\Administrator\\AppData\\Local\\Programs\\Python\\Python311\\Scripts\\"
+        - "C:\\Users\\Administrator\\AppData\\Local\\Programs\\Python\\Python311\\"
+        - "J:\\seccc\\.venv\\Scripts"
+        - "K:\\Cherry\\Lyxn\\buildtools\\ninja"
+        - "E:\\Tools\\java21\\bin"
+        - "C:\\Program Files\\Common Files\\Oracle\\Java\\javapath"
+        - "C:\\Windows\\system32"
+        - "C:\\Windows"
+        - "C:\\Windows\\System32\\Wbem"
+        - "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\"
+        - "C:\\Windows\\System32\\OpenSSH\\"
+        - "E:\\Tools\\nodejs\\"
+        - "E:\\Tools\\Git\\cmd"
+        - "E:\\Tools\\cursor\\resources\\app\\bin"
+        - "C:\\Users\\Administrator\\.cargo\\bin"
+        - "C:\\Users\\Administrator\\AppData\\Roaming\\npm"
+        - "C:\\Users\\Administrator\\.local\\bin"
+        - "E:\\Tools\\ja"
+        - "E:\\Tools\\OpenSSL-Win64\\bin"
+        - "C:\\Program Files\\Docker\\Docker\\resources\\bin"
+        - "K:\\studiosdk\\platform-tools"
+        - "K:\\studiosdk\\tools"
+        - "K:\\studiosdk\\cmdline-tools\\latest\\bin"
+        - "K:\\FlutterSDK\\flutter\\bin"
+        - "E:\\Tools\\Windsurf\\bin"
+        - "E:\\Tools\\Kiro\\bin"
+        - "E:\\Tools\\Go\\bin"
+        - "E:\\Tools\\Qoder\\bin"
+        - "E:\\Tools\\Windsurf Next\\bin"
+      CMAKE_INSTALL_PREFIX: "C:/Program Files (x86)/CElegans"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "C:/Program Files"
+        - "C:/Program Files (x86)"
+        - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Lib/site-packages/cmake/data"
+        - "C:/Program Files (x86)/CElegans"
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Lib/site-packages/cmake/data/share/cmake-4.2/Modules/CMakeDetermineCompilerABI.cmake:83 (try_compile)"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Lib/site-packages/cmake/data/share/cmake-4.2/Modules/CMakeTestCXXCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt:2 (project)"
+    checks:
+      - "Detecting CXX compiler ABI info"
+    directories:
+      source: "K:/Cherry/LLM/AGI/agi4/build_test/CMakeFiles/CMakeScratch/TryCompile-p19qc4"
+      binary: "K:/Cherry/LLM/AGI/agi4/build_test/CMakeFiles/CMakeScratch/TryCompile-p19qc4"
+    cmakeVariables:
+      CMAKE_CXX_FLAGS: "/DWIN32 /D_WINDOWS /GR /EHsc"
+      CMAKE_CXX_FLAGS_DEBUG: "/Zi /Ob0 /Od /RTC1"
+      CMAKE_CXX_SCAN_FOR_MODULES: "OFF"
+      CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
+    buildResult:
+      variable: "CMAKE_CXX_ABI_COMPILED"
+      cached: true
+      stdout: |
+        Change Dir: 'K:/Cherry/LLM/AGI/agi4/build_test/CMakeFiles/CMakeScratch/TryCompile-p19qc4'
+        
+        Run Build Command(s): K:/vsbuild/MSBuild/Current/Bin/amd64/MSBuild.exe cmTC_656ef.vcxproj /p:Configuration=Debug /p:Platform=x64 /p:VisualStudioVersion=17.0 /v:n
+        閫傜敤浜?.NET Framework MSBuild 鐗堟湰 17.14.10+8b8e13593
+        鐢熸垚鍚姩鏃堕棿涓?2026/2/10 10:25:24銆?
+        
+        鑺傜偣 1 涓婄殑椤圭洰鈥淜:\\Cherry\\LLM\\AGI\\agi4\\build_test\\CMakeFiles\\CMakeScratch\\TryCompile-p19qc4\\cmTC_656ef.vcxproj鈥?榛樿鐩爣)銆?
+        PrepareForBuild:
+          宸插惎鐢ㄧ粨鏋勫寲杈撳嚭銆傜紪璇戝櫒璇婃柇鐨勬牸寮忚缃皢鍙嶆槧閿欒灞傛缁撴瀯銆傛湁鍏宠缁嗕俊鎭紝璇峰弬闃?https://aka.ms/cpp/structured-output銆?
+          姝ｅ湪鍒涘缓鐩綍鈥淜:\\Cherry\\LLM\\AGI\\agi4\\build_test\\CMakeFiles\\CMakeScratch\\TryCompile-p19qc4\\Debug\\鈥濄€?
+          姝ｅ湪鍒涘缓鐩綍鈥渃mTC_656ef.dir\\Debug\\cmTC_656ef.tlog\\鈥濄€?
+        InitializeBuildStatus:
+          姝ｅ湪鍒涘缓鈥渃mTC_656ef.dir\\Debug\\cmTC_656ef.tlog\\unsuccessfulbuild鈥濓紝鍥犱负宸叉寚瀹氣€淎lwaysCreate鈥濄€?
+          姝ｅ湪瀵光€渃mTC_656ef.dir\\Debug\\cmTC_656ef.tlog\\unsuccessfulbuild鈥濇墽琛?Touch 浠诲姟銆?
+        VcpkgTripletSelection:
+          Using triplet "x64-windows" from "C:\\vcpkg\\installed\\x64-windows\\"
+          Using normalized configuration "Debug"
+        ClCompile:
+          K:\\vsbuild\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\CL.exe /c /I"C:\\vcpkg\\installed\\x64-windows\\include" /Zi /W1 /WX- /diagnostics:column /Od /Ob0 /D _MBCS /D WIN32 /D _WINDOWS /D _MBCS /D "CMAKE_INTDIR=\\"Debug\\"" /EHsc /RTC1 /MDd /GR /Fo"cmTC_656ef.dir\\Debug\\\\" /Fd"cmTC_656ef.dir\\Debug\\vc143.pdb" /external:W1 /TP /errorReport:queue "C:\\Users\\Administrator\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\cmake\\data\\share\\cmake-4.2\\Modules\\CMakeCXXCompilerABI.cpp"
+          鐢ㄤ簬 x64 鐨?Microsoft (R) C/C++ 浼樺寲缂栬瘧鍣?19.44.35209 鐗?
+          鐗堟潈鎵€鏈?C) Microsoft Corporation銆備繚鐣欐墍鏈夋潈鍒┿€?
+          cl /c /I"C:\\vcpkg\\installed\\x64-windows\\include" /Zi /W1 /WX- /diagnostics:column /Od /Ob0 /D _MBCS /D WIN32 /D _WINDOWS /D _MBCS /D "CMAKE_INTDIR=\\"Debug\\"" /EHsc /RTC1 /MDd /GR /Fo"cmTC_656ef.dir\\Debug\\\\" /Fd"cmTC_656ef.dir\\Debug\\vc143.pdb" /external:W1 /TP /errorReport:queue "C:\\Users\\Administrator\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\cmake\\data\\share\\cmake-4.2\\Modules\\CMakeCXXCompilerABI.cpp"
+          CMakeCXXCompilerABI.cpp
+        Link:
+          K:\\vsbuild\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\link.exe /OUT:"K:\\Cherry\\LLM\\AGI\\agi4\\build_test\\CMakeFiles\\CMakeScratch\\TryCompile-p19qc4\\Debug\\cmTC_656ef.exe" /INCREMENTAL /ILK:"cmTC_656ef.dir\\Debug\\cmTC_656ef.ilk" /NOLOGO /LIBPATH:"C:\\vcpkg\\installed\\x64-windows\\debug\\lib" /LIBPATH:"C:\\vcpkg\\installed\\x64-windows\\debug\\lib\\manual-link" kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib "C:\\vcpkg\\installed\\x64-windows\\debug\\lib\\*.lib" /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"K:/Cherry/LLM/AGI/agi4/build_test/CMakeFiles/CMakeScratch/TryCompile-p19qc4/Debug/cmTC_656ef.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /IMPLIB:"K:/Cherry/LLM/AGI/agi4/build_test/CMakeFiles/CMakeScratch/TryCompile-p19qc4/Debug/cmTC_656ef.lib" /MACHINE:X64  /machine:x64 cmTC_656ef.dir\\Debug\\CMakeCXXCompilerABI.obj
+          cmTC_656ef.vcxproj -> K:\\Cherry\\LLM\\AGI\\agi4\\build_test\\CMakeFiles\\CMakeScratch\\TryCompile-p19qc4\\Debug\\cmTC_656ef.exe
+        AppLocalFromInstalled:
+          pwsh.exe -ExecutionPolicy Bypass -noprofile -File "C:\\vcpkg\\scripts\\buildsystems\\msbuild\\applocal.ps1" "K:\\Cherry\\LLM\\AGI\\agi4\\build_test\\CMakeFiles\\CMakeScratch\\TryCompile-p19qc4\\Debug\\cmTC_656ef.exe" "C:\\vcpkg\\installed\\x64-windows\\debug\\bin" "cmTC_656ef.dir\\Debug\\cmTC_656ef.tlog\\cmTC_656ef.write.1u.tlog" "cmTC_656ef.dir\\Debug\\vcpkg.applocal.log"
+        FinalizeBuildStatus:
+          姝ｅ湪鍒犻櫎鏂囦欢鈥渃mTC_656ef.dir\\Debug\\cmTC_656ef.tlog\\unsuccessfulbuild鈥濄€?
+          姝ｅ湪瀵光€渃mTC_656ef.dir\\Debug\\cmTC_656ef.tlog\\cmTC_656ef.lastbuildstate鈥濇墽琛?Touch 浠诲姟銆?
+        宸插畬鎴愮敓鎴愰」鐩€淜:\\Cherry\\LLM\\AGI\\agi4\\build_test\\CMakeFiles\\CMakeScratch\\TryCompile-p19qc4\\cmTC_656ef.vcxproj鈥?榛樿鐩爣)鐨勬搷浣溿€?
+        
+        宸叉垚鍔熺敓鎴愩€?
+            0 涓鍛?
+            0 涓敊璇?
+        
+        宸茬敤鏃堕棿 00:00:00.79
+        
+      exitCode: 0
+  -
+    kind: "message-v1"
+    backtrace:
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Lib/site-packages/cmake/data/share/cmake-4.2/Modules/CMakeDetermineCompilerABI.cmake:253 (message)"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Lib/site-packages/cmake/data/share/cmake-4.2/Modules/CMakeTestCXXCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt:2 (project)"
+    message: |
+      Parsed CXX implicit link information:
+        link line regex: [^( *|.*[/\\])(ld[0-9]*(|\\.[a-rt-z][a-z]*|\\.s[a-np-z][a-z]*|\\.so[a-z]+)|link\\.exe|lld-link(\\.exe)?|CMAKE_LINK_STARTFILE-NOTFOUND|([^/\\]+-)?ld|collect2)[^/\\]*( |$)]
+        linker tool regex: [^[ 	]*(->|"|[0-9]+>[ 	-]*Build:[ 	0-9]+ ms[ 	]*)?[ 	]*(([^"]*[/\\])?(ld[0-9]*(|\\.[a-rt-z][a-z]*|\\.s[a-np-z][a-z]*|\\.so[a-z]+)|link\\.exe|lld-link(\\.exe)?))("|,| |$)]
+        linker tool for 'CXX': K:/vsbuild/VC/Tools/MSVC/14.44.35207/bin/HostX64/x64/link.exe
+        implicit libs: []
+        implicit objs: []
+        implicit dirs: []
+        implicit fwks: []
+      
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Lib/site-packages/cmake/data/share/cmake-4.2/Modules/Internal/CMakeDetermineLinkerId.cmake:38 (message)"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Lib/site-packages/cmake/data/share/cmake-4.2/Modules/CMakeDetermineCompilerABI.cmake:299 (cmake_determine_linker_id)"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Lib/site-packages/cmake/data/share/cmake-4.2/Modules/CMakeTestCXXCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt:2 (project)"
+    message: |
+      Running the CXX compiler's linker: "K:/vsbuild/VC/Tools/MSVC/14.44.35207/bin/HostX64/x64/link.exe" "-v"
+      Microsoft (R) Incremental Linker Version 14.44.35209.0
+      Copyright (C) Microsoft Corporation.  All rights reserved.
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Lib/site-packages/cmake/data/share/cmake-4.2/Modules/FindOpenMP.cmake:333 (try_compile)"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Lib/site-packages/cmake/data/share/cmake-4.2/Modules/FindOpenMP.cmake:640 (_OPENMP_GET_FLAGS)"
+      - "CMakeLists.txt:14 (find_package)"
+    description: "Detecting CXX OpenMP compiler info"
+    directories:
+      source: "K:/Cherry/LLM/AGI/agi4/build_test/CMakeFiles/CMakeScratch/TryCompile-9lgyo6"
+      binary: "K:/Cherry/LLM/AGI/agi4/build_test/CMakeFiles/CMakeScratch/TryCompile-9lgyo6"
+    cmakeVariables:
+      CMAKE_CXX_FLAGS: "/DWIN32 /D_WINDOWS /GR /EHsc"
+      CMAKE_CXX_FLAGS_DEBUG: "/Zi /Ob0 /Od /RTC1"
+      CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
+    buildResult:
+      variable: "OpenMP_COMPILE_RESULT_CXX_openmp"
+      cached: true
+      stdout: |
+        Change Dir: 'K:/Cherry/LLM/AGI/agi4/build_test/CMakeFiles/CMakeScratch/TryCompile-9lgyo6'
+        
+        Run Build Command(s): K:/vsbuild/MSBuild/Current/Bin/amd64/MSBuild.exe cmTC_09ef7.vcxproj /p:Configuration=Debug /p:Platform=x64 /p:VisualStudioVersion=17.0 /v:n
+        閫傜敤浜?.NET Framework MSBuild 鐗堟湰 17.14.10+8b8e13593
+        鐢熸垚鍚姩鏃堕棿涓?2026/2/10 10:25:25銆?
+        
+        鑺傜偣 1 涓婄殑椤圭洰鈥淜:\\Cherry\\LLM\\AGI\\agi4\\build_test\\CMakeFiles\\CMakeScratch\\TryCompile-9lgyo6\\cmTC_09ef7.vcxproj鈥?榛樿鐩爣)銆?
+        PrepareForBuild:
+          宸插惎鐢ㄧ粨鏋勫寲杈撳嚭銆傜紪璇戝櫒璇婃柇鐨勬牸寮忚缃皢鍙嶆槧閿欒灞傛缁撴瀯銆傛湁鍏宠缁嗕俊鎭紝璇峰弬闃?https://aka.ms/cpp/structured-output銆?
+          姝ｅ湪鍒涘缓鐩綍鈥淜:\\Cherry\\LLM\\AGI\\agi4\\build_test\\CMakeFiles\\CMakeScratch\\TryCompile-9lgyo6\\Debug\\鈥濄€?
+          姝ｅ湪鍒涘缓鐩綍鈥渃mTC_09ef7.dir\\Debug\\cmTC_09ef7.tlog\\鈥濄€?
+        InitializeBuildStatus:
+          姝ｅ湪鍒涘缓鈥渃mTC_09ef7.dir\\Debug\\cmTC_09ef7.tlog\\unsuccessfulbuild鈥濓紝鍥犱负宸叉寚瀹氣€淎lwaysCreate鈥濄€?
+          姝ｅ湪瀵光€渃mTC_09ef7.dir\\Debug\\cmTC_09ef7.tlog\\unsuccessfulbuild鈥濇墽琛?Touch 浠诲姟銆?
+        VcpkgTripletSelection:
+          Using triplet "x64-windows" from "C:\\vcpkg\\installed\\x64-windows\\"
+          Using normalized configuration "Debug"
+        ClCompile:
+          K:\\vsbuild\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\CL.exe /c /I"C:\\vcpkg\\installed\\x64-windows\\include" /Zi /W1 /WX- /diagnostics:column /Od /Ob0 /D _MBCS /D WIN32 /D _WINDOWS /D _MBCS /D "CMAKE_INTDIR=\\"Debug\\"" /EHsc /RTC1 /MDd /GR /openmp /std:c++20 /Fo"cmTC_09ef7.dir\\Debug\\\\" /Fd"cmTC_09ef7.dir\\Debug\\vc143.pdb" /external:W1 /TP /errorReport:queue "K:\\Cherry\\LLM\\AGI\\agi4\\build_test\\CMakeFiles\\CMakeScratch\\TryCompile-9lgyo6\\OpenMPTryFlag.cpp"
+          鐢ㄤ簬 x64 鐨?Microsoft (R) C/C++ 浼樺寲缂栬瘧鍣?19.44.35209 鐗?
+          鐗堟潈鎵€鏈?C) Microsoft Corporation銆備繚鐣欐墍鏈夋潈鍒┿€?
+          cl /c /I"C:\\vcpkg\\installed\\x64-windows\\include" /Zi /W1 /WX- /diagnostics:column /Od /Ob0 /D _MBCS /D WIN32 /D _WINDOWS /D _MBCS /D "CMAKE_INTDIR=\\"Debug\\"" /EHsc /RTC1 /MDd /GR /openmp /std:c++20 /Fo"cmTC_09ef7.dir\\Debug\\\\" /Fd"cmTC_09ef7.dir\\Debug\\vc143.pdb" /external:W1 /TP /errorReport:queue "K:\\Cherry\\LLM\\AGI\\agi4\\build_test\\CMakeFiles\\CMakeScratch\\TryCompile-9lgyo6\\OpenMPTryFlag.cpp"
+          OpenMPTryFlag.cpp
+        Link:
+          K:\\vsbuild\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\link.exe /OUT:"K:\\Cherry\\LLM\\AGI\\agi4\\build_test\\CMakeFiles\\CMakeScratch\\TryCompile-9lgyo6\\Debug\\cmTC_09ef7.exe" /INCREMENTAL /ILK:"cmTC_09ef7.dir\\Debug\\cmTC_09ef7.ilk" /NOLOGO /LIBPATH:"C:\\vcpkg\\installed\\x64-windows\\debug\\lib" /LIBPATH:"C:\\vcpkg\\installed\\x64-windows\\debug\\lib\\manual-link" kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib "C:\\vcpkg\\installed\\x64-windows\\debug\\lib\\*.lib" /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"K:/Cherry/LLM/AGI/agi4/build_test/CMakeFiles/CMakeScratch/TryCompile-9lgyo6/Debug/cmTC_09ef7.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /IMPLIB:"K:/Cherry/LLM/AGI/agi4/build_test/CMakeFiles/CMakeScratch/TryCompile-9lgyo6/Debug/cmTC_09ef7.lib" /MACHINE:X64  /machine:x64 cmTC_09ef7.dir\\Debug\\OpenMPTryFlag.obj
+          cmTC_09ef7.vcxproj -> K:\\Cherry\\LLM\\AGI\\agi4\\build_test\\CMakeFiles\\CMakeScratch\\TryCompile-9lgyo6\\Debug\\cmTC_09ef7.exe
+        AppLocalFromInstalled:
+          pwsh.exe -ExecutionPolicy Bypass -noprofile -File "C:\\vcpkg\\scripts\\buildsystems\\msbuild\\applocal.ps1" "K:\\Cherry\\LLM\\AGI\\agi4\\build_test\\CMakeFiles\\CMakeScratch\\TryCompile-9lgyo6\\Debug\\cmTC_09ef7.exe" "C:\\vcpkg\\installed\\x64-windows\\debug\\bin" "cmTC_09ef7.dir\\Debug\\cmTC_09ef7.tlog\\cmTC_09ef7.write.1u.tlog" "cmTC_09ef7.dir\\Debug\\vcpkg.applocal.log"
+        FinalizeBuildStatus:
+          姝ｅ湪鍒犻櫎鏂囦欢鈥渃mTC_09ef7.dir\\Debug\\cmTC_09ef7.tlog\\unsuccessfulbuild鈥濄€?
+          姝ｅ湪瀵光€渃mTC_09ef7.dir\\Debug\\cmTC_09ef7.tlog\\cmTC_09ef7.lastbuildstate鈥濇墽琛?Touch 浠诲姟銆?
+        宸插畬鎴愮敓鎴愰」鐩€淜:\\Cherry\\LLM\\AGI\\agi4\\build_test\\CMakeFiles\\CMakeScratch\\TryCompile-9lgyo6\\cmTC_09ef7.vcxproj鈥?榛樿鐩爣)鐨勬搷浣溿€?
+        
+        宸叉垚鍔熺敓鎴愩€?
+            0 涓鍛?
+            0 涓敊璇?
+        
+        宸茬敤鏃堕棿 00:00:00.79
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Lib/site-packages/cmake/data/share/cmake-4.2/Modules/FindOpenMP.cmake:574 (try_compile)"
+      - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Lib/site-packages/cmake/data/share/cmake-4.2/Modules/FindOpenMP.cmake:714 (_OPENMP_GET_SPEC_DATE)"
+      - "CMakeLists.txt:14 (find_package)"
+    description: "Detecting CXX OpenMP version"
+    directories:
+      source: "K:/Cherry/LLM/AGI/agi4/build_test/CMakeFiles/CMakeScratch/TryCompile-4gz1yr"
+      binary: "K:/Cherry/LLM/AGI/agi4/build_test/CMakeFiles/CMakeScratch/TryCompile-4gz1yr"
+    cmakeVariables:
+      CMAKE_CXX_FLAGS: "/DWIN32 /D_WINDOWS /GR /EHsc"
+      CMAKE_CXX_FLAGS_DEBUG: "/Zi /Ob0 /Od /RTC1"
+      CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
+    buildResult:
+      variable: "OpenMP_SPECTEST_CXX_"
+      cached: true
+      stdout: |
+        Change Dir: 'K:/Cherry/LLM/AGI/agi4/build_test/CMakeFiles/CMakeScratch/TryCompile-4gz1yr'
+        
+        Run Build Command(s): K:/vsbuild/MSBuild/Current/Bin/amd64/MSBuild.exe cmTC_47fc4.vcxproj /p:Configuration=Debug /p:Platform=x64 /p:VisualStudioVersion=17.0 /v:n
+        閫傜敤浜?.NET Framework MSBuild 鐗堟湰 17.14.10+8b8e13593
+        鐢熸垚鍚姩鏃堕棿涓?2026/2/10 10:25:25銆?
+        
+        鑺傜偣 1 涓婄殑椤圭洰鈥淜:\\Cherry\\LLM\\AGI\\agi4\\build_test\\CMakeFiles\\CMakeScratch\\TryCompile-4gz1yr\\cmTC_47fc4.vcxproj鈥?榛樿鐩爣)銆?
+        PrepareForBuild:
+          宸插惎鐢ㄧ粨鏋勫寲杈撳嚭銆傜紪璇戝櫒璇婃柇鐨勬牸寮忚缃皢鍙嶆槧閿欒灞傛缁撴瀯銆傛湁鍏宠缁嗕俊鎭紝璇峰弬闃?https://aka.ms/cpp/structured-output銆?
+          姝ｅ湪鍒涘缓鐩綍鈥淜:\\Cherry\\LLM\\AGI\\agi4\\build_test\\CMakeFiles\\CMakeScratch\\TryCompile-4gz1yr\\Debug\\鈥濄€?
+          姝ｅ湪鍒涘缓鐩綍鈥渃mTC_47fc4.dir\\Debug\\cmTC_47fc4.tlog\\鈥濄€?
+        InitializeBuildStatus:
+          姝ｅ湪鍒涘缓鈥渃mTC_47fc4.dir\\Debug\\cmTC_47fc4.tlog\\unsuccessfulbuild鈥濓紝鍥犱负宸叉寚瀹氣€淎lwaysCreate鈥濄€?
+          姝ｅ湪瀵光€渃mTC_47fc4.dir\\Debug\\cmTC_47fc4.tlog\\unsuccessfulbuild鈥濇墽琛?Touch 浠诲姟銆?
+        VcpkgTripletSelection:
+          Using triplet "x64-windows" from "C:\\vcpkg\\installed\\x64-windows\\"
+          Using normalized configuration "Debug"
+        ClCompile:
+          K:\\vsbuild\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\CL.exe /c /I"C:\\vcpkg\\installed\\x64-windows\\include" /Zi /W1 /WX- /diagnostics:column /Od /Ob0 /D _MBCS /D WIN32 /D _WINDOWS /D _MBCS /D "CMAKE_INTDIR=\\"Debug\\"" /EHsc /RTC1 /MDd /GR /openmp /std:c++20 /Fo"cmTC_47fc4.dir\\Debug\\\\" /Fd"cmTC_47fc4.dir\\Debug\\vc143.pdb" /external:W1 /TP /errorReport:queue "K:\\Cherry\\LLM\\AGI\\agi4\\build_test\\CMakeFiles\\CMakeScratch\\TryCompile-4gz1yr\\OpenMPCheckVersion.cpp"
+          鐢ㄤ簬 x64 鐨?Microsoft (R) C/C++ 浼樺寲缂栬瘧鍣?19.44.35209 鐗?
+          鐗堟潈鎵€鏈?C) Microsoft Corporation銆備繚鐣欐墍鏈夋潈鍒┿€?
+          cl /c /I"C:\\vcpkg\\installed\\x64-windows\\include" /Zi /W1 /WX- /diagnostics:column /Od /Ob0 /D _MBCS /D WIN32 /D _WINDOWS /D _MBCS /D "CMAKE_INTDIR=\\"Debug\\"" /EHsc /RTC1 /MDd /GR /openmp /std:c++20 /Fo"cmTC_47fc4.dir\\Debug\\\\" /Fd"cmTC_47fc4.dir\\Debug\\vc143.pdb" /external:W1 /TP /errorReport:queue "K:\\Cherry\\LLM\\AGI\\agi4\\build_test\\CMakeFiles\\CMakeScratch\\TryCompile-4gz1yr\\OpenMPCheckVersion.cpp"
+          OpenMPCheckVersion.cpp
+        Link:
+          K:\\vsbuild\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\link.exe /OUT:"K:\\Cherry\\LLM\\AGI\\agi4\\build_test\\CMakeFiles\\CMakeScratch\\TryCompile-4gz1yr\\Debug\\cmTC_47fc4.exe" /INCREMENTAL /ILK:"cmTC_47fc4.dir\\Debug\\cmTC_47fc4.ilk" /NOLOGO /LIBPATH:"C:\\vcpkg\\installed\\x64-windows\\debug\\lib" /LIBPATH:"C:\\vcpkg\\installed\\x64-windows\\debug\\lib\\manual-link" kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib "C:\\vcpkg\\installed\\x64-windows\\debug\\lib\\*.lib" /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"K:/Cherry/LLM/AGI/agi4/build_test/CMakeFiles/CMakeScratch/TryCompile-4gz1yr/Debug/cmTC_47fc4.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /IMPLIB:"K:/Cherry/LLM/AGI/agi4/build_test/CMakeFiles/CMakeScratch/TryCompile-4gz1yr/Debug/cmTC_47fc4.lib" /MACHINE:X64  /machine:x64 cmTC_47fc4.dir\\Debug\\OpenMPCheckVersion.obj
+          cmTC_47fc4.vcxproj -> K:\\Cherry\\LLM\\AGI\\agi4\\build_test\\CMakeFiles\\CMakeScratch\\TryCompile-4gz1yr\\Debug\\cmTC_47fc4.exe
+        AppLocalFromInstalled:
+          pwsh.exe -ExecutionPolicy Bypass -noprofile -File "C:\\vcpkg\\scripts\\buildsystems\\msbuild\\applocal.ps1" "K:\\Cherry\\LLM\\AGI\\agi4\\build_test\\CMakeFiles\\CMakeScratch\\TryCompile-4gz1yr\\Debug\\cmTC_47fc4.exe" "C:\\vcpkg\\installed\\x64-windows\\debug\\bin" "cmTC_47fc4.dir\\Debug\\cmTC_47fc4.tlog\\cmTC_47fc4.write.1u.tlog" "cmTC_47fc4.dir\\Debug\\vcpkg.applocal.log"
+        FinalizeBuildStatus:
+          姝ｅ湪鍒犻櫎鏂囦欢鈥渃mTC_47fc4.dir\\Debug\\cmTC_47fc4.tlog\\unsuccessfulbuild鈥濄€?
+          姝ｅ湪瀵光€渃mTC_47fc4.dir\\Debug\\cmTC_47fc4.tlog\\cmTC_47fc4.lastbuildstate鈥濇墽琛?Touch 浠诲姟銆?
+        宸插畬鎴愮敓鎴愰」鐩€淜:\\Cherry\\LLM\\AGI\\agi4\\build_test\\CMakeFiles\\CMakeScratch\\TryCompile-4gz1yr\\cmTC_47fc4.vcxproj鈥?榛樿鐩爣)鐨勬搷浣溿€?
+        
+        宸叉垚鍔熺敓鎴愩€?
+            0 涓鍛?
+            0 涓敊璇?
+        
+        宸茬敤鏃堕棿 00:00:00.81
+        
+      exitCode: 0
+  -
+    kind: "find_package-v1"
+    backtrace:
+      - "CMakeLists.txt:94 (find_package)"
+    name: "imgui"
+    configs:
+      -
+        filename: "imguiConfig.cmake"
+        kind: "cmake"
+      -
+        filename: "imgui-config.cmake"
+        kind: "cmake"
+    version_request:
+      exact: false
+    settings:
+      required: "required_explicit"
+      quiet: false
+      global: false
+      policy_scope: true
+      bypass_provider: false
+      names:
+        - "imgui"
+      path_suffixes:
+        - ""
+      paths:
+        CMAKE_FIND_USE_CMAKE_PATH: true
+        CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+        CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+        CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+        CMAKE_FIND_USE_INSTALL_PREFIX: true
+        CMAKE_FIND_USE_PACKAGE_ROOT_PATH: true
+        CMAKE_FIND_USE_CMAKE_PACKAGE_REGISTRY: true
+        CMAKE_FIND_USE_SYSTEM_PACKAGE_REGISTRY: true
+        CMAKE_FIND_ROOT_PATH_MODE: "BOTH"
+    candidates:
+      -
+        path: "K:/Cherry/LLM/AGI/agi4/build_test/CMakeFiles/pkgRedirects/imguiConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "K:/Cherry/LLM/AGI/agi4/build_test/CMakeFiles/pkgRedirects/imgui-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "C:/Program Files/PowerShell/7/imguiConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "C:/Program Files/PowerShell/7/imgui-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "E:/Tools/java21/imguiConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "E:/Tools/java21/imgui-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "C:/Program Files/Common Files/Oracle/Java/javapath/imguiConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "C:/Program Files/Common Files/Oracle/Java/javapath/imgui-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "C:/Windows/System32/imguiConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "C:/Windows/System32/imgui-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "C:/Windows/imguiConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "C:/Windows/imgui-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "C:/Windows/System32/wbem/imguiConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "C:/Windows/System32/wbem/imgui-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "C:/Windows/System32/WindowsPowerShell/v1.0/imguiConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "C:/Windows/System32/WindowsPowerShell/v1.0/imgui-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "C:/Windows/System32/OpenSSH/imguiConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "C:/Windows/System32/OpenSSH/imgui-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "E:/Tools/nodejs/imguiConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "E:/Tools/nodejs/imgui-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "E:/Tools/Git/cmd/imguiConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "E:/Tools/Git/cmd/imgui-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "E:/Tools/cursor/resources/app/imguiConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "E:/Tools/cursor/resources/app/imgui-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "C:/Users/Administrator/.cargo/imguiConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "C:/Users/Administrator/.cargo/imgui-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "C:/Users/Administrator/AppData/Roaming/npm/imguiConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "C:/Users/Administrator/AppData/Roaming/npm/imgui-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "J:/Rocn/WiresharkPortable64/App/Wireshark/imguiConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "J:/Rocn/WiresharkPortable64/App/Wireshark/imgui-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "C:/Program Files/dotnet/imguiConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "C:/Program Files/dotnet/imgui-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Scripts/imguiConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Scripts/imgui-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/imguiConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/imgui-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "J:/seccc/.venv/Scripts/imguiConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "J:/seccc/.venv/Scripts/imgui-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "C:/Users/Administrator/.local/imguiConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "C:/Users/Administrator/.local/imgui-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "C:/Program Files/Docker/Docker/resources/imguiConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "C:/Program Files/Docker/Docker/resources/imgui-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "K:/studiosdk/platform-tools/imguiConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "K:/studiosdk/platform-tools/imgui-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "K:/studiosdk/cmdline-tools/latest/imguiConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "K:/studiosdk/cmdline-tools/latest/imgui-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "K:/FlutterSDK/flutter/imguiConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "K:/FlutterSDK/flutter/imgui-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "E:/Tools/Windsurf/imguiConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "E:/Tools/Windsurf/imgui-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "E:/Tools/Kiro/imguiConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "E:/Tools/Kiro/imgui-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "E:/Tools/Go/imguiConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "E:/Tools/Go/imgui-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "E:/Tools/Qoder/imguiConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "E:/Tools/Qoder/imgui-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "E:/Tools/Windsurf Next/imguiConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "E:/Tools/Windsurf Next/imgui-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "C:/Program Files/imguiConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "C:/Program Files/imgui-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "C:/Program Files (x86)/imguiConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "C:/Program Files (x86)/imgui-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Lib/site-packages/cmake/data/imguiConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Lib/site-packages/cmake/data/imgui-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+    found: null
+    search_context:
+      ENV{PATH}:
+        - "C:\\Program Files\\PowerShell\\7"
+        - "E:\\Tools\\java21\\bin"
+        - "C:\\Program Files\\Common Files\\Oracle\\Java\\javapath"
+        - "C:\\Windows\\system32"
+        - "C:\\Windows"
+        - "C:\\Windows\\System32\\Wbem"
+        - "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\"
+        - "C:\\Windows\\System32\\OpenSSH\\"
+        - "E:\\Tools\\nodejs\\"
+        - "E:\\Tools\\Git\\cmd"
+        - "E:\\Tools\\cursor\\resources\\app\\bin"
+        - "C:\\Users\\Administrator\\.cargo\\bin"
+        - "C:\\Users\\Administrator\\AppData\\Roaming\\npm"
+        - "J:\\Rocn\\WiresharkPortable64\\App\\Wireshark"
+        - "C:\\Program Files\\PowerShell\\7\\"
+        - "C:\\Program Files\\dotnet\\"
+        - "C:\\Users\\Administrator\\AppData\\Local\\Programs\\Python\\Python311\\Scripts\\"
+        - "C:\\Users\\Administrator\\AppData\\Local\\Programs\\Python\\Python311\\"
+        - "J:\\seccc\\.venv\\Scripts"
+        - "K:\\Cherry\\Lyxn\\buildtools\\ninja"
+        - "E:\\Tools\\java21\\bin"
+        - "C:\\Program Files\\Common Files\\Oracle\\Java\\javapath"
+        - "C:\\Windows\\system32"
+        - "C:\\Windows"
+        - "C:\\Windows\\System32\\Wbem"
+        - "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\"
+        - "C:\\Windows\\System32\\OpenSSH\\"
+        - "E:\\Tools\\nodejs\\"
+        - "E:\\Tools\\Git\\cmd"
+        - "E:\\Tools\\cursor\\resources\\app\\bin"
+        - "C:\\Users\\Administrator\\.cargo\\bin"
+        - "C:\\Users\\Administrator\\AppData\\Roaming\\npm"
+        - "C:\\Users\\Administrator\\.local\\bin"
+        - "E:\\Tools\\ja"
+        - "E:\\Tools\\OpenSSL-Win64\\bin"
+        - "C:\\Program Files\\Docker\\Docker\\resources\\bin"
+        - "K:\\studiosdk\\platform-tools"
+        - "K:\\studiosdk\\tools"
+        - "K:\\studiosdk\\cmdline-tools\\latest\\bin"
+        - "K:\\FlutterSDK\\flutter\\bin"
+        - "E:\\Tools\\Windsurf\\bin"
+        - "E:\\Tools\\Kiro\\bin"
+        - "E:\\Tools\\Go\\bin"
+        - "E:\\Tools\\Qoder\\bin"
+        - "E:\\Tools\\Windsurf Next\\bin"
+      CMAKE_INSTALL_PREFIX: "C:/Program Files (x86)/CElegans"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "C:/Program Files"
+        - "C:/Program Files (x86)"
+        - "C:/Users/Administrator/AppData/Local/Programs/Python/Python311/Lib/site-packages/cmake/data"
+        - "C:/Program Files (x86)/CElegans"
+...

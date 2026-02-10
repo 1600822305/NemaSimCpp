@@ -76,4 +76,20 @@ void Connectome::compute_synaptic_currents(std::vector<std::unique_ptr<Neuron>>&
     }
 }
 
+void Connectome::compute_gap_junction_currents(std::vector<std::unique_ptr<Neuron>>& neurons) {
+    int n_size = static_cast<int>(neurons.size());
+
+    for (auto& gj : gap_junctions_) {
+        int a = gj.neuron_a();
+        int b = gj.neuron_b();
+        if (a < 0 || a >= n_size || b < 0 || b >= n_size) continue;
+
+        double V_a = neurons[a]->get_membrane_potential();
+        double V_b = neurons[b]->get_membrane_potential();
+        double I = gj.compute_current(V_a, V_b);
+        neurons[a]->add_synaptic_current(-I);
+        neurons[b]->add_synaptic_current(I);
+    }
+}
+
 } // namespace celegans

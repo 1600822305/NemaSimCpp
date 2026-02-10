@@ -22,6 +22,9 @@ public:
     // Compute all synaptic currents and apply to neurons (with STP update)
     void compute_synaptic_currents(std::vector<std::unique_ptr<Neuron>>& neurons, double dt);
 
+    // Compute only gap junction currents (used when chemical synapses are on GPU)
+    void compute_gap_junction_currents(std::vector<std::unique_ptr<Neuron>>& neurons);
+
     // Access
     size_t num_neurons() const { return neuron_infos_.size(); }
     size_t num_synapses() const { return synapses_.size(); }

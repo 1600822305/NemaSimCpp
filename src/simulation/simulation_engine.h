@@ -11,6 +11,7 @@
 #include "environment/environment.h"
 #include "environment/sensory_transducer.h"
 #include "neuromodulation/neuromodulation.h"
+#include "compute/compute_backend.h"
 #include <vector>
 #include <memory>
 #include <string>
@@ -80,6 +81,15 @@ private:
     std::vector<std::unique_ptr<Neuron>> neurons_;
 
     StepCallback step_callback_;
+
+    // GPU compute backend (Step 22)
+    std::unique_ptr<ComputeBackend> gpu_backend_;
+    bool use_gpu_ = false;
+    std::vector<SynapseGPU> gpu_synapses_;   // flat GPU-compatible synapse data
+    std::vector<float> gpu_V_;               // neuron voltages for GPU
+    std::vector<float> gpu_I_;               // synaptic currents from GPU
+    void setup_gpu_backend();                // init GPU + upload synapse data
+    void sync_synapses_to_gpu();             // host→GPU synapse state
 
     void create_neurons();
 

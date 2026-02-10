@@ -125,6 +125,9 @@ void SimulationEngine::initialize_default() {
     // 12. Setup short-term plasticity per circuit (Step 21)
     setup_stp_params();
 
+    // 13. Setup GPU compute backend (Step 22)
+    setup_gpu_backend();
+
     LOG_INFO("Chemosensory: ", chemo_mappings_.size(), " neurons with gradient transduction");
     LOG_INFO("Other sensory: ", other_sensory_ids_.size(), " neurons, baseline ", sensory_baseline_, " pA");
     LOG_INFO("Head tonic: ", head_motor_ids_.size(), " head motor neurons, ", head_tonic_, " pA");
@@ -199,7 +202,28 @@ void SimulationEngine::step() {
 
     // 5. Compute synaptic currents (chemical + electrical)
     // NOTE: This resets I_syn_ for all neurons, then adds connectome synaptic currents.
-    connectome_.compute_synaptic_currents(neurons_, dt_);
+    if (use_gpu_ && gpu_backend_) {
+        // GPU path: upload voltages, compute on GPU, download currents
+        int nn = static_cast<int>(neurons_.size());
+        for (int i = 0; i < nn; ++i) {
+            gpu_V_[i] = static_cast<float>(neurons_[i]->get_membrane_potential());
+        }
+        gpu_backend_->compute_synaptic_currents(
+            gpu_V_, gpu_I_, static_cast<float>(dt_),
+            static_cast<float>(connectome_.get_synapse_scale()), nn);
+
+        // Apply GPU-computed synaptic currents to neurons
+        for (auto& n : neurons_) n->reset_synaptic_current();
+        for (int i = 0; i < nn; ++i) {
+            if (gpu_I_[i] != 0.0f) {
+                neurons_[i]->add_synaptic_current(static_cast<double>(gpu_I_[i]));
+            }
+        }
+        // Gap junctions still on CPU (few, bidirectional)
+        connectome_.compute_gap_junction_currents(neurons_);
+    } else {
+        connectome_.compute_synaptic_currents(neurons_, dt_);
+    }
 
     // Step 19 Phase 2: SMB neck curvature bias (klinotaxis effector)
     apply_smb_neck_bias();
@@ -1068,6 +1092,75 @@ void SimulationEngine::update_salt_learning() {
         double dw = lr * learn_signal * S_pre * S_post;
         syn.adjust_weight_mod(dw);
     }
+}
+
+// ================================================================
+// GPU Compute Backend Setup (Step 22)
+//
+// Initializes OpenCL GPU backend for synaptic current computation.
+// Falls back to CPU if no GPU available.
+// Converts ChemicalSynapse objects to flat SynapseGPU structs for GPU.
+// ================================================================
+void SimulationEngine::setup_gpu_backend() {
+    // GPU acceleration is only beneficial at scale (>500 synapses).
+    // At 72 neurons / ~110 synapses, kernel launch overhead dominates.
+    // Auto-enable when synapse count exceeds threshold.
+    size_t num_syn = connectome_.num_synapses();
+    bool should_use_gpu = (num_syn >= 500);
+
+    if (should_use_gpu && ComputeBackend::opencl_available()) {
+        gpu_backend_ = ComputeBackend::create_opencl();
+        if (gpu_backend_) {
+            use_gpu_ = true;
+            auto info = gpu_backend_->device_info();
+            LOG_INFO("GPU backend ACTIVE: ", info.name, " (", info.max_compute_units,
+                     " CUs, ", num_syn, " synapses)");
+
+            sync_synapses_to_gpu();
+            int nn = static_cast<int>(neurons_.size());
+            gpu_V_.resize(nn, 0.0f);
+            gpu_I_.resize(nn, 0.0f);
+            return;
+        }
+    }
+
+    use_gpu_ = false;
+    if (num_syn < 500) {
+        LOG_INFO("GPU: skipped (", num_syn, " synapses < 500 threshold, CPU faster)");
+    } else {
+        LOG_INFO("GPU: not available, using CPU");
+    }
+}
+
+void SimulationEngine::sync_synapses_to_gpu() {
+    if (!gpu_backend_ || !use_gpu_) return;
+
+    const auto& synapses = connectome_.synapses();
+    gpu_synapses_.clear();
+    gpu_synapses_.reserve(synapses.size());
+
+    for (const auto& syn : synapses) {
+        SynapseGPU gs;
+        gs.pre_id = syn.pre_id();
+        gs.post_id = syn.post_id();
+        gs.weight = static_cast<float>(syn.weight());
+        gs.g_max = 0.5f;       // default g_max
+        gs.E_syn = static_cast<float>(syn.reversal_potential());
+        gs.V_thresh = -35.0f;  // default
+        gs.V_slope = 5.0f;     // default
+        gs.weight_mod = static_cast<float>(syn.weight_mod());
+        gs.vesicle_pool = static_cast<float>(syn.vesicle_pool());
+        gs.release_prob = static_cast<float>(syn.release_prob());
+        gs.p0 = 0.5f;          // default baseline release probability
+        gs.tau_recovery = 2000.0f;
+        gs.alpha_d = 0.0003f;
+        gs.tau_facil = 200.0f;
+        gs.alpha_f = 0.001f;
+        gpu_synapses_.push_back(gs);
+    }
+
+    gpu_backend_->upload_synapses(gpu_synapses_);
+    LOG_INFO("GPU: uploaded ", gpu_synapses_.size(), " synapses");
 }
 
 } // namespace celegans

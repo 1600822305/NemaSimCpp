@@ -8,10 +8,24 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # Options
 option(CELEGANS_BUILD_TESTS "Build tests" ON)
 option(CELEGANS_USE_OPENMP "Enable OpenMP parallelization" ON)
+option(CELEGANS_USE_OPENCL "Enable OpenCL GPU acceleration" ON)
 option(CELEGANS_BUILD_VIS "Build real-time visualization (requires SDL2+ImGui+ImPlot)" ON)
 
 if(CELEGANS_USE_OPENMP)
     find_package(OpenMP REQUIRED)
+endif()
+
+if(CELEGANS_USE_OPENCL)
+    find_package(OpenCL CONFIG QUIET)
+    if(NOT OpenCL_FOUND)
+        find_package(OpenCL QUIET)
+    endif()
+    if(OpenCL_FOUND)
+        message(STATUS "OpenCL found: ${OpenCL_VERSION_STRING}")
+    else()
+        message(STATUS "OpenCL not found — GPU acceleration disabled")
+        set(CELEGANS_USE_OPENCL OFF)
+    endif()
 endif()
 
 # Core library
@@ -66,6 +80,16 @@ add_library(celegans_neuromodulation STATIC
 )
 target_link_libraries(celegans_neuromodulation PUBLIC celegans_neuron celegans_connectome)
 
+# Compute backend library (CPU + optional OpenCL GPU)
+add_library(celegans_compute STATIC
+    src/compute/opencl_backend.cpp
+)
+target_link_libraries(celegans_compute PUBLIC celegans_core)
+if(CELEGANS_USE_OPENCL)
+    target_link_libraries(celegans_compute PUBLIC OpenCL::OpenCL)
+    target_compile_definitions(celegans_compute PUBLIC CELEGANS_HAS_OPENCL=1)
+endif()
+
 # Simulation engine
 add_library(celegans_simulation STATIC
     src/simulation/simulation_engine.cpp
@@ -76,6 +100,7 @@ target_link_libraries(celegans_simulation PUBLIC
     celegans_motor
     celegans_environment
     celegans_neuromodulation
+    celegans_compute
 )
 
 # Main executable (headless)
