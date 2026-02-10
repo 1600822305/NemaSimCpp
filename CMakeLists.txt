@@ -94,6 +94,10 @@ if(CELEGANS_BUILD_VIS)
         OpenGL::GL
     )
     target_include_directories(celegans_vis PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    # Disable char8_t (C++20) so u8"" stays const char* for ImGui compatibility
+    if(MSVC)
+        target_compile_options(celegans_vis PRIVATE /Zc:char8_t- /utf-8)
+    endif()
 endif()
 
 if(CELEGANS_USE_OPENMP)

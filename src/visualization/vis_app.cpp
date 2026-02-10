@@ -38,7 +38,7 @@ bool VisApp::initialize(int width, int height) {
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
     window_ = glfwCreateWindow(width, height,
-        "C. elegans Neural Simulation - Real-time Visualization", nullptr, nullptr);
+        "C. elegans Simulation", nullptr, nullptr);
     if (!window_) {
         LOG_ERROR("glfwCreateWindow failed");
         glfwTerminate();
@@ -67,6 +67,28 @@ bool VisApp::initialize(int width, int height) {
 
     ImGui_ImplGlfw_InitForOpenGL(window_, true);
     ImGui_ImplOpenGL3_Init("#version 330");
+
+    // Load Chinese font (Microsoft YaHei)
+    const char* font_paths[] = {
+        "C:/Windows/Fonts/msyh.ttc",
+        "C:/Windows/Fonts/msyh.ttf",
+        "C:/Windows/Fonts/simhei.ttf",
+        "C:/Windows/Fonts/simsun.ttc",
+    };
+    bool font_loaded = false;
+    for (auto* path : font_paths) {
+        FILE* f = fopen(path, "rb");
+        if (f) {
+            fclose(f);
+            io.Fonts->AddFontFromFileTTF(path, 18.0f, nullptr,
+                io.Fonts->GetGlyphRangesChineseFull());
+            font_loaded = true;
+            break;
+        }
+    }
+    if (!font_loaded) {
+        LOG_INFO("No Chinese font found, using default");
+    }
 
     // Initialize simulation engine
     engine_.initialize_default();
@@ -265,11 +287,11 @@ void VisApp::render_frame() {
 }
 
 void VisApp::render_trajectory_panel() {
-    ImGui::Begin("Trajectory & Arena", nullptr,
+    ImGui::Begin(u8"\u8f68\u8ff9\u4e0e\u7ade\u6280\u573a", nullptr,
         ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
 
     if (ImPlot::BeginPlot("##trajectory", ImVec2(-1, -1), ImPlotFlags_Equal)) {
-        ImPlot::SetupAxes("X (mm)", "Y (mm)");
+        ImPlot::SetupAxes(u8"X (mm)", u8"Y (mm)");
         ImPlot::SetupAxesLimits(0, 50, 0, 50, ImPlotCond_Once);
 
         // Chemical field as background (scatter heatmap approximation)
@@ -283,23 +305,23 @@ void VisApp::render_trajectory_panel() {
                 ys.push_back(p.y);
             }
             ImPlot::SetNextLineStyle(ImVec4(0.2f, 0.8f, 0.4f, 0.7f), 1.5f);
-            ImPlot::PlotLine("Trajectory", xs.data(), ys.data(), (int)xs.size());
+            ImPlot::PlotLine(u8"\u8f68\u8ff9", xs.data(), ys.data(), (int)xs.size());
 
             // Current head position
             double hx = xs.back(), hy = ys.back();
             ImPlot::SetNextMarkerStyle(ImPlotMarker_Circle, 6, ImVec4(0, 1, 0, 1), 2);
-            ImPlot::PlotScatter("Head", &hx, &hy, 1);
+            ImPlot::PlotScatter(u8"\u5934\u90e8", &hx, &hy, 1);
         }
 
         // Start position
         double sx = 25.0, sy = 25.0;
         ImPlot::SetNextMarkerStyle(ImPlotMarker_Diamond, 6, ImVec4(0.5f, 0.5f, 1, 1), 2);
-        ImPlot::PlotScatter("Start", &sx, &sy, 1);
+        ImPlot::PlotScatter(u8"\u8d77\u70b9", &sx, &sy, 1);
 
         // Food source
         double fx = 35.0, fy = 35.0;
         ImPlot::SetNextMarkerStyle(ImPlotMarker_Cross, 10, ImVec4(1, 0.3f, 0.3f, 1), 2);
-        ImPlot::PlotScatter("Food", &fx, &fy, 1);
+        ImPlot::PlotScatter(u8"\u98df\u7269", &fx, &fy, 1);
 
         // Concentration contours (circles at sigma, 2sigma)
         auto draw_circle = [](double cx, double cy, double r, int npts = 64) {
@@ -325,7 +347,7 @@ void VisApp::render_trajectory_panel() {
 }
 
 void VisApp::render_neuron_panel() {
-    ImGui::Begin("Neuron Activity", nullptr,
+    ImGui::Begin(u8"\u795e\u7ecf\u5143\u6d3b\u52a8", nullptr,
         ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
 
     if (!traces_.empty() && !traces_[0].times.empty()) {
@@ -333,9 +355,9 @@ void VisApp::render_neuron_panel() {
         double t_window = 5000.0; // show last 5 seconds
 
         // SMD panel (half-center oscillator)
-        if (ImPlot::BeginPlot("SMD Half-Center (Head Oscillator)", ImVec2(-1, 0),
+        if (ImPlot::BeginPlot(u8"SMD \u534a\u4e2d\u5fc3\u632f\u8361\u5668 (\u5934\u90e8)", ImVec2(-1, 0),
                 ImPlotFlags_NoLegend)) {
-            ImPlot::SetupAxes("Time (ms)", "V (mV)");
+            ImPlot::SetupAxes(u8"\u65f6\u95f4 (ms)", u8"\u7535\u4f4d (mV)");
             ImPlot::SetupAxesLimits(t_now - t_window, t_now, -80, -10, ImPlotCond_Always);
             ImPlot::SetupLegend(ImPlotLocation_NorthEast);
 
@@ -355,9 +377,9 @@ void VisApp::render_neuron_panel() {
         }
 
         // Command interneurons + key interneurons
-        if (ImPlot::BeginPlot("Command & Interneurons", ImVec2(-1, 0),
+        if (ImPlot::BeginPlot(u8"\u547d\u4ee4\u795e\u7ecf\u5143\u4e0e\u4e2d\u95f4\u795e\u7ecf\u5143", ImVec2(-1, 0),
                 ImPlotFlags_NoLegend)) {
-            ImPlot::SetupAxes("Time (ms)", "V (mV)");
+            ImPlot::SetupAxes(u8"\u65f6\u95f4 (ms)", u8"\u7535\u4f4d (mV)");
             ImPlot::SetupAxesLimits(t_now - t_window, t_now, -80, -10, ImPlotCond_Always);
             ImPlot::SetupLegend(ImPlotLocation_NorthEast);
 
@@ -383,26 +405,26 @@ void VisApp::render_neuron_panel() {
 }
 
 void VisApp::render_chemical_field() {
-    ImGui::Begin("Stats & Metrics", nullptr,
+    ImGui::Begin(u8"\u7edf\u8ba1\u6307\u6807", nullptr,
         ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
 
     float plot_h = ImGui::GetContentRegionAvail().y * 0.5f;
 
     // Distance to food
     if (!dist_history_.empty()) {
-        if (ImPlot::BeginPlot("Distance to Food", ImVec2(-1, plot_h))) {
-            ImPlot::SetupAxes("Sample (×100ms)", "Distance (mm)");
+        if (ImPlot::BeginPlot(u8"\u8ddd\u98df\u7269\u8ddd\u79bb\u56fe", ImVec2(-1, plot_h))) {
+            ImPlot::SetupAxes(u8"\u91c7\u6837 (\u00d7100ms)", u8"\u8ddd\u79bb (mm)");
             ImPlot::SetupAxesLimits(0, (double)dist_history_.size(), 0, 20, ImPlotCond_Always);
             ImPlot::SetNextLineStyle(ImVec4(1, 0.6f, 0.2f, 1), 2);
-            ImPlot::PlotLine("Dist", dist_history_.data(), (int)dist_history_.size());
+            ImPlot::PlotLine(u8"\u8ddd\u79bb", dist_history_.data(), (int)dist_history_.size());
             ImPlot::EndPlot();
         }
     }
 
     // Chemotaxis index
     if (!ci_history_.empty()) {
-        if (ImPlot::BeginPlot("Chemotaxis Index (CI)", ImVec2(-1, -1))) {
-            ImPlot::SetupAxes("Sample (×100ms)", "CI");
+        if (ImPlot::BeginPlot(u8"\u8d8b\u5316\u6307\u6570 (CI) \u56fe", ImVec2(-1, -1))) {
+            ImPlot::SetupAxes(u8"\u91c7\u6837 (\u00d7100ms)", u8"CI");
             ImPlot::SetupAxesLimits(0, (double)ci_history_.size(), -1, 1, ImPlotCond_Always);
             // Zero line
             double zx[2] = {0, (double)ci_history_.size()};
@@ -420,13 +442,13 @@ void VisApp::render_chemical_field() {
 }
 
 void VisApp::render_control_panel() {
-    ImGui::Begin("Control Panel", nullptr,
+    ImGui::Begin(u8"\u63a7\u5236\u9762\u677f", nullptr,
         ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
 
     // Sim info
     double t = engine_.current_time();
-    ImGui::Text("Simulation Time: %.1f ms (%.2f s)", t, t / 1000.0);
-    ImGui::Text("Steps: %d", engine_.get_step_count());
+    ImGui::Text(u8"\u4eff\u771f\u65f6\u95f4: %.1f ms (%.2f s)", t, t / 1000.0);
+    ImGui::Text(u8"\u6b65\u6570: %d", engine_.get_step_count());
 
     ImGui::Separator();
 
@@ -436,20 +458,20 @@ void VisApp::render_control_panel() {
     double dx = head.x - food.x;
     double dy = head.y - food.y;
     double dist = std::sqrt(dx * dx + dy * dy);
-    ImGui::Text("Head: (%.2f, %.2f)", head.x, head.y);
-    ImGui::Text("Distance to Food: %.2f mm", dist);
-    ImGui::Text("Speed: %.4f mm/s", engine_.body().get_speed());
+    ImGui::Text(u8"\u5934\u90e8\u4f4d\u7f6e: (%.2f, %.2f)", head.x, head.y);
+    ImGui::Text(u8"\u8ddd\u98df\u7269: %.2f mm", dist);
+    ImGui::Text(u8"\u901f\u5ea6: %.4f mm/s", engine_.body().get_speed());
     if (ci_count_ > 0)
-        ImGui::Text("Chemotaxis Index: %.3f", ci_sum_ / ci_count_);
+        ImGui::Text(u8"\u8d8b\u5316\u6307\u6570: %.3f", ci_sum_ / ci_count_);
 
     ImGui::Separator();
 
     // Controls
-    if (ImGui::Button(sim_paused_ ? "Resume [Space]" : "Pause [Space]")) {
+    if (ImGui::Button(sim_paused_ ? u8"\u7ee7\u7eed [Space]" : u8"\u6682\u505c [Space]")) {
         sim_paused_ = !sim_paused_;
     }
     ImGui::SameLine();
-    if (ImGui::Button("Reset")) {
+    if (ImGui::Button(u8"\u91cd\u7f6e")) {
         engine_.initialize_default();
         trajectory_.clear();
         for (auto& tr : traces_) {
@@ -466,19 +488,19 @@ void VisApp::render_control_panel() {
         update_chemical_field();
     }
 
-    ImGui::SliderInt("Steps/Frame", &steps_per_frame_, 1, 200);
-    ImGui::Text("Sim Speed: %.0fx realtime", steps_per_frame_ * 0.5 * 60.0 / 1000.0);
+    ImGui::SliderInt(u8"\u6bcf\u5e27\u6b65\u6570", &steps_per_frame_, 1, 200);
+    ImGui::Text(u8"\u4eff\u771f\u901f\u5ea6: %.0fx \u5b9e\u65f6", steps_per_frame_ * 0.5 * 60.0 / 1000.0);
 
     ImGui::Separator();
-    ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1), "Keyboard:");
-    ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1), "  Space = Pause/Resume");
-    ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1), "  Esc = Quit");
+    ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1), u8"\u5feb\u6377\u952e:");
+    ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1), u8"  Space = \u6682\u505c/\u7ee7\u7eed");
+    ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1), u8"  Esc = \u9000\u51fa");
 
     ImGui::Separator();
 
     // Neuron count summary
-    ImGui::Text("Neurons: %d", (int)engine_.neurons().size());
-    ImGui::Text("Synapses: %d chem + %d gap",
+    ImGui::Text(u8"\u795e\u7ecf\u5143: %d", (int)engine_.neurons().size());
+    ImGui::Text(u8"\u7a81\u89e6: %d \u5316\u5b66 + %d \u7535\u7a81\u89e6",
         engine_.connectome().num_synapses(),
         engine_.connectome().num_gap_junctions());
 
