@@ -204,7 +204,7 @@ private:
     // Eating toxic food → sickness_ rises → ADF 5-HT ↑ → AWC synapse flip
     double sickness_ = 0.0;             // [0,1] internal malaise state
     double sickness_tau_rise_ = 30000.0; // ms, slow accumulation while eating toxin (~30s)
-    double sickness_tau_decay_ = 120000.0; // ms, very slow recovery (~2min)
+    double sickness_tau_decay_ = 600000.0; // ms, very slow recovery (~10min, persistent memory)
     std::vector<int> adf_ids_;           // ADF serotonin neuron IDs
     std::vector<int> aiy_ids_;           // AIY interneuron IDs (approach pathway)
     void update_sickness();              // accumulate sickness from toxic food intake

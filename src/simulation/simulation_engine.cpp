@@ -1422,8 +1422,10 @@ void SimulationEngine::update_pathogen_learning() {
     const auto& ninfos = connectome_.neuron_infos();
 
     // Learning rate: proportional to sickness level
-    // ~0.002 per second at max sickness × dt_effective(100ms)
-    double lr = 0.0002 * sickness_;
+    // ~0.03 per second at max sickness × dt_effective(100ms)
+    // Tuned so w_mod changes ±50% in ~80s of continuous sickness
+    // (800 updates × 0.003 × S_pre≈0.2 = 0.48)
+    double lr = 0.003 * sickness_;
 
     for (auto& syn : synapses) {
         int pre = syn.pre_id();
