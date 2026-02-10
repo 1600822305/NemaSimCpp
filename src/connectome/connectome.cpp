@@ -27,7 +27,8 @@ void Connectome::build(const std::vector<NeuronInfo>& neuron_infos,
         double E_syn = ChemicalSynapse::default_reversal(nt);
         double weight = si.num_sections * synapse_weight_scale_;
 
-        ChemicalSynapse syn(si.pre_neuron_id, si.post_neuron_id, weight, nt, E_syn);
+        ChemicalSynapse syn(si.pre_neuron_id, si.post_neuron_id, weight, nt, E_syn,
+                            si.post_compartment);
         synapses_.push_back(syn);
     }
 
@@ -60,7 +61,13 @@ void Connectome::compute_synaptic_currents(std::vector<std::unique_ptr<Neuron>>&
         double V_pre = neurons[pre]->get_membrane_potential();
         double V_post = neurons[post]->get_membrane_potential();
         double I = syn.compute_current(V_pre, V_post, dt) * synapse_runtime_scale_;
-        neurons[post]->add_synaptic_current(I);
+        // Step 28: route to specific compartment if targeting multi-compartment neuron
+        int comp = syn.post_compartment();
+        if (comp > 0) {
+            neurons[post]->add_compartment_current(comp, I);
+        } else {
+            neurons[post]->add_synaptic_current(I);
+        }
     }
 
     // Gap junctions: bidirectional ohmic coupling

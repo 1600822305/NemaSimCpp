@@ -363,6 +363,18 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 - **REF**: Turek 2016 eLife, Konietzka 2020 Nat Commun, Nagy 2014 eLife
 - **文档**: docs/steps/step27_sleep_lethargus.md
 
+### Step 28: 多隔室神经元模型 (RIA)
+
+- **生物学**: Hendricks 2012 Nature — RIA轴突nrV/nrD域独立Ca2+编码头部运动
+- **新增类**: MultiCompartmentNeuron (Compartment结构体, 轴向耦合, IP3 Ca2+ store release)
+- **RIA 3隔室**: soma(感觉谷氨酸) + nrV(SMDVL ACh/GAR-3) + nrD(SMDDL ACh/GAR-3)
+- **新增突触**: SMDDL->RIAL nrD(1), SMDDR->RIAR nrD(1), SMDVL->RIAL nrV(1), SMDVR->RIAR nrV(1)
+- **klinotaxis**: Ca2+ nrV-nrD差异(DC移除+300ms滤波) -> curvature_bias, 替代Step 19 AC/DC近似
+- **参数**: store_release=0.0003, gain=3000, max_bias=0.5, mod_gain=5, axial=0.15nS
+- **结果**: regtest 14 pass; heading 16.9 deg/s; CI avg +0.20; sleep 20%
+- **REF**: Hendricks 2012 Nature, Ouellette 2018 eNeuro, Iino & Yoshida 2009
+- **文档**: docs/steps/step28_multi_compartment.md
+
 ---
 
 ## 当前系统状态

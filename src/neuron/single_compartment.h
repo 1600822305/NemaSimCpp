@@ -23,11 +23,16 @@ public:
 
     virtual double get_calcium() const { return 0.0; }
 
-    void set_external_current(double I_ext) { I_ext_ = I_ext; }
-    void add_synaptic_current(double I_syn) { I_syn_ += I_syn; }
-    void reset_synaptic_current() { I_syn_ = 0.0; }
-    double get_I_ext() const { return I_ext_; }
-    double get_I_syn() const { return I_syn_; }
+    virtual void set_external_current(double I_ext) { I_ext_ = I_ext; }
+    virtual void add_synaptic_current(double I_syn) { I_syn_ += I_syn; }
+    virtual void reset_synaptic_current() { I_syn_ = 0.0; }
+    virtual double get_I_ext() const { return I_ext_; }
+    virtual double get_I_syn() const { return I_syn_; }
+
+    // Step 28: Compartment-targeted synaptic current
+    // Default: ignores compartment index, adds to main I_syn
+    // MultiCompartmentNeuron overrides to route to specific compartment
+    virtual void add_compartment_current(int /*compartment*/, double I) { I_syn_ += I; }
 
     const NeuronInfo& info() const { return info_; }
     NeuronInfo& info() { return info_; }

@@ -302,6 +302,21 @@ void ConnectomeLoader::generate_default_connectome(
         }
     };
 
+    // Step 28: compartment-targeted synapse (for multi-compartment neurons)
+    auto add_syn_comp = [&](const char* pre, const char* post, int sections, int post_comp) {
+        auto pre_it = name_to_id.find(pre);
+        auto post_it = name_to_id.find(post);
+        if (pre_it != name_to_id.end() && post_it != name_to_id.end()) {
+            SynapseInfo s;
+            s.pre_neuron_id = pre_it->second;
+            s.post_neuron_id = post_it->second;
+            s.num_sections = sections;
+            s.neurotransmitter = neurons[pre_it->second].neurotransmitter;
+            s.post_compartment = post_comp;
+            synapses.push_back(s);
+        }
+    };
+
     auto add_gj = [&](const char* a, const char* b, int sections) {
         auto a_it = name_to_id.find(a);
         auto b_it = name_to_id.find(b);
@@ -357,6 +372,16 @@ void ConnectomeLoader::generate_default_connectome(
     // Head motor → SMD/RMD circuits
     add_syn("RIAL", "SMDVL", 4); add_syn("RIAR", "SMDVR", 4);
     add_syn("RIAL", "SMDDL", 3); add_syn("RIAR", "SMDDR", 3);
+
+    // Step 28: SMD → RIA feedback (ACh via GAR-3 muscarinic receptor)
+    // REF: Hendricks 2012 Nature — motor-correlated compartmentalized Ca²⁺
+    // Dorsal SMD → RIA nrD (compartment 2): dorsal head bending feedback
+    // Ventral SMD → RIA nrV (compartment 1): ventral head bending feedback
+    // These are the KEY synapses enabling subcellular computation in RIA
+    add_syn_comp("SMDDL", "RIAL", 1, 2);  // SMDDL → RIAL nrD (weak: minimize soma leakage)
+    add_syn_comp("SMDDR", "RIAR", 1, 2);  // SMDDR → RIAR nrD
+    add_syn_comp("SMDVL", "RIAL", 1, 1);  // SMDVL → RIAL nrV
+    add_syn_comp("SMDVR", "RIAR", 1, 1);  // SMDVR → RIAR nrV
     // Nose touch / nociception → reverse
     // ASH→AVA: restored to 3 sections (was 4→2→3)
     // Original reduction: ASH sampled attractant, had tonic drive pushing AVA near threshold

@@ -41,6 +41,7 @@ add_library(celegans_neuron STATIC
     src/neuron/ion_channel.cpp
     src/neuron/calcium_dynamics.cpp
     src/neuron/single_compartment.cpp
+    src/neuron/multi_compartment.cpp
     src/neuron/neuron_factory.cpp
 )
 target_link_libraries(celegans_neuron PUBLIC celegans_core)

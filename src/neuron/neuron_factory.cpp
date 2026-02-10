@@ -122,7 +122,68 @@ static bool name_starts_with(const std::string& name, const char* prefix) {
     return name.compare(0, std::strlen(prefix), prefix) == 0;
 }
 
-std::unique_ptr<SingleCompartmentNeuron> NeuronFactory::create(const NeuronInfo& info) {
+// ================================================================
+// Step 28: RIA multi-compartment neuron
+//
+// Hendricks 2012 Nature: RIA axon is divided into nrV (ventral) and
+// nrD (dorsal) domains with independent compartmentalized Ca²⁺.
+//   - Soma: receives global glutamate input from sensory pathways
+//   - nrV: receives ACh from ventral head motor neurons (SMDVL/SMDVR)
+//          via GAR-3 muscarinic receptor → IP3 → intracellular Ca²⁺
+//   - nrD: receives ACh from dorsal head motor neurons (SMDDL/SMDDR)
+//          via GAR-3 muscarinic receptor → IP3 → intracellular Ca²⁺
+//
+// Axial coupling: soma ↔ nrV, soma ↔ nrD (moderate, allows local)
+// nrV ↔ nrD: weak coupling (independent domains, Hendricks 2012)
+//
+// Compartment indices: 0=soma, 1=nrV, 2=nrD
+// ================================================================
+std::unique_ptr<MultiCompartmentNeuron> NeuronFactory::create_ria_multi(const NeuronInfo& info) {
+    auto neuron = std::make_unique<MultiCompartmentNeuron>();
+    neuron->info() = info;
+
+    // Compartment 0: Soma — receives sensory glutamate (AWC/ASE→AIA→AIY→RIA)
+    int soma = neuron->add_compartment("soma", 1.5, 0.3, -55.0);
+    neuron->add_channel_to_compartment(soma, std::make_unique<EGL19Channel>(0.8));
+    neuron->add_channel_to_compartment(soma, std::make_unique<SHL1Channel>(1.2));
+    neuron->add_channel_to_compartment(soma, std::make_unique<KQT3Channel>(0.3));
+    neuron->add_channel_to_compartment(soma, std::make_unique<NCAChannel>(0.15));
+
+    // Compartment 1: nrV (ventral axon domain)
+    // Receives ACh from SMDVL → GAR-3 → IP3 → local Ca²⁺ release
+    // Sensitive calcium dynamics: IP3-mediated stores are fast and local
+    int nrV = neuron->add_compartment("nrV", 0.8, 0.2, -55.0);
+    neuron->add_channel_to_compartment(nrV, std::make_unique<EGL19Channel>(1.2));  // L-type Ca for local signal
+    neuron->add_channel_to_compartment(nrV, std::make_unique<SHL1Channel>(0.8));
+    neuron->set_compartment_calcium_params(nrV, 0.05, 80.0, 0.15);  // fast, sensitive Ca²⁺
+    neuron->set_compartment_noise(nrV, 1.5);  // less noise in axon
+    neuron->compartment_mut(nrV).store_release_rate = 0.0003;  // GAR-3 → IP3 → Ca²⁺ store
+
+    // Compartment 2: nrD (dorsal axon domain)
+    // Same as nrV but receives ACh from SMDDL
+    int nrD = neuron->add_compartment("nrD", 0.8, 0.2, -55.0);
+    neuron->add_channel_to_compartment(nrD, std::make_unique<EGL19Channel>(1.2));
+    neuron->add_channel_to_compartment(nrD, std::make_unique<SHL1Channel>(0.8));
+    neuron->set_compartment_calcium_params(nrD, 0.05, 80.0, 0.15);
+    neuron->set_compartment_noise(nrD, 1.5);
+    neuron->compartment_mut(nrD).store_release_rate = 0.0003;  // GAR-3 → IP3 → Ca²⁺ store
+
+    // Axial coupling: soma ↔ axon domains
+    // Moderate coupling allows global signals to spread but preserves local activity
+    // REF: Hendricks 2012 — "simultaneously present and additive"
+    neuron->add_axial_coupling(soma, nrV, 0.15);  // soma ↔ nrV: weak (isolate feedback)
+    neuron->add_axial_coupling(soma, nrD, 0.15);  // soma ↔ nrD: weak
+    neuron->add_axial_coupling(nrV, nrD, 0.01);   // nrV ↔ nrD: very weak (independent)
+
+    return neuron;
+}
+
+std::unique_ptr<Neuron> NeuronFactory::create(const NeuronInfo& info) {
+    // Step 28: RIA → multi-compartment (Hendricks 2012)
+    if (name_starts_with(info.name, "RIA")) {
+        return create_ria_multi(info);
+    }
+
     if (info.type == NeuronType::MOTOR) {
         // B-class (DB/VB) and A-class (DA/VA) motor neurons get MEC channels
         if (name_starts_with(info.name, "DB") || name_starts_with(info.name, "VB") ||

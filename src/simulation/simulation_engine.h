@@ -161,9 +161,12 @@ private:
     double omega_heading_before_ = 0.0;    // heading when omega starts (debug)
     double omega_dist_before_ = 0.0;       // dist to food when omega starts (debug)
 
-    // Klinotaxis: RIA gate-and-switch
-    double ria_curv_filtered_ = 0.0;   // filtered cross-correlation output
-    double sensory_diff_mean_ = 0.0;   // DC baseline of sensory ON-OFF diff (2s tau)
+    // Klinotaxis: Step 28 — RIA multi-compartment Ca²⁺ gate-and-switch
+    // REF: Hendricks 2012 Nature — nrV/nrD compartmentalized calcium
+    int rial_id_ = -1;                  // RIAL neuron ID
+    int riar_id_ = -1;                  // RIAR neuron ID
+    double ria_ca_diff_filtered_ = 0.0; // filtered (nrV-nrD) Ca2+ AC component
+    double ria_ca_diff_mean_ = 0.0;     // DC baseline of Ca2+ diff (2s tau, for removal)
 
     // Thermosensory transduction (Step 23 — Mori 1995)
     struct ThermoMapping {

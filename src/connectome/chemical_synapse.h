@@ -10,9 +10,10 @@ public:
     ChemicalSynapse() = default;
 
     ChemicalSynapse(int pre_id, int post_id, double weight,
-                    NeurotransmitterType nt, double E_syn)
+                    NeurotransmitterType nt, double E_syn,
+                    int post_compartment = 0)
         : pre_id_(pre_id), post_id_(post_id), weight_(weight),
-          nt_(nt), E_syn_(E_syn) {}
+          nt_(nt), E_syn_(E_syn), post_compartment_(post_compartment) {}
 
     // Compute synaptic current with short-term plasticity (Step 21)
     // Updates vesicle pool and release probability state, then computes current
@@ -52,6 +53,7 @@ public:
 
     int pre_id() const { return pre_id_; }
     int post_id() const { return post_id_; }
+    int post_compartment() const { return post_compartment_; }
     double weight() const { return weight_; }
     void set_weight(double w) { weight_ = w; }
     NeurotransmitterType neurotransmitter() const { return nt_; }
@@ -103,6 +105,7 @@ public:
 private:
     int pre_id_ = -1;
     int post_id_ = -1;
+    int post_compartment_ = 0;     // Step 28: target compartment (0=soma)
     double weight_ = 1.0;          // weight scaling (proportional to EM section count)
     NeurotransmitterType nt_ = NeurotransmitterType::UNKNOWN;
     double E_syn_ = -10.0;         // synaptic reversal potential (mV)

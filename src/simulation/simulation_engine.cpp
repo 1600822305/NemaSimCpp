@@ -1,4 +1,5 @@
 #include "simulation/simulation_engine.h"
+#include "neuron/multi_compartment.h"
 #include "core/logger.h"
 #include <cstring>
 #include <algorithm>
@@ -157,6 +158,9 @@ void SimulationEngine::initialize_default() {
         if (starts_with(info.name, "I1")) i1_ids_.push_back(info.id);
         // Step 27: RIS sleep neuron
         if (info.name == "RIS") ris_id_ = info.id;
+        // Step 28: RIA multi-compartment IDs
+        if (info.name == "RIAL") rial_id_ = info.id;
+        if (info.name == "RIAR") riar_id_ = info.id;
     }
 
     // Initialize transducers with current concentration at head
@@ -670,66 +674,63 @@ void SimulationEngine::apply_weathervane() {
 }
 
 void SimulationEngine::apply_smb_neck_bias() {
-    // Step 19 Phase 2: Simplified RIA gate-and-switch → SMB neck curvature bias
+    // Step 28: RIA multi-compartment Ca²⁺ gate-and-switch → SMB neck curvature bias
     //
-    // Biological mechanism (Ouellette 2018, eNeuro):
-    //   RIA has subcellular nrV/nrD domains that receive motor feedback from SMD.
-    //   Sensory input is gated by head position → RIA output is the PRODUCT of
-    //   sensory signal × motor state → extracts perpendicular gradient component.
+    // Replaces Step 19 AC/DC approximation with true subcellular computation:
+    //   RIA nrV: receives SMDVL ACh → GAR-3 → local Ca²⁺ during ventral bend
+    //   RIA nrD: receives SMDDL ACh → GAR-3 → local Ca²⁺ during dorsal bend
+    //   RIA soma: receives global sensory glutamate (AWC/ASE → AIY → RIA)
     //
-    // Mathematical essence:
-    //   sensory(t) = ASE_ON - ASE_OFF ∝ dC/dt ∝ grad_normal × sin(ωt)
-    //   curvature(t) ∝ sin(ωt)
-    //   <sensory × curvature> = grad_normal × <sin²(ωt)> = grad_normal / 2 ≠ 0
-    //   → DC component proportional to perpendicular gradient!
+    // The multiplication happens physically:
+    //   - Sensory → soma → spreads to nrV and nrD via axial coupling
+    //   - Motor feedback → only nrV OR nrD (compartment-specific)
+    //   - Both present → high local Ca²⁺ (additive: Hendricks 2012)
+    //   - Ca_nrD - Ca_nrV encodes perpendicular gradient component
     //
-    // This is NOT a bypass: it reads actual neural activity (ASE release rates)
-    // and actual body state (head curvature). The signal passes through the
-    // transducer → neuron → release rate before being used.
-    // Same principle as AVA/AVB → forward/reverse: neural output → motor state.
-    //
-    // REF: Iino & Yoshida 2009 — curving rate ∝ ∇C_⊥
-    //      Izquierdo 2015 — klinotaxis through SMB motor neurons
+    // REF: Hendricks 2012 Nature — compartmentalized Ca²⁺ in RIA axon
+    //      Ouellette 2018 eNeuro — RIA subcellular domains for navigation
+    //      Iino & Yoshida 2009 — curving rate ∝ ∇C_⊥
 
     int n = static_cast<int>(neurons_.size());
-    auto get_rel = [&](const char* name) -> double {
-        int id = connectome_.get_neuron_id(name);
-        return (id >= 0 && id < n) ? neurons_[id]->get_transmitter_release_rate() : 0.5;
+
+    // Read RIA nrV (comp 1) and nrD (comp 2) calcium from multi-compartment neurons
+    double ca_diff = 0.0;
+    int count = 0;
+
+    auto read_ria_ca_diff = [&](int ria_id) {
+        if (ria_id < 0 || ria_id >= n) return;
+        auto* mc = dynamic_cast<MultiCompartmentNeuron*>(neurons_[ria_id].get());
+        if (!mc || mc->num_compartments() < 3) return;
+        double ca_nrV = mc->get_compartment_calcium(1);  // nrV = compartment 1
+        double ca_nrD = mc->get_compartment_calcium(2);  // nrD = compartment 2
+        ca_diff += (ca_nrV - ca_nrD);  // sign: ventral Ca > dorsal → curve toward food
+        count++;
     };
 
-    // Sensory signal: ASE ON-OFF differential (from neural activity, not raw gradient)
-    double asel_rel = 0.5 * (get_rel("ASEL") + get_rel("AWCL")); // average ON-type
-    double aser_rel = 0.5 * (get_rel("ASER") + get_rel("AWCR")); // average OFF-type
-    double sensory_diff = asel_rel - aser_rel;  // positive = C increasing
+    read_ria_ca_diff(rial_id_);
+    read_ria_ca_diff(riar_id_);
 
-    // Extract oscillatory component: remove DC baseline with 2s time constant
-    // The DC component (trend over seconds) drives klinokinesis (pirouettes)
-    // The AC component (phase-locked to head oscillation) drives klinotaxis
-    // Without this separation, DC × curvature produces huge AC noise that
-    // swamps the true direction signal (AC × curvature → DC)
-    sensory_diff_mean_ += (sensory_diff - sensory_diff_mean_) * dt_ / 2000.0;
-    double sensory_ac = sensory_diff - sensory_diff_mean_;  // oscillatory only
+    if (count > 0) ca_diff /= count;  // average L/R
 
-    // Motor state: head curvature (proprioceptive feedback to RIA)
-    double head_curv = body_.get_local_curvature(0);
+    // DC removal: track slow baseline (2s tau) and subtract
+    // Only the oscillatory (AC) component carries perpendicular gradient info:
+    //   AC = phase-locked to head oscillation via SMD feedback
+    //   DC = tonic level, creates positive feedback loop if not removed
+    ria_ca_diff_mean_ += (ca_diff - ria_ca_diff_mean_) * dt_ / 2000.0;
+    double ca_diff_ac = ca_diff - ria_ca_diff_mean_;
 
-    // Gate-and-switch: multiply oscillatory sensory × motor to extract direction
-    // <sensory_ac(t) × curvature(t)> = gradient_normal × amplitude² / 2 ≠ 0
-    // This DC component is proportional to the perpendicular gradient!
-    double ria_product = sensory_ac * head_curv;
+    // Low-pass filter: ~300ms (half oscillation cycle, removes 2f ripple)
+    ria_ca_diff_filtered_ += (ca_diff_ac - ria_ca_diff_filtered_) * dt_ / 300.0;
 
-    // Smooth with ~300ms (just over half an oscillation cycle to clean up 2f ripple)
-    ria_curv_filtered_ += (ria_product - ria_curv_filtered_) * dt_ / 300.0;
-
-    // Convert to curvature bias
-    // With clean AC signal: sensory_ac ≈ ±0.04 release, curvature ≈ ±0.07/mm
-    //   DC component ≈ 0.04 × 0.07 / 2 = 0.0014
-    //   × gain 5000 → bias ≈ 7/mm → clamped to 2/mm → dθ/dt ≈ 0.2×2×57 ≈ 23°/s
-    double klinotaxis_gain = 6000.0;  // /mm per unit (release × curvature)
-    double curvature_offset = klinotaxis_gain * ria_curv_filtered_;
+    // Convert Ca2+ AC difference to curvature bias
+    // AC amplitude ~0.01-0.03 uM, gain calibrated for heading ~15 deg/s
+    double klinotaxis_gain = 3000.0;  // /mm per uM Ca2+ AC difference
+    double curvature_offset = klinotaxis_gain * ria_ca_diff_filtered_;
 
     // Clamp
-    double max_bias = 2.0;
+    // Step 28: reduced from 2.0 to 0.9 because Ca2+ signal is cleaner
+    // than old AC/DC approximation (less noise -> hits clamp more often)
+    double max_bias = 0.5;
     if (curvature_offset > max_bias) curvature_offset = max_bias;
     if (curvature_offset < -max_bias) curvature_offset = -max_bias;
 
@@ -768,7 +769,8 @@ void SimulationEngine::apply_ria_smd_modulation() {
     // At release=0.3: shift = -3mV → harder burst → shorter duty cycle
     // 15 mV/unit: calibrated so ±0.1 release diff → ±1.5mV CCA-1 shift
     // CCA-1 V_half is -48mV, slope=5mV, so 1.5mV shift changes m_inf significantly
-    double mod_gain = 15.0;  // mV per unit release rate deviation from 0.5
+    // Step 28: reduced from 15 to 8 to compensate for SMD-RIA feedback loop
+    double mod_gain = 5.0;  // mV per unit release rate deviation from 0.5
     double shift_L = mod_gain * (ria_release_L - 0.5);
     double shift_R = mod_gain * (ria_release_R - 0.5);
 

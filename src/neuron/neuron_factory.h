@@ -1,6 +1,7 @@
 #pragma once
 
 #include "neuron/single_compartment.h"
+#include "neuron/multi_compartment.h"
 #include "neuron/ion_channel.h"
 #include "core/types.h"
 #include <memory>
@@ -26,8 +27,13 @@ public:
     static std::unique_ptr<SingleCompartmentNeuron> create_motor_b_class(const NeuronInfo& info);
     static std::unique_ptr<SingleCompartmentNeuron> create_motor_head(const NeuronInfo& info);
 
+    // Step 28: Multi-compartment neuron (RIA)
+    // REF: Hendricks 2012 Nature — compartmentalized Ca²⁺ in RIA axon
+    static std::unique_ptr<MultiCompartmentNeuron> create_ria_multi(const NeuronInfo& info);
+
     // Create based on NeuronType + name-based specialization
-    static std::unique_ptr<SingleCompartmentNeuron> create(const NeuronInfo& info);
+    // Returns Neuron* (polymorphic: can be Single or Multi compartment)
+    static std::unique_ptr<Neuron> create(const NeuronInfo& info);
 };
 
 } // namespace celegans

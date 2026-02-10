@@ -88,12 +88,15 @@ struct SynapseInfo {
     int post_neuron_id = -1;
     int num_sections = 1;     // EM section count (anatomical strength proxy)
     NeurotransmitterType neurotransmitter = NeurotransmitterType::UNKNOWN;
+    int post_compartment = 0; // Step 28: target compartment (0=soma, default)
 };
 
 struct GapJunctionInfo {
     int neuron_a_id = -1;
     int neuron_b_id = -1;
     int num_sections = 1;     // EM section count
+    int compartment_a = 0;    // Step 28: compartment on neuron A (0=soma)
+    int compartment_b = 0;    // Step 28: compartment on neuron B (0=soma)
 };
 
 using NeuronId = int;
