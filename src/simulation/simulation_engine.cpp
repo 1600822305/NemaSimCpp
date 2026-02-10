@@ -1239,12 +1239,20 @@ void SimulationEngine::update_food_memory() {
     // Update food_memory: fast rise on food, slow decay off food
     // Uses same on_food detection as DA (CEP mechanosensory threshold)
     double on_food = food_conc / (food_conc + 0.1);  // half-max at C=0.1
+    // Step 26c: Sickness accelerates food_memory decay
+    // REF: Hills 2004 — DA→DARPP-32→GLR-1; sickness suppresses DA release
+    // → DARPP-32 dephosphorylation → food_memory clears fast → no local search near toxin
+    double effective_decay_tau = food_memory_tau_decay_;
+    if (sickness_ > 0.3) {
+        effective_decay_tau = 5000.0;  // 5s fast clearance (vs normal 90s)
+    }
+
     if (on_food > food_memory_) {
         // Rising: fast phosphorylation (on food)
         food_memory_ += (on_food - food_memory_) * dt_ / food_memory_tau_rise_;
     } else {
-        // Decaying: slow dephosphorylation (off food)
-        food_memory_ -= food_memory_ * dt_ / food_memory_tau_decay_;
+        // Decaying: slow dephosphorylation (off food), fast if sick
+        food_memory_ -= food_memory_ * dt_ / effective_decay_tau;
     }
     if (food_memory_ < 0.0) food_memory_ = 0.0;
     if (food_memory_ > 1.0) food_memory_ = 1.0;

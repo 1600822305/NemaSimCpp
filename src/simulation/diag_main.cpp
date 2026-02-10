@@ -364,7 +364,7 @@ int main() {
 
     // Time series: 5-HT, DA, OA, satiety, distance every 20s
     std::cout << "   Time series (every 20s):" << std::endl;
-    std::cout << "     t(s)  dist   x_pos  y_pos  r_dist ASH_I  5-HT   sat   sick  spd" << std::endl;
+    std::cout << "     t(s)  dist   x_pos  y_pos  r_dist ASH_I  5-HT   sat   sick  fmem  spd" << std::endl;
     int samples_per_20s = (int)(20000.0 / 100.0); // 200 samples per 20s
     for (int t = 0; t < 15; ++t) {
         int idx = (t + 1) * samples_per_20s - 1;
@@ -381,6 +381,7 @@ int main() {
                       << std::setprecision(3) << std::setw(5) << sht_vs[idx] << "  "
                       << std::setw(5) << satiety_vs[idx] << "  "
                       << std::setprecision(3) << std::setw(5) << sick_vs[idx] << "  "
+                      << std::setprecision(3) << std::setw(5) << fmem_vs[idx] << "  "
                       << std::setprecision(3) << spd_scale_vs[idx]
                       << "  " << mode << std::endl;
         }
