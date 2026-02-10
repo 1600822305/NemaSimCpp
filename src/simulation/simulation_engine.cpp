@@ -252,6 +252,14 @@ void SimulationEngine::step() {
         connectome_.compute_synaptic_currents(neurons_, dt_);
     }
 
+    // Step 15/19: Weathervane — gradient ⊥ heading → SMD bias (Iino & Yoshida 2009)
+    // MUST be after compute_synaptic_currents (which resets I_syn)
+    apply_weathervane();
+
+    // Step 19: RIA → SMD neuromodulation via CCA-1 threshold shift
+    // Modulates oscillator duty cycle for klinotaxis direction signal
+    apply_ria_smd_modulation();
+
     // Step 19 Phase 2: SMB neck curvature bias (klinotaxis effector)
     apply_smb_neck_bias();
 

@@ -283,18 +283,30 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 - **架构验证**: 新感觉神经元接入共享节点 AIY, 无需修改下游回路
 - **REF**: Mori 1995, Clark 2006, Luo 2014 PNAS, eLife 2021 Hawk
 
+### Step 24: 咽部泵食系统 (Pharyngeal Pumping) ✅ (2026-02-10)
+> 详细文档: [steps/step24_pharyngeal_pump.md](steps/step24_pharyngeal_pump.md)
+
+替换占位符 satiety (`dist<3mm→sat+=dt/τ`) 为真实咽部泵食机制:
+- **9 个咽部神经元**: MC L/R (ACh起搏器), M3 L/R (Glu松弛计时), M4 (峡部蠕动), I1 L/R (桥梁), RIP L/R (咽外桥梁)
+- **PharyngealPump**: 4相状态机 (REST→E→P→R), MC调制不应期 (800ms→200ms = 1-4 Hz)
+- **5-HT→MC SER-7**: +15pA 兴奋 (Song & Avery 2012), OA→MC: -10pA 抑制
+- **真实进食**: pump_event × food_conc × 0.006 → satiety (泵频~2-3Hz, ~800次/300s)
+- **5-HT正反馈环**: food→NSM→5-HT→MC→↑pump→↑intake→↑sat→NSM↓
+- **结果**: CI≈0.4-0.5, satiety振荡0.4-0.55, FOOD↔TEMP切换正常
+- **REF**: Avery (WormBook 2012), Raizen & Avery 1994, Song & Avery 2012 eLife
+
 ---
 
 ## 当前系统状态
 
 ```
 架构: 8 层 (环境/躯体/感知/神经元/连接组/神经调质/运动/行为)
-神经元: 74 个 MVP 子集 (302 全集待加载)
+神经元: 83 个 MVP 子集 (302 全集待加载)
   感觉: 20 (ASE/AWC/AWA/ASH/ALM/PLM/NSM/CEP/AFD, L/R)
-  中间: 24 (AIA/AIB/AIY/AIZ/RIA/RIB/RIM/RIC/AVA/AVB/AVD/AVE, L/R)
-  运动: 30 (SMD/RMD/SMB 4×2+4 + DA/DB/VA/VB/DD/VD 各3)
-突触: ~114 化学 + 14 间隙连接 (全部带 Tsodyks-Markram STP)
-神经调质: 3 种 (5-HT, DA, OA) — volume transmission + 饱食度内部状态
+  中间: 28 (AIA/AIB/AIY/AIZ/RIA/RIB/RIM/RIC/AVA/AVB/AVD/AVE/I1/RIP, L/R)
+  运动: 35 (SMD/RMD/SMB 4×2+4 + DA/DB/VA/VB/DD/VD 各3 + MC/M3 L/R + M4)
+突触: ~130 化学 + ~25 间隙连接 (全部带 Tsodyks-Markram STP)
+神经调质: 3 种 (5-HT, DA, OA) — volume transmission + 饱食度(泵驱动)
 离子通道: 8/14 种 (EGL-19/UNC-2/CCA-1/SHL-1/KQT-3/SLO-1/NCA/MEC)
 神经元模型: 单隔室 HH 分级电位 (L2) + 钙动力学
 身体: 2D 弹性杆 48 段, 22 个运动神经元-肌肉映射
@@ -303,7 +315,7 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 计算: CPU (默认) + OpenCL GPU 后端 (>500突触自动启用, AMD RX 6950 XT 就绪)
 构建: CMake + MSVC 19.44 + C++20 + vcpkg (OpenCL/ImGui/ImPlot/GLFW)
 可视化: Dear ImGui + ImPlot + GLFW, 3列布局, 实时调参+信号链诊断
-状态: 趋化+触觉回避+RIM稳定+神经调质+ARS+觅食循环+STP+盐学习, 纯涌现 (CI=0.90, 72神经元)
+状态: 趋化+触觉回避+RIM稳定+神经调质+ARS+觅食循环+STP+盐学习+温度趋性+咽部泵食, 纯涌现 (CI≈0.4-0.5, 83神经元)
 
 运动驱动 (Step 13 — 生物学机制):
   感觉基线: 12 感觉神经元 × 15pA 自发活动 (Bargmann 2006)
@@ -318,7 +330,7 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
   V_SMDDL: -65↔-30mV 交替 burst, V_SMDVL: 反相
   速度: 0.05-0.24 mm/s (真实 ~0.2 mm/s, 在生物学范围内)
 
-核心回路 (默认连接组, 72 突触):
+核心回路 (默认连接组, ~130 突触):
   趋化性: ASE/AWC/AWA → AIA/AIB/AIY/AIZ → RIA → SMD (头部转向)
   关键: AIA ⊣ AIB (抑制性, Chalasani 2007), AIY → AVB (Gray 2005)
   触觉: ALM → AVD (前触) / PLM → AVA (后触)
@@ -326,6 +338,9 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
   后退: AWC→AIB→AVA → DA/VA → 背/腹侧体壁肌肉
   交叉抑制: DD ↔ VD (背腹交替), SMD dorsal↔ventral (头部半中心)
   左右耦合: AVA L-R / AVB L-R / AVD L-R (间隙连接)
+  咽部CPG: I1←RIP(gj) → MC(ACh起搏) ↔ M3(Glu松弛) → 咽部肌肉AP
+           MC→M4(峡部蠕动), 5-HT→MC(SER-7↑), OA→MC(↓)
+           pump_rate×food→satiety (真实进食, 替换占位符)
 
 感觉转导 + 趋化 (Step 14-15):
   化学感觉: Weber-Fechner 双滤波器, ON/OFF 分类, 8 个化学感觉神经元
@@ -342,10 +357,11 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
   src/body/         — 4 文件 (body_model/muscle_system .h/.cpp)
   src/motor/        — 2 文件 (motor_controller .h/.cpp)
   src/environment/  — 5 文件 (environment/chemical_field/sensory_transducer .h/.cpp)
+  src/pharynx/      — 1 文件 (pharyngeal_pump.h)
   src/simulation/   — 4 文件 (simulation_engine .h/.cpp + main.cpp + diag_main.cpp)
   src/visualization/ — 3 文件 (vis_app .h/.cpp + vis_main.cpp)
   docs/             — 2+ 文件 (blueprint.md + progress.md + steps/)
-  总计: 42 文件 (CMakeLists.txt + 40 源文件 + 文档)
+  总计: 43 文件 (CMakeLists.txt + 41 源文件 + 文档)
 
 参考项目对标:
   OpenWorm: Sibernetic (SPH 物理) + c302 (NeuroML 神经元) + Geppetto (可视化)
