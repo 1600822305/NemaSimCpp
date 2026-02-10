@@ -399,9 +399,10 @@ void ConnectomeLoader::generate_default_connectome(
 
     // Step 23: Thermotaxis circuit — AFD→AIY (Mori & Ohshima 1995)
     // AFD is the primary thermosensory neuron, AIY is the shared integration node
-    // AFD→AIY: excitatory, ~3 EM sections (Cook 2019)
+    // AFD→AIY: excitatory, 5 sections (strengthened to compete with chemotaxis)
+    // Cook 2019: ~3 EM sections; boosted for functional thermotaxis in MVP
     // This shares the AIY→RIA→SMD downstream pathway with chemotaxis (ASE→AIA→AIY)
-    add_syn("AFDL", "AIYL", 3); add_syn("AFDR", "AIYR", 3);
+    add_syn("AFDL", "AIYL", 5); add_syn("AFDR", "AIYR", 5);
     // AFD→AIZ: weaker connection, contributes to cryophilic behavior
     // REF: Mori 1995 — AIZ ablation → thermophilic (loses cold-seeking)
     add_syn("AFDL", "AIZL", 2); add_syn("AFDR", "AIZR", 2);

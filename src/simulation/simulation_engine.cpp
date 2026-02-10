@@ -83,8 +83,10 @@ void SimulationEngine::initialize_default() {
             chemo_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::TONIC, 20.0, 1.0, 500.0)});
         } else if (starts_with(info.name, "AFD")) {
             // AFD: thermosensory neuron — handled by thermo_mappings, not chemo
-            // ThermoTransducer: gain=60pA/°C, baseline=5pA, Tc_tau=120s, fast_tau=200ms
-            thermo_mappings_.push_back({info.id, ThermoTransducer(60.0, 5.0, 120000.0, 200.0)});
+            // ThermoTransducer: gain=150, baseline=5pA, Tc_tau=3600s(1hr), fast_tau=200ms
+            // Low baseline (5pA): avoid tonic over-activation of AIY that disrupts chemotaxis
+            // gain=150: strong modulation when approaching/leaving Tc (ratio AFD/ASE~0.78)
+            thermo_mappings_.push_back({info.id, ThermoTransducer(150.0, 5.0, 3600000.0, 200.0)});
         } else if (!starts_with(info.name, "ALM") && !starts_with(info.name, "PLM")) {
             // Non-touch sensory neurons: low baseline
             other_sensory_ids_.push_back(info.id);
@@ -124,10 +126,12 @@ void SimulationEngine::initialize_default() {
     }
 
     // 10b. Setup temperature field and thermosensory transducers (Step 23)
-    // Default: linear gradient from left (cold) to right (warm), 0.5°C/mm
-    // Cultivation temperature = arena center temperature (20°C)
-    // This creates a 25mm × 0.5 = 12.5°C range across arena (7.5°C to 32.5°C)
-    environment_.set_temperature_gradient(cultivation_temp_, {1.0, 0.0}, 0.5);
+    // Gradient: warm on LEFT, cold on RIGHT → opposes food direction (right/up)
+    // T(x) = 20 + (-0.5)*(x-25) → x=0: 32.5°C, x=25: 20°C, x=50: 7.5°C
+    // Tc = 22.5°C → target temperature is at x=20 (LEFT of start)
+    // This creates a conflict: food pulls RIGHT, Tc pulls LEFT
+    environment_.set_temperature_gradient(20.0, {-1.0, 0.0}, 0.5);
+    cultivation_temp_ = 22.5;  // worm "raised" at 22.5°C → wants to go left
     double init_temp = environment_.sample_temperature(body_.get_head_position());
     for (auto& tm : thermo_mappings_) {
         tm.transducer.reset(init_temp);

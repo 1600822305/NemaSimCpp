@@ -333,7 +333,7 @@ int main() {
         }
     }
 
-    // Step 23: Thermotaxis diagnostic
+    // Step 23: Thermotaxis diagnostic + gradient conflict analysis
     {
         std::cout << "\n14. THERMOTAXIS (Step 23):" << std::endl;
         Vector2d hp = sim.body().get_head_position();
@@ -344,23 +344,27 @@ int main() {
         int afdr_id = conn.get_neuron_id("AFDR");
         double afdl_v = (afdl_id >= 0) ? sim.neurons()[afdl_id]->get_membrane_potential() : 0;
         double afdr_v = (afdr_id >= 0) ? sim.neurons()[afdr_id]->get_membrane_potential() : 0;
-        std::cout << "   Temperature at head: " << std::setprecision(1) << std::fixed << temp_now << " C" << std::endl;
+        double afd_S = 1.0 / (1.0 + std::exp(-(afdl_v - (-35.0)) / 5.0));
+        std::cout << "   Temperature at head: " << std::setprecision(1) << std::fixed << temp_now << " C"
+                  << "  Tc(cultivation)=" << 22.5 << " C"
+                  << "  dT=" << std::setprecision(2) << (temp_now - 22.5) << std::endl;
         std::cout << "   Temp gradient: " << std::setprecision(3) << tgrad_mag << " C/mm"
-                  << " (dir: " << std::setprecision(2) << tgrad.x << ", " << tgrad.y << ")" << std::endl;
-        std::cout << "   AFD: L=" << std::setprecision(2) << afdl_v << " mV  R=" << afdr_v << " mV" << std::endl;
-        // Show AFD→AIY synapse state
-        for (const auto& syn : sim.connectome().synapses()) {
-            int pre = syn.pre_id(), post = syn.post_id();
-            if (pre < 0 || post < 0) continue;
-            const auto& pn = sim.connectome().neuron_infos()[pre].name;
-            const auto& qn = sim.connectome().neuron_infos()[post].name;
-            if (pn == "AFDL" && qn == "AIYL") {
-                std::cout << "   AFDL->AIYL: n=" << std::setprecision(3) << syn.vesicle_pool()
-                          << " S=" << std::setprecision(3)
-                          << (1.0 / (1.0 + std::exp(-(afdl_v - (-35.0)) / 5.0))) << std::endl;
-            }
-        }
-        std::cout << std::defaultfloat;
+                  << " (dir: " << std::setprecision(2) << tgrad.x << ", " << tgrad.y << ")"
+                  << "  Tc target: x~" << std::setprecision(0) << (25.0 + (22.5 - 20.0) / 0.5) << "mm (LEFT)" << std::endl;
+        std::cout << "   AFD: L=" << std::setprecision(2) << afdl_v << " mV  R=" << afdr_v << " mV"
+                  << "  S(release)=" << std::setprecision(3) << afd_S << std::defaultfloat << std::endl;
+        // Compare AFD vs ASE signal strength
+        int asel_id2 = conn.get_neuron_id("ASEL");
+        double asel_v2 = (asel_id2 >= 0) ? sim.neurons()[asel_id2]->get_membrane_potential() : 0;
+        double ase_S = 1.0 / (1.0 + std::exp(-(asel_v2 - (-35.0)) / 5.0));
+        std::cout << "   Signal strength: AFD_S=" << std::setprecision(3) << afd_S
+                  << " vs ASE_S=" << ase_S
+                  << " (ratio=" << std::setprecision(2) << (ase_S > 0.01 ? afd_S / ase_S : 0) << ")" << std::endl;
+        // Conflict analysis: did worm go toward food (right) or Tc (left)?
+        double dx = hp.x - 25.0;  // positive = went RIGHT (food), negative = went LEFT (Tc)
+        std::cout << "   X displacement: " << std::setprecision(1) << std::fixed << dx << " mm"
+                  << (dx > 1.0 ? " → FOOD wins" : (dx < -1.0 ? " → TEMP wins" : " → undecided"))
+                  << "  (food@right, Tc@left)" << std::defaultfloat << std::endl;
     }
 
     // Step 21: Short-term plasticity diagnostic

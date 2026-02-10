@@ -110,53 +110,60 @@ private:
 // Thermosensory transduction: AFD temperature sensing with cultivation memory
 // REF: Mori & Ohshima 1995 — AFD senses temperature relative to cultivation temperature (Tc)
 //      Clark 2006 — AFD responds to warming above Tc, cooling below Tc
-//      Luo 2014 PNAS — bidirectional thermotaxis via AFD
+//      Luo 2014 PNAS — bidirectional thermotaxis: negative=klinokinesis, positive=turning bias
 //      eLife 2021 Hawk — starvation disrupts thermotaxis via AWC-AIA (not AFD)
 //
-// Key biology:
-//   - AFD fires when T > Tc (warming response threshold)
-//   - Tc slowly adapts to ambient temperature (tau ~minutes)
-//   - Fed worms → positive thermotaxis toward Tc (via AIY activation)
-//   - Starved worms → thermotaxis disrupted (AWC→AIA pathway, already in model)
-//   - AFD response is INDEPENDENT of feeding state (eLife 2021)
+// Key mechanism (analogous to chemotaxis klinokinesis):
+//   AFD tracks deviation |T - Tc| with fast/slow dual filters (Weber-Fechner).
+//   OFF response to deviation:
+//     - Approaching Tc (deviation decreasing) → AFD fires → AIY active → forward runs
+//     - Moving away from Tc (deviation increasing) → AFD silent → more pirouettes
+//   This is the SAME klinokinesis mechanism as chemotaxis, just on temperature.
+//   Satiety modulation: AWC→AIA pathway (already in model, eLife 2021 Hawk).
 class ThermoTransducer {
 public:
-    ThermoTransducer(double gain = 60.0,          // pA per °C above Tc
-                     double baseline = 5.0,        // pA spontaneous activity
-                     double tc_adapt_tau = 120000.0, // ms (~2 min, cultivation memory)
-                     double fast_tau = 200.0)       // ms, fast temperature tracker
+    ThermoTransducer(double gain = 100.0,         // pA per unit signal
+                     double baseline = 5.0,        // pA spontaneous (low: avoid AIY over-activation)
+                     double tc_adapt_tau = 3600000.0, // ms (~1 hour, Mori 1995)
+                     double fast_tau = 200.0)       // ms, fast deviation tracker
         : gain_(gain), baseline_(baseline),
           tc_adapt_tau_(tc_adapt_tau), fast_tau_(fast_tau) {}
 
     // Update with current temperature, returns input current (pA)
-    // AFD responds when T rises above Tc (warming detection)
+    // Uses dual-filter OFF response on |T - Tc| deviation
     double update(double temperature, double dt) {
-        // Fast tracker: follows temperature with ~200ms lag
-        fast_ += (temperature - fast_) * dt / fast_tau_;
+        // Track raw temperature for Tc adaptation
+        raw_ += (temperature - raw_) * dt / fast_tau_;
 
-        // Cultivation temperature memory: very slow adaptation (minutes)
-        // Tc tracks ambient temperature over long timescales
+        // Cultivation temperature memory: very slow adaptation (hours)
         tc_ += (temperature - tc_) * dt / tc_adapt_tau_;
 
-        // Temperature deviation from Tc
-        double dT = fast_ - tc_;
+        // Compute deviation from Tc (always positive)
+        double deviation = std::abs(raw_ - tc_);
 
-        // AFD warming response: sigmoidal activation above Tc
-        // REF: Clark 2006 — AFD Ca²⁺ response threshold at Tc
-        // Positive dT → strong response, negative dT → weak/no response
-        double response = dT / (1.0 + std::abs(dT) * 2.0);
+        // Dual-filter Weber-Fechner on deviation (same as ChemoTransducer)
+        dev_fast_ += (deviation - dev_fast_) * dt / 500.0;   // 500ms fast tracker
+        dev_slow_ += (deviation - dev_slow_) * dt / 5000.0;  // 5s slow adaptation
 
-        // Total current = baseline + gain × response
-        double I_out = baseline_ + gain_ * response;
+        // OFF response: fires when deviation DECREASES (approaching Tc)
+        // dev_fast < dev_slow → signal > 0 → AFD active → AIY → forward runs
+        // dev_fast > dev_slow → signal < 0 → AFD quiet → more pirouettes
+        double signal = -(dev_fast_ - dev_slow_) / (dev_slow_ + 0.5);
+
+        // Saturating nonlinearity + baseline
+        double sat_signal = signal / (1.0 + std::abs(signal) * 2.0);
+        double I_out = baseline_ + gain_ * sat_signal;
         if (I_out < 0.0) I_out = 0.0;
-        if (I_out > 50.0) I_out = 50.0;
+        if (I_out > 80.0) I_out = 80.0;
 
         return I_out;
     }
 
     void reset(double initial_temperature) {
-        fast_ = initial_temperature;
+        raw_ = initial_temperature;
         tc_ = initial_temperature;
+        dev_fast_ = 0.0;
+        dev_slow_ = 0.0;
     }
 
     double cultivation_temp() const { return tc_; }
@@ -166,10 +173,12 @@ private:
     double gain_;
     double baseline_;
     double tc_adapt_tau_;   // cultivation temperature adaptation tau (ms)
-    double fast_tau_;        // fast temperature tracker tau (ms)
+    double fast_tau_;        // raw temperature tracker tau (ms)
 
-    double fast_ = 20.0;    // fast-tracking temperature filter
-    double tc_ = 20.0;      // cultivation temperature memory (Tc)
+    double raw_ = 20.0;      // fast-tracking temperature
+    double tc_ = 20.0;       // cultivation temperature memory (Tc)
+    double dev_fast_ = 0.0;  // fast-tracking |T - Tc| deviation
+    double dev_slow_ = 0.0;  // slow-adapting |T - Tc| deviation
 };
 
 } // namespace celegans
