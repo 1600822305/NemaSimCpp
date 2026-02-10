@@ -63,6 +63,8 @@ public:
 
     // Satiety (Step 20c → Step 24: pharyngeal pump-driven)
     double satiety() const { return satiety_; }
+    // Sickness (Step 26: learned pathogen avoidance)
+    double sickness() const { return sickness_; }
     // Food memory / ARS (Step 20d)
     double food_memory() const { return food_memory_; }
     // Pharyngeal pump (Step 24)
@@ -197,6 +199,16 @@ private:
     void setup_stp_params();            // per-circuit tau_recovery tuning
     // Salt chemotaxis learning (Step 21c)
     void update_salt_learning();        // called each step
+
+    // Step 26: Learned pathogen avoidance (Zhang 2005 Nature)
+    // Eating toxic food → sickness_ rises → ADF 5-HT ↑ → AWC synapse flip
+    double sickness_ = 0.0;             // [0,1] internal malaise state
+    double sickness_tau_rise_ = 30000.0; // ms, slow accumulation while eating toxin (~30s)
+    double sickness_tau_decay_ = 120000.0; // ms, very slow recovery (~2min)
+    std::vector<int> adf_ids_;           // ADF serotonin neuron IDs
+    std::vector<int> aiy_ids_;           // AIY interneuron IDs (approach pathway)
+    void update_sickness();              // accumulate sickness from toxic food intake
+    void update_pathogen_learning();     // AWC→AIY w_mod↓, AWC→AIB w_mod↑
 
     // Reversal & omega turn tracking
     bool is_reversing_ = false;

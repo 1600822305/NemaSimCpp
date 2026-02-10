@@ -96,10 +96,12 @@ void SimulationEngine::initialize_default() {
             // Low baseline (5pA): avoid tonic over-activation of AIY that disrupts chemotaxis
             // gain=150: strong modulation when approaching/leaving Tc (ratio AFD/ASE~0.78)
             thermo_mappings_.push_back({info.id, ThermoTransducer(150.0, 5.0, 3600000.0, 200.0)});
-        } else if (!starts_with(info.name, "ALM") && !starts_with(info.name, "PLM")) {
+        } else if (!starts_with(info.name, "ALM") && !starts_with(info.name, "PLM")
+                   && !starts_with(info.name, "ADF")) {
             // Non-touch sensory neurons: low baseline
             other_sensory_ids_.push_back(info.id);
             // ALM/PLM excluded: zero baseline, only activated by wall collision
+            // ADF excluded: driven by sickness_ state (Step 26)
         }
     }
 
@@ -111,9 +113,16 @@ void SimulationEngine::initialize_default() {
     }
 
     // Step 25: Collect AIB IDs for 5-HT→MOD-1 inhibition
+    // Step 26: Collect ADF and AIY IDs for pathogen learning
     for (auto& info : neuron_infos) {
         if (starts_with(info.name, "AIB")) {
             aib_ids_.push_back(info.id);
+        }
+        if (starts_with(info.name, "ADF")) {
+            adf_ids_.push_back(info.id);
+        }
+        if (starts_with(info.name, "AIY")) {
+            aiy_ids_.push_back(info.id);
         }
     }
 
@@ -299,6 +308,10 @@ void SimulationEngine::step() {
     // 5b4. Salt chemotaxis learning (Step 21c)
     update_salt_learning();
 
+    // 5b5. Step 26: Pathogen avoidance learning (Zhang 2005 Nature)
+    update_sickness();           // accumulate sickness from toxic food
+    update_pathogen_learning();  // AWC synapse plasticity flip
+
     // 5c. Neuromodulation update (Step 20, Layer 6)
     // Slow timescale: 5-HT/DA/OA concentrations rise/fall over seconds
     // Effects: tonic currents on target neurons, speed modulation
@@ -405,6 +418,16 @@ void SimulationEngine::apply_sensory_input() {
         // No satiety modulation: nociception is not suppressed by feeding state
         // (5-HT suppresses downstream AIB instead — Summers 2015)
         neurons_[nm.neuron_id]->set_external_current(I_noci);
+    }
+
+    // Step 26: ADF serotonin neurons — driven by sickness state
+    // REF: Zhang 2005 Nature — PA14 exposure → TPH-1 upregulation → ADF 5-HT↑
+    // ADF baseline=2pA (low), sickness drives strong depolarization → 5-HT release
+    for (int adf_id : adf_ids_) {
+        if (adf_id >= 0 && adf_id < n) {
+            double I_adf = 2.0 + 30.0 * sickness_;  // 2pA baseline, up to 32pA when sick
+            neurons_[adf_id]->set_external_current(I_adf);
+        }
     }
 
     // Touch/other sensory: low baseline (no active stimulus)
@@ -941,11 +964,16 @@ void SimulationEngine::setup_neuromodulation() {
         serotonin.tau_decay = 8000.0;   // 8s to clear (long-lasting dwelling)
         serotonin.release_threshold = 0.3;
 
-        // Source neurons: NSM (pharyngeal, food detection)
+        // Source neurons: NSM (pharyngeal, food detection) + ADF (pathogen learning)
         int nsml = connectome_.get_neuron_id("NSML");
         int nsmr = connectome_.get_neuron_id("NSMR");
         if (nsml >= 0) serotonin.source_neuron_ids.push_back(nsml);
         if (nsmr >= 0) serotonin.source_neuron_ids.push_back(nsmr);
+        // Step 26: ADF as 5-HT source (activated by sickness/pathogen exposure)
+        // REF: Zhang 2005 Nature — ADF TPH-1 upregulated during PA14 infection
+        for (int adf_id : adf_ids_) {
+            if (adf_id >= 0) serotonin.source_neuron_ids.push_back(adf_id);
+        }
 
         // Target: AIY via MOD-1 (inhibitory Cl- channel)
         // 5-HT → MOD-1 on AIY → hyperpolarize → reduce forward drive
@@ -1342,6 +1370,87 @@ void SimulationEngine::update_salt_learning() {
         // Negative learn_signal (hungry) → weaken active synapses
         double dw = lr * learn_signal * S_pre * S_post;
         syn.adjust_weight_mod(dw);
+    }
+}
+
+// ================================================================
+// Step 26: Learned Pathogen Avoidance (Zhang 2005 Nature)
+//
+// Mechanism: eating toxic food → sickness_ rises → ADF 5-HT ↑ →
+//   1) MOD-1 inhibits AIY (approach suppressed)
+//   2) AWC→AIY w_mod ↓ (weaken approach pathway)
+//   3) AWC→AIB w_mod ↑ (strengthen avoidance pathway)
+// Result: same food odor now drives avoidance instead of approach
+//
+// REF: Zhang, Lu & Bargmann 2005 Nature 438:179-184
+//      Ha et al. 2010 Neuron 68:1173-1186
+//      Frontiers Immunol 2024 — three-circuit model
+// ================================================================
+void SimulationEngine::update_sickness() {
+    // Sickness accumulates when the worm is EATING food that overlaps with toxin
+    // "Eating" = pharyngeal pump active (pump_rate > 0) AND on food
+    // "Toxic food" = food_density > 0.1 AND repellent_conc > 0.1 at same location
+    Vector2d head_pos = body_.get_head_position();
+    double food_here = environment_.sample_food_density(head_pos);
+    double toxin_here = environment_.sample_repellent(head_pos);
+
+    bool eating_toxic = (food_here > 0.1 && toxin_here > 0.1 && pharynx_.pump_rate_hz() > 0.5);
+
+    if (eating_toxic) {
+        // Accumulate sickness: food intake × toxicity → malaise
+        // Accelerated timescale: real biology ~4-6 hours, we use ~30s
+        double toxicity = toxin_here / (toxin_here + 0.3);  // saturating
+        double d_sick = toxicity * dt_ / sickness_tau_rise_;
+        sickness_ += d_sick;
+        if (sickness_ > 1.0) sickness_ = 1.0;
+    } else {
+        // Slow recovery when not eating toxin
+        double d_decay = sickness_ * dt_ / sickness_tau_decay_;
+        sickness_ -= d_decay;
+        if (sickness_ < 0.0) sickness_ = 0.0;
+    }
+}
+
+void SimulationEngine::update_pathogen_learning() {
+    // Only update every 100ms (not every 0.5ms step)
+    if (static_cast<int>(current_time_ / dt_) % 200 != 0) return;
+    // Only learn when sick
+    if (sickness_ < 0.05) return;
+
+    int n = static_cast<int>(neurons_.size());
+    auto& synapses = connectome_.synapses_mut();
+    const auto& ninfos = connectome_.neuron_infos();
+
+    // Learning rate: proportional to sickness level
+    // ~0.002 per second at max sickness × dt_effective(100ms)
+    double lr = 0.0002 * sickness_;
+
+    for (auto& syn : synapses) {
+        int pre = syn.pre_id();
+        int post = syn.post_id();
+        if (pre < 0 || pre >= n || post < 0 || post >= n) continue;
+
+        const std::string& pre_name = ninfos[pre].name;
+        const std::string& post_name = ninfos[post].name;
+
+        // Only modulate AWC output synapses (olfactory learning locus)
+        if (pre_name.compare(0, 3, "AWC") != 0) continue;
+
+        // Pre activity (AWC release rate)
+        double V_pre = neurons_[pre]->get_membrane_potential();
+        double S_pre = 1.0 / (1.0 + std::exp(-(V_pre - (-35.0)) / 5.0));
+        if (S_pre < 0.05) continue;  // skip if AWC not active
+
+        // AWC→AIY: WEAKEN (reduce approach pathway)
+        // Sick + AWC active → this odor associated with malaise → reduce attraction
+        if (post_name.compare(0, 3, "AIY") == 0) {
+            syn.adjust_weight_mod(-lr * S_pre);
+        }
+        // AWC→AIB: STRENGTHEN (increase avoidance pathway)
+        // Sick + AWC active → this odor now drives avoidance
+        if (post_name.compare(0, 3, "AIB") == 0) {
+            syn.adjust_weight_mod(+lr * S_pre);
+        }
     }
 }
 

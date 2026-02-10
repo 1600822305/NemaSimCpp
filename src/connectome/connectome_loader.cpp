@@ -177,6 +177,11 @@ void ConnectomeLoader::generate_default_connectome(
         // REF: Mori & Ohshima 1995, Luo 2014 PNAS — AFD→AIY core thermotaxis circuit
         {"AFDL", NeuronType::SENSORY, NeurotransmitterType::GLUTAMATE},
         {"AFDR", NeuronType::SENSORY, NeurotransmitterType::GLUTAMATE},
+        // ADF: chemosensory neuron, serotonin source for learned pathogen avoidance
+        // REF: Zhang 2005 Nature — PA14 exposure → ADF TPH-1 ↑ → 5-HT ↑ → MOD-1 on AIY/AIZ
+        //      Ha 2010 Neuron — ADF essential for aversive olfactory learning
+        {"ADFL", NeuronType::SENSORY, NeurotransmitterType::SEROTONIN},
+        {"ADFR", NeuronType::SENSORY, NeurotransmitterType::SEROTONIN},
         // Key interneurons
         {"AIAL", NeuronType::INTER, NeurotransmitterType::ACETYLCHOLINE},
         {"AIAR", NeuronType::INTER, NeurotransmitterType::ACETYLCHOLINE},
@@ -360,6 +365,13 @@ void ConnectomeLoader::generate_default_connectome(
     add_syn("ASHL", "AIBL", 3); add_syn("ASHR", "AIBR", 3);
     // ASH→RIM: nociceptive activation of RIM (promotes omega turns)
     add_syn("ASHL", "RIML", 1); add_syn("ASHR", "RIMR", 1);
+
+    // Step 26: ADF serotonergic modulation of learned avoidance (Zhang 2005 Nature)
+    // ADF→AIY: serotonin via MOD-1 (Cl⁻) → inhibits approach pathway when sick
+    // ADF→AIZ: serotonin via MOD-1 → inhibits AIZ (part of approach circuit)
+    // NOTE: ADF 5-HT also acts via volume transmission (neuromodulation system)
+    add_syn("ADFL", "AIYL", 2); add_syn("ADFR", "AIYR", 2);
+    add_syn("ADFL", "AIZL", 1); add_syn("ADFR", "AIZR", 1);
 
     // Head oscillator: dorsal-ventral cross-inhibition (TD-02)
     // SMD dorsal → RMD ventral and vice versa (reciprocal inhibition circuit)

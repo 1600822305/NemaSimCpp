@@ -43,14 +43,14 @@ int main() {
     SimulationEngine sim;
     sim.initialize_default();
 
-    // Step 25: straight-line test: start(25,25) → repellent(30,25) → food(35,25)
-    // Worm MUST pass through repellent zone to reach food
-    // Move food from default (35,35) to (35,25) for straight-line scenario
+    // Step 26: TOXIC FOOD test — food and toxin at same location
+    // Worm smells food → approaches → eats → gets SICK → learns to avoid
+    // REF: Zhang 2005 Nature — PA14 looks like food, worm eats it, then learns
     sim.environment().chemical_field().clear();
     Vector2d food{35.0, 25.0};
     sim.environment().chemical_field().add_point_source(food, 1.0);  // σ²=144 (default)
-    Vector2d repellent{30.0, 25.0};
-    // σ²=25mm² (σ≈5mm): localized toxin, not wide diffusion like attractant σ²=144
+    // Toxin AT food source (same location!) — toxic food, not separate repellent
+    Vector2d repellent{35.0, 25.0};
     sim.environment().repellent_field().add_point_source(repellent, 0.8, 25.0);
 
     auto& conn = sim.connectome();
@@ -74,6 +74,7 @@ int main() {
     int riar_id = conn.get_neuron_id("RIAR");
     int ashl_id = conn.get_neuron_id("ASHL");
     int ashr_id = conn.get_neuron_id("ASHR");
+    int adfl_id = conn.get_neuron_id("ADFL");  // Step 26: ADF serotonin neuron
 
     // Accumulators
     std::vector<double> grad_mags, grad_normals, biases;
@@ -85,6 +86,7 @@ int main() {
     std::vector<double> sht_vs, da_vs, oa_vs, satiety_vs, spd_scale_vs, fmem_vs, dist_vs_time, xpos_vs;
     std::vector<double> pump_rate_vs, pharynx_v_vs;  // Step 24: pharyngeal diagnostics
     std::vector<double> rep_dist_vs, ypos_vs, ash_i_vs;  // Step 25: nociception tracking
+    std::vector<double> sick_vs;  // Step 26: sickness tracking
     // SMD current diagnostics
     std::vector<double> smddl_v_vs, smdvl_v_vs, smddl_isyn_vs, smddl_iext_vs;
 
@@ -206,6 +208,7 @@ int main() {
                 rep_dist_vs.push_back(std::sqrt(rdx*rdx + rdy*rdy));
                 ash_i_vs.push_back(ashl_id >= 0 && ashl_id < n ? neurons[ashl_id]->get_I_ext() : 0.0);
             }
+            sick_vs.push_back(sim.sickness());  // Step 26
             pump_rate_vs.push_back(sim.pump_rate_hz());
             pharynx_v_vs.push_back(sim.pharynx_V());
 
@@ -359,7 +362,7 @@ int main() {
 
     // Time series: 5-HT, DA, OA, satiety, distance every 20s
     std::cout << "   Time series (every 20s):" << std::endl;
-    std::cout << "     t(s)  dist   x_pos  y_pos  r_dist ASH_I  5-HT   sat   fmem  spd" << std::endl;
+    std::cout << "     t(s)  dist   x_pos  y_pos  r_dist ASH_I  5-HT   sat   sick  spd" << std::endl;
     int samples_per_20s = (int)(20000.0 / 100.0); // 200 samples per 20s
     for (int t = 0; t < 15; ++t) {
         int idx = (t + 1) * samples_per_20s - 1;
@@ -375,7 +378,7 @@ int main() {
                       << std::setprecision(1) << std::setw(5) << ash_i_vs[idx] << "  "
                       << std::setprecision(3) << std::setw(5) << sht_vs[idx] << "  "
                       << std::setw(5) << satiety_vs[idx] << "  "
-                      << std::setw(5) << fmem_vs[idx] << "  "
+                      << std::setprecision(3) << std::setw(5) << sick_vs[idx] << "  "
                       << std::setprecision(3) << spd_scale_vs[idx]
                       << "  " << mode << std::endl;
         }
@@ -473,6 +476,30 @@ int main() {
             std::cout << "   AIBL: " << std::setprecision(1)
                       << ns[aibl_id]->get_membrane_potential() << " mV"
                       << "  I_syn=" << std::setprecision(2) << ns[aibl_id]->get_I_syn() << " pA" << std::endl;
+        }
+    }
+
+    // Step 26: Learned pathogen avoidance diagnostic
+    std::cout << "\n17. PATHOGEN LEARNING (Step 26):" << std::endl;
+    std::cout << "   sickness=" << std::setprecision(4) << sim.sickness() << std::endl;
+    {
+        const auto& ns = sim.neurons();
+        int nn = (int)ns.size();
+        if (adfl_id >= 0 && adfl_id < nn) {
+            std::cout << "   ADFL: " << std::setprecision(1)
+                      << ns[adfl_id]->get_membrane_potential() << " mV"
+                      << "  I_ext=" << std::setprecision(2) << ns[adfl_id]->get_I_ext() << " pA" << std::endl;
+        }
+        // Show AWC→AIY and AWC→AIB w_mod values (learning locus)
+        for (const auto& syn : sim.connectome().synapses()) {
+            int pre = syn.pre_id(), post = syn.post_id();
+            if (pre < 0 || pre >= nn || post < 0 || post >= nn) continue;
+            const std::string& prn = sim.connectome().neuron_infos()[pre].name;
+            const std::string& pon = sim.connectome().neuron_infos()[post].name;
+            if (prn == "AWCL" && (pon == "AIYL" || pon == "AIBL")) {
+                std::cout << "   " << prn << "->" << pon << ": w_mod="
+                          << std::setprecision(4) << syn.weight_mod() << std::endl;
+            }
         }
     }
 
