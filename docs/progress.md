@@ -259,6 +259,16 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 - **10种子结果**: AVG CI=0.43, near=40.5%, rev=0.12/s, **good=8/10**
 - **REF**: Liu 2009, Tsodyks 1997, Rankin 1990, Tomioka 2006, Pierce-Shimomura 1999, Calhoun 2014
 
+### Step 22: GPU 计算后端 (OpenCL) ✅ (2026-02-10)
+
+为未来 302 神经元扩展准备 GPU 加速基础设施:
+- **OpenCL SDK**: vcpkg 安装, AMD RX 6950 XT (gfx1030, 40 CUs, 16GB) 检测成功
+- **ComputeBackend 抽象**: CPU 参考实现 + OpenCL GPU 实现
+- **GPU kernel**: 突触电流 + Tsodyks-Markram STP 动力学 (原子浮点加)
+- **自动阈值**: >500 突触启用 GPU, 当前 ~110 用 CPU (内核启动开销 > 计算)
+- **SimulationEngine 集成**: GPU/CPU 路径自动切换, gap junction 仍 CPU
+- **文件**: `src/compute/` (compute_backend.h, cpu_backend.h, opencl_backend.h/.cpp, kernels.cl)
+
 ---
 
 ## 当前系统状态
@@ -275,8 +285,9 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 神经元模型: 单隔室 HH 分级电位 (L2) + 钙动力学
 身体: 2D 弹性杆 48 段, 22 个运动神经元-肌肉映射
 环境: 50×50 mm, 化学扩散场 + 高斯点源
-仿真: dt=0.5ms, 单核 CPU 实时 (10000步 < 1s)
-构建: CMake + MSVC 19.44 + C++20
+仿真: dt=0.5ms, CPU 实时 (10000步 < 1s), OpenMP 多核
+计算: CPU (默认) + OpenCL GPU 后端 (>500突触自动启用, AMD RX 6950 XT 就绪)
+构建: CMake + MSVC 19.44 + C++20 + vcpkg (OpenCL/ImGui/ImPlot/GLFW)
 可视化: Dear ImGui + ImPlot + GLFW, 3列布局, 实时调参+信号链诊断
 状态: 趋化+触觉回避+RIM稳定+神经调质+ARS+觅食循环+STP+盐学习, 纯涌现 (CI=0.90, 72神经元)
 
