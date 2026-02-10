@@ -124,27 +124,105 @@ AIY 是**多模态整合节点**：
 
 **梯度冲突测试**: 食物在右 + 培养温度在左 → AIY 收到矛盾输入 → 涌现优先级决策
 
-## 诊断输出 (Section 14)
+## Step 23b: ThermoTransducer 重写
+
+初始实现（绝对温度响应）有两个问题：
+1. **Tc 适应太快** (tau=120s)：300s 仿真中 Tc 追上环境温度，dT→0
+2. **单向响应**：T < Tc 时 I=0，AFD 完全沉默，无法导航
+
+### 重写为双滤波 OFF 响应
+
+```cpp
+deviation = |raw_ - tc_|               // 与 Tc 的距离
+dev_fast  += (deviation - dev_fast) * dt / 500ms   // 快滤波
+dev_slow  += (deviation - dev_slow) * dt / 5000ms  // 慢适应
+signal = -(dev_fast - dev_slow) / (dev_slow + 0.5)  // OFF 响应
+```
+
+- **接近 Tc**：deviation 减小 → dev_fast < dev_slow → signal > 0 → AFD 兴奋
+- **远离 Tc**：deviation 增大 → dev_fast > dev_slow → signal < 0 → AFD 安静
+
+这与趋化 klinokinesis **完全相同的机制**，只是作用于温度。
+
+### 参数调优教训
+
+| 参数 | 初始值 | 问题 | 最终值 |
+|------|--------|------|--------|
+| Tc_tau | 120s | Tc 追上环境温度 | **3600s** (1hr, Mori 1995) |
+| baseline | 15pA | AIY 过度激活，CI 0.835→0.166 | **5pA** |
+| gain | 60 | AFD/ASE ratio=0.32 | **150** |
+| AFD→AIY | 3 sections | 信号太弱 | **5 sections** |
+
+## Step 23c: 饱食调制切换 (Mori 1995 经典发现)
+
+### 核心机制
 
 ```
-14. THERMOTAXIS (Step 23):
-   Temperature at head: 24.2 C
-   Temp gradient: 0.500 C/mm (dir: 0.50, 0.00)
-   AFD: L=-39.90 mV  R=-45.78 mV
-   AFDL->AIYL: n=0.912 S=0.273
+饥饿线虫: 忽略温度，朝食物走  ← 化学优先
+饱食线虫: 忽略食物，朝培养温度走 ← 温度优先
 ```
 
-## 结果
+### Sigmoid 增益切换
 
-- **AFD 活跃**: -39.9/-45.8 mV（非静息，受温度驱动）
-- **趋化不受影响**: CI 正常（3.38mm final distance）
-- **架构验证通过**: 新感觉神经元接入 AIY，无需修改下游回路
-- **74 神经元, ~114 化学突触 + 14 gap junction**
+```cpp
+sat_switch = sigmoid(10 × (satiety - 0.5))  // 锐利切换
+chemo_gain  = 1.0 - 0.85 × sat_switch       // 饱食: 0.15, 饥饿: 1.0
+thermo_gain = 0.2 + 1.8  × sat_switch       // 饱食: 2.0,  饥饿: 0.2
+```
+
+同时调制：感觉增益 + weathervane 偏置
+
+### 温度 Weathervane
+
+```cpp
+// 导航方向: 最小化 |T - Tc|
+temp_sign = (T > Tc) ? -1 : +1              // 朝 Tc 方向
+temp_bias = 30 × temp_sign × grad_T_normal × thermo_wv_gain
+```
+
+- 饥饿时: thermo_wv_gain ≈ 0 → 无温度转向
+- 饱食时: thermo_wv_gain ≈ 2.0 → 15 pA 朝 Tc 偏置
+
+## 梯度冲突测试结果
+
+### 场景
+
+```
+食物:  (35, 35) → 化学梯度朝右
+温度:  左暖右冷 (-0.5°C/mm), Tc=22.5°C → 目标 x=20mm (左)
+```
+
+### 涌现行为: 食物↔Tc 振荡
+
+```
+t(s)  x_pos  sat    mode
+  20   29.1  0.032  ->Fd  饿了，朝右找食物
+  60   37.4  0.598  <-Tc  ★到食物，吃饱！切换TEMP
+  80   36.1  0.747  <-Tc  ★朝左走！
+ 100   31.5  0.769  <-Tc  ★继续朝Tc走
+ 120   28.8  0.696  <-Tc  ★接近Tc(x=20)
+ 160   34.3  0.677  <-Tc  饱食度在掉，漂回食物
+ 220   35.6  0.708  <-Tc  ★又吃饱！再次朝Tc
+ 240   32.3  0.827  <-Tc  ★x在减小
+ 280   28.0  0.208  ->Fd  饿了，回头找食物
+ 300   29.8  0.082  ->Fd  朝右回去
+```
+
+**关键**: 线虫在食物和 Tc 之间**涌现出振荡行为**——饿了去吃，吃饱了朝 Tc 走，饿了回来。完全从神经回路 + 饱食调制涌现，无需编程决策逻辑。
+
+### 对比数据
+
+| 指标 | 无温度 | 有温度(无饱食调制) | 有温度+饱食调制 |
+|------|--------|-------------------|----------------|
+| CI | 0.835 | 0.396 | **0.294** |
+| X 位移 | +9.1mm | +1.5mm | **+4.8mm** |
+| 行为 | 直奔食物 | 犹豫不决 | **食物↔Tc振荡** |
 
 ## 参考文献
 
-- Mori & Ohshima 1995 Nature — AFD thermosensory neuron identification
+- Mori & Ohshima 1995 Nature — AFD thermosensory neuron, cultivation temperature memory
 - Clark 2006 J Neurosci — AFD calcium response threshold at Tc
 - Luo 2014 PNAS — Bidirectional thermotaxis: negative = klinokinesis, positive = turning bias
+- Tomioka 2006 — Satiety modulates thermotaxis preference
 - Hawk 2021 eLife — Feeding state reconfigures AWC-AIA (not AFD) for thermotaxis plasticity
 - Cook 2019 Nature — Updated connectome (AFD→AIY synapse count)
