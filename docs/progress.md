@@ -320,17 +320,30 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 - **自动跟踪**: 指标异常时自动触发电流预算分析
 - **文档**: docs/tools/regression_test.md
 
-### Step 25: 化学回避 + ASH 伤害感觉
+### Step 25: 化学回避 + ASH 伤害感觉 + 排斥 Weathervane
 
-- **排斥化学场**: Environment 添加独立 repellent_field_ (与引诱物分离)
-- **ASH→排斥场**: ASH 从 chemo_mappings_ 分离到 noci_mappings_, 采样排斥物浓度
-- **新增突触**: ASH→AIB(3, 兴奋性 GLR-1), ASH→RIM(1, 促omega) — Cook 2019 确认
+- **排斥化学场**: Environment 添加独立 repellent_field_ (σ²=25mm² 局部化毒物)
+- **ASH TONIC型**: gain=80, baseline=3pA, half_max=0.5, clamp=80pA (排斥物中心52pA)
+- **新增突触**: ASH→AIB(3, GLR-1), ASH→RIM(1, 促omega), ASH→AVA(3, 从2恢复)
 - **5-HT→AIB**: MOD-1 Cl⁻通道 -6pA 抑制 (在食物上时压制回避=冒险觅食)
-- **AIB 整合枢纽**: 引诱(AIA⊣AIB) vs 排斥(ASH→AIB) 在 AIB 层面竞争决策
-- **结果**: 无排斥源时 regtest 12 pass; 有排斥源时 CI 0.75→0.437
-- **涌现**: 毒物挡路→更多 reversal/omega→绕路找食物; 在食物上忍受危险
-- **REF**: Summers 2015 JNeurosci, Cook 2019 Nature, Bargmann & Kaplan 1998
+- **排斥 Weathervane**: ∇C_repellent⊥ → 反向曲率偏置, 持续偏转绕路 (不受satiety调制)
+- **涌现绕路**: 排斥物挡路→不穿过(r_dist≥1.4mm)→向北偏转(y:25→32)→从侧面到达食物
+- **结果**: regtest 12 pass; CI=0.655, time_near_food=18.5%
+- **REF**: Summers 2015, Cook 2019, Bargmann & Kaplan 1998, Iino & Yoshida 2009
 - **文档**: docs/steps/step25_chemical_avoidance.md
+
+### Step 26: 条件性病原体回避学习
+
+- **生物学**: Zhang 2005 Nature — 吃致病菌→生病→学会回避同种气味 (条件性味觉厌恶)
+- **新增神经元**: ADF L/R (5-HT源) — 85总神经元
+- **新增突触**: ADF→AIY(2, MOD-1抑制), ADF→AIZ(1) — ~120总突触
+- **Sickness状态**: 在有毒食物区进食时累积 (τ_rise=30s, τ_decay=120s)
+- **ADF驱动**: I_ext = 2 + 30×sickness_ (最高32pA → 5-HT释放 → MOD-1抑制AIY)
+- **AWC突触翻转**: AWC→AIY w_mod↓ (-12%), AWC→AIB w_mod↑ (+12%) — 趋近→回避
+- **三层化学回避**: 先天ASH(即时) + 学习AWC翻转(~30s) + 5-HT调制(秒级)
+- **结果**: regtest 12 pass; sickness=1.0, ADF=32pA, CI=0.655
+- **REF**: Zhang 2005 Nature, Ha 2010 Neuron, Frontiers Immunol 2024
+- **文档**: docs/steps/step26_pathogen_learning.md
 
 ---
 
@@ -338,21 +351,24 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 
 ```
 架构: 8 层 (环境/躯体/感知/神经元/连接组/神经调质/运动/行为)
-神经元: 83 个 MVP 子集 (302 全集待加载)
-  感觉: 20 (ASE/AWC/AWA/ASH/ALM/PLM/NSM/CEP/AFD, L/R)
+神经元: 85 个 MVP 子集 (302 全集待加载)
+  感觉: 22 (ASE/AWC/AWA/ASH/ALM/PLM/NSM/CEP/AFD/ADF, L/R)
   中间: 28 (AIA/AIB/AIY/AIZ/RIA/RIB/RIM/RIC/AVA/AVB/AVD/AVE/I1/RIP, L/R)
   运动: 35 (SMD/RMD/SMB 4×2+4 + DA/DB/VA/VB/DD/VD 各3 + MC/M3 L/R + M4)
-突触: ~134 化学 + ~25 间隙连接 (全部带 Tsodyks-Markram STP)
+突触: ~140 化学 + ~25 间隙连接 (全部带 Tsodyks-Markram STP)
 神经调质: 3 种 (5-HT, DA, OA) — volume transmission + 饱食度(泵驱动)
+  5-HT 源: NSM(食物) + ADF(生病) — 4个源神经元
 离子通道: 8/14 种 (EGL-19/UNC-2/CCA-1/SHL-1/KQT-3/SLO-1/NCA/MEC)
 神经元模型: 单隔室 HH 分级电位 (L2) + 钙动力学
 身体: 2D 弹性杆 48 段, 22 个运动神经元-肌肉映射
-环境: 50×50 mm, 化学扩散场 + 高斯点源 + 线性温度梯度 (0.5°C/mm)
+环境: 50×50 mm, 化学扩散场(引诱+排斥) + 高斯点源 + 线性温度梯度 (0.5°C/mm)
+内部状态: satiety_(泵驱动), sickness_(有毒食物), food_memory_(ARS)
+学习: 盐学习(ASER w_mod) + 病原体学习(AWC翻转) + STP习惯化
 仿真: dt=0.5ms, CPU 实时 (10000步 < 1s), OpenMP 多核
 计算: CPU (默认) + OpenCL GPU 后端 (>500突触自动启用, AMD RX 6950 XT 就绪)
 构建: CMake + MSVC 19.44 + C++20 + vcpkg (OpenCL/ImGui/ImPlot/GLFW)
 可视化: Dear ImGui + ImPlot + GLFW, 3列布局, 实时调参+信号链诊断
-状态: 趋化+触觉回避+化学回避+RIM稳定+神经调质+ARS+觅食循环+STP+盐学习+温度趋性+咽部泵食, 纯涌现 (CI≈0.75, 83神经元)
+状态: 趋化+触觉回避+化学回避+排斥weathervane+病原体学习+RIM稳定+神经调质+ARS+觅食循环+STP+盐学习+温度趋性+咽部泵食, 纯涌现 (CI≈0.65, 85神经元)
 工具: celegans_diag.exe (信号链诊断) + celegans_regtest.exe (回归检测+电流溯源)
 
 运动驱动 (Step 13 — 生物学机制):
