@@ -161,9 +161,6 @@ void SimulationEngine::step() {
     // REF: Bargmann 2006, Suzuki 2008
     apply_sensory_input();
 
-    // 2b. Weathervane: gradient ⊥ heading → differential SMD bias
-    apply_weathervane();
-
     // 2c. Touch stimulus: wall collision → ALM/PLM activation (Step 18)
     apply_touch_stimulus();
 
@@ -180,7 +177,14 @@ void SimulationEngine::step() {
     apply_proprioceptive_stretch();
 
     // 5. Compute synaptic currents (chemical + electrical)
+    // NOTE: This resets I_syn_ for all neurons, then adds connectome synaptic currents.
     connectome_.compute_synaptic_currents(neurons_);
+
+    // 5b. Weathervane: gradient ⊥ heading → differential SMD bias (Step 19 fix)
+    // MUST be AFTER compute_synaptic_currents to avoid being reset!
+    // Previously at step 2b, bias was zeroed by reset_synaptic_current() — root cause of
+    // the "neural pathway bottleneck" that required the direct curvature bias workaround.
+    apply_weathervane();
 
     // 6. Update all neuron membrane potentials
     for (auto& neuron : neurons_) {
@@ -233,9 +237,33 @@ void SimulationEngine::run(double duration_ms) {
 void SimulationEngine::apply_sensory_input() {
     int n = static_cast<int>(neurons_.size());
 
-    // Chemosensory neurons: sample concentration at head position, compute dC/dt
+    // Step 19: Chemosensory sampling with HEAD SWEEP displacement
+    // REF: Izquierdo & Lockery 2010 — klinotaxis depends on phase-locked
+    // concentration sampling during sinusoidal head oscillation.
+    // The nose tip sweeps ±100μm laterally. In a gradient, this produces
+    // concentration changes correlated with oscillation phase.
+    // ASE ON/OFF cells detect these changes → signal carries direction info
+    // → propagates through connectome → turning emerges naturally.
     Vector2d head_pos = body_.get_head_position();
-    double concentration = environment_.sample_chemical(head_pos);
+    double head_angle = body_.get_head_angle();
+    double head_curv = body_.get_local_curvature(0);  // current head curvature
+
+    // Lateral offset: head_curv × sweep_radius
+    // sweep_radius ~0.1mm: effective nose displacement from midline
+    // Positive curvature = dorsal bend → nose sweeps to one side
+    double sweep_radius = 1.5;  // mm, effective curv→displacement gain
+                                 // Real: neck ~0.3mm, head angle ±30° → 0.15mm lateral
+                                 // Amplified because model curvature (0.08/mm) is lower than
+                                 // real head curvature (~3/mm). Effective: 0.08×1.5 = 0.12mm.
+    double lateral_offset = head_curv * sweep_radius;
+
+    // Normal direction (perpendicular to heading, left = +)
+    double nx = -std::sin(head_angle);
+    double ny =  std::cos(head_angle);
+    Vector2d sample_pos = {head_pos.x + lateral_offset * nx,
+                           head_pos.y + lateral_offset * ny};
+
+    double concentration = environment_.sample_chemical(sample_pos);
 
     for (auto& cm : chemo_mappings_) {
         if (cm.neuron_id < 0 || cm.neuron_id >= n) continue;
@@ -313,26 +341,16 @@ void SimulationEngine::apply_weathervane() {
         }
     };
 
-    // Dorsal SMD gets positive bias when gradient is to the left
+    // Step 19: Apply bias to shift half-center duty cycle
+    // Sign: positive grad_normal → dorsal bias → positive curvature → heading increases
     apply_bias("SMDDL", bias_current);
     apply_bias("SMDDR", bias_current);
-    // Ventral SMD gets negative bias (opposite)
     apply_bias("SMDVL", -bias_current);
     apply_bias("SMDVR", -bias_current);
 
-    // Direct curvature bias: bypass neural dynamics bottleneck
-    // Maps gradient normal → head curvature offset (1/mm)
-    // REF: Iino & Yoshida 2009 — curving rate 12.7 °/mm × ∇C_⊥
-    // At speed 0.2 mm/s, to get 5°/s curving: need κ_bias = (5°/s) / (57.3 × 0.2) ≈ 0.44 /mm
-    // With gradient ~0.01, need gain ~44. Use weathervane_gain/10 as curvature gain.
-    // curv_gain calibration: at gradient 0.01, need ~0.44 /mm bias for 5°/s at 0.2 mm/s
-    // → curv_gain ≈ 44. Use weathervane_gain * 0.15 as scaling factor.
-    double curv_gain = static_cast<double>(params.weathervane_gain) * 0.15;
-    double curv_bias = curv_gain * grad_normal;
-    // Clamp to ±2.0 /mm (physiological limit ~3 /mm)
-    if (curv_bias > 2.0) curv_bias = 2.0;
-    if (curv_bias < -2.0) curv_bias = -2.0;
-    body_.set_curvature_bias(curv_bias);
+    // Step 19: REMOVED direct curvature bias bypass (was curv_gain=45 × grad_normal → body)
+    // The weathervane signal now flows through the neural circuit:
+    //   gradient ⊥ heading → SMD bias current → duty cycle asymmetry → curvature → turning
 }
 
 void SimulationEngine::apply_proprioceptive_stretch() {
@@ -434,17 +452,32 @@ void SimulationEngine::apply_omega_turn() {
 
     if (current_time_ > omega_end_time_) {
         omega_pending_ = false;
-        body_.set_curvature_bias(0.0);
         body_.set_omega_mode(false);
         return;
     }
 
-    // Omega turn: very strong curvature bias → deep bend >140°
-    // At speed 0.2 mm/s with omega max_dtheta = 300°/s:
-    // 300°/s × 0.5s = 150° heading change ✓
+    // Omega turn: strong asymmetric SMD drive → deep bend >140° (Gray 2005)
+    // SMD neurons are the biological effectors of omega turn amplitude.
+    // Inject 200 pA to one side of SMD to overwhelm the oscillation.
     body_.set_omega_mode(true);
-    double omega_curv = 8.0 * omega_direction_;
-    body_.set_curvature_bias(omega_curv);
+    int n = static_cast<int>(neurons_.size());
+    double omega_current = 200.0;  // pA, strong enough to dominate SMD oscillation
+    auto inject = [&](const char* name, double I) {
+        int id = connectome_.get_neuron_id(name);
+        if (id >= 0 && id < n) neurons_[id]->add_synaptic_current(I);
+    };
+    if (omega_direction_ > 0) {
+        // Ventral omega: drive ventral SMD, suppress dorsal
+        inject("SMDVL", omega_current);
+        inject("SMDVR", omega_current);
+        inject("SMDDL", -omega_current);
+        inject("SMDDR", -omega_current);
+    } else {
+        inject("SMDDL", omega_current);
+        inject("SMDDR", omega_current);
+        inject("SMDVL", -omega_current);
+        inject("SMDVR", -omega_current);
+    }
 }
 
 } // namespace celegans

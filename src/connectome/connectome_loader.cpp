@@ -254,7 +254,7 @@ void ConnectomeLoader::generate_default_connectome(
     // Key synaptic connections (chemotaxis circuit)
     // Sensory → Interneuron
     add_syn("ASEL", "AIAL", 5); add_syn("ASEL", "AIYL", 3);
-    add_syn("ASER", "AIAR", 5); add_syn("ASER", "AIYR", 3);
+    // ASER→AIA/AIY: INHIBITORY — moved to after add_syn_inh definition (Step 19)
     add_syn("AWCL", "AIBL", 4); add_syn("AWCL", "AIYL", 6);
     add_syn("AWCR", "AIBR", 4); add_syn("AWCR", "AIYR", 6);
     add_syn("AWAL", "AIAL", 3); add_syn("AWAR", "AIAR", 3);
@@ -315,6 +315,10 @@ void ConnectomeLoader::generate_default_connectome(
             synapses.push_back(s);
         }
     };
+    // Step 19: ASER→AIA/AIY INHIBITORY (eLife 2024, Matsumoto et al.)
+    // ASER releases glutamate → GLC-3 (Cl⁻ channel) on AIY → inhibitory
+    // Fixes pirouette modulation: C↓ → ASER↑ → AIA↓ → AIB↑(disinhibited) → more pirouettes
+    add_syn_inh("ASER", "AIAR", 5); add_syn_inh("ASER", "AIYR", 3);
     // AIA ⊣ AIB: inhibitory — suppresses pirouettes when ON chemosensory active
     // REF: Chalasani 2007 — AIA inhibits AIB, critical for pirouette suppression
     add_syn_inh("AIAL", "AIBL", 5); add_syn_inh("AIAR", "AIBR", 5);
@@ -326,9 +330,11 @@ void ConnectomeLoader::generate_default_connectome(
     add_syn_inh("PLML", "AVDL", 2); add_syn_inh("PLMR", "AVDR", 2);
 
     // Dorsal SMD inhibits ventral SMD (and vice versa) → half-center oscillator
-    // Strong inhibition needed: must overcome tonic drive to suppress contralateral side
-    add_syn_inh("SMDDL", "SMDVL", 8); add_syn_inh("SMDDR", "SMDVR", 8);
-    add_syn_inh("SMDVL", "SMDDL", 8); add_syn_inh("SMDVR", "SMDDR", 8);
+    // Step 19: reduced from 8→3 sections so oscillator is sensitive to weathervane bias
+    // Strong (8) cross-inhibition made oscillator too robust → 3.7 pA bias produced only
+    // 0.007/mm curvature shift. Weaker inhibition allows bias to shift duty cycle.
+    add_syn_inh("SMDDL", "SMDVL", 3); add_syn_inh("SMDDR", "SMDVR", 3);
+    add_syn_inh("SMDVL", "SMDDL", 3); add_syn_inh("SMDVR", "SMDDR", 3);
     // RMD dorsal-ventral cross-inhibition
     add_syn_inh("RMDDL", "RMDVL", 6); add_syn_inh("RMDDR", "RMDVR", 6);
     add_syn_inh("RMDVL", "RMDDL", 6); add_syn_inh("RMDVR", "RMDDR", 6);

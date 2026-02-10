@@ -205,6 +205,18 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 - **行为状态**: 可视化显示 前进/后退/omega 指示器
 - **结果**: CI=0.736 (触觉回路未破坏趋化), 突触 72→82, gap 6→8
 
+### Step 19: 修复神经通路瓶颈 — 去掉直接曲率偏置旁路 ✅ (2026-02-10)
+> 详细文档: [steps/step19_neural_pathway_fix.md](steps/step19_neural_pathway_fix.md)
+
+移除 Step 17 的直接曲率偏置旁路，趋化行为完全通过神经回路涌现:
+- **根因1**: weathervane 偏置被 `compute_synaptic_currents` 的 reset 覆盖 → 移到之后
+- **根因2**: ASER→AIA 兴奋性→**抑制性** (eLife 2024 GLC-3), 修复 pirouette 调制方向
+- **头部摆动采样**: 浓度采样加入振荡横向位移 (sweep_radius=1.5mm)
+- **ChemoTransducer**: fast_tau 500→100ms, 跟踪 2Hz 头部振荡
+- **SMD 交叉抑制**: 8→3 sections, 振荡器对偏置更敏感
+- **Omega 转弯**: 改为 SMD 200pA 单侧注入 (不再用 curvature_bias)
+- **结果**: CI=0.591 (纯神经回路, 无旁路), 突触 82→84
+
 ---
 
 ## 当前系统状态
@@ -215,7 +227,7 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
   感觉: 12 (ASE/AWC/AWA/ASH/ALM/PLM, L/R)
   中间: 20 (AIA/AIB/AIY/AIZ/RIA/RIB/AVA/AVB/AVD/AVE, L/R)
   运动: 26 (SMD/RMD 4×2 + DA/DB/VA/VB/DD/VD 各3)
-突触: 82 化学 + 8 间隙连接 (7000+ 全集待加载)
+突触: 84 化学 + 8 间隙连接
 离子通道: 8/14 种 (EGL-19/UNC-2/CCA-1/SHL-1/KQT-3/SLO-1/NCA/MEC)
 神经元模型: 单隔室 HH 分级电位 (L2) + 钙动力学
 身体: 2D 弹性杆 48 段, 22 个运动神经元-肌肉映射
@@ -223,7 +235,7 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 仿真: dt=0.5ms, 单核 CPU 实时 (10000步 < 1s)
 构建: CMake + MSVC 19.44 + C++20
 可视化: Dear ImGui + ImPlot + GLFW, 3列布局, 实时调参+信号链诊断
-状态: 趋化+触觉回避双行为 (CI=+0.736, 壁碰撞→后退→omega, 14.1→3.7mm/60s)
+状态: 趋化+触觉回避双行为, 纯神经回路涌现 (CI=0.591, 无旁路, 14.1→5.8mm/60s)
 
 运动驱动 (Step 13 — 生物学机制):
   感觉基线: 12 感觉神经元 × 15pA 自发活动 (Bargmann 2006)
@@ -231,7 +243,9 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
   本体感觉: MEC stretch-activated 通道 (body curvature → B类 MN)
   通道噪声: 3pA 高斯噪声 (White 1998, 热涨落)
   头部振荡: CCA-1 burst → Ca²⁺ → SLO-1(BK) 适应 → 复极化 → 周期 ~500ms
-  半中心CPG: SMD dorsal↔ventral 交叉抑制 → 背腹交替 burst (~2Hz)
+  半中心CPG: SMD dorsal↔ventral 交叉抑制(3 sections) → 背腹交替 burst (~2Hz)
+  Weathervane: 梯度⊥航向 → SMD偏置(500pA/mm) → 占空比不对称 → 曲率偏置
+  Pirouette: ASEL→AIA⊣AIB→AVA(抑C↑), ASER⊣AIA→AIB→AVA(促C↓)
   速度模型: 肌肉功率 × 波形效率 × 时间活动 (Fang-Yen 2010)
   V_SMDDL: -65↔-30mV 交替 burst, V_SMDVL: 反相
   速度: 0.05-0.24 mm/s (真实 ~0.2 mm/s, 在生物学范围内)

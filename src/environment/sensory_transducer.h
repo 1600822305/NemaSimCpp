@@ -19,7 +19,9 @@ public:
     ChemoTransducer(ResponseType type = ResponseType::ON,
                     double gain = 100.0,         // pA per relative change unit
                     double baseline = 5.0,        // pA spontaneous activity
-                    double fast_tau = 500.0,      // ms, fast concentration tracker
+                    double fast_tau = 100.0,      // ms, fast tracker (Step 19: 500→100ms)
+                                                  // Must track 2Hz head oscillation for klinotaxis
+                                                  // REF: Suzuki 2008 — ASE response ~50-200ms
                     double slow_tau = 5000.0)     // ms, slow adaptation (seconds)
         : type_(type), gain_(gain), baseline_(baseline),
           fast_tau_(fast_tau), slow_tau_(slow_tau) {}
