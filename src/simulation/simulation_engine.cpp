@@ -865,25 +865,9 @@ void SimulationEngine::apply_omega_turn() {
     // omega_direction: -1.0 = LEFT (SMDD/dorsal), +1.0 = RIGHT (SMDV/ventral)
     // curvature_bias > 0 → positive curvature → LEFT turn (matches omega_direction=-1.0)
     body_.set_curvature_bias(-omega_direction_ * 8.0);
-
-    // Also inject SMD for neural circuit consistency
-    int n = static_cast<int>(neurons_.size());
-    double omega_current = 200.0;
-    auto inject = [&](const char* name, double I) {
-        int id = connectome_.get_neuron_id(name);
-        if (id >= 0 && id < n) neurons_[id]->add_synaptic_current(I);
-    };
-    if (omega_direction_ > 0) {
-        inject("SMDVL", omega_current);
-        inject("SMDVR", omega_current);
-        inject("SMDDL", -omega_current);
-        inject("SMDDR", -omega_current);
-    } else {
-        inject("SMDDL", omega_current);
-        inject("SMDDR", omega_current);
-        inject("SMDVL", -omega_current);
-        inject("SMDVR", -omega_current);
-    }
+    // NOTE: No SMD current injection. The 200pA injection drove SMD to ±100mV,
+    // destroying the half-center oscillator (222mV amplitude vs normal 110mV).
+    // curvature_bias bypass handles the actual heading change directly.
 }
 
 void SimulationEngine::setup_neuromodulation() {

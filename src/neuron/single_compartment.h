@@ -26,6 +26,8 @@ public:
     void set_external_current(double I_ext) { I_ext_ = I_ext; }
     void add_synaptic_current(double I_syn) { I_syn_ += I_syn; }
     void reset_synaptic_current() { I_syn_ = 0.0; }
+    double get_I_ext() const { return I_ext_; }
+    double get_I_syn() const { return I_syn_; }
 
     const NeuronInfo& info() const { return info_; }
     NeuronInfo& info() { return info_; }

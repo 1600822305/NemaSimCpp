@@ -76,6 +76,8 @@ int main() {
     std::vector<double> aval_vs, rial_vs, riar_vs;
     std::vector<double> sht_vs, da_vs, oa_vs, satiety_vs, spd_scale_vs, fmem_vs, dist_vs_time, xpos_vs;
     std::vector<double> pump_rate_vs, pharynx_v_vs;  // Step 24: pharyngeal diagnostics
+    // SMD current diagnostics
+    std::vector<double> smddl_v_vs, smdvl_v_vs, smddl_isyn_vs, smddl_iext_vs;
 
     double prev_heading = sim.body().get_head_angle() * 180.0 / 3.14159265;
     double prev_time = 0;
@@ -122,6 +124,14 @@ int main() {
             double v_aser = (aser_id >= 0 && aser_id < n) ? neurons[aser_id]->get_membrane_potential() : 0;
             double v_smddl = (smddl_id >= 0 && smddl_id < n) ? neurons[smddl_id]->get_membrane_potential() : 0;
             double v_smdvl = (smdvl_id >= 0 && smdvl_id < n) ? neurons[smdvl_id]->get_membrane_potential() : 0;
+
+            // SMD current diagnostics
+            if (smddl_id >= 0 && smddl_id < n) {
+                smddl_v_vs.push_back(v_smddl);
+                smdvl_v_vs.push_back(v_smdvl);
+                smddl_isyn_vs.push_back(neurons[smddl_id]->get_I_syn());
+                smddl_iext_vs.push_back(neurons[smddl_id]->get_I_ext());
+            }
 
             // Intermediate neuron potentials
             auto getV = [&](int id) { return (id >= 0 && id < n) ? neurons[id]->get_membrane_potential() : -65.0; };
@@ -245,6 +255,17 @@ int main() {
 
     std::cout << "\n5. SMD DIFFERENTIAL (SMDDL - SMDVL):" << std::endl;
     auto [sd_min, sd_max] = minmax(smd_diffs);
+    // Individual SMDDL/SMDVL ranges
+    if (!smddl_v_vs.empty()) {
+        auto [dl_min, dl_max] = minmax(smddl_v_vs);
+        auto [vl_min, vl_max] = minmax(smdvl_v_vs);
+        auto [is_min, is_max] = minmax(smddl_isyn_vs);
+        auto [ie_min, ie_max] = minmax(smddl_iext_vs);
+        std::cout << "   SMDDL V: [" << dl_min << ", " << dl_max << "] swing=" << (dl_max-dl_min) << " mV" << std::endl;
+        std::cout << "   SMDVL V: [" << vl_min << ", " << vl_max << "] swing=" << (vl_max-vl_min) << " mV" << std::endl;
+        std::cout << "   SMDDL I_syn: [" << is_min << ", " << is_max << "] pA" << std::endl;
+        std::cout << "   SMDDL I_ext: [" << ie_min << ", " << ie_max << "] pA" << std::endl;
+    }
     std::cout << "   mean=" << std::setprecision(3) << mean(smd_diffs)
               << " mV  range=[" << sd_min << ", " << sd_max << "]"
               << "  amplitude=" << std::setprecision(2) << (sd_max - sd_min) << " mV" << std::endl;
