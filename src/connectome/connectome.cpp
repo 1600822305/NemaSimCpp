@@ -1,5 +1,7 @@
 #include "connectome/connectome.h"
 #include "core/logger.h"
+#include <algorithm>
+#include <cmath>
 
 namespace celegans {
 
@@ -90,6 +92,53 @@ void Connectome::compute_gap_junction_currents(std::vector<std::unique_ptr<Neuro
         neurons[a]->add_synaptic_current(-I);
         neurons[b]->add_synaptic_current(I);
     }
+}
+
+std::vector<Connectome::CurrentSource> Connectome::trace_inputs(
+    int target_id, const std::vector<std::unique_ptr<Neuron>>& neurons) const {
+
+    std::vector<CurrentSource> sources;
+    int n_size = static_cast<int>(neurons.size());
+    if (target_id < 0 || target_id >= n_size) return sources;
+
+    double V_target = neurons[target_id]->get_membrane_potential();
+
+    // Chemical synapses → target
+    for (const auto& syn : synapses_) {
+        if (syn.post_id() != target_id) continue;
+        int pre = syn.pre_id();
+        if (pre < 0 || pre >= n_size) continue;
+        double V_pre = neurons[pre]->get_membrane_potential();
+        double I = syn.compute_current(V_pre, V_target) * synapse_runtime_scale_;
+        if (std::abs(I) < 0.001) continue;  // skip negligible
+        std::string src_name = (pre < (int)neuron_infos_.size()) ? neuron_infos_[pre].name : "?";
+        std::string type = syn.is_excitatory() ? "chem_exc" : "chem_inh";
+        sources.push_back({src_name, type, I});
+    }
+
+    // Gap junctions → target
+    for (const auto& gj : gap_junctions_) {
+        int other = -1;
+        double sign = 1.0;
+        if (gj.neuron_a() == target_id) { other = gj.neuron_b(); sign = -1.0; }
+        else if (gj.neuron_b() == target_id) { other = gj.neuron_a(); sign = 1.0; }
+        else continue;
+        if (other < 0 || other >= n_size) continue;
+        double V_other = neurons[other]->get_membrane_potential();
+        double I = sign * gj.compute_current(neurons[gj.neuron_a()]->get_membrane_potential(),
+                                              neurons[gj.neuron_b()]->get_membrane_potential());
+        if (std::abs(I) < 0.001) continue;
+        std::string src_name = (other < (int)neuron_infos_.size()) ? neuron_infos_[other].name : "?";
+        sources.push_back({src_name, "gap", I});
+    }
+
+    // Sort by absolute current (largest first)
+    std::sort(sources.begin(), sources.end(),
+        [](const CurrentSource& a, const CurrentSource& b) {
+            return std::abs(a.current_pA) > std::abs(b.current_pA);
+        });
+
+    return sources;
 }
 
 } // namespace celegans

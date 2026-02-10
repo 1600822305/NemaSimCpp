@@ -114,6 +114,10 @@ if(CELEGANS_USE_OPENMP)
     target_link_libraries(celegans_diag PRIVATE OpenMP::OpenMP_CXX)
 endif()
 
+# Regression test executable (automated bug detection + current tracing)
+add_executable(celegans_regtest src/simulation/regression_test.cpp)
+target_link_libraries(celegans_regtest PRIVATE celegans_simulation)
+
 # Visualization executable (Dear ImGui + ImPlot + SDL2 + OpenGL)
 if(CELEGANS_BUILD_VIS)
     find_package(imgui CONFIG REQUIRED)

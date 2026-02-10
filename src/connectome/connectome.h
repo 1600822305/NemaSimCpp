@@ -41,6 +41,15 @@ public:
         return (it != name_to_id_.end()) ? it->second : -1;
     }
 
+    // Current budget trace: decompose I_syn for target neuron into per-source contributions
+    struct CurrentSource {
+        std::string source_name;   // presynaptic neuron name
+        std::string type;          // "chem_exc", "chem_inh", "gap"
+        double current_pA;         // instantaneous current (pA)
+    };
+    std::vector<CurrentSource> trace_inputs(int target_id,
+        const std::vector<std::unique_ptr<Neuron>>& neurons) const;
+
 private:
     std::vector<NeuronInfo> neuron_infos_;
     std::vector<ChemicalSynapse> synapses_;
