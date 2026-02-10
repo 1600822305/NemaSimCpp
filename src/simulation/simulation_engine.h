@@ -12,6 +12,7 @@
 #include "environment/sensory_transducer.h"
 #include "neuromodulation/neuromodulation.h"
 #include "compute/compute_backend.h"
+#include "pharynx/pharyngeal_pump.h"
 #include <vector>
 #include <memory>
 #include <string>
@@ -59,10 +60,15 @@ public:
     bool is_omega_turning() const { return omega_pending_; }
     double reversal_duration() const { return reversal_duration_; }
 
-    // Satiety (Step 20c)
+    // Satiety (Step 20c → Step 24: pharyngeal pump-driven)
     double satiety() const { return satiety_; }
     // Food memory / ARS (Step 20d)
     double food_memory() const { return food_memory_; }
+    // Pharyngeal pump (Step 24)
+    double pump_rate_hz() const { return pharynx_.pump_rate_hz(); }
+    int total_pumps() const { return pharynx_.total_pumps(); }
+    double pharynx_V() const { return pharynx_.V_muscle(); }
+    const PharyngealPump& pharynx() const { return pharynx_; }
 
     // Callback for each step (for logging/visualization)
     using StepCallback = std::function<void(const SimulationEngine&, int step_num)>;
@@ -146,12 +152,20 @@ private:
     void apply_thermo_input();              // AFD samples temperature field
     double cultivation_temp_ = 20.0;        // °C, initial cultivation temperature
 
-    // Satiety internal state (Step 20c)
-    // Models feeding → insulin signaling → reduced NSM sensitivity
+    // Step 24: Pharyngeal pumping system (replaces placeholder satiety)
+    // REF: Avery (WormBook 2012), Raizen & Avery 1994
+    PharyngealPump pharynx_;            // pharyngeal muscle AP model
+    std::vector<int> mc_ids_;           // MC motor neuron IDs (pacemaker)
+    std::vector<int> m3_ids_;           // M3 motor neuron IDs (relaxation)
+    int m4_id_ = -1;                    // M4 motor neuron ID (isthmus peristalsis)
+    std::vector<int> i1_ids_;           // I1 interneuron IDs (bridge)
+    void update_pharynx();             // Step 24: pharyngeal CPG + real feeding
+    void apply_pharyngeal_modulation(); // 5-HT→MC excitation, OA→MC inhibition
+
+    // Satiety internal state (Step 20c → Step 24: now driven by pharyngeal pumping)
     double satiety_ = 0.0;             // [0,1] — 0=hungry, 1=full
-    double satiety_tau_fill_ = 20000.0; // ms to fill up (20s on food)
     double satiety_tau_deplete_ = 40000.0; // ms to get hungry (40s off food)
-    void update_satiety();              // called each step
+    void update_satiety();              // called each step (now uses pharynx pump rate)
     std::vector<int> ric_ids_;          // RIC neuron IDs (OA source, tonic drive)
 
     // Area-Restricted Search (Step 20d)

@@ -241,6 +241,30 @@ void ConnectomeLoader::generate_default_connectome(
         {"VD01", NeuronType::MOTOR, NeurotransmitterType::GABA},
         {"VD02", NeuronType::MOTOR, NeurotransmitterType::GABA},
         {"VD03", NeuronType::MOTOR, NeurotransmitterType::GABA},
+        // Step 24: Pharyngeal nervous system (independent CPG)
+        // 20 neurons total, 14 types; we implement the 5 essential types (9 neurons)
+        // REF: Albertson & Thomson 1976, Avery (WormBook 2012)
+        // MC: excitatory motor neuron, ACh pacemaker → controls pump rate
+        // REF: Raizen & Avery 1994 — MC necessary and sufficient for rapid pumping
+        //      Song & Avery 2012 eLife — 5-HT activates MC via SER-7
+        {"MCL",  NeuronType::MOTOR, NeurotransmitterType::ACETYLCHOLINE},
+        {"MCR",  NeuronType::MOTOR, NeurotransmitterType::ACETYLCHOLINE},
+        // M3: inhibitory motor neuron, Glu → controls relaxation timing
+        // REF: Avery 1993 — M3 proprioceptive loop, triggers repolarization
+        //      Dent et al — M3 uses glutamate via AVR-15 Cl⁻ channel
+        {"M3L",  NeuronType::MOTOR, NeurotransmitterType::GLUTAMATE},
+        {"M3R",  NeuronType::MOTOR, NeurotransmitterType::GLUTAMATE},
+        // M4: motor neuron, controls isthmus peristalsis (food transport)
+        // REF: Avery & Horvitz 1987 — M4 essential for growth
+        {"M4",   NeuronType::MOTOR, NeurotransmitterType::ACETYLCHOLINE},
+        // I1: pharyngeal interneuron, receives RIP gap junction (somatic↔pharyngeal bridge)
+        // REF: Albertson & Thomson 1976 — I1 connects via RIP to extrapharyngeal NS
+        {"I1L",  NeuronType::INTER, NeurotransmitterType::ACETYLCHOLINE},
+        {"I1R",  NeuronType::INTER, NeurotransmitterType::ACETYLCHOLINE},
+        // RIP: extrapharyngeal neuron, sole bridge to pharyngeal NS via gap junction to I1
+        // REF: Albertson & Thomson 1976 — bilateral pair, gap junction to I1
+        {"RIPL", NeuronType::INTER, NeurotransmitterType::ACETYLCHOLINE},
+        {"RIPR", NeuronType::INTER, NeurotransmitterType::ACETYLCHOLINE},
     };
 
     for (size_t i = 0; i < defs.size(); ++i) {
@@ -426,6 +450,39 @@ void ConnectomeLoader::generate_default_connectome(
     // Touch circuit gap junctions (Chalfie 1985: touch cells → agonist interneurons)
     // ALM → AVD: anterior touch excites backward interneuron
     add_gj("ALML", "AVDL", 4); add_gj("ALMR", "AVDR", 4);
+
+    // ================================================================
+    // Step 24: Pharyngeal nervous system synapses
+    // REF: Albertson & Thomson 1976, Cook 2020 (pharyngeal connectome)
+    // ================================================================
+
+    // I1 → MC: excitatory, relays extrapharyngeal signals to pacemaker
+    // REF: Raizen et al 1995 — I1 affects pump rate in absence of bacteria
+    add_syn("I1L", "MCL", 3); add_syn("I1R", "MCR", 3);
+
+    // MC → M3: MC activity → muscle contraction → M3 proprioceptive firing
+    // Modeled as direct excitatory connection (shortcut for muscle-mediated)
+    // REF: Raizen & Avery 1994 — M3 fires during MC-driven contraction
+    add_syn("MCL", "M3L", 2); add_syn("MCR", "M3R", 2);
+
+    // M3 → MC: weak inhibitory feedback (glutamate → Cl⁻)
+    // M3 relaxation signal slightly delays next MC firing
+    add_syn("M3L", "MCL", 1); add_syn("M3R", "MCR", 1);
+
+    // MC → M4: MC pumping activates M4 for isthmus peristalsis
+    // REF: Song et al 2013 — M4 activated by anterior pumping + 5-HT
+    add_syn("MCL", "M4", 2); add_syn("MCR", "M4", 2);
+
+    // I1 → I1: left-right coupling within pharynx
+    add_gj("I1L", "I1R", 2);
+    // MC ↔ MC: left-right synchronization of pacemaker
+    add_gj("MCL", "MCR", 3);
+    // M3 ↔ M3: left-right synchronization of relaxation
+    add_gj("M3L", "M3R", 2);
+
+    // RIP ↔ I1: the SOLE bridge between somatic and pharyngeal nervous systems
+    // REF: Albertson & Thomson 1976 — bilateral gap junction pair
+    add_gj("RIPL", "I1L", 2); add_gj("RIPR", "I1R", 2);
 
     LOG_INFO("Generated default connectome: ", neurons.size(), " neurons, ",
              synapses.size(), " synapses, ", gap_junctions.size(), " gap junctions");

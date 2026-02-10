@@ -112,11 +112,16 @@ void SimulationEngine::initialize_default() {
     add_pm("DA01", 0, true);  add_pm("DA02", 5, true);  add_pm("DA03", 15, true);
     add_pm("VA01", 0, false); add_pm("VA02", 5, false); add_pm("VA03", 15, false);
 
-    // 10. Collect touch neuron IDs (Step 18)
+    // 10. Collect touch neuron IDs (Step 18) + pharyngeal neuron IDs (Step 24)
     for (auto& info : neuron_infos) {
         if (starts_with(info.name, "ALM")) alm_ids_.push_back(info.id);
         if (starts_with(info.name, "PLM")) plm_ids_.push_back(info.id);
         if (starts_with(info.name, "RIC")) ric_ids_.push_back(info.id);
+        // Step 24: Pharyngeal neurons
+        if (starts_with(info.name, "MC") && info.name.size() <= 3) mc_ids_.push_back(info.id);
+        if (starts_with(info.name, "M3")) m3_ids_.push_back(info.id);
+        if (info.name == "M4") m4_id_ = info.id;
+        if (starts_with(info.name, "I1")) i1_ids_.push_back(info.id);
     }
 
     // Initialize transducers with current concentration at head
@@ -250,7 +255,11 @@ void SimulationEngine::step() {
     // Step 19 Phase 2: SMB neck curvature bias (klinotaxis effector)
     apply_smb_neck_bias();
 
-    // 5b. Update satiety + RIC tonic drive (Step 20c)
+    // 5a2. Step 24: Pharyngeal CPG — MC/M3 drive pump, 5-HT/OA modulate
+    apply_pharyngeal_modulation();  // 5-HT→MC excitation, OA→MC inhibition
+    update_pharynx();               // pharyngeal muscle AP + food ingestion → satiety
+
+    // 5b. Update satiety effects (RIC tonic drive, NSM suppression, chemotaxis)
     update_satiety();
 
     // 5b2. Update food memory / ARS (Step 20d)
@@ -894,17 +903,21 @@ void SimulationEngine::setup_neuromodulation() {
 //      Shtonda & Bhatt 2010 — satiety quiescence
 // ================================================================
 void SimulationEngine::update_satiety() {
-    // Sample food concentration at head
-    double food_conc = environment_.sample_chemical(body_.get_head_position());
+    // Step 24: Satiety now driven by REAL pharyngeal pumping
+    // pump_rate (Hz) × food_concentration → actual food ingestion → satiety
+    // Replaces placeholder: "dist < 3mm → satiety += dt/τ"
+    //
+    // Satiety accumulation: each pump near food adds food_per_pump × conc
+    // Satiety depletion: metabolic consumption tau ~40s
+    // The pharynx update_pharynx() already computed the pump event this step.
+    // Here we just apply depletion + clamp.
 
-    // Update satiety: rises on food, falls off food
-    // food_conc is ~0.5-1.0 near food source, ~0 far away
-    double on_food = food_conc * food_conc / (food_conc * food_conc + 0.09); // steep sigmoid, half-max at C=0.3
-    satiety_ += (on_food - satiety_) * dt_ / satiety_tau_fill_;
-    // Additional depletion when not on food
-    if (on_food < 0.3) {
-        satiety_ -= satiety_ * dt_ / satiety_tau_deplete_;
-    }
+    double food_conc = environment_.sample_chemical(body_.get_head_position());
+    double on_food = food_conc * food_conc / (food_conc * food_conc + 0.09);
+
+    // Depletion: always metabolizing (faster when not on food)
+    double depletion_rate = (on_food < 0.3) ? 1.0 : 0.5;  // faster off food
+    satiety_ -= satiety_ * dt_ * depletion_rate / satiety_tau_deplete_;
     if (satiety_ < 0.0) satiety_ = 0.0;
     if (satiety_ > 1.0) satiety_ = 1.0;
 
@@ -1233,6 +1246,121 @@ void SimulationEngine::sync_synapses_to_gpu() {
 
     gpu_backend_->upload_synapses(gpu_synapses_);
     LOG_INFO("GPU: uploaded ", gpu_synapses_.size(), " synapses");
+}
+
+// ================================================================
+// Step 24: Pharyngeal Pumping System
+//
+// The pharynx is an independent neuromuscular pump (20 neurons, 14 types).
+// We model the 5 essential types: MC (pacemaker), M3 (relaxation),
+// M4 (isthmus peristalsis), I1 (bridge), RIP (extrapharyngeal bridge).
+//
+// Pump cycle: MC fires → muscle AP (E→P→R) → M3 proprioceptive → relax
+// Rate: ~4 Hz on food (5-HT), ~1 Hz off food (intrinsic muscle)
+// Food ingestion: pump_rate × food_concentration → satiety
+//
+// REF: Avery (WormBook 2012), Raizen & Avery 1994, Song & Avery 2012
+// ================================================================
+
+void SimulationEngine::apply_pharyngeal_modulation() {
+    // 5-HT → MC: SER-7 receptor excitation (increases pump rate)
+    // REF: Song & Avery 2012 eLife — 5-HT activates MC via SER-7
+    //      Hobson 2006 Genetics — SER-7 necessary for 5-HT stimulation of pumping
+    // OA → MC: inhibition (decreases pump rate)
+    // REF: Niacaris & Bhatt 2003 — OA suppresses pumping
+    int n = static_cast<int>(neurons_.size());
+
+    double sht_conc = neuromod_.get_concentration("5-HT");
+    double oa_conc = neuromod_.get_concentration("OA");
+
+    // 5-HT excites MC: +15 pA at full 5-HT → faster firing → higher pump rate
+    // OA inhibits MC: -10 pA at full OA → slower firing → lower pump rate
+    double mc_5ht_current = 15.0 * sht_conc;   // excitatory
+    double mc_oa_current = -10.0 * oa_conc;     // inhibitory
+
+    for (int id : mc_ids_) {
+        if (id >= 0 && id < n) {
+            // MC tonic drive: baseline + food detection + neuromodulation
+            // MC has mechanosensory ending that detects bacteria in pharynx
+            double food_conc = environment_.sample_chemical(body_.get_head_position());
+            double food_drive = 8.0 * food_conc / (food_conc + 0.1);  // 0-8 pA, half-max at 0.1
+            double mc_tonic = 3.0 + food_drive + mc_5ht_current + mc_oa_current;
+            neurons_[id]->add_synaptic_current(mc_tonic);
+        }
+    }
+
+    // M3 gets tonic baseline + proprioceptive drive from pharyngeal muscle
+    // M3 fires when muscle is contracted (during plateau phase)
+    double m3_drive = 0.0;
+    if (pharynx_.phase() == PharyngealPump::Phase::PLATEAU) {
+        m3_drive = 12.0;  // proprioceptive: strong during contraction
+    } else if (pharynx_.phase() == PharyngealPump::Phase::EXCITATION) {
+        m3_drive = 5.0;   // beginning of contraction
+    }
+    for (int id : m3_ids_) {
+        if (id >= 0 && id < n) {
+            neurons_[id]->add_synaptic_current(2.0 + m3_drive);  // 2 pA baseline + proprioceptive
+        }
+    }
+
+    // M4 tonic: low baseline, activated by MC pumping + 5-HT
+    // M4 drives isthmus peristalsis (food transport to terminal bulb)
+    if (m4_id_ >= 0 && m4_id_ < n) {
+        double m4_5ht = 8.0 * sht_conc;  // 5-HT also activates M4
+        neurons_[m4_id_]->add_synaptic_current(2.0 + m4_5ht);
+    }
+
+    // I1 gets small baseline — mainly relays RIP signals
+    for (int id : i1_ids_) {
+        if (id >= 0 && id < n) {
+            neurons_[id]->add_synaptic_current(1.0);
+        }
+    }
+}
+
+void SimulationEngine::update_pharynx() {
+    // Read MC and M3 neuron outputs (release probability)
+    // MC output → triggers pump (excitatory)
+    // M3 output → triggers relaxation (inhibitory on muscle, but we read it as release)
+    int n = static_cast<int>(neurons_.size());
+
+    // Average MC release across L/R
+    double mc_release = 0.0;
+    int mc_count = 0;
+    for (int id : mc_ids_) {
+        if (id >= 0 && id < n) {
+            double v = neurons_[id]->get_membrane_potential();
+            // Sigmoid release function: S = 1/(1+exp(-(V-V_half)/slope))
+            double s = 1.0 / (1.0 + std::exp(-(v - (-35.0)) / 5.0));
+            mc_release += s;
+            mc_count++;
+        }
+    }
+    if (mc_count > 0) mc_release /= mc_count;
+
+    // Average M3 release across L/R
+    double m3_release = 0.0;
+    int m3_count = 0;
+    for (int id : m3_ids_) {
+        if (id >= 0 && id < n) {
+            double v = neurons_[id]->get_membrane_potential();
+            double s = 1.0 / (1.0 + std::exp(-(v - (-35.0)) / 5.0));
+            m3_release += s;
+            m3_count++;
+        }
+    }
+    if (m3_count > 0) m3_release /= m3_count;
+
+    // Update pharyngeal muscle state machine
+    bool pump_event = pharynx_.update(mc_release, m3_release, dt_);
+
+    // Food ingestion: pump near food → satiety
+    if (pump_event) {
+        double food_conc = environment_.sample_chemical(body_.get_head_position());
+        double food_ingested = pharynx_.compute_food_intake(food_conc, true);
+        satiety_ += food_ingested;
+        if (satiety_ > 1.0) satiety_ = 1.0;
+    }
 }
 
 } // namespace celegans

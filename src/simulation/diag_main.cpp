@@ -75,6 +75,7 @@ int main() {
     std::vector<double> aial_vs, aiar_vs, awcl_vs, awcr_vs;
     std::vector<double> aval_vs, rial_vs, riar_vs;
     std::vector<double> sht_vs, da_vs, oa_vs, satiety_vs, spd_scale_vs, fmem_vs, dist_vs_time, xpos_vs;
+    std::vector<double> pump_rate_vs, pharynx_v_vs;  // Step 24: pharyngeal diagnostics
 
     double prev_heading = sim.body().get_head_angle() * 180.0 / 3.14159265;
     double prev_time = 0;
@@ -180,6 +181,8 @@ int main() {
             fmem_vs.push_back(sim.food_memory());
             dist_vs_time.push_back(dist);
             xpos_vs.push_back(head.x);
+            pump_rate_vs.push_back(sim.pump_rate_hz());
+            pharynx_v_vs.push_back(sim.pharynx_V());
 
             // Store
             grad_mags.push_back(grad_mag);
@@ -375,6 +378,31 @@ int main() {
                   << " → chemo×" << std::setprecision(2) << chemo_g
                   << " thermo×" << std::setprecision(2) << thermo_g
                   << (sat > 0.5 ? " [TEMP mode]" : " [FOOD mode]") << std::endl;
+        // Step 24: Pharyngeal pumping diagnostics
+        std::cout << "   Pharynx: pump_rate=" << std::setprecision(1) << sim.pump_rate_hz() << " Hz"
+                  << "  total_pumps=" << sim.total_pumps()
+                  << "  V_muscle=" << std::setprecision(1) << sim.pharynx_V() << " mV"
+                  << "  phase=";
+        switch (sim.pharynx().phase()) {
+            case PharyngealPump::Phase::RESTING: std::cout << "REST"; break;
+            case PharyngealPump::Phase::EXCITATION: std::cout << "E"; break;
+            case PharyngealPump::Phase::PLATEAU: std::cout << "P"; break;
+            case PharyngealPump::Phase::REPOLARIZATION: std::cout << "R"; break;
+        }
+        std::cout << std::endl;
+        // MC/M3 neuron voltages
+        int mcl_id = conn.get_neuron_id("MCL");
+        int m3l_id = conn.get_neuron_id("M3L");
+        int m4_id = conn.get_neuron_id("M4");
+        double mcl_v = (mcl_id >= 0) ? sim.neurons()[mcl_id]->get_membrane_potential() : 0;
+        double m3l_v = (m3l_id >= 0) ? sim.neurons()[m3l_id]->get_membrane_potential() : 0;
+        double m4_v = (m4_id >= 0) ? sim.neurons()[m4_id]->get_membrane_potential() : 0;
+        std::cout << "   MC=" << std::setprecision(1) << mcl_v << "mV"
+                  << "  M3=" << m3l_v << "mV"
+                  << "  M4=" << m4_v << "mV"
+                  << "  5-HT→MC: +" << std::setprecision(1) << 15.0 * sim.neuromodulation().get_concentration("5-HT") << "pA"
+                  << "  OA→MC: " << std::setprecision(1) << -10.0 * sim.neuromodulation().get_concentration("OA") << "pA"
+                  << std::endl;
         // Conflict analysis: did worm go toward food (right) or Tc (left)?
         // Tc target: T(x)=20+(-0.5)(x-25)=Tc → x=25-(Tc-20)/0.5
         double tc_x = 25.0 - (22.5 - 20.0) / 0.5;  // = 20mm
