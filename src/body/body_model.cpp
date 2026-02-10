@@ -85,7 +85,7 @@ void BodyModel::update_positions(double dt) {
 
     // --- 2. Heading update: dθ/dt = v × κ_head ---
     // REF: Padmanabhan 2012 — body with curvature κ moving at speed v turns at v·κ
-    double head_curv = segments_[0].curvature;
+    double head_curv = segments_[0].curvature + curvature_bias_;
     double dtheta = forward_speed * head_curv * dt;
     // Clamp to 50°/s = 0.87 rad/s (run regime)
     // REF: Pierce-Shimomura 1999 — runs: |dθ/dt| ≤ 50°/s

@@ -1,0 +1,263 @@
+#include "simulation/simulation_engine.h"
+#include "core/logger.h"
+#include <iostream>
+#include <iomanip>
+#include <cmath>
+#include <vector>
+#include <numeric>
+
+using namespace celegans;
+
+int main() {
+    Logger::instance().set_level(LogLevel::WARN);
+
+    SimulationEngine sim;
+    sim.initialize_default();
+
+    Vector2d food{35.0, 35.0};
+    auto& conn = sim.connectome();
+
+    int asel_id = conn.get_neuron_id("ASEL");
+    int aser_id = conn.get_neuron_id("ASER");
+    int smddl_id = conn.get_neuron_id("SMDDL");
+    int smdvl_id = conn.get_neuron_id("SMDVL");
+    int aval_id = conn.get_neuron_id("AVAL");
+    int avbl_id = conn.get_neuron_id("AVBL");
+
+    // Accumulators
+    std::vector<double> grad_mags, grad_normals, biases;
+    std::vector<double> asel_vs, aser_vs, smd_diffs, curvatures;
+    std::vector<double> speeds, headings, dists;
+
+    double prev_heading = sim.body().get_head_angle() * 180.0 / 3.14159265;
+    double prev_time = 0;
+    double heading_rate_sum = 0;
+    int heading_rate_count = 0;
+
+    // Run 60 seconds, sample every 100ms
+    double duration = 60000.0;
+    int pirouette_count = 0;
+    int total_steps = (int)(duration / sim.dt());
+    int sample_interval = (int)(100.0 / sim.dt()); // every 100ms
+
+    for (int s = 0; s < total_steps; ++s) {
+        sim.step();
+
+        if ((s + 1) % sample_interval == 0) {
+            auto head = sim.body().get_head_position();
+            const auto& neurons = sim.neurons();
+            int n = (int)neurons.size();
+
+            // 1. Gradient
+            auto grad = sim.environment().chemical_field().gradient(head);
+            double grad_mag = std::sqrt(grad.x * grad.x + grad.y * grad.y);
+
+            // 2. Gradient normal
+            double heading_rad = sim.body().get_head_angle();
+            double grad_normal = -std::sin(heading_rad) * grad.x + std::cos(heading_rad) * grad.y;
+
+            // 3. Bias
+            double bias = sim.params.weathervane_gain * grad_normal;
+            double clamp = sim.params.bias_clamp;
+            if (bias > clamp) bias = clamp;
+            if (bias < -clamp) bias = -clamp;
+
+            // 4. Neuron potentials
+            double v_asel = (asel_id >= 0 && asel_id < n) ? neurons[asel_id]->get_membrane_potential() : 0;
+            double v_aser = (aser_id >= 0 && aser_id < n) ? neurons[aser_id]->get_membrane_potential() : 0;
+            double v_smddl = (smddl_id >= 0 && smddl_id < n) ? neurons[smddl_id]->get_membrane_potential() : 0;
+            double v_smdvl = (smdvl_id >= 0 && smdvl_id < n) ? neurons[smdvl_id]->get_membrane_potential() : 0;
+
+            // 5. Curvature, speed
+            double curv = sim.body().segments()[0].curvature;
+            double speed = sim.body().get_speed();
+
+            // 6. Heading rate
+            double heading_deg = heading_rad * 180.0 / 3.14159265;
+            double dt_sec = (sim.current_time() - prev_time) / 1000.0;
+            double h_rate = 0;
+            if (dt_sec > 0.01) {
+                h_rate = (heading_deg - prev_heading) / dt_sec;
+                heading_rate_sum += std::abs(h_rate);
+                heading_rate_count++;
+                // Detect pirouette: heading jump > 30° in 100ms
+                if (std::abs(heading_deg - prev_heading) > 30.0) {
+                    pirouette_count++;
+                }
+            }
+            prev_heading = heading_deg;
+            prev_time = sim.current_time();
+
+            // 7. Distance
+            double dx = head.x - food.x;
+            double dy = head.y - food.y;
+            double dist = std::sqrt(dx * dx + dy * dy);
+
+            // Store
+            grad_mags.push_back(grad_mag);
+            grad_normals.push_back(grad_normal);
+            biases.push_back(bias);
+            asel_vs.push_back(v_asel);
+            aser_vs.push_back(v_aser);
+            smd_diffs.push_back(v_smddl - v_smdvl);
+            curvatures.push_back(curv);
+            speeds.push_back(speed);
+            headings.push_back(heading_deg);
+            dists.push_back(dist);
+        }
+    }
+
+    // Helper functions
+    auto mean = [](const std::vector<double>& v) {
+        return std::accumulate(v.begin(), v.end(), 0.0) / v.size();
+    };
+    auto absmax = [](const std::vector<double>& v) {
+        double m = 0;
+        for (auto x : v) if (std::abs(x) > m) m = std::abs(x);
+        return m;
+    };
+    auto minmax = [](const std::vector<double>& v) -> std::pair<double,double> {
+        double mn = v[0], mx = v[0];
+        for (auto x : v) { if (x < mn) mn = x; if (x > mx) mx = x; }
+        return {mn, mx};
+    };
+
+    std::cout << std::fixed;
+    std::cout << "\n========================================" << std::endl;
+    std::cout << "  SIGNAL CHAIN DIAGNOSTIC (60s run)" << std::endl;
+    std::cout << "========================================\n" << std::endl;
+
+    auto [g_min, g_max] = minmax(grad_mags);
+    std::cout << "1. GRADIENT at head:" << std::endl;
+    std::cout << "   magnitude: mean=" << std::setprecision(5) << mean(grad_mags)
+              << "  range=[" << g_min << ", " << g_max << "] /mm" << std::endl;
+
+    auto [gn_min, gn_max] = minmax(grad_normals);
+    std::cout << "\n2. GRADIENT NORMAL (perp to heading):" << std::endl;
+    std::cout << "   mean=" << std::setprecision(5) << mean(grad_normals)
+              << "  range=[" << gn_min << ", " << gn_max << "]" << std::endl;
+
+    auto [b_min, b_max] = minmax(biases);
+    std::cout << "\n3. WEATHERVANE BIAS CURRENT:" << std::endl;
+    std::cout << "   mean=" << std::setprecision(3) << mean(biases)
+              << " pA  range=[" << b_min << ", " << b_max << "] pA"
+              << "  (gain=" << sim.params.weathervane_gain << ", clamp=" << sim.params.bias_clamp << ")" << std::endl;
+
+    std::cout << "\n4. SENSORY NEURONS (ASEL vs ASER):" << std::endl;
+    auto [al_min, al_max] = minmax(asel_vs);
+    auto [ar_min, ar_max] = minmax(aser_vs);
+    std::cout << "   ASEL: mean=" << std::setprecision(2) << mean(asel_vs)
+              << " mV  range=[" << al_min << ", " << al_max << "]" << std::endl;
+    std::cout << "   ASER: mean=" << std::setprecision(2) << mean(aser_vs)
+              << " mV  range=[" << ar_min << ", " << ar_max << "]" << std::endl;
+    std::cout << "   L-R diff: " << std::setprecision(3) << (mean(asel_vs) - mean(aser_vs)) << " mV" << std::endl;
+
+    std::cout << "\n5. SMD DIFFERENTIAL (SMDDL - SMDVL):" << std::endl;
+    auto [sd_min, sd_max] = minmax(smd_diffs);
+    std::cout << "   mean=" << std::setprecision(3) << mean(smd_diffs)
+              << " mV  range=[" << sd_min << ", " << sd_max << "]"
+              << "  amplitude=" << std::setprecision(2) << (sd_max - sd_min) << " mV" << std::endl;
+
+    std::cout << "\n6. HEAD CURVATURE:" << std::endl;
+    auto [c_min, c_max] = minmax(curvatures);
+    std::cout << "   mean=" << std::setprecision(4) << mean(curvatures)
+              << "  range=[" << c_min << ", " << c_max << "] /mm"
+              << "  amplitude=" << (c_max - c_min) << std::endl;
+
+    std::cout << "\n7. SPEED:" << std::endl;
+    auto [sp_min, sp_max] = minmax(speeds);
+    std::cout << "   mean=" << std::setprecision(4) << mean(speeds)
+              << "  range=[" << sp_min << ", " << sp_max << "] mm/s" << std::endl;
+
+    std::cout << "\n8. HEADING:" << std::endl;
+    auto [h_min, h_max] = minmax(headings);
+    double avg_rate = (heading_rate_count > 0) ? heading_rate_sum / heading_rate_count : 0;
+    std::cout << "   range=[" << std::setprecision(1) << h_min << ", " << h_max << "] deg"
+              << "  total_sweep=" << (h_max - h_min) << " deg" << std::endl;
+    std::cout << "   avg |dtheta/dt|=" << std::setprecision(3) << avg_rate << " deg/s" << std::endl;
+    std::cout << "   pirouettes detected: " << pirouette_count << " (" 
+              << std::setprecision(2) << pirouette_count / (duration/1000.0) << " Hz)" << std::endl;
+
+    std::cout << "\n9. DISTANCE TO FOOD:" << std::endl;
+    std::cout << "   initial=" << std::setprecision(2) << dists.front()
+              << "  final=" << dists.back() << " mm" << std::endl;
+    double ci = (dists.front() - dists.back()) / dists.front();
+    std::cout << "   CI=" << std::setprecision(3) << ci << std::endl;
+
+    // BOTTLENECK ANALYSIS
+    std::cout << "\n========================================" << std::endl;
+    std::cout << "  BOTTLENECK ANALYSIS" << std::endl;
+    std::cout << "========================================\n" << std::endl;
+
+    bool has_bottleneck = false;
+
+    if (mean(grad_mags) < 0.005) {
+        std::cout << "  [!!] GRADIENT too small (" << mean(grad_mags) << " /mm)" << std::endl;
+        std::cout << "       -> Worm may be too far from food, or sigma too large" << std::endl;
+        has_bottleneck = true;
+    } else {
+        std::cout << "  [OK] Gradient magnitude adequate" << std::endl;
+    }
+
+    if (absmax(biases) < 0.5) {
+        std::cout << "  [!!] BIAS CURRENT too weak (max " << absmax(biases) << " pA)" << std::endl;
+        std::cout << "       -> Increase weathervane_gain (try 200-500)" << std::endl;
+        has_bottleneck = true;
+    } else if (absmax(biases) >= sim.params.bias_clamp * 0.9) {
+        std::cout << "  [!!] BIAS CURRENT hitting clamp (" << sim.params.bias_clamp << " pA)" << std::endl;
+        std::cout << "       -> Increase bias_clamp (try 20-50)" << std::endl;
+        has_bottleneck = true;
+    } else {
+        std::cout << "  [OK] Bias current adequate" << std::endl;
+    }
+
+    double smd_amp = sd_max - sd_min;
+    if (smd_amp < 2.0) {
+        std::cout << "  [!!] SMD DIFFERENTIAL too small (" << smd_amp << " mV)" << std::endl;
+        std::cout << "       -> Increase synapse_scale or weathervane_gain" << std::endl;
+        has_bottleneck = true;
+    } else {
+        std::cout << "  [OK] SMD differential " << smd_amp << " mV" << std::endl;
+    }
+
+    double curv_amp = c_max - c_min;
+    if (curv_amp < 0.1) {
+        std::cout << "  [!!] CURVATURE too small (" << curv_amp << " /mm)" << std::endl;
+        std::cout << "       -> Check muscle_gain in body_model or synapse_scale" << std::endl;
+        has_bottleneck = true;
+    } else {
+        std::cout << "  [OK] Curvature amplitude " << curv_amp << " /mm" << std::endl;
+    }
+
+    if (mean(speeds) < 0.1) {
+        std::cout << "  [!!] SPEED too slow (" << mean(speeds) << " mm/s)" << std::endl;
+        std::cout << "       -> Increase speed_scale" << std::endl;
+        has_bottleneck = true;
+    } else {
+        std::cout << "  [OK] Speed " << mean(speeds) << " mm/s" << std::endl;
+    }
+
+    if (avg_rate < 1.0) {
+        std::cout << "  [!!] HEADING RATE too low (" << avg_rate << " deg/s, need 1-5)" << std::endl;
+        std::cout << "       -> Product of speed * curvature too small" << std::endl;
+        has_bottleneck = true;
+    } else {
+        std::cout << "  [OK] Heading rate " << avg_rate << " deg/s" << std::endl;
+    }
+
+    if (ci < 0.3) {
+        std::cout << "  [!!] CI poor (" << ci << ", target >0.5)" << std::endl;
+        has_bottleneck = true;
+    } else if (ci >= 0.5) {
+        std::cout << "  [OK] CI good (" << ci << " >= 0.5)" << std::endl;
+    } else {
+        std::cout << "  [..] CI moderate (" << ci << ", target >0.5)" << std::endl;
+    }
+
+    if (!has_bottleneck) {
+        std::cout << "\n  All stages look healthy!" << std::endl;
+    }
+
+    std::cout << std::endl;
+    return 0;
+}

@@ -31,11 +31,11 @@ public:
 
     // Tunable parameters (live-adjustable from visualization)
     struct TuningParams {
-        float weathervane_gain = 50.0f;   // pA per (conc/mm) — gradient → SMD bias
+        float weathervane_gain = 300.0f;  // pA per (conc/mm) — gradient → SMD bias (was 50)
         float synapse_scale   = 1.0f;    // global synapse weight multiplier
-        float speed_scale     = 1.0f;    // v_max multiplier
+        float speed_scale     = 2.0f;    // v_max multiplier (was 1.0, target ~0.2 mm/s)
         float sensory_gain    = 1.0f;    // chemosensory transducer gain multiplier
-        float bias_clamp      = 5.0f;    // max weathervane bias current (pA)
+        float bias_clamp      = 30.0f;   // max weathervane bias current (pA) (was 5)
     };
     TuningParams params;
 

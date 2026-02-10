@@ -75,6 +75,10 @@ target_link_libraries(celegans_simulation PUBLIC
 add_executable(celegans_sim src/simulation/main.cpp)
 target_link_libraries(celegans_sim PRIVATE celegans_simulation)
 
+# Diagnostic executable (signal chain analysis)
+add_executable(celegans_diag src/simulation/diag_main.cpp)
+target_link_libraries(celegans_diag PRIVATE celegans_simulation)
+
 # Visualization executable (Dear ImGui + ImPlot + SDL2 + OpenGL)
 if(CELEGANS_BUILD_VIS)
     find_package(imgui CONFIG REQUIRED)

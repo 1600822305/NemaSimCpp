@@ -306,6 +306,20 @@ void SimulationEngine::apply_weathervane() {
     // Ventral SMD gets negative bias (opposite)
     apply_bias("SMDVL", -bias_current);
     apply_bias("SMDVR", -bias_current);
+
+    // Direct curvature bias: bypass neural dynamics bottleneck
+    // Maps gradient normal → head curvature offset (1/mm)
+    // REF: Iino & Yoshida 2009 — curving rate 12.7 °/mm × ∇C_⊥
+    // At speed 0.2 mm/s, to get 5°/s curving: need κ_bias = (5°/s) / (57.3 × 0.2) ≈ 0.44 /mm
+    // With gradient ~0.01, need gain ~44. Use weathervane_gain/10 as curvature gain.
+    // curv_gain calibration: at gradient 0.01, need ~0.44 /mm bias for 5°/s at 0.2 mm/s
+    // → curv_gain ≈ 44. Use weathervane_gain * 0.15 as scaling factor.
+    double curv_gain = static_cast<double>(params.weathervane_gain) * 0.15;
+    double curv_bias = curv_gain * grad_normal;
+    // Clamp to ±2.0 /mm (physiological limit ~3 /mm)
+    if (curv_bias > 2.0) curv_bias = 2.0;
+    if (curv_bias < -2.0) curv_bias = -2.0;
+    body_.set_curvature_bias(curv_bias);
 }
 
 void SimulationEngine::apply_proprioceptive_stretch() {
