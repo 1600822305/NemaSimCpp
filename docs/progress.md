@@ -382,11 +382,24 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 - **D/V交替接力**: DB01(+curv) → VB02(-curv) → DB03(+curv) = S波
 - **A类保持同步**: seg 0/5/15 原始映射不变 (提供基础肌肉驱动力)
 - **曲率扩散**: 0.5 体节间弹性耦合 (Boyle 2012)
-- **ProprioMapping扩展**: sense_start/sense_end字段 (预留多段整合)
-- **关键教训**: A类映射不可改 (改→肌肉驱动减半→speed 0.3→0.1)
-- **结果**: regtest 14 pass; speed 0.3, heading 17.1
+- **曲率数值稳定性**: 半隐式Euler替代Forward Euler (stiffness×dt=5.25>>2, 无条件稳定)
+- **关键教训**: A类映射不可改; Forward Euler对刚性ODE不稳定
+- **结果**: regtest 17 pass; speed 0.3, heading 17.1; diag speed 0.076→0.192 (+153%)
 - **REF**: Wen 2012 Neuron, Boyle 2012 Frontiers, Yeon 2018 PLOS Biology
 - **文档**: docs/steps/step29_proprioceptive_wave.md
+
+### Step 30: Tyramine — RIM 逃逸反应协调
+
+- **生物学**: RIM 是酪胺能神经元 (TDC-1+, TBH-1-), 通过 gap junction 与 AVA 共激活
+- **TA 第4种调质**: 源 RIM L/R, τ_rise=500ms, τ_decay=2s (逃逸时间尺度)
+- **LGC-55→SMD**: -25pA Cl⁻ 抑制 → 逆转期间头部摆动停止 (Pirri 2009)
+- **LGC-55→AVB**: -10pA 抑制前进 → 促进长逆转 (Pirri 2009)
+- **TYRA-3→ASH**: +5pA 增敏伤害感觉 → 碰壁增敏涌现 (Rex 2005)
+- **TA→OA耦合**: RIC +2pA 模拟 TBH-1 底物供给 (Alkema 2005)
+- **涌现**: 承诺式逆转(~200ms延迟) + 碰壁增敏(TA累积→ASH敏化)
+- **结果**: regtest 17 pass; speed 0.3, heading 18.2; TA conc 0.27
+- **REF**: Alkema 2005 Neuron, Pirri 2009 Neuron, Donnelly 2013 PLOS Biology
+- **文档**: docs/steps/step30_tyramine_rim.md
 
 ---
 
@@ -399,8 +412,9 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
   中间: 27 (AIA/AIB/AIY/AIZ/RIA/RIB/RIM/RIC/AVA/AVB/AVD/AVE/I1/RIP L/R + RIS)
   运动: 35 (SMD/RMD/SMB 4×2+4 + DA/DB/VA/VB/DD/VD 各3 + MC/M3 L/R + M4)
 突触: ~140 化学 + ~25 间隙连接 (全部带 Tsodyks-Markram STP)
-神经调质: 3 种 (5-HT, DA, OA) — volume transmission + 饱食度(泵驱动)
+神经调质: 4 种 (5-HT, DA, OA, TA) — volume transmission + 饱食度(泵驱动)
   5-HT 源: NSM(食物) + ADF(生病) — 4个源神经元
+  TA 源: RIM (逃逸协调) — LGC-55→SMD/AVB抑制 + TYRA-3→ASH增敏
 离子通道: 8/14 种 (EGL-19/UNC-2/CCA-1/SHL-1/KQT-3/SLO-1/NCA/MEC)
 神经元模型: 单隔室 HH 分级电位 (L2) + 钙动力学
 身体: 2D 弹性杆 48 段, 22 个运动神经元-肌肉映射, 体节间曲率扩散(弹性耦合)
