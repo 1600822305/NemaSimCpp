@@ -253,8 +253,11 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 - **分回路 τ**: CPG快(400ms/0.0003), 触觉慢(4000ms/0.0005), 感觉中(1500ms/0.0003)
 - **⚠️ 分级突触适配**: α_d 比脉冲突触小 ~1000× (S 始终>0)
 - **盐学习 (Step 21c)**: satiety→ASER突触权重调制, Δw∝(sat-0.5)×S_pre×S_post
-- **结果**: CI 0.52→0.90, CPG n=0.98(稳定), 触觉 n_min=0.33(习惯化), ASER w_mod=0.97(学习)
-- **REF**: Liu 2009 PNAS, Tsodyks & Markram 1997, Rankin 1990, Tomioka 2006 Neuron
+- **Omega偏置 (Step 21b)**: reversal后70%概率偏向梯度方向 (Pierce-Shimomura 1999)
+- **Gradient klinokinesis (Step 21d)**: 无梯度→+1pA AVA (θ=0.002, >15mm才生效)
+- **OpenMP**: 10种子并行鲁棒性测试 (16线程)
+- **10种子结果**: AVG CI=0.43, near=40.5%, rev=0.12/s, **good=8/10**
+- **REF**: Liu 2009, Tsodyks 1997, Rankin 1990, Tomioka 2006, Pierce-Shimomura 1999, Calhoun 2014
 
 ---
 

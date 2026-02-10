@@ -103,12 +103,71 @@ ASER->AIAR:   n=0.887 p=0.573 w_mod=0.988  ← 盐学习
 ASER->AIYR:   n=0.887 p=0.573 w_mod=0.973  ← 更多学习
 ```
 
+## Step 21b: Gradient-Biased Omega Turns
+
+### 生物学 (Pierce-Shimomura 1999 J Neurosci)
+
+Pirouette 不是随机重定向，而是 **误差补偿**：
+- B_after 分布峰值在 0°（朝向梯度方向）
+- ΔB ≈ ±180°（近似反转），但 B_before 与 ΔB 弱相关
+- 因为 pirouette 在 dC/dt < 0 时触发（背离食物），反转 ≈ 朝向食物
+
+### 实现
+
+Reversal 结束时，计算头部位置的梯度方向：
+```
+grad_normal = -sin(heading) * grad.x + cos(heading) * grad.y
+if (grad_mag > 0.001 && random < 0.70):
+    // 70% 概率偏向食物
+    omega_direction = (grad_normal > 0) ? -1 : +1  // 左/右转
+else:
+    omega_direction = random (80% ventral)
+```
+
+## Step 21d: Gradient-Dependent Klinokinesis
+
+### 生物学 (Calhoun 2014 eLife, Gray 2005, Hills 2004)
+
+- **有梯度**: 长直走（低 pirouette）→ weathervane 朝食物
+- **无梯度**: 高频转弯（局部搜索）→ 约束扩散半径
+- 与 ARS 不同：ARS = 过去食物记忆，klinokinesis = 当前梯度信号
+
+### 实现
+
+```
+no_signal_factor = exp(-grad_mag / 0.002)
+kk_current = 1.0 * no_signal_factor → AVA L/R
+
+// 距离 vs 效果:
+//   5mm:  0.000 pA (无效)     — 正常趋化
+//   10mm: 0.004 pA (无效)     — 正常趋化  
+//   15mm: 0.37 pA  (轻微)    — 开始局部搜索
+//   20mm: 0.86 pA  (中等)    — 明显局部搜索
+//   25mm: 0.95 pA  (近满)    — 全面局部搜索
+```
+
+### 调参教训
+
+| 参数 | rev/s | good/10 | 结论 |
+|------|-------|---------|------|
+| 2.0pA / θ=0.005 | 0.20 | 6 | 太强，破坏weathervane |
+| 1.5pA / θ=0.003 | 0.14 | 6 | 仍然太强 |
+| **1.0pA / θ=0.002** | **0.12** | **8** | 最优：只影响真正无信号的虫 |
+
+## 多种子鲁棒性 (OpenMP 并行)
+
+10 次独立 300s 仿真，不同 RNG 种子：
+```
+AVG: CI=0.43  near=40.5%  rev=0.12/s  good=8/10
+```
+
 ## 文件修改
 
 - `chemical_synapse.h`: 添加 vesicle_pool_, release_prob_, weight_mod_ 状态 + STP 动力学
-- `connectome.h/.cpp`: compute_synaptic_currents 加 dt 参数
-- `simulation_engine.cpp/.h`: setup_stp_params() 分回路配置 + update_salt_learning()
-- `diag_main.cpp`: 添加 Section 13 STP 诊断输出
+- `connectome.h/.cpp`: compute_synaptic_currents 加 dt 参数 + synapses_mut() 访问器
+- `simulation_engine.cpp/.h`: setup_stp_params() 分回路配置 + update_salt_learning() + apply_gradient_klinokinesis() + omega 梯度偏置
+- `diag_main.cpp`: Section 13 STP 诊断 + 多种子鲁棒性测试 (OpenMP)
+- `CMakeLists.txt`: CELEGANS_USE_OPENMP=ON 默认开启
 
 ## 参考文献
 

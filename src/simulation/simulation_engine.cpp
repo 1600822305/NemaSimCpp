@@ -210,7 +210,11 @@ void SimulationEngine::step() {
     // 5b2. Update food memory / ARS (Step 20d)
     update_food_memory();
 
-    // 5b3. Salt chemotaxis learning (Step 21c)
+    // 5b3. Gradient-dependent klinokinesis (Step 21d)
+    // No gradient → high pirouette rate → local search (Calhoun 2014 eLife)
+    apply_gradient_klinokinesis();
+
+    // 5b4. Salt chemotaxis learning (Step 21c)
     update_salt_learning();
 
     // 5c. Neuromodulation update (Step 20, Layer 6)
@@ -893,6 +897,48 @@ void SimulationEngine::update_food_memory() {
         double ars_current = 2.5 * food_memory_;
         neurons_[aval]->add_synaptic_current(ars_current);
     }
+}
+
+// ================================================================
+// Gradient-Dependent Klinokinesis (Step 21d)
+//
+// When gradient signal is weak/absent → increase pirouette rate
+// → local search behavior → constrains diffusion radius
+// → increases probability of re-entering gradient field
+//
+// Biological basis (Calhoun 2014 eLife, Gray 2005, Hills 2004):
+//   AWC detects odorant decrease → AIB/AIZ interneurons
+//   → neuromodulatory control of pirouette frequency
+//   No signal = high pirouette rate (local search)
+//   Strong signal = low pirouette rate (long runs toward food)
+//
+// Distinct from ARS (food_memory): ARS = PAST food contact memory,
+// this = CURRENT gradient signal level.
+//
+// Gradient magnitude at different distances (σ=5mm):
+//   5mm:  0.037 /mm → factor ≈ 0.001 (no effect)
+//   10mm: 0.011 /mm → factor ≈ 0.11  (slight)
+//   15mm: 0.002 /mm → factor ≈ 0.67  (strong local search)
+//   20mm: 0.0003/mm → factor ≈ 0.94  (full local search)
+// ================================================================
+void SimulationEngine::apply_gradient_klinokinesis() {
+    Vector2d head_pos = body_.get_head_position();
+    Vector2d grad = environment_.chemical_field().gradient(head_pos);
+    double grad_mag = std::sqrt(grad.x * grad.x + grad.y * grad.y);
+
+    // No-signal factor: high when gradient weak, low when gradient strong
+    // Threshold 0.002 /mm — very conservative, only truly lost worms
+    //   5mm: 0.000, 10mm: 0.004, 15mm: 0.37, 20mm: 0.86, 25mm: 0.95
+    double no_signal_factor = std::exp(-grad_mag / 0.002);
+
+    // Excite AVA: more reversal when no gradient signal
+    // 1.0 pA max — very gentle; avoid disrupting weathervane approach
+    int n = static_cast<int>(neurons_.size());
+    int aval = connectome_.get_neuron_id("AVAL");
+    int avar = connectome_.get_neuron_id("AVAR");
+    double kk_current = 1.0 * no_signal_factor;
+    if (aval >= 0 && aval < n) neurons_[aval]->add_synaptic_current(kk_current);
+    if (avar >= 0 && avar < n) neurons_[avar]->add_synaptic_current(kk_current);
 }
 
 // ================================================================

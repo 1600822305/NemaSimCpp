@@ -142,6 +142,7 @@ private:
     double food_memory_tau_rise_ = 5000.0;   // ms, fast rise on food (5s)
     double food_memory_tau_decay_ = 90000.0; // ms, slow decay off food (90s, minutes-scale)
     void update_food_memory();          // called each step
+    void apply_gradient_klinokinesis();  // no-gradient → high pirouette (Step 21d)
 
     // Short-term plasticity setup (Step 21)
     void setup_stp_params();            // per-circuit tau_recovery tuning
