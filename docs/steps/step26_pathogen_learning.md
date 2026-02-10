@@ -129,6 +129,20 @@ double sick_suppression = 1.0 - 0.85 * sickness_;  // 生病: 15% 残余
 - ASE 暂留 chemo_mappings_ (回归安全); soluble_mappings_ 就绪
 - REF: Bargmann 2006 — AWC 检测挥发性气味, ASE 检测离子
 
+### 8. Sickness 清除 food_memory (Step 26c)
+
+```cpp
+// REF: Hills 2004 — DA→DARPP-32→GLR-1; sickness 抑制 DA 释放
+// → DARPP-32 去磷酸化 → food_memory 快速归零 → 不再局部搜索
+if (sickness_ > 0.3) {
+    effective_decay_tau = 5000.0;  // 5s 快速清除 (vs 正常 90s)
+}
+// fmem: 0.89 → 0.002 in ~100s
+// 效果: 不再在毒食物旁局部搜索 → 直线离开
+```
+
+**为什么需要**: food_memory 是 ARS (觅食局部搜索) 的基础——高 fmem → AVA +2.5pA → 高频 reversal → 困在食物旁。对好食物这是生存优势，但对毒食物变成"被困在毒食物旁"。
+
 ## 信号链
 
 ```
@@ -143,12 +157,14 @@ double sick_suppression = 1.0 - 0.85 * sickness_;  // 生病: 15% 残余
   sickness → AWC→AIY w_mod ↓ → 0.1 (底限! 趋近关闭)
   sickness → AWC→AIB w_mod ↑ → 2.8 (回避增强 3×)
   sickness → 化学感觉增益 × 0.15 (厌食)
+  sickness → food_memory 快速清除 (tau 90s→5s)
 
 学习后 (永久):
   同样气味 → AWC → AIB(增强) → AVA → 回避!
   同样气味 → AWC → AIY(w_mod=0.1, 几乎无效) → 不趋近
   weathervane: awc_pref=-1.35 → 主动推离食物气味!
   化学感觉: 15% 残余 → klinokinesis 无法拉回
+  food_memory: 0.000 → 不再局部搜索 → 直线离开
 ```
 
 ## 三层化学回避体系
@@ -164,25 +180,26 @@ double sick_suppression = 1.0 - 0.85 * sickness_;  // 生病: 15% 残余
 ### Regtest (无排斥源): 12 pass, 0 FAIL
 - 无排斥物时 sickness_=0, ADF 只有 2pA baseline → 无影响
 - awc_pref=+1.0 (天真) → weathervane 行为不变
+- food_memory 正常衰减 (tau=90s, 无 sickness 加速)
 
 ### Diag (有毒食物: 食物和排斥物同在 35,25):
 
 ```
-t=20:  dist=5.92, sick=0.198  → 接近食物 (天真)
-t=40:  dist=1.83, sick=0.635  → 到达食物！开始生病
-t=60:  dist=2.42, sick=1.000  → MAX sickness, 离开
-t=100: dist=9.59, sick=0.996  → 远离食物
-t=120: dist=11.12            → 很远! 学会了
-t=200: dist=6.90, sick=1.000  → 短暂接近但不到食物
-t=260: dist=15.09             → 最远！完全回避
-t=300: dist=14.62, sick=0.858 → CI=-0.463 (反向趋化!)
+t=20:  dist=5.34, sick=0.233, fmem=0.710 → 接近食物 (天真)
+t=40:  dist=1.65, sick=0.681, fmem=0.887 → 到达食物!
+t=60:  dist=2.47, sick=1.000, fmem=0.892 → MAX sickness
+t=80:  dist=5.67, sick=1.000, fmem=0.785 → fmem开始清除
+t=100: dist=9.59, sick=0.993, fmem=0.361 → 快速下降!
+t=140: dist=13.5, sick=0.929, fmem=0.032 → 几乎归零
+t=200: dist=20.1, sick=0.841, fmem=0.000 → 最远! 完全清除
+t=300: dist=8.83, sick=0.712, fmem=0.423 → CI=0.116
 ```
 
-- **CI = -0.463** (反向! 主动远离有毒食物)
-- **time_near_food = 18.0%** (vs 天真时 40.6%)
+- **time_near_food = 18.0%** (vs 毒食物无学习时 45.2%)
+- **最远距离: 20.1mm** (t=200, 完全远离)
 - **AWC→AIY w_mod = 0.10** (底限! 趋近通路关闭)
-- **AWC→AIB w_mod = 2.32** (+132%, 回避通路大幅增强)
-- **ADFL I_ext = 28-32pA** (被 sickness 强烈激活)
+- **AWC→AIB w_mod = 2.24** (+124%, 回避通路大幅增强)
+- **fmem: 0.89 → 0.002** (100s 内清除, 不再局部搜索)
 - **awc_pref ≈ -1.35** (weathervane 排斥食物气味)
 - **sick_suppression ≈ 0.15** (化学感觉大幅抑制)
 
@@ -192,7 +209,7 @@ t=300: dist=14.62, sick=0.858 → CI=-0.463 (反向趋化!)
 |------|------|
 | `connectome_loader.cpp` | 新增 ADFL/ADFR (5-HT), ADF→AIY(2), ADF→AIZ(1) |
 | `simulation_engine.h` | sickness_, adf_ids_, aiy_ids_, tau_decay=600s, soluble_mappings_ |
-| `simulation_engine.cpp` | lr=0.003, AWC偏好weathervane, sick_suppression, soluble_field_基础设施 |
+| `simulation_engine.cpp` | lr=0.003, AWC偏好weathervane, sick_suppression, soluble_field_基础设施, fmem清除 |
 | `environment.h/.cpp` | 新增 soluble_field_ (水溶性化学通道) |
 | `diag_main.cpp` | 有毒食物场景, sickness追踪, 多化学物种源 |
 
