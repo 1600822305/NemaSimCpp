@@ -270,6 +270,7 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 - **文件**: `src/compute/` (compute_backend.h, cpu_backend.h, opencl_backend.h/.cpp, kernels.cl)
 
 ### Step 23: 温度趋性 (Thermotaxis) ✅ (2026-02-10)
+> 详细文档: [steps/step23_thermotaxis.md](steps/step23_thermotaxis.md)
 
 新感觉模态接入已有回路 — 验证架构通用性:
 - **AFD L/R**: 温度感觉神经元 (谷氨酸能), Mori & Ohshima 1995
