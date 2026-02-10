@@ -183,6 +183,17 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 - **实时仿真**: 每帧 N 步 (可调 1-200), 暂停/继续/重置
 - **双目标**: celegans_sim.exe (headless) + celegans_vis.exe (GUI) 并行构建
 
+### Step 17: 实时调参 + 信号链诊断 + 转弯修复 ✅ (2026-02-10)
+
+利用 ImGui 实时调参工具定位并修复趋化转弯瓶颈:
+- **调参面板**: 5 个滑条 (梯度增益/突触倍率/速度倍率/感觉增益/偏置限幅)
+- **信号链诊断**: 7 级实时数值 (梯度→偏置→SMD差异→曲率→速度→转弯率→CI)
+- **新增波形**: ASEL/ASER 感觉 L/R 不对称 + heading 方向角曲线 + 幅度标注
+- **瓶颈发现**: weathervane ±0.5pA 偏置被 SMD 99mV 振荡完全淹没
+- **修复**: 直接曲率偏置 (curv_gain=45, 基于 Iino 2009 标定) 绕过神经网络瓶颈
+- **结果**: CI **+0.312→+0.760**, 距食物 14.1→**3.4mm** (60s), 速度 0.21mm/s
+- **诊断工具**: celegans_diag.exe (自动采集 9 级信号链 + 瓶颈分析)
+
 ---
 
 ## 当前系统状态
@@ -200,7 +211,8 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 环境: 50×50 mm, 化学扩散场 + 高斯点源
 仿真: dt=0.5ms, 单核 CPU 实时 (10000步 < 1s)
 构建: CMake + MSVC 19.44 + C++20
-状态: 双策略趋化 (CI=+0.312, pirouette+weathervane并行, 14.1→9.7mm/60s)
+可视化: Dear ImGui + ImPlot + GLFW, 3列布局, 实时调参+信号链诊断
+状态: 双策略趋化 (CI=+0.760, pirouette+weathervane+曲率偏置, 14.1→3.4mm/60s)
 
 运动驱动 (Step 13 — 生物学机制):
   感觉基线: 12 感觉神经元 × 15pA 自发活动 (Bargmann 2006)
@@ -225,9 +237,10 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 感觉转导 + 趋化 (Step 14-15):
   化学感觉: Weber-Fechner 双滤波器, ON/OFF 分类, 8 个化学感觉神经元
   运动学: dθ/dt = v × κ_head, pirouette 概率模型 (AVA 调制)
-  Weathervane: ∇C_⊥ → SMD 差异驱动 (Iino & Yoshida 2009)
-  趋化指数: CI = +0.312, 距食物 14.1→9.7mm (60s)
-  速度: 0.09-0.16 mm/s (文献值 ~0.15 mm/s)
+  Weathervane: ∇C_⊥ → SMD 差异驱动 + 直接曲率偏置 (Iino & Yoshida 2009)
+  曲率偏置: curv_gain=45, 梯度法向→头部曲率偏移 (绕过SMD振荡瓶颈)
+  趋化指数: CI = +0.760, 距食物 14.1→3.4mm (60s)
+  速度: 0.21 mm/s (speed_scale=2.0, 文献值 ~0.15-0.2 mm/s)
 
 文件结构:
   src/core/         — 4 文件 (types/config/logger .h/.cpp)
@@ -236,9 +249,10 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
   src/body/         — 4 文件 (body_model/muscle_system .h/.cpp)
   src/motor/        — 2 文件 (motor_controller .h/.cpp)
   src/environment/  — 5 文件 (environment/chemical_field/sensory_transducer .h/.cpp)
-  src/simulation/   — 3 文件 (simulation_engine .h/.cpp + main.cpp)
+  src/simulation/   — 4 文件 (simulation_engine .h/.cpp + main.cpp + diag_main.cpp)
+  src/visualization/ — 3 文件 (vis_app .h/.cpp + vis_main.cpp)
   docs/             — 2+ 文件 (blueprint.md + progress.md + steps/)
-  总计: 35 文件 (CMakeLists.txt + 33 源文件 + 文档)
+  总计: 42 文件 (CMakeLists.txt + 40 源文件 + 文档)
 
 参考项目对标:
   OpenWorm: Sibernetic (SPH 物理) + c302 (NeuroML 神经元) + Geppetto (可视化)
