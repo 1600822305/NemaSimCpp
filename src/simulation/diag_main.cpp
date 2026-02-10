@@ -44,8 +44,10 @@ int main() {
     sim.initialize_default();
 
     // Default: food at (35,35), start at (25,25)
-    // For wall-touch test: food{48.0, 25.0}, start at (40,25)
+    // Step 25: repellent at (30,30) — between start and food, blocking direct path
     Vector2d food{35.0, 35.0};
+    Vector2d repellent{30.0, 30.0};
+    sim.environment().repellent_field().add_point_source(repellent, 0.8);
 
     auto& conn = sim.connectome();
 
@@ -66,6 +68,8 @@ int main() {
     int awcr_id = conn.get_neuron_id("AWCR");
     int rial_id = conn.get_neuron_id("RIAL");
     int riar_id = conn.get_neuron_id("RIAR");
+    int ashl_id = conn.get_neuron_id("ASHL");
+    int ashr_id = conn.get_neuron_id("ASHR");
 
     // Accumulators
     std::vector<double> grad_mags, grad_normals, biases;
@@ -434,6 +438,30 @@ int main() {
                   << (dx > 1.0 ? " -> FOOD wins" : (dx < -1.0 ? " -> TEMP wins" : " -> undecided"))
                   << "  (food@right x=35, Tc@left x=" << std::setprecision(0) << tc_x << ")"
                   << std::defaultfloat << std::endl;
+    }
+
+    // Step 25: ASH nociception diagnostic
+    std::cout << "\n16. NOCICEPTION (Step 25):" << std::endl;
+    std::cout << "   Repellent source: (" << repellent.x << ", " << repellent.y << ")" << std::endl;
+    {
+        auto head = sim.body().get_head_position();
+        double rep_conc = sim.environment().sample_repellent(head);
+        double rep_dx = repellent.x - head.x, rep_dy = repellent.y - head.y;
+        double rep_dist = std::sqrt(rep_dx*rep_dx + rep_dy*rep_dy);
+        const auto& ns = sim.neurons();
+        int nn = (int)ns.size();
+        std::cout << "   Repellent at head: " << std::setprecision(4) << rep_conc
+                  << "  dist_to_repellent=" << std::setprecision(1) << rep_dist << " mm" << std::endl;
+        if (ashl_id >= 0 && ashl_id < nn) {
+            std::cout << "   ASHL: " << std::setprecision(1)
+                      << ns[ashl_id]->get_membrane_potential() << " mV"
+                      << "  I_ext=" << std::setprecision(2) << ns[ashl_id]->get_I_ext() << " pA" << std::endl;
+        }
+        if (aibl_id >= 0 && aibl_id < nn) {
+            std::cout << "   AIBL: " << std::setprecision(1)
+                      << ns[aibl_id]->get_membrane_potential() << " mV"
+                      << "  I_syn=" << std::setprecision(2) << ns[aibl_id]->get_I_syn() << " pA" << std::endl;
+        }
     }
 
     // Step 21: Short-term plasticity diagnostic

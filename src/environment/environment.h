@@ -13,6 +13,7 @@ public:
     void step(double dt);
 
     double sample_chemical(Vector2d pos) const;
+    double sample_repellent(Vector2d pos) const;
     double sample_temperature(Vector2d pos) const;
     Vector2d temperature_gradient(Vector2d pos) const;
 
@@ -27,6 +28,8 @@ public:
 
     ChemicalField& chemical_field() { return chem_field_; }
     const ChemicalField& chemical_field() const { return chem_field_; }
+    ChemicalField& repellent_field() { return repellent_field_; }
+    const ChemicalField& repellent_field() const { return repellent_field_; }
 
     // Temperature field configuration (Step 23)
     void set_temperature_gradient(double center_temp, Vector2d gradient_dir, double gradient_strength);
@@ -36,6 +39,7 @@ private:
     double width_ = 50.0;   // mm
     double height_ = 50.0;  // mm
     ChemicalField chem_field_;
+    ChemicalField repellent_field_;  // Step 25: noxious chemicals (ASH nociception)
 
     // Temperature field: linear gradient (Step 23 — Mori 1995)
     // T(x,y) = temp_center_ + grad_x_ * (x - cx) + grad_y_ * (y - cy)

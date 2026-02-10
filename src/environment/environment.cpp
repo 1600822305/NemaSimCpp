@@ -8,14 +8,20 @@ void Environment::initialize(double width, double height) {
     width_ = width;
     height_ = height;
     chem_field_.initialize(width, height, 100, 100);
+    repellent_field_.initialize(width, height, 100, 100);
 }
 
 void Environment::step(double dt) {
     chem_field_.step(dt);
+    repellent_field_.step(dt);
 }
 
 double Environment::sample_chemical(Vector2d pos) const {
     return chem_field_.sample(pos);
+}
+
+double Environment::sample_repellent(Vector2d pos) const {
+    return repellent_field_.sample(pos);
 }
 
 double Environment::sample_temperature(Vector2d pos) const {

@@ -50,6 +50,7 @@ public:
     const BodyModel& body() const { return body_; }
     BodyModel& body_mut() { return body_; }
     const Environment& environment() const { return environment_; }
+    Environment& environment() { return environment_; }
     const Connectome& connectome() const { return connectome_; }
     Connectome& connectome_mut() { return connectome_; }
     const std::vector<std::unique_ptr<Neuron>>& neurons() const { return neurons_; }
@@ -117,6 +118,8 @@ private:
         bool uses_food_density = false;  // true for NSM/CEP (narrow σ=3mm bacterial colony)
     };
     std::vector<ChemoMapping> chemo_mappings_;
+    std::vector<ChemoMapping> noci_mappings_;   // Step 25: ASH nociceptors sample repellent field
+    std::vector<int> aib_ids_;                  // Step 25: AIB interneuron IDs (5-HT→MOD-1 inhibition)
 
     // Non-chemosensory neurons (touch, etc.) get fixed baseline
     std::vector<int> other_sensory_ids_;

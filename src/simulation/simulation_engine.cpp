@@ -70,7 +70,10 @@ void SimulationEngine::initialize_default() {
         } else if (starts_with(info.name, "AWA")) {
             chemo_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::ON, 80.0, 5.0, 100.0)});
         } else if (starts_with(info.name, "ASH")) {
-            chemo_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::ON, 60.0, 3.0)});
+            // Step 25: ASH nociceptors sample REPELLENT field (not attractant)
+            // ON-type: excited by repellent concentration increase
+            // REF: Summers 2015 JNeurosci — ASH→AIB→AVA nociceptive circuit
+            noci_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::ON, 60.0, 3.0)});
         } else if (starts_with(info.name, "NSM")) {
             // NSM: pharyngeal neuron, detects food (absolute concentration)
             // TONIC: fires proportionally to food concentration, not dC/dt
@@ -100,6 +103,13 @@ void SimulationEngine::initialize_default() {
     for (auto& info : neuron_infos) {
         if (starts_with(info.name, "SMD") || starts_with(info.name, "RMD")) {
             head_motor_ids_.push_back(info.id);
+        }
+    }
+
+    // Step 25: Collect AIB IDs for 5-HT→MOD-1 inhibition
+    for (auto& info : neuron_infos) {
+        if (starts_with(info.name, "AIB")) {
+            aib_ids_.push_back(info.id);
         }
     }
 
@@ -378,6 +388,19 @@ void SimulationEngine::apply_sensory_input() {
         double I_sensory = cm.transducer.update(input_conc, dt_);
         I_sensory *= static_cast<double>(params.sensory_gain) * chemo_sat_gain;
         neurons_[cm.neuron_id]->set_external_current(I_sensory);
+    }
+
+    // Step 25: ASH nociceptors sample repellent field
+    // ASH is ON-type: excited by repellent concentration increase
+    // REF: Summers 2015 — ASH→AIB→AVA nociceptive avoidance circuit
+    double repellent_conc = environment_.sample_repellent(sample_pos);
+    for (auto& nm : noci_mappings_) {
+        if (nm.neuron_id < 0 || nm.neuron_id >= n) continue;
+        double I_noci = nm.transducer.update(repellent_conc, dt_);
+        I_noci *= static_cast<double>(params.sensory_gain);
+        // No satiety modulation: nociception is not suppressed by feeding state
+        // (5-HT suppresses downstream AIB instead — Summers 2015)
+        neurons_[nm.neuron_id]->set_external_current(I_noci);
     }
 
     // Touch/other sensory: low baseline (no active stimulus)
@@ -915,6 +938,15 @@ void SimulationEngine::setup_neuromodulation() {
         if (aiyr >= 0) serotonin.targets.push_back(
             {aiyr, "MOD-1", ModulationEffect::EXCITABILITY, -5.0});
 
+        // Step 25: Target: AIB inhibition (suppress avoidance while feeding)
+        // REF: Summers 2015 JNeurosci — 5-HT via MOD-1 (5-HT-gated Cl⁻) inhibits AIB
+        // On food: 5-HT↑ → AIB↓ → animals continue forward despite repellent
+        // Off food: 5-HT↓ → AIB active → full avoidance response
+        for (int aib_id : aib_ids_) {
+            if (aib_id >= 0) serotonin.targets.push_back(
+                {aib_id, "MOD-1", ModulationEffect::EXCITABILITY, -6.0}); // -6 pA inhibitory
+        }
+
         // Target: speed reduction (enhanced slowing on food)
         // REF: Sawin 2000 — serotonin reduces locomotion speed
         serotonin.targets.push_back(
@@ -1215,7 +1247,7 @@ void SimulationEngine::setup_stp_params() {
         // ALM/PLM at rest: S≈0.003 → n≈1.0 (full pool)
         // During touch: S≈0.8 → n_ss=1/(1+0.0005*0.8*4000)=0.38 (strong habituation)
         else if (starts_with_any(pre_name, {"ALM", "PLM", "ASH"}) &&
-                 starts_with_any(post_name, {"AVD", "AVA", "AVB", "PVC"})) {
+                 starts_with_any(post_name, {"AVD", "AVA", "AVB", "PVC", "AIB", "RIM"})) {
             syn.set_stp_params(  4000.0,   0.0005,   300.0,  0.003,   0.5);
             touch_count++;
         }

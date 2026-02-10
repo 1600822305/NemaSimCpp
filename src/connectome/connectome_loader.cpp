@@ -353,6 +353,12 @@ void ConnectomeLoader::generate_default_connectome(
     // pushing AVA close to reversal threshold (release=0.565 vs threshold 0.6)
     add_syn("ASHL", "AVAL", 2); add_syn("ASHR", "AVAR", 2);
     add_syn("ASHL", "AVDL", 3); add_syn("ASHR", "AVDR", 3);
+    // Step 25: ASH nociceptive avoidance circuit (Cook 2019, Summers 2015)
+    // ASH→AIB: glutamatergic excitatory via GLR-1 (AMPA-like)
+    // This is the KEY pathway for nociceptive decision-making at AIB hub
+    add_syn("ASHL", "AIBL", 3); add_syn("ASHR", "AIBR", 3);
+    // ASH→RIM: nociceptive activation of RIM (promotes omega turns)
+    add_syn("ASHL", "RIML", 1); add_syn("ASHR", "RIMR", 1);
 
     // Head oscillator: dorsal-ventral cross-inhibition (TD-02)
     // SMD dorsal → RMD ventral and vice versa (reciprocal inhibition circuit)

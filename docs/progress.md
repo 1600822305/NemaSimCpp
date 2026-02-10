@@ -320,6 +320,18 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 - **自动跟踪**: 指标异常时自动触发电流预算分析
 - **文档**: docs/tools/regression_test.md
 
+### Step 25: 化学回避 + ASH 伤害感觉
+
+- **排斥化学场**: Environment 添加独立 repellent_field_ (与引诱物分离)
+- **ASH→排斥场**: ASH 从 chemo_mappings_ 分离到 noci_mappings_, 采样排斥物浓度
+- **新增突触**: ASH→AIB(3, 兴奋性 GLR-1), ASH→RIM(1, 促omega) — Cook 2019 确认
+- **5-HT→AIB**: MOD-1 Cl⁻通道 -6pA 抑制 (在食物上时压制回避=冒险觅食)
+- **AIB 整合枢纽**: 引诱(AIA⊣AIB) vs 排斥(ASH→AIB) 在 AIB 层面竞争决策
+- **结果**: 无排斥源时 regtest 12 pass; 有排斥源时 CI 0.75→0.437
+- **涌现**: 毒物挡路→更多 reversal/omega→绕路找食物; 在食物上忍受危险
+- **REF**: Summers 2015 JNeurosci, Cook 2019 Nature, Bargmann & Kaplan 1998
+- **文档**: docs/steps/step25_chemical_avoidance.md
+
 ---
 
 ## 当前系统状态
@@ -330,7 +342,7 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
   感觉: 20 (ASE/AWC/AWA/ASH/ALM/PLM/NSM/CEP/AFD, L/R)
   中间: 28 (AIA/AIB/AIY/AIZ/RIA/RIB/RIM/RIC/AVA/AVB/AVD/AVE/I1/RIP, L/R)
   运动: 35 (SMD/RMD/SMB 4×2+4 + DA/DB/VA/VB/DD/VD 各3 + MC/M3 L/R + M4)
-突触: ~130 化学 + ~25 间隙连接 (全部带 Tsodyks-Markram STP)
+突触: ~134 化学 + ~25 间隙连接 (全部带 Tsodyks-Markram STP)
 神经调质: 3 种 (5-HT, DA, OA) — volume transmission + 饱食度(泵驱动)
 离子通道: 8/14 种 (EGL-19/UNC-2/CCA-1/SHL-1/KQT-3/SLO-1/NCA/MEC)
 神经元模型: 单隔室 HH 分级电位 (L2) + 钙动力学
@@ -340,7 +352,7 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 计算: CPU (默认) + OpenCL GPU 后端 (>500突触自动启用, AMD RX 6950 XT 就绪)
 构建: CMake + MSVC 19.44 + C++20 + vcpkg (OpenCL/ImGui/ImPlot/GLFW)
 可视化: Dear ImGui + ImPlot + GLFW, 3列布局, 实时调参+信号链诊断
-状态: 趋化+触觉回避+RIM稳定+神经调质+ARS+觅食循环+STP+盐学习+温度趋性+咽部泵食, 纯涌现 (CI≈0.75, 83神经元)
+状态: 趋化+触觉回避+化学回避+RIM稳定+神经调质+ARS+觅食循环+STP+盐学习+温度趋性+咽部泵食, 纯涌现 (CI≈0.75, 83神经元)
 工具: celegans_diag.exe (信号链诊断) + celegans_regtest.exe (回归检测+电流溯源)
 
 运动驱动 (Step 13 — 生物学机制):
