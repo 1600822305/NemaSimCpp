@@ -43,12 +43,14 @@ int main() {
     SimulationEngine sim;
     sim.initialize_default();
 
-    // Step 26: TOXIC FOOD test — food and toxin at same location
-    // Worm smells food → approaches → eats → gets SICK → learns to avoid
+    // Step 26b: TOXIC FOOD test — multi-chemical-species
+    // Food emits: food_odor (volatile, σ²=144) + soluble (salt, σ²=36)
+    // Toxin co-located with food → worm learns to avoid food ODOR specifically
     // REF: Zhang 2005 Nature — PA14 looks like food, worm eats it, then learns
     sim.environment().chemical_field().clear();
     Vector2d food{35.0, 25.0};
-    sim.environment().chemical_field().add_point_source(food, 1.0);  // σ²=144 (default)
+    sim.environment().chemical_field().add_point_source(food, 1.0);       // food odor (volatile)
+    sim.environment().soluble_field().add_point_source(food, 0.4);  // salt/amino acids (same σ², weaker)
     // Toxin AT food source (same location!) — toxic food, not separate repellent
     Vector2d repellent{35.0, 25.0};
     sim.environment().repellent_field().add_point_source(repellent, 0.8, 25.0);

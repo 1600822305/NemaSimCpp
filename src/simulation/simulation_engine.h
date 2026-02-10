@@ -119,8 +119,9 @@ private:
         ChemoTransducer transducer;
         bool uses_food_density = false;  // true for NSM/CEP (narrow σ=3mm bacterial colony)
     };
-    std::vector<ChemoMapping> chemo_mappings_;
-    std::vector<ChemoMapping> noci_mappings_;   // Step 25: ASH nociceptors sample repellent field
+    std::vector<ChemoMapping> chemo_mappings_;        // AWC/AWA sample food odor (volatile)
+    std::vector<ChemoMapping> soluble_mappings_;     // Step 26b: ASE sample soluble field (salt/amino acids)
+    std::vector<ChemoMapping> noci_mappings_;         // Step 25: ASH nociceptors sample repellent field
     std::vector<int> aib_ids_;                  // Step 25: AIB interneuron IDs (5-HT→MOD-1 inhibition)
 
     // Non-chemosensory neurons (touch, etc.) get fixed baseline

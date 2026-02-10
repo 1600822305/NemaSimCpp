@@ -8,16 +8,22 @@ void Environment::initialize(double width, double height) {
     width_ = width;
     height_ = height;
     chem_field_.initialize(width, height, 100, 100);
+    soluble_field_.initialize(width, height, 100, 100);  // Step 26b: salt/amino acids
     repellent_field_.initialize(width, height, 100, 100);
 }
 
 void Environment::step(double dt) {
     chem_field_.step(dt);
+    soluble_field_.step(dt);
     repellent_field_.step(dt);
 }
 
 double Environment::sample_chemical(Vector2d pos) const {
     return chem_field_.sample(pos);
+}
+
+double Environment::sample_soluble(Vector2d pos) const {
+    return soluble_field_.sample(pos);
 }
 
 double Environment::sample_repellent(Vector2d pos) const {

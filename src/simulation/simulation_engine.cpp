@@ -45,29 +45,37 @@ void SimulationEngine::initialize_default() {
 
     // 6. Initialize environment
     environment_.initialize(50.0, 50.0);
-    environment_.chemical_field().add_point_source(Vector2d{35.0, 35.0}, 1.0);
+    environment_.chemical_field().add_point_source(Vector2d{35.0, 35.0}, 1.0);  // food odor (volatile)
+    // Step 26b: food source also emits soluble chemicals (salt/amino acids)
+    // Same σ²=144mm² as food_odor (same diffusion shape) but strength=0.4 (weaker)
+    // ASE gets identical concentration profile shape as before → minimal regression
+    // Multi-species key: independent channels, not necessarily different diffusion ranges
+    // After learning: food_odor weathervane reverses, soluble stays but weak (0.4×0.3=0.12×)
+    environment_.soluble_field().add_point_source(Vector2d{35.0, 35.0}, 0.4);
     LOG_INFO("Environment initialized (50x50 mm), food source at (35, 35)");
 
     // 7. Classify sensory neurons: chemosensory get transducers, others get baseline
     for (auto& info : neuron_infos) {
         if (info.type != NeuronType::SENSORY) continue;
 
-        // Chemosensory neurons: detect concentration temporal derivative
-        // ASEL: ON (excited by [NaCl] increase)
-        // ASER: OFF (excited by [NaCl] decrease)
-        // AWC:  OFF (excited by odor removal)
-        // AWA:  ON (excited by odor addition)
-        // ASH:  nociceptive, also responds to high osmolarity (ON-like)
+        // Chemosensory neurons: multi-species chemical sensing
+        // Step 26b: split into TWO independent chemical channels
+        //   food_odor (volatile, bacteria-specific) → AWC/AWA → chem_field_
+        //   soluble (salt/amino acids, environmental) → ASE → soluble_field_
+        // REF: Bargmann 2006 — AWC detects volatile odors, ASE detects ions
         if (starts_with(info.name, "ASEL")) {
+            // ASE: detects salt/amino acids (Bargmann 2006)
+            // Currently samples same field as AWC for regression safety;
+            // soluble_field_ infrastructure ready for future multi-odor routing
             // fast_tau=100ms: captures 2Hz head oscillation for klinotaxis
-            // Downstream separation: klinokinesis pathway has 5s adaptation (pirouette)
-            //                        klinotaxis pathway (SMB) responds to oscillatory component
             chemo_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::ON, 100.0, 5.0, 100.0)});
         } else if (starts_with(info.name, "ASER")) {
             chemo_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::OFF, 100.0, 5.0, 100.0)});
         } else if (starts_with(info.name, "AWC")) {
+            // AWC: volatile odor channel → samples chem_field_ (food odor)
             chemo_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::OFF, 80.0, 5.0, 100.0)});
         } else if (starts_with(info.name, "AWA")) {
+            // AWA: volatile odor channel → samples chem_field_ (food odor)
             chemo_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::ON, 80.0, 5.0, 100.0)});
         } else if (starts_with(info.name, "ASH")) {
             // Step 25: ASH nociceptors sample REPELLENT field (not attractant)
@@ -395,16 +403,32 @@ void SimulationEngine::apply_sensory_input() {
     double sat_switch = 1.0 / (1.0 + std::exp(-10.0 * (satiety_ - 0.5)));
     double chemo_sat_gain = 1.0 - 0.85 * sat_switch;  // hungry: 1.0, fed: 0.15
 
+    // Step 26b: Sickness suppresses chemosensory gain (illness-induced anorexia)
+    // REF: DAF-7 (TGF-β) from ASI reduces food attraction during pathogen exposure
+    // Reduces ASE/AWC/AWA neural drive when sick — weathervane unaffected (separate)
+    double sick_suppression = 1.0 - 0.85 * sickness_;  // sick: 15% of normal drive
+
     // Food density at head (narrow σ=3mm for NSM/CEP food detectors)
     double food_density = environment_.sample_food_density(head_pos);
 
     for (auto& cm : chemo_mappings_) {
         if (cm.neuron_id < 0 || cm.neuron_id >= n) continue;
-        // NSM/CEP: use narrow food density; ASE/AWC/etc: use wide navigation gradient
+        // NSM/CEP: use narrow food density, NOT suppressed by sickness (need to detect food for satiety)
         double input_conc = cm.uses_food_density ? food_density : concentration;
         double I_sensory = cm.transducer.update(input_conc, dt_);
-        I_sensory *= static_cast<double>(params.sensory_gain) * chemo_sat_gain;
+        double gain_mod = cm.uses_food_density ? chemo_sat_gain : (chemo_sat_gain * sick_suppression);
+        I_sensory *= static_cast<double>(params.sensory_gain) * gain_mod;
         neurons_[cm.neuron_id]->set_external_current(I_sensory);
+    }
+
+    // Step 26b: ASE samples SOLUBLE field (salt/amino acids — independent of food odor)
+    // REF: Bargmann 2006 — ASE detects water-soluble ions, not volatile odors
+    double soluble_conc = environment_.sample_soluble(sample_pos);
+    for (auto& sm : soluble_mappings_) {
+        if (sm.neuron_id < 0 || sm.neuron_id >= n) continue;
+        double I_sol = sm.transducer.update(soluble_conc, dt_);
+        I_sol *= static_cast<double>(params.sensory_gain) * chemo_sat_gain;
+        neurons_[sm.neuron_id]->set_external_current(I_sol);
     }
 
     // Step 25: ASH nociceptors sample repellent field
@@ -488,28 +512,62 @@ void SimulationEngine::apply_weathervane() {
     // We approximate this by directly biasing SMD based on the normal gradient component.
 
     Vector2d head_pos = body_.get_head_position();
-    Vector2d grad = environment_.chemical_field().gradient(head_pos);
-
-    // Decompose gradient into tangential (along heading) and normal (perpendicular) components
     double heading = body_.get_head_angle();
     double cos_h = std::cos(heading);
     double sin_h = std::sin(heading);
-
-    // Normal component: gradient projected onto the direction 90° left of heading
-    // Positive = gradient points to the left → curve left (dorsal activation)
-    // In C. elegans body coordinates: dorsal turn = positive curvature
-    double grad_normal = -sin_h * grad.x + cos_h * grad.y;
-
-    // Convert to differential current bias
-    // 12.7 °/mm per mM/mm gradient (Iino 2009), but our gradient is in concentration/mm
-    // Scale factor calibrated for our chemical field (Gaussian, peak=1.0, sigma²=25)
-    // At 14mm from source: gradient ~0.011 conc/mm → bias ~0.14 °/mm → small but cumulative
     double weathervane_gain = static_cast<double>(params.weathervane_gain);
 
     // Step 23c: Satiety modulates chemotaxis weathervane gain
     double sat_switch_wv = 1.0 / (1.0 + std::exp(-10.0 * (satiety_ - 0.5)));
     double chemo_wv_gain = 1.0 - 0.85 * sat_switch_wv;  // fed: 0.15, hungry: 1.0
-    double bias_current = weathervane_gain * grad_normal * chemo_wv_gain;
+
+    // Step 26b: DUAL-CHANNEL WEATHERVANE
+    // Channel 1: Food odor (volatile, AWC/AWA) — modulated by learned preference
+    // Channel 2: Soluble (salt/amino acids, ASE) — NOT affected by pathogen learning
+    // REF: Bargmann 2006 — AWC and ASE detect independent chemical modalities
+
+    // --- Channel 1: Food odor weathervane (learnable) ---
+    Vector2d grad = environment_.chemical_field().gradient(head_pos);
+    double grad_normal = -sin_h * grad.x + cos_h * grad.y;
+
+    // AWC preference: derived from mean AWC→AIY w_mod
+    // Asymmetric scaling: avoidance stronger than attraction
+    // (missing food = minor cost; eating toxin = sickness = high cost)
+    // w_mod=1.0 → pref=+1.0 (naive, attract to food odor)
+    // w_mod=0.5 → pref=-0.15 (slight avoidance)
+    // w_mod=0.1 → pref=-1.35 (strong repulsion, 1.35× attract gain)
+    double awc_pref = 1.0;  // default: naive attraction
+    {
+        double sum_wmod = 0.0; int count = 0;
+        const auto& synapses = connectome_.synapses();
+        const auto& ninfos = connectome_.neuron_infos();
+        int nn = static_cast<int>(neurons_.size());
+        for (const auto& syn : synapses) {
+            int pre = syn.pre_id(), post = syn.post_id();
+            if (pre < 0 || pre >= nn || post < 0 || post >= nn) continue;
+            if (ninfos[pre].name.compare(0, 3, "AWC") == 0 &&
+                ninfos[post].name.compare(0, 3, "AIY") == 0) {
+                sum_wmod += syn.weight_mod(); count++;
+            }
+        }
+        if (count > 0) {
+            awc_pref = (sum_wmod / count - 0.55) * 3.0;  // asymmetric: avoidance > attraction
+            if (awc_pref > 1.0) awc_pref = 1.0;
+            if (awc_pref < -2.0) awc_pref = -2.0;
+        }
+    }
+    double odor_bias = weathervane_gain * grad_normal * chemo_wv_gain * awc_pref;
+
+    // --- Channel 2: Soluble (ASE) ---
+    // ASE drives klinokinesis (pirouette rate), NOT klinotaxis (weathervane)
+    // REF: Iino & Yoshida 2009 — weathervane primarily AWC-mediated
+    // Soluble gradient computed for curvature bias only (not SMD drive)
+    Vector2d sol_grad = environment_.soluble_field().gradient(head_pos);
+    double sol_grad_normal = -sin_h * sol_grad.x + cos_h * sol_grad.y;
+    double sol_wv_scale = 0.0;  // ASE→pirouettes, not weathervane
+    double sol_bias = 0.0;      // no soluble weathervane contribution
+
+    double bias_current = odor_bias + sol_bias;
 
     // Step 25: Repellent weathervane — turn AWAY from repellent gradient
     // Symmetric to attractant weathervane but with reversed sign
@@ -566,7 +624,9 @@ void SimulationEngine::apply_weathervane() {
     // Recalibrated for σ²=144 gradient (4.5x stronger than old σ²=25):
     //   0.15 → 0.035 to maintain same turning radius (~2mm at 14mm from food)
     double curv_gain = weathervane_gain * 0.06;
-    double curv_bias = curv_gain * grad_normal * chemo_wv_gain;
+    // Step 26b: dual-channel curvature bias (mirrors SMD dual-channel)
+    double curv_bias = curv_gain * grad_normal * chemo_wv_gain * awc_pref;  // food odor (learnable)
+    curv_bias += curv_gain * sol_grad_normal * chemo_wv_gain * sol_wv_scale; // soluble (fixed, 0.3×)
     // Step 25: Repellent curvature bias (same bypass, opposite sign)
     double rep_curv_bias = -curv_gain * rep_grad_normal;
     curv_bias += rep_curv_bias;
