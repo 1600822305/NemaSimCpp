@@ -14,7 +14,10 @@ int main() {
     SimulationEngine sim;
     sim.initialize_default();
 
+    // Default: food at (35,35), start at (25,25)
+    // For wall-touch test: food{48.0, 25.0}, start at (40,25)
     Vector2d food{35.0, 35.0};
+
     auto& conn = sim.connectome();
 
     int asel_id = conn.get_neuron_id("ASEL");
@@ -37,6 +40,11 @@ int main() {
     // Run 60 seconds, sample every 100ms
     double duration = 60000.0;
     int pirouette_count = 0;
+    int reversal_count = 0;
+    int omega_count = 0;
+    bool prev_reversing = false;
+    bool prev_omega = false;
+    int wall_touch_count = 0;
     int total_steps = (int)(duration / sim.dt());
     int sample_interval = (int)(100.0 / sim.dt()); // every 100ms
 
@@ -92,6 +100,17 @@ int main() {
             double dx = head.x - food.x;
             double dy = head.y - food.y;
             double dist = std::sqrt(dx * dx + dy * dy);
+
+            // Track touch/reversal/omega events
+            bool cur_rev = sim.is_reversing();
+            bool cur_omega = sim.is_omega_turning();
+            if (cur_rev && !prev_reversing) reversal_count++;
+            if (cur_omega && !prev_omega) omega_count++;
+            // Wall proximity check
+            if (head.x < 2.0 || head.x > 48.0 || head.y < 2.0 || head.y > 48.0)
+                wall_touch_count++;
+            prev_reversing = cur_rev;
+            prev_omega = cur_omega;
 
             // Store
             grad_mags.push_back(grad_mag);
@@ -177,6 +196,12 @@ int main() {
     std::cout << "   avg |dtheta/dt|=" << std::setprecision(3) << avg_rate << " deg/s" << std::endl;
     std::cout << "   pirouettes detected: " << pirouette_count << " (" 
               << std::setprecision(2) << pirouette_count / (duration/1000.0) << " Hz)" << std::endl;
+
+    std::cout << "\n10. TOUCH AVOIDANCE:" << std::endl;
+    std::cout << "   reversals: " << reversal_count << std::endl;
+    std::cout << "   omega turns: " << omega_count << std::endl;
+    std::cout << "   wall proximity samples: " << wall_touch_count 
+              << " / " << (int)(duration/100.0) << std::endl;
 
     std::cout << "\n9. DISTANCE TO FOOD:" << std::endl;
     std::cout << "   initial=" << std::setprecision(2) << dists.front()
