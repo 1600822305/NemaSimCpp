@@ -612,6 +612,17 @@ void VisApp::render_control_panel() {
     if (ci_count_ > 0)
         ImGui::Text(u8"\u8d8b\u5316\u6307\u6570: %.3f", ci_sum_ / ci_count_);
 
+    // Behavior state indicator (Step 18)
+    ImGui::Separator();
+    ImGui::TextColored(ImVec4(0.8f, 0.8f, 0.2f, 1), u8"\u884c\u4e3a\u72b6\u6001:");
+    if (engine_.is_omega_turning()) {
+        ImGui::TextColored(ImVec4(1, 0.2f, 1, 1), u8"  >> OMEGA \u8f6c\u5f2f <<");
+    } else if (engine_.is_reversing()) {
+        ImGui::TextColored(ImVec4(1, 0.3f, 0.3f, 1), u8"  >> \u540e\u9000 <<");
+    } else {
+        ImGui::TextColored(ImVec4(0.3f, 1, 0.3f, 1), u8"  >> \u524d\u8fdb + \u8d8b\u5316 <<");
+    }
+
     ImGui::Separator();
 
     // Controls

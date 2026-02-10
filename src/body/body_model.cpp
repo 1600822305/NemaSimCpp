@@ -87,9 +87,10 @@ void BodyModel::update_positions(double dt) {
     // REF: Padmanabhan 2012 — body with curvature κ moving at speed v turns at v·κ
     double head_curv = segments_[0].curvature + curvature_bias_;
     double dtheta = forward_speed * head_curv * dt;
-    // Clamp to 50°/s = 0.87 rad/s (run regime)
-    // REF: Pierce-Shimomura 1999 — runs: |dθ/dt| ≤ 50°/s
-    double max_dtheta = 0.87 * dt;
+    // Clamp heading change rate
+    // Run regime: 50°/s = 0.87 rad/s (Pierce-Shimomura 1999)
+    // Omega turn: 300°/s = 5.24 rad/s (deep ventral bend, Gray 2005)
+    double max_dtheta = (omega_mode_ ? 5.24 : 0.87) * dt;
     if (dtheta > max_dtheta) dtheta = max_dtheta;
     if (dtheta < -max_dtheta) dtheta = -max_dtheta;
     segments_[0].angle += dtheta;

@@ -68,9 +68,10 @@ void SimulationEngine::initialize_default() {
             chemo_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::ON, 80.0, 5.0)});
         } else if (starts_with(info.name, "ASH")) {
             chemo_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::ON, 60.0, 3.0)});
-        } else {
-            // Touch neurons (ALM, PLM): low baseline, no stimulus
+        } else if (!starts_with(info.name, "ALM") && !starts_with(info.name, "PLM")) {
+            // Non-touch sensory neurons: low baseline
             other_sensory_ids_.push_back(info.id);
+            // ALM/PLM excluded: zero baseline, only activated by wall collision
         }
     }
 
@@ -91,6 +92,12 @@ void SimulationEngine::initialize_default() {
     add_pm("VB01", 0, false); add_pm("VB02", 5, false); add_pm("VB03", 15, false);
     add_pm("DA01", 0, true);  add_pm("DA02", 5, true);  add_pm("DA03", 15, true);
     add_pm("VA01", 0, false); add_pm("VA02", 5, false); add_pm("VA03", 15, false);
+
+    // 10. Collect touch neuron IDs (Step 18)
+    for (auto& info : neuron_infos) {
+        if (starts_with(info.name, "ALM")) alm_ids_.push_back(info.id);
+        if (starts_with(info.name, "PLM")) plm_ids_.push_back(info.id);
+    }
 
     // Initialize transducers with current concentration at head
     double init_conc = environment_.sample_chemical(body_.get_head_position());
@@ -156,6 +163,12 @@ void SimulationEngine::step() {
 
     // 2b. Weathervane: gradient ⊥ heading → differential SMD bias
     apply_weathervane();
+
+    // 2c. Touch stimulus: wall collision → ALM/PLM activation (Step 18)
+    apply_touch_stimulus();
+
+    // 2d. Omega turn: post-reversal deep ventral bend (Step 18)
+    apply_omega_turn();
 
     // 3. Head motor tonic: upstream interneuron drive (RIA→SMD already in connectome)
     // Small tonic represents the net excitatory input from the head circuit
@@ -344,6 +357,94 @@ void SimulationEngine::apply_proprioceptive_stretch() {
             scn->set_stretch_input(stretch);
         }
     }
+}
+
+void SimulationEngine::apply_touch_stimulus() {
+    // Step 18: Wall collision → touch neuron activation (Chalfie 1985)
+    // Arena is 50×50 mm. When head approaches wall → anterior touch (ALM).
+    // When tail approaches wall → posterior touch (PLM).
+    int n = static_cast<int>(neurons_.size());
+    auto head = body_.get_head_position();
+    auto tail = body_.get_tail_position();
+    double arena_w = 50.0, arena_h = 50.0;
+
+    // Anterior touch: head near wall
+    bool front_touch = (head.x < arena_margin_ || head.x > arena_w - arena_margin_ ||
+                        head.y < arena_margin_ || head.y > arena_h - arena_margin_);
+
+    // Posterior touch: tail near wall
+    bool rear_touch = (tail.x < arena_margin_ || tail.x > arena_w - arena_margin_ ||
+                       tail.y < arena_margin_ || tail.y > arena_h - arena_margin_);
+
+    if (front_touch) {
+        // Strong current pulse to ALM neurons → triggers reversal via ALM→AVD→AVA
+        for (int id : alm_ids_) {
+            if (id >= 0 && id < n) {
+                neurons_[id]->set_external_current(touch_current_);
+            }
+        }
+    }
+
+    if (rear_touch) {
+        // Strong current pulse to PLM neurons → triggers forward acceleration
+        for (int id : plm_ids_) {
+            if (id >= 0 && id < n) {
+                neurons_[id]->set_external_current(touch_current_);
+            }
+        }
+    }
+
+    // Track reversal state for omega turn decision
+    // AVA release rate > threshold → reversing
+    int ava_l = connectome_.get_neuron_id("AVAL");
+    int ava_r = connectome_.get_neuron_id("AVAR");
+    double ava_rel = 0.0;
+    if (ava_l >= 0 && ava_l < n) ava_rel += neurons_[ava_l]->get_transmitter_release_rate();
+    if (ava_r >= 0 && ava_r < n) ava_rel += neurons_[ava_r]->get_transmitter_release_rate();
+    ava_rel *= 0.5;
+
+    bool was_reversing = is_reversing_;
+    is_reversing_ = (ava_rel > 0.6);  // threshold for "actively reversing"
+
+    if (is_reversing_ && !was_reversing) {
+        // Reversal just started
+        reversal_start_time_ = current_time_;
+    }
+    if (!is_reversing_ && was_reversing) {
+        // Reversal just ended — decide omega turn
+        reversal_duration_ = current_time_ - reversal_start_time_;
+        // Longer reversals → higher omega probability (Wang et al. 2020)
+        // P(omega) = 1 - exp(-duration/tau), tau ~ 1000ms
+        double p_omega = 1.0 - std::exp(-reversal_duration_ / 1000.0);
+        std::uniform_real_distribution<double> dist(0.0, 1.0);
+        if (dist(touch_rng_) < p_omega) {
+            omega_pending_ = true;
+            omega_end_time_ = current_time_ + 500.0;  // 500ms deep bend
+            // Mostly ventral (C. elegans omega turns are ventrally biased)
+            omega_direction_ = (dist(touch_rng_) < 0.8) ? 1.0 : -1.0;
+        }
+    }
+}
+
+void SimulationEngine::apply_omega_turn() {
+    // Step 18: Deep ventral bend after reversal (Gray 2005, Wang 2020)
+    // SMD neurons drive the omega turn amplitude.
+    // Inject strong asymmetric current to SMD ventral (or dorsal) to create >140° bend.
+    if (!omega_pending_) return;
+
+    if (current_time_ > omega_end_time_) {
+        omega_pending_ = false;
+        body_.set_curvature_bias(0.0);
+        body_.set_omega_mode(false);
+        return;
+    }
+
+    // Omega turn: very strong curvature bias → deep bend >140°
+    // At speed 0.2 mm/s with omega max_dtheta = 300°/s:
+    // 300°/s × 0.5s = 150° heading change ✓
+    body_.set_omega_mode(true);
+    double omega_curv = 8.0 * omega_direction_;
+    body_.set_curvature_bias(omega_curv);
 }
 
 } // namespace celegans

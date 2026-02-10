@@ -36,6 +36,7 @@ public:
     Vector2d get_segment_position(int segment) const;
     double get_speed() const { return speed_; }
     void set_curvature_bias(double b) { curvature_bias_ = b; }
+    void set_omega_mode(bool on) { omega_mode_ = on; }
     double get_body_length() const { return body_length_; }
 
     // Forward/reverse state from command neuron balance
@@ -70,6 +71,7 @@ public:
 private:
     double speed_scale_ = 1.0;       // runtime speed multiplier
     double curvature_bias_ = 0.0;    // direct curvature bias from weathervane (1/mm)
+    bool omega_mode_ = false;        // omega turn: raise max_dtheta for deep bend
     Vector2d prev_head_pos_;
     double forward_drive_ = 0.5;     // AVB release rate (instantaneous)
     double reverse_drive_ = 0.0;     // AVA release rate (instantaneous)

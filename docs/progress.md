@@ -195,6 +195,16 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 - **结果**: CI **+0.312→+0.760**, 距食物 14.1→**3.4mm** (60s), 速度 0.21mm/s
 - **诊断工具**: celegans_diag.exe (自动采集 9 级信号链 + 瓶颈分析)
 
+### Step 18: 触觉回避 — 第2个涌现行为 ✅ (2026-02-10)
+> 详细文档: [steps/step18_touch_avoidance.md](steps/step18_touch_avoidance.md)
+
+基于 Chalfie 1985 push-pull 架构实现触觉回避，与趋化性自然竞争/切换:
+- **连接组修复**: ALM→AVD gap junction, PLM→AVA 抑制性, ALM→AVB 抑制, AVD→AVA 中继
+- **壁碰撞检测**: 头部近壁→ALM 80pA→后退, 尾部近壁→PLM 80pA→加速
+- **Omega 转弯**: P(ω)=1-exp(-dur/1s), 500ms 深弯折, 300°/s max_dtheta
+- **行为状态**: 可视化显示 前进/后退/omega 指示器
+- **结果**: CI=0.736 (触觉回路未破坏趋化), 突触 72→82, gap 6→8
+
 ---
 
 ## 当前系统状态
@@ -205,7 +215,7 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
   感觉: 12 (ASE/AWC/AWA/ASH/ALM/PLM, L/R)
   中间: 20 (AIA/AIB/AIY/AIZ/RIA/RIB/AVA/AVB/AVD/AVE, L/R)
   运动: 26 (SMD/RMD 4×2 + DA/DB/VA/VB/DD/VD 各3)
-突触: 72 化学 + 6 间隙连接 (7000+ 全集待加载)
+突触: 82 化学 + 8 间隙连接 (7000+ 全集待加载)
 离子通道: 8/14 种 (EGL-19/UNC-2/CCA-1/SHL-1/KQT-3/SLO-1/NCA/MEC)
 神经元模型: 单隔室 HH 分级电位 (L2) + 钙动力学
 身体: 2D 弹性杆 48 段, 22 个运动神经元-肌肉映射
@@ -213,7 +223,7 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 仿真: dt=0.5ms, 单核 CPU 实时 (10000步 < 1s)
 构建: CMake + MSVC 19.44 + C++20
 可视化: Dear ImGui + ImPlot + GLFW, 3列布局, 实时调参+信号链诊断
-状态: 双策略趋化 (CI=+0.760, pirouette+weathervane+曲率偏置, 14.1→3.4mm/60s)
+状态: 趋化+触觉回避双行为 (CI=+0.736, 壁碰撞→后退→omega, 14.1→3.7mm/60s)
 
 运动驱动 (Step 13 — 生物学机制):
   感觉基线: 12 感觉神经元 × 15pA 自发活动 (Bargmann 2006)

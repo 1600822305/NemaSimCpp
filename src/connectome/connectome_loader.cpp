@@ -258,9 +258,18 @@ void ConnectomeLoader::generate_default_connectome(
     add_syn("AWCL", "AIBL", 4); add_syn("AWCL", "AIYL", 6);
     add_syn("AWCR", "AIBR", 4); add_syn("AWCR", "AIYR", 6);
     add_syn("AWAL", "AIAL", 3); add_syn("AWAR", "AIAR", 3);
-    // Touch circuit
-    add_syn("ALML", "AVDL", 3); add_syn("ALMR", "AVDR", 3);
-    add_syn("PLML", "AVAL", 3); add_syn("PLMR", "AVAR", 3);
+    // Touch circuit (Chalfie et al. 1985)
+    // Principle: touch cells form gap junctions with AGONIST interneurons,
+    //           chemical (inhibitory) synapses with ANTAGONIST interneurons.
+    // Anterior touch: ALM → AVD (agonist=backward, gap junction excitatory)
+    //                 ALM → AVB (antagonist=forward, inhibitory chemical)
+    // Posterior touch: PLM → AVA/AVD (antagonist=backward, inhibitory chemical)
+    //                  PLM → PVC (agonist=forward) — PVC not in MVP subset
+    // NOTE: ALM→AVD gap junctions moved to gap junction section below
+    // NOTE: PLM→AVA inhibitory and ALM→AVB inhibitory moved after add_syn_inh
+    // AVD → AVA excitatory relay (signal from touch → backward command)
+    // Weak: only effective when AVD is strongly activated by touch (not tonic)
+    add_syn("AVDL", "AVAL", 1); add_syn("AVDR", "AVAR", 1);
     // Interneuron → Command interneuron
     // AIA ⊣ AIB: inhibitory (suppresses pirouettes when ON chemosensory active)
     // REF: Chalasani 2007 — AIA inhibits AIB via inhibitory ACh receptors
@@ -309,6 +318,12 @@ void ConnectomeLoader::generate_default_connectome(
     // AIA ⊣ AIB: inhibitory — suppresses pirouettes when ON chemosensory active
     // REF: Chalasani 2007 — AIA inhibits AIB, critical for pirouette suppression
     add_syn_inh("AIAL", "AIBL", 5); add_syn_inh("AIAR", "AIBR", 5);
+    // Touch circuit inhibitory connections (Chalfie 1985)
+    // ALM ⊣ AVB: anterior touch inhibits forward (antagonist)
+    add_syn_inh("ALML", "AVBL", 3); add_syn_inh("ALMR", "AVBR", 3);
+    // PLM ⊣ AVA/AVD: posterior touch inhibits backward (antagonist)
+    add_syn_inh("PLML", "AVAL", 3); add_syn_inh("PLMR", "AVAR", 3);
+    add_syn_inh("PLML", "AVDL", 2); add_syn_inh("PLMR", "AVDR", 2);
 
     // Dorsal SMD inhibits ventral SMD (and vice versa) → half-center oscillator
     // Strong inhibition needed: must overcome tonic drive to suppress contralateral side
@@ -334,6 +349,9 @@ void ConnectomeLoader::generate_default_connectome(
     add_gj("AVEL", "AVER", 4);
     add_gj("ASEL", "ASER", 2);
     add_gj("AIBL", "AIBR", 3);
+    // Touch circuit gap junctions (Chalfie 1985: touch cells → agonist interneurons)
+    // ALM → AVD: anterior touch excites backward interneuron
+    add_gj("ALML", "AVDL", 4); add_gj("ALMR", "AVDR", 4);
 
     LOG_INFO("Generated default connectome: ", neurons.size(), " neurons, ",
              synapses.size(), " synapses, ", gap_junctions.size(), " gap junctions");

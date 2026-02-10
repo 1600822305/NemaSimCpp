@@ -50,6 +50,11 @@ public:
     Connectome& connectome_mut() { return connectome_; }
     const std::vector<std::unique_ptr<Neuron>>& neurons() const { return neurons_; }
 
+    // Touch/behavior state (Step 18)
+    bool is_reversing() const { return is_reversing_; }
+    bool is_omega_turning() const { return omega_pending_; }
+    double reversal_duration() const { return reversal_duration_; }
+
     // Callback for each step (for logging/visualization)
     using StepCallback = std::function<void(const SimulationEngine&, int step_num)>;
     void set_step_callback(StepCallback cb) { step_callback_ = std::move(cb); }
@@ -74,6 +79,8 @@ private:
     void apply_weathervane();            // gradient ⊥ heading → SMD bias (Iino & Yoshida 2009)
     void apply_proprioceptive_stretch(); // body curvature → MEC channels in motor neurons
     void apply_head_tonic();             // tonic drive to head motor neurons (from upstream)
+    void apply_touch_stimulus();         // wall collision → ALM/PLM activation (Chalfie 1985)
+    void apply_omega_turn();             // post-reversal deep ventral bend (Gray 2005)
 
     // Chemosensory transduction: neuron_id → transducer
     struct ChemoMapping {
@@ -97,6 +104,21 @@ private:
         bool is_dorsal;       // true=dorsal (negative curv excites), false=ventral
     };
     std::vector<ProprioMapping> proprio_mappings_;
+
+    // Touch avoidance (Step 18, Chalfie 1985)
+    std::vector<int> alm_ids_;  // anterior touch neuron IDs
+    std::vector<int> plm_ids_;  // posterior touch neuron IDs
+    double touch_current_ = 80.0;  // pA, strong pulse for touch stimulus
+    double arena_margin_ = 2.0;    // mm, wall collision zone
+
+    // Reversal & omega turn tracking
+    bool is_reversing_ = false;
+    double reversal_start_time_ = 0.0;
+    double reversal_duration_ = 0.0;
+    bool omega_pending_ = false;
+    double omega_end_time_ = 0.0;
+    double omega_direction_ = 1.0;  // +1 ventral, -1 dorsal
+    std::mt19937 touch_rng_{123};
 };
 
 } // namespace celegans
