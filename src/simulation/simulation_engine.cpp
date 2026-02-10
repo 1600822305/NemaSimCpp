@@ -141,6 +141,10 @@ void SimulationEngine::initialize(const Config& config) {
 }
 
 void SimulationEngine::step() {
+    // 0. Sync tuning params to subsystems
+    connectome_.set_synapse_scale(static_cast<double>(params.synapse_scale));
+    body_.set_speed_scale(static_cast<double>(params.speed_scale));
+
     // 1. Environment update
     environment_.step(dt_ * 0.001);
 
@@ -223,6 +227,7 @@ void SimulationEngine::apply_sensory_input() {
     for (auto& cm : chemo_mappings_) {
         if (cm.neuron_id < 0 || cm.neuron_id >= n) continue;
         double I_sensory = cm.transducer.update(concentration, dt_);
+        I_sensory *= static_cast<double>(params.sensory_gain);
         neurons_[cm.neuron_id]->set_external_current(I_sensory);
     }
 
@@ -275,12 +280,13 @@ void SimulationEngine::apply_weathervane() {
     // 12.7 °/mm per mM/mm gradient (Iino 2009), but our gradient is in concentration/mm
     // Scale factor calibrated for our chemical field (Gaussian, peak=1.0, sigma²=25)
     // At 14mm from source: gradient ~0.011 conc/mm → bias ~0.14 °/mm → small but cumulative
-    double weathervane_gain = 50.0; // pA per (concentration/mm) — strong enough to bias SMD
+    double weathervane_gain = static_cast<double>(params.weathervane_gain);
     double bias_current = weathervane_gain * grad_normal;
 
-    // Clamp to ±5 pA (should not overwhelm the half-center oscillator)
-    if (bias_current > 5.0) bias_current = 5.0;
-    if (bias_current < -5.0) bias_current = -5.0;
+    // Clamp to ±bias_clamp pA (should not overwhelm the half-center oscillator)
+    double clamp = static_cast<double>(params.bias_clamp);
+    if (bias_current > clamp) bias_current = clamp;
+    if (bias_current < -clamp) bias_current = -clamp;
 
     int n = static_cast<int>(neurons_.size());
 

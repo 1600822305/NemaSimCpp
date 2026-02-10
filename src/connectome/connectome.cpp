@@ -57,7 +57,7 @@ void Connectome::compute_synaptic_currents(std::vector<std::unique_ptr<Neuron>>&
 
         double V_pre = neurons[pre]->get_membrane_potential();
         double V_post = neurons[post]->get_membrane_potential();
-        double I = syn.compute_current(V_pre, V_post);
+        double I = syn.compute_current(V_pre, V_post) * synapse_runtime_scale_;
         neurons[post]->add_synaptic_current(I);
     }
 

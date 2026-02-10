@@ -100,12 +100,17 @@ bool VisApp::initialize(int width, int height) {
             traces_.push_back({name, id, {}, {}});
         }
     };
-    add_trace("SMDDL");
-    add_trace("SMDVL");
-    add_trace("AVAL");
-    add_trace("AVBL");
-    add_trace("AIBL");
-    add_trace("AIYL");
+    // Group 0-1: SMD half-center
+    add_trace("SMDDL");  // [0]
+    add_trace("SMDVL");  // [1]
+    // Group 2-5: Command + interneurons
+    add_trace("AVAL");   // [2]
+    add_trace("AVBL");   // [3]
+    add_trace("AIBL");   // [4]
+    add_trace("AIYL");   // [5]
+    // Group 6-7: Sensory L/R (for gradient asymmetry)
+    add_trace("ASEL");   // [6]
+    add_trace("ASER");   // [7]
 
     // Initialize chemical field data
     update_chemical_field();
@@ -207,6 +212,22 @@ void VisApp::sim_step_batch(int steps) {
 
         // Update neuron traces every step
         update_traces();
+
+        // Record heading every 20 steps (10ms)
+        if (engine_.get_step_count() % 20 == 0) {
+            update_heading();
+        }
+    }
+}
+
+void VisApp::update_heading() {
+    double t = engine_.current_time();
+    double heading_deg = engine_.body().get_head_angle() * 180.0 / 3.14159265;
+    heading_times_.push_back(t);
+    heading_values_.push_back(heading_deg);
+    if (heading_times_.size() > 20000) {
+        heading_times_.erase(heading_times_.begin(), heading_times_.begin() + 10000);
+        heading_values_.erase(heading_values_.begin(), heading_values_.begin() + 10000);
     }
 }
 
@@ -251,30 +272,33 @@ void VisApp::render_frame() {
     // Get window size
     glfwGetFramebufferSize(window_, &window_width_, &window_height_);
 
-    // Full-screen dockspace-like layout
-    float left_w = window_width_ * 0.55f;
-    float right_w = window_width_ - left_w;
-    float top_h = window_height_ * 0.6f;
-    float bottom_h = window_height_ - top_h;
+    // 3-column layout: left(trajectory) | middle(waveforms) | right(tuning+control)
+    float col1_w = window_width_ * 0.30f;
+    float col2_w = window_width_ * 0.42f;
+    float col3_w = window_width_ - col1_w - col2_w;
+    float full_h = (float)window_height_;
 
-    // Panel 1: Trajectory + Chemical Field (top-left)
+    // Column 1: Trajectory + Stats
     ImGui::SetNextWindowPos(ImVec2(0, 0));
-    ImGui::SetNextWindowSize(ImVec2(left_w, top_h));
+    ImGui::SetNextWindowSize(ImVec2(col1_w, full_h * 0.6f));
     render_trajectory_panel();
 
-    // Panel 2: Neuron activity (top-right)
-    ImGui::SetNextWindowPos(ImVec2(left_w, 0));
-    ImGui::SetNextWindowSize(ImVec2(right_w, top_h));
-    render_neuron_panel();
-
-    // Panel 3: Chemical field heatmap (bottom-left)
-    ImGui::SetNextWindowPos(ImVec2(0, top_h));
-    ImGui::SetNextWindowSize(ImVec2(left_w, bottom_h));
+    ImGui::SetNextWindowPos(ImVec2(0, full_h * 0.6f));
+    ImGui::SetNextWindowSize(ImVec2(col1_w, full_h * 0.4f));
     render_chemical_field();
 
-    // Panel 4: Control panel (bottom-right)
-    ImGui::SetNextWindowPos(ImVec2(left_w, top_h));
-    ImGui::SetNextWindowSize(ImVec2(right_w, bottom_h));
+    // Column 2: All waveforms (SMD, Command, Sensory, Heading)
+    ImGui::SetNextWindowPos(ImVec2(col1_w, 0));
+    ImGui::SetNextWindowSize(ImVec2(col2_w, full_h));
+    render_neuron_panel();
+
+    // Column 3: Tuning + Control
+    ImGui::SetNextWindowPos(ImVec2(col1_w + col2_w, 0));
+    ImGui::SetNextWindowSize(ImVec2(col3_w, full_h * 0.55f));
+    render_tuning_panel();
+
+    ImGui::SetNextWindowPos(ImVec2(col1_w + col2_w, full_h * 0.55f));
+    ImGui::SetNextWindowSize(ImVec2(col3_w, full_h * 0.45f));
     render_control_panel();
 
     // Rendering
@@ -352,52 +376,99 @@ void VisApp::render_neuron_panel() {
 
     if (!traces_.empty() && !traces_[0].times.empty()) {
         double t_now = traces_[0].times.back();
-        double t_window = 5000.0; // show last 5 seconds
+        double t_window = 5000.0;
+        float avail_h = ImGui::GetContentRegionAvail().y;
+        float plot_h = avail_h * 0.24f;
 
-        // SMD panel (half-center oscillator)
-        if (ImPlot::BeginPlot(u8"SMD \u534a\u4e2d\u5fc3\u632f\u8361\u5668 (\u5934\u90e8)", ImVec2(-1, 0),
-                ImPlotFlags_NoLegend)) {
-            ImPlot::SetupAxes(u8"\u65f6\u95f4 (ms)", u8"\u7535\u4f4d (mV)");
+        // Helper: get last N values min/max for amplitude annotation
+        auto get_range = [](const std::vector<double>& v, int last_n) -> std::pair<double,double> {
+            if (v.empty()) return {0,0};
+            int start = std::max(0, (int)v.size() - last_n);
+            double mn = v[start], mx = v[start];
+            for (int i = start; i < (int)v.size(); ++i) {
+                if (v[i] < mn) mn = v[i];
+                if (v[i] > mx) mx = v[i];
+            }
+            return {mn, mx};
+        };
+
+        // --- Plot 1: SMD half-center ---
+        if (ImPlot::BeginPlot(u8"SMD \u534a\u4e2d\u5fc3 (\u5934\u90e8\u632f\u8361)", ImVec2(-1, plot_h))) {
+            ImPlot::SetupAxes(u8"\u65f6\u95f4(ms)", u8"mV");
             ImPlot::SetupAxesLimits(t_now - t_window, t_now, -80, -10, ImPlotCond_Always);
             ImPlot::SetupLegend(ImPlotLocation_NorthEast);
-
-            static const ImVec4 colors[] = {
-                {0.2f, 0.6f, 1.0f, 1.0f},  // SMDDL - blue
-                {1.0f, 0.4f, 0.2f, 1.0f},  // SMDVL - orange
-            };
-
+            static const ImVec4 c[] = {{0.2f,0.6f,1,1},{1,0.4f,0.2f,1}};
             for (int i = 0; i < 2 && i < (int)traces_.size(); ++i) {
                 auto& tr = traces_[i];
                 if (tr.times.empty()) continue;
-                ImPlot::SetNextLineStyle(colors[i], 1.5f);
-                ImPlot::PlotLine(tr.name.c_str(),
-                    tr.times.data(), tr.voltages.data(), (int)tr.times.size());
+                ImPlot::SetNextLineStyle(c[i], 1.5f);
+                ImPlot::PlotLine(tr.name.c_str(), tr.times.data(), tr.voltages.data(), (int)tr.times.size());
+            }
+            ImPlot::EndPlot();
+        }
+        // Amplitude annotation
+        if (traces_.size() >= 2) {
+            auto [d_min, d_max] = get_range(traces_[0].voltages, 2000);
+            auto [v_min, v_max] = get_range(traces_[1].voltages, 2000);
+            ImGui::TextColored(ImVec4(0.5f,0.8f,1,1), u8"  SMDDL: %.1f~%.1f mV (\u0394%.1f)  SMDVL: %.1f~%.1f mV (\u0394%.1f)",
+                d_min, d_max, d_max-d_min, v_min, v_max, v_max-v_min);
+        }
+
+        // --- Plot 2: Command + Interneurons ---
+        if (ImPlot::BeginPlot(u8"\u547d\u4ee4\u795e\u7ecf\u5143 (AVA/AVB/AIB/AIY)", ImVec2(-1, plot_h))) {
+            ImPlot::SetupAxes(u8"\u65f6\u95f4(ms)", u8"mV");
+            ImPlot::SetupAxesLimits(t_now - t_window, t_now, -80, -10, ImPlotCond_Always);
+            ImPlot::SetupLegend(ImPlotLocation_NorthEast);
+            static const ImVec4 c2[] = {{1,0.2f,0.2f,1},{0.2f,1,0.2f,1},{0.8f,0.6f,0.2f,1},{0.6f,0.2f,1,1}};
+            for (int i = 2; i < 6 && i < (int)traces_.size(); ++i) {
+                auto& tr = traces_[i];
+                if (tr.times.empty()) continue;
+                ImPlot::SetNextLineStyle(c2[i-2], 1.5f);
+                ImPlot::PlotLine(tr.name.c_str(), tr.times.data(), tr.voltages.data(), (int)tr.times.size());
             }
             ImPlot::EndPlot();
         }
 
-        // Command interneurons + key interneurons
-        if (ImPlot::BeginPlot(u8"\u547d\u4ee4\u795e\u7ecf\u5143\u4e0e\u4e2d\u95f4\u795e\u7ecf\u5143", ImVec2(-1, 0),
-                ImPlotFlags_NoLegend)) {
-            ImPlot::SetupAxes(u8"\u65f6\u95f4 (ms)", u8"\u7535\u4f4d (mV)");
-            ImPlot::SetupAxesLimits(t_now - t_window, t_now, -80, -10, ImPlotCond_Always);
-            ImPlot::SetupLegend(ImPlotLocation_NorthEast);
-
-            static const ImVec4 colors2[] = {
-                {1.0f, 0.2f, 0.2f, 1.0f},  // AVA - red
-                {0.2f, 1.0f, 0.2f, 1.0f},  // AVB - green
-                {0.8f, 0.6f, 0.2f, 1.0f},  // AIB - yellow
-                {0.6f, 0.2f, 1.0f, 1.0f},  // AIY - purple
-            };
-
-            for (int i = 2; i < (int)traces_.size(); ++i) {
-                auto& tr = traces_[i];
-                if (tr.times.empty()) continue;
-                ImPlot::SetNextLineStyle(colors2[i - 2], 1.5f);
-                ImPlot::PlotLine(tr.name.c_str(),
-                    tr.times.data(), tr.voltages.data(), (int)tr.times.size());
+        // --- Plot 3: ASEL vs ASER (gradient asymmetry) ---
+        if (traces_.size() >= 8) {
+            if (ImPlot::BeginPlot(u8"\u611f\u89c9\u795e\u7ecf\u5143 ASEL/ASER (\u68af\u5ea6\u4e0d\u5bf9\u79f0)", ImVec2(-1, plot_h))) {
+                ImPlot::SetupAxes(u8"\u65f6\u95f4(ms)", u8"mV");
+                ImPlot::SetupAxesLimits(t_now - t_window, t_now, -80, -10, ImPlotCond_Always);
+                ImPlot::SetupLegend(ImPlotLocation_NorthEast);
+                ImPlot::SetNextLineStyle(ImVec4(0,0.8f,0.8f,1), 1.5f);
+                ImPlot::PlotLine(traces_[6].name.c_str(), traces_[6].times.data(), traces_[6].voltages.data(), (int)traces_[6].times.size());
+                ImPlot::SetNextLineStyle(ImVec4(1,0.8f,0,1), 1.5f);
+                ImPlot::PlotLine(traces_[7].name.c_str(), traces_[7].times.data(), traces_[7].voltages.data(), (int)traces_[7].times.size());
+                ImPlot::EndPlot();
             }
-            ImPlot::EndPlot();
+            auto [l_min, l_max] = get_range(traces_[6].voltages, 2000);
+            auto [r_min, r_max] = get_range(traces_[7].voltages, 2000);
+            double l_mean = (l_min + l_max) * 0.5;
+            double r_mean = (r_min + r_max) * 0.5;
+            ImGui::TextColored(ImVec4(0.5f,1,0.8f,1), u8"  ASEL: %.1f mV  ASER: %.1f mV  \u5dee\u503c: %.2f mV",
+                l_mean, r_mean, l_mean - r_mean);
+        }
+
+        // --- Plot 4: Heading angle ---
+        if (!heading_times_.empty()) {
+            if (ImPlot::BeginPlot(u8"\u5934\u90e8\u65b9\u5411\u89d2 (\u00b0)", ImVec2(-1, plot_h))) {
+                ImPlot::SetupAxes(u8"\u65f6\u95f4(ms)", u8"\u89d2\u5ea6(\u00b0)");
+                double h_min = heading_values_.back() - 90;
+                double h_max = heading_values_.back() + 90;
+                ImPlot::SetupAxesLimits(t_now - t_window, t_now, h_min, h_max, ImPlotCond_Always);
+                ImPlot::SetNextLineStyle(ImVec4(1,1,0.3f,1), 2.0f);
+                ImPlot::PlotLine(u8"\u65b9\u5411\u89d2", heading_times_.data(), heading_values_.data(), (int)heading_times_.size());
+                ImPlot::EndPlot();
+            }
+            // Heading change rate
+            if (heading_values_.size() >= 100) {
+                int n = (int)heading_values_.size();
+                double dt_sec = (heading_times_[n-1] - heading_times_[n-100]) / 1000.0;
+                double dh = heading_values_[n-1] - heading_values_[n-100];
+                double rate = (dt_sec > 0.01) ? std::abs(dh / dt_sec) : 0;
+                ImGui::TextColored(ImVec4(1,1,0.3f,1), u8"  \u89d2\u901f\u5ea6: %.2f \u00b0/s   \u5f53\u524d\u65b9\u5411: %.1f\u00b0",
+                    rate, heading_values_.back());
+            }
         }
     }
 
@@ -436,6 +507,83 @@ void VisApp::render_chemical_field() {
             ImPlot::PlotLine("CI", ci_history_.data(), (int)ci_history_.size());
             ImPlot::EndPlot();
         }
+    }
+
+    ImGui::End();
+}
+
+void VisApp::render_tuning_panel() {
+    ImGui::Begin(u8"\u8c03\u53c2\u9762\u677f", nullptr,
+        ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
+
+    ImGui::TextColored(ImVec4(1, 0.8f, 0.2f, 1), u8"\u589e\u76ca\u94fe\u8c03\u53c2");
+    ImGui::Separator();
+
+    auto& p = engine_.params;
+    ImGui::SliderFloat(u8"\u68af\u5ea6\u589e\u76ca (weathervane)", &p.weathervane_gain, 1.0f, 500.0f, "%.0f");
+    ImGui::SliderFloat(u8"\u7a81\u89e6\u6743\u91cd\u500d\u7387", &p.synapse_scale, 0.1f, 5.0f, "%.2f");
+    ImGui::SliderFloat(u8"\u901f\u5ea6\u500d\u7387", &p.speed_scale, 0.2f, 5.0f, "%.2f");
+    ImGui::SliderFloat(u8"\u611f\u89c9\u589e\u76ca\u500d\u7387", &p.sensory_gain, 0.1f, 10.0f, "%.2f");
+    ImGui::SliderFloat(u8"\u504f\u7f6e\u7535\u6d41\u9650\u5e45 (pA)", &p.bias_clamp, 1.0f, 50.0f, "%.1f");
+
+    ImGui::Separator();
+    ImGui::TextColored(ImVec4(0.6f, 0.9f, 1, 1), u8"\u4fe1\u53f7\u94fe\u8bca\u65ad");
+    ImGui::Separator();
+
+    // Signal chain: gradient → sensory current → neuron ΔV → SMD diff → dθ/dt → CI
+    const auto& neurons = engine_.neurons();
+    int n = static_cast<int>(neurons.size());
+
+    // 1. Gradient magnitude at head
+    auto head = engine_.body().get_head_position();
+    auto grad = engine_.environment().chemical_field().gradient(head);
+    double grad_mag = std::sqrt(grad.x * grad.x + grad.y * grad.y);
+    ImGui::Text(u8"\u2460 \u68af\u5ea6\u5e45\u5ea6: %.4f /mm", grad_mag);
+
+    // 2. Weathervane bias
+    double heading = engine_.body().get_head_angle();
+    double grad_normal = -std::sin(heading) * grad.x + std::cos(heading) * grad.y;
+    double bias = p.weathervane_gain * grad_normal;
+    double clamp = p.bias_clamp;
+    if (bias > clamp) bias = clamp;
+    if (bias < -clamp) bias = -clamp;
+    ImGui::Text(u8"\u2461 \u5782\u76f4\u68af\u5ea6: %.4f  \u504f\u7f6e: %.2f pA", grad_normal, bias);
+
+    // 3. SMD differential
+    int smddl_id = engine_.connectome().get_neuron_id("SMDDL");
+    int smdvl_id = engine_.connectome().get_neuron_id("SMDVL");
+    if (smddl_id >= 0 && smdvl_id >= 0 && smddl_id < n && smdvl_id < n) {
+        double vd = neurons[smddl_id]->get_membrane_potential();
+        double vv = neurons[smdvl_id]->get_membrane_potential();
+        ImGui::Text(u8"\u2462 SMD\u5dee\u5f02: %.2f mV (D-V)", vd - vv);
+    }
+
+    // 4. Head curvature
+    double curv = engine_.body().segments()[0].curvature;
+    ImGui::Text(u8"\u2463 \u5934\u90e8\u66f2\u7387: %.4f /mm", curv);
+
+    // 5. Speed
+    ImGui::Text(u8"\u2464 \u901f\u5ea6: %.4f mm/s", engine_.body().get_speed());
+
+    // 6. Heading rate
+    if (heading_values_.size() >= 100) {
+        int sz = (int)heading_values_.size();
+        double dt_sec = (heading_times_[sz-1] - heading_times_[sz-100]) / 1000.0;
+        double dh = heading_values_[sz-1] - heading_values_[sz-100];
+        double rate = (dt_sec > 0.01) ? dh / dt_sec : 0;
+        ImGui::Text(u8"\u2465 \u8f6c\u5f2f\u7387: %.2f \u00b0/s", rate);
+    }
+
+    // 7. CI
+    if (ci_count_ > 0) {
+        double ci = ci_sum_ / ci_count_;
+        ImVec4 ci_col = ci > 0.3 ? ImVec4(0.2f,1,0.2f,1) : (ci > 0 ? ImVec4(1,1,0.2f,1) : ImVec4(1,0.3f,0.3f,1));
+        ImGui::TextColored(ci_col, u8"\u2466 CI: %.3f", ci);
+    }
+
+    ImGui::Separator();
+    if (ImGui::Button(u8"\u91cd\u7f6e\u53c2\u6570")) {
+        p = SimulationEngine::TuningParams{};
     }
 
     ImGui::End();

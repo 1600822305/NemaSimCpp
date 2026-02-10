@@ -46,6 +46,11 @@ private:
     // Synapse weight scaling factor (EM sections -> conductance)
     double synapse_weight_scale_ = 0.3;   // nS per EM section
     double gap_conductance_scale_ = 0.05; // nS per EM section
+public:
+    void set_synapse_scale(double s) { synapse_runtime_scale_ = s; }
+    double get_synapse_scale() const { return synapse_runtime_scale_; }
+private:
+    double synapse_runtime_scale_ = 1.0;  // runtime multiplier on all synapse weights
 };
 
 } // namespace celegans

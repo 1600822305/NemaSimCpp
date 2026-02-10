@@ -64,6 +64,10 @@ private:
     double drag_coeff_tangent_ = 1.0;   // tangential drag
     double drag_coeff_normal_ = 10.0;   // normal drag (anisotropic for low Re)
     double speed_ = 0.0;             // current locomotion speed (mm/s)
+public:
+    void set_speed_scale(double s) { speed_scale_ = s; }
+private:
+    double speed_scale_ = 1.0;       // runtime speed multiplier
     Vector2d prev_head_pos_;
     double forward_drive_ = 0.5;     // AVB release rate (instantaneous)
     double reverse_drive_ = 0.0;     // AVA release rate (instantaneous)

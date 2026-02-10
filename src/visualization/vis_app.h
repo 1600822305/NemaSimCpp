@@ -22,6 +22,7 @@ private:
     void render_trajectory_panel();
     void render_neuron_panel();
     void render_control_panel();
+    void render_tuning_panel();
     void render_chemical_field();
 
     void sim_step_batch(int steps);
@@ -53,6 +54,11 @@ private:
     std::vector<double> chem_field_data_;
     int chem_nx_ = 0, chem_ny_ = 0;
     void update_chemical_field();
+
+    // Heading history
+    std::vector<double> heading_times_;
+    std::vector<double> heading_values_;  // degrees
+    void update_heading();
 
     // Stats
     double ci_sum_ = 0.0;

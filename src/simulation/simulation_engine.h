@@ -29,13 +29,25 @@ public:
     void step();
     void run(double duration_ms);
 
+    // Tunable parameters (live-adjustable from visualization)
+    struct TuningParams {
+        float weathervane_gain = 50.0f;   // pA per (conc/mm) — gradient → SMD bias
+        float synapse_scale   = 1.0f;    // global synapse weight multiplier
+        float speed_scale     = 1.0f;    // v_max multiplier
+        float sensory_gain    = 1.0f;    // chemosensory transducer gain multiplier
+        float bias_clamp      = 5.0f;    // max weathervane bias current (pA)
+    };
+    TuningParams params;
+
     // Access
     double current_time() const { return current_time_; }
     double dt() const { return dt_; }
     int get_step_count() const { return step_count_; }
     const BodyModel& body() const { return body_; }
+    BodyModel& body_mut() { return body_; }
     const Environment& environment() const { return environment_; }
     const Connectome& connectome() const { return connectome_; }
+    Connectome& connectome_mut() { return connectome_; }
     const std::vector<std::unique_ptr<Neuron>>& neurons() const { return neurons_; }
 
     // Callback for each step (for logging/visualization)
