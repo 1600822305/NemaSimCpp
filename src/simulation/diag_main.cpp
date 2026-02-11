@@ -147,8 +147,8 @@ int main(int argc, char* argv[]) {
         else if (arg == "--omega_threshold" && i+1 < argc) cli_omega_threshold = static_cast<float>(std::atof(argv[++i]));
         else if (arg == "--riv_tonic" && i+1 < argc) cli_riv_tonic = static_cast<float>(std::atof(argv[++i]));
         else if (arg == "--seed" && i+1 < argc) cli_seed = static_cast<unsigned int>(std::atoi(argv[++i]));
-        else if (arg == "--no-toxin") cli_no_toxin = true;
-        else if (arg == "--no-food") cli_no_food = true;
+        else if (arg == "--no-toxin" || arg == "--no_toxin") cli_no_toxin = true;
+        else if (arg == "--no-food" || arg == "--no_food") cli_no_food = true;
         else if (arg == "--quiet" || arg == "-q") cli_quiet = true;
         else if (arg == "--fitness") cli_fitness = true;
         else if (arg == "--seeds" && i+1 < argc) cli_nseeds = std::atoi(argv[++i]);

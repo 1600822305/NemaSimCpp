@@ -1,6 +1,6 @@
 # C. elegans 302 神经元工程复刻 — 开发进度
 
-> 上次更新: 2026-02-10
+> 上次更新: 2026-02-11
 > 蓝图文档: [c_elegans_blueprint.md](c_elegans_blueprint.md)
 
 ### 📋 文档更新规则
@@ -551,6 +551,30 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 - **regtest**: 17 pass, 0 FAIL
 - **文档**: docs/steps/step42_connectome_calibration.md
 
+### Step 43: 病原体回避 — AWB/ADF/AIZ 回路重构 ✅ (2026-02-11)
+> 详细文档: [steps/step43_pathogen_avoidance.md](steps/step43_pathogen_avoidance.md)
+
+- **AWB 排斥嗅觉**: AWB↔AUA gap junction 驱动 AUA→AVA 后退 (Filipowicz 2022 BMC Biology)
+- **ADF 病原体信号**: sickness-dependent MOD-1 → AIY/AIZ 抑制 (直接电流注入，非突触)
+- **ADF 5-HT 源移除**: ADF 基线释放膨胀 off-food 5-HT，生物学上 ADF 5-HT 需要 TPH-1 上调 (Zhang 2005)
+- **TA→SER-2→AIY**: RIM tyramine 通过 SER-2 GPCR 抑制 AIY (Jin & Bargmann 2016 Cell)
+- **5-HT→AIY 校准**: -5.0→-2.5 pA (补偿 ADF→AIY 突触删除后的净效应)
+- **文档**: docs/steps/step43_pathogen_avoidance.md
+
+### Step 44: Off-Food 搜索行为 — Reversal Rate 调制 ✅ (2026-02-11)
+> 详细文档: [steps/step44_off_food_search.md](steps/step44_off_food_search.md)
+
+- **根因**: `reversal_rate_scale_` 死代码 — 已计算但从未被 pirouette 触发代码使用
+- **5-HT → REVERSAL_RATE**: 新增 -0.50 target，on-food 36% 抑制 (dwelling), off-food 无抑制
+- **基础 pirouette 参数提高**: r_min 0.01→0.03, r_max 0.16→0.25 (off-food 目标 6/min)
+- **ARS pirouette bonus**: food_memory → +0.08/s 最大 (离开食物后 local search)
+- **speed_scale clamp**: [0.1, 3.0] 防止极端值
+- **CLI 修复**: --no_toxin/--no-toxin 双支持
+- **结果**: reversal_rate 0.04→0.10/s, CI 0.131→0.685, time_near_food 0%→52%
+- **REF**: Gray 2005 PNAS, Campbell 2016 PLOS Genetics, Hills 2004 J Neurosci, Flavell 2013 Cell
+- **regtest**: 17 pass, 0 FAIL
+- **文档**: docs/steps/step44_off_food_search.md
+
 ---
 
 ## 当前系统状态
@@ -564,8 +588,9 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 突触: ~197 化学 + ~36 间隙连接 (全部带 Tsodyks-Markram STP, 支持分数 sections)
   Step 42: Cook 2019 校准 (+8 RIA↔RIV, -2 AVE→RIV) + RIV↔RIV gap
 神经调质: 4 种 (5-HT, DA, OA, TA) — volume transmission + 饱食度(泵驱动)
-  5-HT 源: NSM(食物) + ADF(生病) + HSN(产卵) — 6个源神经元
-  TA 源: RIM (逃逸协调) — LGC-55→SMD/AVB/RIV抑制 + TYRA-3→ASH增敏
+  5-HT 源: NSM(食物) + HSN(产卵) — 4个源神经元 (Step 43: ADF 移除)
+  5-HT 靶标: AIY/AIB(EXCITABILITY) + speed(-0.40) + reversal_rate(-0.50) + RIC(-8pA)
+  TA 源: RIM (逃逸协调) — LGC-55→SMD/AVB/RIV抑制 + TYRA-3→ASH增敏 + SER-2→AIY抑制
 离子通道: 8/14 种 (EGL-19/UNC-2/CCA-1/SHL-1/KQT-3/SLO-1/NCA/MEC)
 神经元模型: 单隔室 HH 分级电位 (L2) + 多隔室 (RIA) + 钙动力学
 身体: 2D 弹性杆 48 段, 29 个运动神经元-肌肉映射, 体节间曲率扩散(弹性耦合)
@@ -614,7 +639,8 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
   运动学: dθ/dt = v × κ_head, pirouette 概率模型 (AVA 调制)
   Weathervane: ∇C_⊥ → SMD 差异驱动 + 直接曲率偏置 (Iino & Yoshida 2009)
   曲率偏置: curv_gain=45, 梯度法向→头部曲率偏移 (绕过SMD振荡瓶颈)
-  趋化指数: CI ≈ 0.75, time_near_food ≈ 50% (300s)
+  趋化指数: CI ≈ 0.68-0.97 (no_toxin), time_near_food ≈ 8-52% (300s, seed-dependent)
+  Pirouette: off-food 0.10/s (6/min), on-food ~0.06/s (5-HT REVERSAL_RATE -0.50 suppression)
   速度: 0.21 mm/s (speed_scale=2.0, 文献值 ~0.15-0.2 mm/s)
 
 文件结构:

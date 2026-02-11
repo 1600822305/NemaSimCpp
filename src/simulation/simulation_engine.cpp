@@ -505,7 +505,11 @@ void SimulationEngine::step() {
             sleep_speed_factor = 1.0 - 0.97 * flp11;  // up to 97% speed reduction (near-atonia)
         }
     }
-    body_.set_speed_scale(params.speed_scale * neuromod_.get_speed_scale() * sleep_speed_factor);
+    // Step 44: clamp effective speed_scale to prevent extreme values
+    double effective_speed = params.speed_scale * neuromod_.get_speed_scale() * sleep_speed_factor;
+    if (effective_speed > 3.0) effective_speed = 3.0;
+    if (effective_speed < 0.1) effective_speed = 0.1;
+    body_.set_speed_scale(effective_speed);
 
     // 6. Update all neuron membrane potentials
     for (auto& neuron : neurons_) {
@@ -1396,15 +1400,31 @@ void SimulationEngine::apply_touch_stimulus() {
     //    r(x) = r_min + (r_max - r_min) / (1 + exp(-x))
     //    x > 0 (bad direction) → r → r_max (more pirouettes)
     //    x < 0 (good direction) → r → r_min (fewer pirouettes)
-    //    x = 0 (flat field) → r = r_mid ≈ 0.035/s (spontaneous)
+    //    x = 0 (flat field) → r = r_mid ≈ 0.14/s (Step 44: raised for off-food search)
     bool was_reversing = is_reversing_;
     if (!is_reversing_) {
-        double r_min = 0.01;   // /s, strongly suppressed when heading up gradient
-        double r_max = 0.16;   // /s, elevated rate when heading down gradient
-        // Asymmetry ratio 16:1 ensures long runs toward food, short runs away
+        double r_min = 0.03;   // /s, suppressed when heading up gradient
+        double r_max = 0.25;   // /s, elevated rate when heading down gradient
+        // Step 44: raised from 0.01/0.16 to 0.03/0.25
+        // Off-food r_mid=0.14 → effective ~0.10/s (target 6/min, Campbell 2016)
+        // On-food with 5-HT: 0.14×0.65=0.09 → effective ~0.06/s (target 3/min)
         // REF: Pierce-Shimomura 1999 — pirouette rate heavily suppressed during approach
+        //      Gray 2005 PNAS — off-food reversal rate 6/min
         double pir_rate = r_min + (r_max - r_min) /
                           (1.0 + fast_exp(-combined));
+
+        // Step 44: Apply neuromodulatory reversal rate scaling
+        // 5-HT on food → scale=0.65 (50% suppression at [5-HT]=0.73)
+        // Off food → scale=1.0 (no suppression → full exploration)
+        // REF: Flavell 2013 Cell — 5-HT promotes dwelling (low reversal state)
+        pir_rate *= neuromod_.get_reversal_rate_scale();
+
+        // Step 44: ARS food_memory → pirouette rate bonus (local search)
+        // After leaving food: food_memory high → more reversals → stay near patch
+        // As food_memory decays (90s tau): rate drops → transition to dispersal
+        // REF: Hills 2004 J Neurosci — DA→DARPP-32→GLR-1 increases turn frequency
+        //      Wakabayashi 2004 — pirouette frequency decay after food removal
+        pir_rate += 0.08 * food_memory_;
 
         double p_pir = pir_rate * (dt_ / 1000.0);
         std::uniform_real_distribution<double> rdist(0.0, 1.0);
@@ -1628,6 +1648,15 @@ void SimulationEngine::setup_neuromodulation() {
             if (aib_id >= 0) serotonin.targets.push_back(
                 {aib_id, "MOD-1", ModulationEffect::EXCITABILITY, -6.0}); // -6 pA inhibitory
         }
+
+        // Target: reversal rate suppression (dwelling = fewer pirouettes)
+        // On food: 5-HT → MOD-1 → fewer reversals → stay on food (dwelling)
+        // Off food: no 5-HT → full reversal rate → area-restricted search
+        // REF: Gray 2005 PNAS — off-food reversal rate 6/min vs on-food 3/min
+        //      Campbell 2016 PLOS Genetics — wild-type 2× reversal rate off food
+        //      Flavell 2013 Cell — 5-HT promotes dwelling (low reversal) state
+        serotonin.targets.push_back(
+            {-1, "MOD-1", ModulationEffect::REVERSAL_RATE, -0.50}); // 50% fewer reversals at peak 5-HT
 
         // Target: speed reduction (enhanced slowing on food)
         // REF: Sawin 2000 — serotonin reduces locomotion speed
