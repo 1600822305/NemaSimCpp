@@ -575,6 +575,21 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 - **regtest**: 17 pass, 0 FAIL
 - **文档**: docs/steps/step44_off_food_search.md
 
+### Step 45: NLP-12 — DVA 觅食搜索神经肽 ✅ (2026-02-11)
+> 详细文档: [steps/step45_nlp12_foraging.md](steps/step45_nlp12_foraging.md)
+
+- **NLP-12 神经肽**: DVA→NLP-12 (CCK 同源物), tau_rise=3s, tau_decay=15s, threshold=0.5
+- **CKR-1→SMD**: +5pA×4 头部运动神经元 → 头部摆动幅度 ↑ → 前向重定向 (ARS 主通路)
+- **CKR-2→AVA**: +2pA×2 命令中间神经元 → 温和反转偏置 (辅助通路)
+- **DA→DOP-1→DVA**: +4pA 多巴胺预激活 DVA → NLP-12 储备 (Bhattacharya 2014)
+- **双通路 ARS**: 快速 DARPP-32→AVA +1.5pA (胞内) + 慢速 NLP-12→CKR-1→SMD (体积传递)
+- **food_memory→DVA**: +5pA 驱动 DVA → NLP-12 释放 → 涌现式搜索幅度自适应
+- **信号**: Gαq (EGL-30) 纯兴奋性通路; 删除无证据 CKR-2→AVB 抑制靶点
+- **结果**: CI=0.70-0.93 (4-seed), near_food=2-7%, reversal_rate=0.07-0.12/s
+- **REF**: Ramachandran 2021 eLife, Bhattacharya 2014 PLOS Genetics, Hu 2011 Neuron
+- **regtest**: 17 pass, 0 FAIL
+- **文档**: docs/steps/step45_nlp12_foraging.md
+
 ---
 
 ## 当前系统状态
@@ -587,15 +602,16 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
   运动: 68 (SMD/RMD/SMB 4×2+4 + RIV L/R + RMED/RMEV + AS01-07 + DB01-07/VB01-07/DA01-05/VA01-05/DD01-05/VD01-05 + MC/M3 L/R + M4 + HSN L/R + VC4/VC5)
 突触: ~197 化学 + ~36 间隙连接 (全部带 Tsodyks-Markram STP, 支持分数 sections)
   Step 42: Cook 2019 校准 (+8 RIA↔RIV, -2 AVE→RIV) + RIV↔RIV gap
-神经调质: 4 种 (5-HT, DA, OA, TA) — volume transmission + 饱食度(泵驱动)
+神经调质: 5 种 (5-HT, DA, OA, TA, NLP-12) — volume transmission + 饱食度(泵驱动)
   5-HT 源: NSM(食物) + HSN(产卵) — 4个源神经元 (Step 43: ADF 移除)
   5-HT 靶标: AIY/AIB(EXCITABILITY) + speed(-0.40) + reversal_rate(-0.50) + RIC(-8pA)
   TA 源: RIM (逃逸协调) — LGC-55→SMD/AVB/RIV抑制 + TYRA-3→ASH增敏 + SER-2→AIY抑制
+  NLP-12 源: DVA (本体感觉) — CKR-1→SMD(+5pA, 头摆ARS) + CKR-2→AVA(+2pA) + DA→DOP-1→DVA(+4pA)
 离子通道: 8/14 种 (EGL-19/UNC-2/CCA-1/SHL-1/KQT-3/SLO-1/NCA/MEC)
 神经元模型: 单隔室 HH 分级电位 (L2) + 多隔室 (RIA) + 钙动力学
 身体: 2D 弹性杆 48 段, 29 个运动神经元-肌肉映射, 体节间曲率扩散(弹性耦合)
 环境: 50×50 mm, 3化学场(food_odor+soluble+repellent) + 线性温度梯度 (0.5°C/mm) + O₂场(food派生)
-内部状态: satiety_(泵驱动), sickness_(有毒食物), food_memory_(ARS), fatigue_(睡眠驱动)
+内部状态: satiety_(泵驱动), sickness_(有毒食物), food_memory_(双通路ARS), fatigue_(睡眠驱动)
 学习: 盐学习(ASER w_mod) + 病原体学习(AWC翻转+WV反向+厌食) + STP习惯化
 仿真: dt=0.5ms, CPU 实时 (10000步 < 1s)
 性能: cache_neuron_ids_and_synapses() 一次性缓存 10 ID + 6 typed 指针 + 3 组突触索引
@@ -604,7 +620,7 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 工具: CLI 运行时参数覆盖 (--as_factor/--pulse_amp/--duration/--seed 等, 无需重编译调参)
       --fitness 模式: 4 seeds × 3 scenarios 自动评估, 输出标量 fitness score
 可视化: Dear ImGui + ImPlot + GLFW, 3列布局, 实时调参+信号链诊断
-状态: 趋化+触觉回避+化学回避+排斥weathervane+病原体学习(CI反向!)+多化学物种+RIM稳定+神经调质+ARS+觅食循环+STP+盐学习+温度趋性+咽部泵食+睡眠/静止(RIS/FLP-11)+RIV omega(TA门控)+后退运动+RIA↔RIV负反馈环路, 纯涌现 (132神经元)
+状态: 趋化+触觉回避+化学回避+排斥weathervane+病原体学习(CI反向!)+多化学物种+RIM稳定+神经调质+ARS(双通路:DARPP-32+NLP-12)+觅食循环+STP+盐学习+温度趋性+咽部泵食+睡眠/静止(RIS/FLP-11)+RIV omega(TA门控)+后退运动+RIA↔RIV负反馈环路, 纯涌现 (132神经元)
 工具: celegans_diag.exe (信号链诊断+fitness) + celegans_regtest.exe (回归检测+电流溯源)
 
 运动驱动 (Step 13 — 生物学机制):

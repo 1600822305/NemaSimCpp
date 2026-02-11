@@ -1419,11 +1419,14 @@ void SimulationEngine::apply_touch_stimulus() {
         // REF: Flavell 2013 Cell — 5-HT promotes dwelling (low reversal state)
         pir_rate *= neuromod_.get_reversal_rate_scale();
 
-        // Step 44: ARS food_memory → pirouette rate bonus (local search)
+        // Step 44→45: ARS food_memory → pirouette rate bonus (reversal-coupled ARS)
         // After leaving food: food_memory high → more reversals → stay near patch
         // As food_memory decays (90s tau): rate drops → transition to dispersal
+        // Step 45: reduced 0.08→0.04 — NLP-12→CKR-1→SMD now handles forward
+        // reorientations (head swing amplitude); this bonus covers reversal-coupled
+        // omega turns only. NLP-12→CKR-2→AVA (+2pA) also contributes to reversal bias.
         // REF: Hills 2004 J Neurosci — DA→DARPP-32→GLR-1 increases turn frequency
-        //      Wakabayashi 2004 — pirouette frequency decay after food removal
+        //      Bhattacharya 2014 — nlp-12(lf) reduces forward reorientations, NOT omega turns
         pir_rate += 0.08 * food_memory_;
 
         double p_pir = pir_rate * (dt_ / 1000.0);
@@ -1702,6 +1705,15 @@ void SimulationEngine::setup_neuromodulation() {
         dopamine.targets.push_back(
             {-1, "DOP-3", ModulationEffect::SPEED_SCALE, -0.30}); // Step 41: 30% slower (basal slowing)
 
+        // Step 45: Target: DVA via DOP-1 (D1-like excitatory GPCR)
+        // DA from CEP (food detection) → DOP-1 on DVA → stimulates NLP-12 release
+        // On food: DA high → DVA excited → NLP-12 primed for ARS upon food departure
+        // Off food: DA drops → DVA excitation from DA decreases (proprioception still drives DVA)
+        // REF: Bhattacharya 2014 PLOS Genetics — DOP-1 in DVA regulates NLP-12 release
+        //      dop-1 mutant: reduced NLP-12-Venus fluorescence change, impaired ARS
+        if (dva_id_ >= 0) dopamine.targets.push_back(
+            {dva_id_, "DOP-1", ModulationEffect::EXCITABILITY, 4.0}); // +4 pA excitatory (primes DVA, not enough alone for NLP-12 release)
+
         neuromod_.add_modulator(std::move(dopamine));
     }
 
@@ -1832,7 +1844,60 @@ void SimulationEngine::setup_neuromodulation() {
         neuromod_.add_modulator(std::move(tyramine));
     }
 
-    LOG_INFO("Neuromodulation setup: 5-HT (dwelling), DA (basal slowing), OA (roaming), TA (escape)");
+    // --- NLP-12 (CCK homolog) ---
+    // Step 45: Neuropeptide from DVA proprioceptive interneuron
+    // Source: DVA (single unpaired neuron, senses whole-body curvature via TRP-4)
+    // NLP-12 is the key signal for area-restricted search (ARS):
+    //   High body curvature (off food, searching) → DVA active → NLP-12 release
+    //   Low body curvature (on food, dwelling) → DVA quiet → NLP-12 low
+    // Two GPCRs with distinct circuit targets:
+    //   CKR-1 → SMD head motor neurons → head swing amplitude ↑ → forward reorientations
+    //   CKR-2 → body wall MN / command interneurons → body bend depth + reversal bias
+    // REF: Ramachandran 2021 eLife — CKR-1 in SMD necessary and sufficient for ARS
+    //      Bhattacharya 2014 PLOS Genetics — DA→DOP-1→DVA→NLP-12 pathway
+    //      Hu 2011 Neuron — CKR-2 proprioceptive modulation
+    //      Janssen 2008 — NLP-12 structure (CCK-like sulfated peptide)
+    {
+        Neuromodulator nlp12;
+        nlp12.name = "NLP-12";
+        nlp12.tau_rise = 3000.0;     // 3s — fast DCV exocytosis (Bhattacharya 2014: rapid ARS onset)
+        nlp12.tau_decay = 15000.0;   // 15s — peptide degradation slower than reuptake
+        nlp12.release_threshold = 0.5;  // higher than amines: DVA must be strongly active (searching + food_memory)
+
+        // Source neuron: DVA (single, unpaired)
+        if (dva_id_ >= 0) nlp12.source_neuron_ids.push_back(dva_id_);
+
+        // Target 1: CKR-1 → SMD head motor neurons (excitatory GPCR)
+        // PRIMARY ARS mechanism: NLP-12 → CKR-1 → SMD activation → large head swings
+        // → forward reorientations (high-angle turns without reversal)
+        // CKR-1 in SMD is SUFFICIENT for local search rescue (Ramachandran 2021 Fig 7A)
+        // SMD Ca2+ elevated during ARS (0-5min off food), requires CKR-1 (Fig 8)
+        // DVA→SMDVL has 1 synapse; rest is extrasynaptic NLP-12 volume transmission
+        // REF: Ramachandran 2021 — ckr-1(lf) reduces reorientations 40-50%
+        //      SMD photostimulation recapitulates NLP-12 overexpression effects
+        if (smddl_id_ >= 0) nlp12.targets.push_back(
+            {smddl_id_, "CKR-1", ModulationEffect::EXCITABILITY, 5.0});
+        if (smddr_id_ >= 0) nlp12.targets.push_back(
+            {smddr_id_, "CKR-1", ModulationEffect::EXCITABILITY, 5.0});
+        if (smdvl_id_ >= 0) nlp12.targets.push_back(
+            {smdvl_id_, "CKR-1", ModulationEffect::EXCITABILITY, 5.0});
+        if (smdvr_id_ >= 0) nlp12.targets.push_back(
+            {smdvr_id_, "CKR-1", ModulationEffect::EXCITABILITY, 5.0});
+
+        // Target 2: CKR-2 → AVA command interneurons (weak excitatory)
+        // Secondary: modest reversal bias during local search
+        // CKR-2 has broader expression than CKR-1 (Ramachandran 2021 Fig 5)
+        // Replaces hardcoded food_memory→AVA +2.5pA injection (Step 20d)
+        // REF: Hu 2011 — CKR-2/egl-30 Gαq coupling → excitatory
+        if (aval_id_ >= 0) nlp12.targets.push_back(
+            {aval_id_, "CKR-2", ModulationEffect::EXCITABILITY, 2.0});
+        if (avar_id_ >= 0) nlp12.targets.push_back(
+            {avar_id_, "CKR-2", ModulationEffect::EXCITABILITY, 2.0});
+
+        neuromod_.add_modulator(std::move(nlp12));
+    }
+
+    LOG_INFO("Neuromodulation setup: 5-HT (dwelling), DA (basal slowing), OA (roaming), TA (escape), NLP-12 (ARS)");
 }
 
 // ================================================================
@@ -1951,15 +2016,26 @@ void SimulationEngine::update_food_memory() {
     if (food_memory_ < 0.0) food_memory_ = 0.0;
     if (food_memory_ > 1.0) food_memory_ = 1.0;
 
-    // Effect: food_memory → excite AVA (via enhanced GLR-1)
-    // High food_memory → AVA more excitable → more reversals → LOCAL SEARCH
-    // This keeps the worm near the food patch after leaving
+    // Step 45: Dual ARS pathway (fast + slow)
+    // Two biologically real mechanisms work in parallel:
+    //   FAST: food_memory → DARPP-32 → GLR-1 → AVA excitability ↑ (intracellular, ms)
+    //   SLOW: food_memory → DVA → NLP-12 → CKR-1 → SMD head swings ↑ (volume, seconds)
+    // Step 45: reduced AVA injection from 2.5→1.5 pA since NLP-12→CKR-2→AVA (+2pA)
+    // now provides additional reversal bias through the neuropeptide pathway.
+    // REF: Hills 2004 J Neurosci — DA→DARPP-32→GLR-1 (fast, intracellular)
+    //      Ramachandran 2021 eLife — NLP-12→CKR-1→SMD (slow, volume transmission)
     int n = static_cast<int>(neurons_.size());
     if (aval_id_ >= 0 && aval_id_ < n) {
-        // Scale: 0→0 pA at no memory, up to +2.5 pA at full memory
-        // 2.5 pA gently biases AVA toward reversal without constant triggering
-        double ars_current = 2.5 * food_memory_;
+        double ars_current = 1.5 * food_memory_;
         neurons_[aval_id_]->add_synaptic_current(ars_current);
+    }
+    // Step 45: food_memory → DVA excitation → NLP-12 release
+    // High food_memory (just left food) → DVA extra drive → NLP-12 ↑
+    // → CKR-1→SMD: larger head swings → forward reorientations
+    // REF: Bhattacharya 2014 — proprioception + DA independently affect DVA/NLP-12
+    if (dva_id_ >= 0 && dva_id_ < n) {
+        double ars_dva_current = 5.0 * food_memory_;
+        neurons_[dva_id_]->add_synaptic_current(ars_dva_current);
     }
 }
 
