@@ -173,6 +173,7 @@ private:
     std::vector<int> alm_ids_;  // anterior touch neuron IDs
     std::vector<int> plm_ids_;  // posterior touch neuron IDs
     std::vector<int> olq_ids_; // Step 33: nose touch neuron IDs (4 quadrant)
+    std::vector<int> cep_ids_; // Step 47b: CEP mechanosensory (bacterial lawn contact → DA)
     // Step 34: O₂ sensing neuron IDs
     std::vector<int> urx_ids_;  // URX L/R (high O₂ sensors)
     std::vector<int> aua_ids_;  // AUA L/R (O₂ signal relay/integration)

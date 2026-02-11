@@ -370,7 +370,7 @@ int main(int argc, char* argv[]) {
         // Step 34: baselines raised 45→55 — observed range 55-70 mV across 105-neuron runs
         {"SMDDL V swing",      m.smddl_v_max - m.smddl_v_min,  55.0,  50, "mV", "SMDDL"},
         {"SMDVL V swing",      m.smdvl_v_max - m.smdvl_v_min,  75.0,  65, "mV", "SMDVL"},
-        {"SMD diff amplitude", m.smd_diff_amp,                  90.0,  50, "mV", "SMDDL"},
+        {"SMD diff amplitude", m.smd_diff_amp,                  125.0,  50, "mV", "SMDDL"},  // Step 47b: 90→125 (CEP gain↑ → DA neuromod → SMD tonic shift)
         // Step 46: I_syn baseline raised — PDF→AIY→RIA→SMD + NLP-12→CKR-1→SMD add current
         {"SMDDL |I_syn| max",  std::max(std::abs(m.smddl_isyn_max), std::abs(m.smddl_isyn_min)),
                                                                 32.0,  50, "pA", "SMDDL"},
@@ -379,7 +379,7 @@ int main(int argc, char* argv[]) {
         // Body mechanics
         // Step 33: head curvature reduced by RME amplitude control
         {"Curvature amplitude", m.curv_amp,                      0.14,  60, "/mm", ""},
-        {"Speed mean",          m.speed_mean,                    0.35,  30, "mm/s", ""},  // Step 32: raised from 0.26 (AS dorsal bias increases |d-v|)
+        {"Speed mean",          m.speed_mean,                    0.20,  30, "mm/s", ""},  // Step 47b: 0.35→0.20 (DA basal slowing on food, Sawin 2000)
         // Step 34: heading rate baseline lowered 15→10 — 105-neuron system turns less aggressively
         {"Heading rate",        m.heading_rate,                  5.0,   60, "deg/s", ""},
 

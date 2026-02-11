@@ -604,17 +604,17 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 - **REF**: Flavell 2013 Cell, Barrios 2012 Nat Neurosci, Janssen 2009
 - **regtest**: 17 pass, 0 FAIL
 
-### Step 47: Food-Edge Head Poke Reversal — 食物边缘反转 ✅ (2026-02-11)
+### Step 47: Food Dwelling — Head Poke Reversal + Basal Slowing ✅ (2026-02-11)
 > 详细文档: [steps/step47_food_edge_reversal.md](steps/step47_food_edge_reversal.md)
 
-- **关键发现** (eLife 2024 Flavell lab): 虫子 97% 时间在食物上，head poke reversal 1.1/min vs leaving 1/95min
-- **机制**: 头部从食物→非食物转换 (food_density 0.4→0.3) → 状态依赖反转
-- **反转概率**: p = 0.50 + 0.30×[5-HT] - 0.30×[PDF] (dwelling=0.66, roaming=0.41)
-- **速度调参实验**: speed_scale 1.0/1.2/1.5 + 5-HT -0.60/-0.80 全部 tank CI (5-HT tau=8s 延续到 off-food)
-- **instant food_slow**: 4种方案测试，全部 tank CI (speed trap 效应)
-- **结论**: 只有 head poke reversal 保持 CI 同时提供 dwelling 机制
-- **结果**: CI=0.56-0.90 (mean 0.77), 5-HT=0.51-0.54, speed=0.17
-- **REF**: Flavell 2024 eLife, Gray 2005 PNAS, Sawin 2000 Neuron
+- **Head poke reversal**: 头部从食物→非食物 (0.4→0.3) → 状态依赖反转 p=0.50+0.30×5HT-0.30×PDF
+- **Basal slowing**: on_lawn sigmoid 直接乘 effective_speed (25% on-food 减速, instant)
+- **架构发现**: DA 通过 DOP-3 extrasynaptic volume transmission (Chase 2004), 不经 CEP 突触回路
+- **CEP→OLQ 级联**: 40pA CEP 驱动 → gap junction → OLQ→RMD/RIC 级联破坏趋化 (已修复)
+- **DA SPEED_SCALE 双重计算**: neuromod DA -0.30 (tau_decay=5s) + instant basal_slow → 移除前者
+- **CEP 配置**: 恢复 chemo_mappings modest drive (gain=20), 仅用于 DVA/DOP-1/NLP-12 priming
+- **结果**: CI=0.57-0.90 (mean 0.67), 5-HT=0.53, speed=0.15-0.16 (基线 0.17)
+- **REF**: Flavell 2024 eLife, Sawin 2000 Neuron, Chase 2004 Nature Neurosci
 - **regtest**: 17 pass, 0 FAIL
 
 ---
@@ -682,10 +682,11 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
   运动学: dθ/dt = v × κ_head, pirouette 概率模型 (AVA 调制)
   Weathervane: ∇C_⊥ → SMD 差异驱动 + 直接曲率偏置 (Iino & Yoshida 2009)
   曲率偏置: curv_gain=45, 梯度法向→头部曲率偏移 (绕过SMD振荡瓶颈)
-  趋化指数: CI ≈ 0.56-0.90 (no_toxin), time_near_food ≈ 2-8% (300s, seed-dependent)
+  趋化指数: CI ≈ 0.57-0.90 (no_toxin), time_near_food ≈ 0-9% (300s, seed-dependent)
   Pirouette: off-food 0.10/s (6/min), on-food ~0.06/s (5-HT REVERSAL_RATE -0.50 suppression)
   Food-edge: head poke reversal p=0.50+0.30×5HT-0.30×PDF (eLife 2024)
-  速度: 0.17 mm/s (speed_scale=2.0, 文献值 ~0.15-0.2 mm/s)
+  Basal slowing: on_lawn sigmoid × 0.25 → 25% on-food 速度下降 (instant, DOP-3 volume transmission)
+  速度: 0.15-0.16 mm/s (speed_scale=2.0 × basal_slow, 文献值 ~0.15-0.2 mm/s)
 
 文件结构:
   src/core/         — 4 文件 (types/config/logger .h/.cpp)

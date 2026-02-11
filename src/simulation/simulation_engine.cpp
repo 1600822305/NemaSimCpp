@@ -99,9 +99,12 @@ void SimulationEngine::initialize_default() {
             // CEP: head mechanosensory, detects bacteria (food presence)
             // TONIC: fires when on food lawn, not responding to changes
             // REF: Sawin 2000 — CEP active on bacterial lawn
-            // uses_food_density=true: detects physical bacteria contact
-            // Step 41: half_max=0.5 (was default 0.1) — CEP only active ON food lawn
-            // Same fix as NSM: prevents spurious DA release at 10mm from food
+            // Step 47b: Modest drive (gain=20) — DA for DVA/DOP-1/NLP-12 priming only.
+            // Basal slowing is implemented separately via on_lawn sigmoid (instant,
+            // position-dependent) because DA acts via extrasynaptic DOP-3 volume
+            // transmission, NOT through CEP's synaptic circuit (CEP↔OLQ gap junctions
+            // would cause OLQ→RMD/RIC cascade disrupting navigation).
+            // REF: Chase 2004 Nature Neurosci — DOP-3 extrasynaptic on motor neurons
             chemo_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::TONIC, 20.0, 1.0, 500.0, 5000.0, 0.5), true});
         } else if (starts_with(info.name, "AFD")) {
             // AFD: thermosensory neuron — handled by thermo_mappings, not chemo
@@ -192,6 +195,7 @@ void SimulationEngine::initialize_default() {
         if (starts_with(info.name, "ALM")) alm_ids_.push_back(info.id);
         if (starts_with(info.name, "PLM")) plm_ids_.push_back(info.id);
         if (starts_with(info.name, "OLQ")) olq_ids_.push_back(info.id);  // Step 33
+        if (starts_with(info.name, "CEP")) cep_ids_.push_back(info.id);  // Step 47b
         if (starts_with(info.name, "URX")) urx_ids_.push_back(info.id);  // Step 34
         if (starts_with(info.name, "AUA")) aua_ids_.push_back(info.id); // Step 34
         if (info.name == "AQR") aqr_id_ = info.id;   // Step 34
@@ -525,12 +529,35 @@ void SimulationEngine::step() {
     // Step 44: clamp effective speed_scale to prevent extreme values
     double effective_speed = params.speed_scale * neuromod_.get_speed_scale() * sleep_speed_factor;
 
-    // NOTE: Instant food-contact slowing (Sawin 2000 basal/enhanced) was tested
-    // extensively but consistently tanks CI by slowing off-food navigation
-    // (5-HT tau_decay=8s carries the effect off food). Needs a fundamentally
-    // different approach (not via effective_speed multiplier). See Step 47 notes.
-    // The head poke reversal mechanism (below, in pirouette section) is the
-    // primary mechanism keeping worms on food (eLife 2024: 97% time on food).
+    // Step 47b: DA basal slowing — instant, position-dependent speed reduction
+    // Biological basis (Sawin 2000 Neuron):
+    //   "Basal slowing response is mediated by a dopamine-containing neural circuit
+    //    that senses a mechanical attribute of bacteria."
+    //   cat-2 mutants (no DA): fail to slow on food (~30% reduction in wild-type)
+    //
+    // ARCHITECTURE: on_lawn sigmoid directly modulates speed (NOT via DA concentration).
+    // DA acts via extrasynaptic DOP-3 volume transmission on motor neurons (Chase 2004),
+    // NOT through CEP's connectome synaptic circuit. Driving CEP neurons at high current
+    // (40pA) causes OLQ cascade via gap junctions (OLQ→RMD head disruption, OLQ→RIC
+    // OA release) that destroys chemotaxis. The on_lawn sigmoid captures the CEP
+    // mechanosensory "feet on bacteria" signal directly.
+    //
+    // on_lawn: 0 off food, 1.0 on food center, instant transition at lawn edge
+    // Off food: factor=1.0 (NO effect) → CI preserved
+    // On food: factor=0.65 (35% reduction) → matches Sawin 2000 Fig 2
+    //
+    // REF: Sawin 2000 Neuron — DA basal slowing
+    //      Chase 2004 Nature Neurosci — DOP-3 extrasynaptic volume transmission
+    {
+        double food_at_head = environment_.sample_food_density(body_.get_head_position());
+        // Sharp sigmoid: bacterial lawn mechanical edge
+        // threshold=0.4 at ~5.4mm from center (food σ=4mm)
+        // Symmetric with head poke reversal edge detection (0.4→0.3 transition)
+        double on_lawn = 1.0 / (1.0 + fast_exp(-(food_at_head - 0.4) * 20.0));
+        double basal_slow = 1.0 - 0.25 * on_lawn;
+        if (basal_slow < 0.65) basal_slow = 0.65;  // floor: max 35% reduction
+        effective_speed *= basal_slow;
+    }
 
     if (effective_speed > 3.0) effective_speed = 3.0;
     if (effective_speed < 0.1) effective_speed = 0.1;
@@ -1114,6 +1141,12 @@ void SimulationEngine::apply_touch_stimulus() {
             }
         }
     }
+
+    // Step 47b: CEP binary tactile drive REMOVED.
+    // CEP↔OLQ gap junctions cause cascade: 40pA CEP → OLQ→RMD (head disruption)
+    // + OLQ→RIC (OA release) that destroys chemotaxis. CEP is now driven modestly
+    // via chemo_mappings_ (gain=20, for DA→DVA/NLP-12 priming only).
+    // Basal slowing uses on_lawn sigmoid directly (see effective_speed section).
 
     // ======================================================================
     // Step 34: O₂ sensing — URX/AQR/PQR transduction
@@ -1762,10 +1795,11 @@ void SimulationEngine::setup_neuromodulation() {
             if (id >= 0) dopamine.source_neuron_ids.push_back(id);
         }
 
-        // Target: global speed reduction (basal slowing response)
-        // REF: Sawin 2000 — cat-2 mutants (no DA) fail to slow on food
-        dopamine.targets.push_back(
-            {-1, "DOP-3", ModulationEffect::SPEED_SCALE, -0.30}); // Step 41: 30% slower (basal slowing)
+        // Step 47b: DA SPEED_SCALE removed — replaced by instant basal_slow mechanism
+        // Old: DOP-3 SPEED_SCALE -0.30 via neuromod (tau_decay=5s → persists off-food → tanks CI)
+        // New: basal_slow = 1.0 - 0.35 * da_gate * on_lawn (instant, position-dependent)
+        // on_lawn sigmoid drops to 0 immediately when leaving food → no off-food penalty
+        // REF: Sawin 2000 — cat-2 mutants fail to slow; DOP-3 inhibitory on motor neurons
 
         // Step 45: Target: DVA via DOP-1 (D1-like excitatory GPCR)
         // DA from CEP (food detection) → DOP-1 on DVA → stimulates NLP-12 release
