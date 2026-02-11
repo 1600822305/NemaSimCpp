@@ -808,8 +808,8 @@ int main(int argc, char* argv[]) {
                   << "  threshold=" << threshold
                   << "  above=" << std::setprecision(3) << above_thresh
                   << "  est_drive=" << release_drive_est << std::endl;
-        std::cout << "     satiety_suppression: sat=" << std::setprecision(2) << sim.satiety()
-                  << " → NSM I_suppress=" << std::setprecision(1) << -15.0 * sim.satiety() << " pA" << std::endl;
+        std::cout << "     satiety=" << std::setprecision(2) << sim.satiety()
+                  << "  (Step 45: NSM not suppressed by satiety — Randi 2018)" << std::endl;
     }
 
     // Time series: 5-HT, DA, OA, satiety, distance every 20s

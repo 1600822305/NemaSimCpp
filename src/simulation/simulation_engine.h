@@ -38,7 +38,7 @@ public:
         float weathervane_gain = 500.0f;  // pA per (conc/mm) — gradient → SMD bias
                                           // Step 19: 300→500. At gradient 0.01: bias=5pA.
         float synapse_scale   = 1.0f;    // global synapse weight multiplier
-        float speed_scale     = 2.0f;    // v_max multiplier (was 1.0, target ~0.2 mm/s)
+        float speed_scale     = 2.0f;    // Keep at 2.0 for off-food chemotaxis; 5-HT=-0.80 handles on-food slowing
         float sensory_gain    = 1.0f;    // chemosensory transducer gain multiplier
         float bias_clamp      = 50.0f;   // max weathervane bias current (pA)
         // Step 32: Runtime-tunable parameters (avoid recompile for parameter sweeps)
