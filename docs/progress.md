@@ -617,6 +617,17 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 - **REF**: Flavell 2024 eLife, Sawin 2000 Neuron, Chase 2004 Nature Neurosci
 - **regtest**: 17 pass, 0 FAIL
 
+### Step 48: Foraging Cycle Closure — PDF⊣NSM Mutual Inhibition ✅ (2026-02-11)
+> 详细文档: [steps/step48_foraging_cycle.md](steps/step48_foraging_cycle.md)
+
+- **PDF→NSM 抑制** (-25pA): PDFR-1 网络抑制 NSM，完成 roaming/dwelling 双稳态互抑制
+- **文献证据**: Flavell 2020 eLife — "PDF receptor-expressing neurons inhibit NSM", "necessary and sufficient"
+- **5-HT→RIC 抑制降低** (-8→-4pA): 允许 RIC 在饱食时激活 → OA/PDF 更快上升
+- **正反馈环**: PDF↑ → NSM↓ → 5-HT↓ → RIC释放 → OA↑ → AVB↑ → PDF↑↑
+- **结果**: CI=0.21-0.93 (mean 0.59), OA=0.24-0.40↑, 5-HT=0.47-0.52, near_food=~33% (之前报告6-9%为regex bug)
+- **REF**: Flavell 2020 eLife (Ji et al.), Flavell 2013 Cell, Chase & Koelle 2007
+- **regtest**: 17 pass, 0 FAIL
+
 ---
 
 ## 当前系统状态
@@ -682,7 +693,7 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
   运动学: dθ/dt = v × κ_head, pirouette 概率模型 (AVA 调制)
   Weathervane: ∇C_⊥ → SMD 差异驱动 + 直接曲率偏置 (Iino & Yoshida 2009)
   曲率偏置: curv_gain=45, 梯度法向→头部曲率偏移 (绕过SMD振荡瓶颈)
-  趋化指数: CI ≈ 0.57-0.90 (no_toxin), time_near_food ≈ 0-9% (300s, seed-dependent)
+  趋化指数: CI ≈ 0.21-0.93 (no_toxin), time_near_food ≈ 33% (300s, 文献60-80%)
   Pirouette: off-food 0.10/s (6/min), on-food ~0.06/s (5-HT REVERSAL_RATE -0.50 suppression)
   Food-edge: head poke reversal p=0.50+0.30×5HT-0.30×PDF (eLife 2024)
   Basal slowing: on_lawn sigmoid × 0.25 → 25% on-food 速度下降 (instant, DOP-3 volume transmission)

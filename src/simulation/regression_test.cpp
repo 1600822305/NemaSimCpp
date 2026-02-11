@@ -379,7 +379,7 @@ int main(int argc, char* argv[]) {
         // Body mechanics
         // Step 33: head curvature reduced by RME amplitude control
         {"Curvature amplitude", m.curv_amp,                      0.14,  60, "/mm", ""},
-        {"Speed mean",          m.speed_mean,                    0.20,  30, "mm/s", ""},  // Step 47b: 0.35→0.20 (DA basal slowing on food, Sawin 2000)
+        {"Speed mean",          m.speed_mean,                    0.30,  30, "mm/s", ""},  // Step 48: 0.20→0.30 (actual measured; basal slowing active but OA/PDF dynamics raise baseline)
         // Step 34: heading rate baseline lowered 15→10 — 105-neuron system turns less aggressively
         {"Heading rate",        m.heading_rate,                  5.0,   60, "deg/s", ""},
 

@@ -1767,9 +1767,9 @@ void SimulationEngine::setup_neuromodulation() {
         int ricl = connectome_.get_neuron_id("RICL");
         int ricr = connectome_.get_neuron_id("RICR");
         if (ricl >= 0) serotonin.targets.push_back(
-            {ricl, "SER-4", ModulationEffect::EXCITABILITY, -8.0}); // -8 pA inhibitory
+            {ricl, "SER-4", ModulationEffect::EXCITABILITY, -4.0}); // Step 48: -8→-4 pA (allow RIC activation when satiated)
         if (ricr >= 0) serotonin.targets.push_back(
-            {ricr, "SER-4", ModulationEffect::EXCITABILITY, -8.0});
+            {ricr, "SER-4", ModulationEffect::EXCITABILITY, -4.0});
 
         neuromod_.add_modulator(std::move(serotonin));
     }
@@ -2057,6 +2057,23 @@ void SimulationEngine::setup_neuromodulation() {
             {aiyl, "PDFR-1", ModulationEffect::EXCITABILITY, 3.0}); // +3 pA
         if (aiyr >= 0) pdf.targets.push_back(
             {aiyr, "PDFR-1", ModulationEffect::EXCITABILITY, 3.0});
+
+        // Step 48: Target 4: PDFR-1 network → NSM inhibition (mutual exclusivity)
+        // KEY FEEDBACK completing the roaming/dwelling bistable switch.
+        // Without this, NSM keeps firing on food → 5-HT stays high → permanent dwelling.
+        // Mechanism: PDF → PDFR-1 expressing neurons → inhibit NSM (indirect)
+        // Modeled as PDF EXCITABILITY effect on NSM (simplification of PDFR-1 network).
+        // When PDF rises (satiety → OA → AVB active → PDF), NSM is suppressed → 5-HT drops.
+        // Positive feedback loop: PDF↑ → NSM↓ → 5-HT↓ → less RIC inhibition → OA↑ → AVB↑ → PDF↑↑
+        // REF: Flavell 2020 eLife — "PDF receptor-expressing neurons inhibit NSM"
+        //      "optogenetic activation of pdf-1 neurons → acute and robust NSM inhibition"
+        //      "PDF signaling necessary and sufficient to keep NSM inactive during roaming"
+        // NSM on-food drive ≈ 21pA; at PDF=0.4: inhibition = -8pA → net 13pA (moderate)
+        // The bistable positive feedback amplifies small PDF changes to flip the switch.
+        if (nsml_id_ >= 0) pdf.targets.push_back(
+            {nsml_id_, "PDFR-1", ModulationEffect::EXCITABILITY, -25.0}); // -25 pA at peak PDF
+        if (nsmr_id_ >= 0) pdf.targets.push_back(
+            {nsmr_id_, "PDFR-1", ModulationEffect::EXCITABILITY, -25.0});
 
         neuromod_.add_modulator(std::move(pdf));
     }
