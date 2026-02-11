@@ -642,6 +642,14 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 - **REF**: Dag & Flavell 2023 Cell, Dernovici 2007, Harris 2009, Ranganathan 2000
 - **regtest**: 17 pass, 0 FAIL
 
+### Step 50: 重构 — 拆分 simulation_engine.cpp ✅ (2026-02-11)
+> 详细文档: [steps/step50_refactor_split_engine.md](steps/step50_refactor_split_engine.md)
+
+- **simulation_engine.cpp**: 2880 → **1835 行** (-36%, -1045 行)
+- 拆出 4 个新文件: `setup_neuromodulation.cpp` / `update_internal_states.cpp` / `update_learning.cpp` / `update_pharynx_system.cpp`
+- 方法: 同类拆源文件 (Split Source, Same Class)，零接口变化
+- **regtest**: 17 pass, 0 FAIL
+
 ---
 
 ## 当前系统状态

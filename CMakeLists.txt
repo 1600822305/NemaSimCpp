@@ -94,6 +94,10 @@ endif()
 # Simulation engine
 add_library(celegans_simulation STATIC
     src/simulation/simulation_engine.cpp
+    src/simulation/setup_neuromodulation.cpp
+    src/simulation/update_internal_states.cpp
+    src/simulation/update_learning.cpp
+    src/simulation/update_pharynx_system.cpp
 )
 target_link_libraries(celegans_simulation PUBLIC
     celegans_connectome
