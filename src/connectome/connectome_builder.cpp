@@ -354,6 +354,20 @@ void build_neurons(CB& b) {
     //      Konietzka 2020 Nat Commun — RIS also functions as locomotion stop neuron
     //      Maluck 2023 PLOS Genetics — RIS promotes survival independently of sleep
     b.neuron("RIS",  NT::INTER, NTT::GABA);
+    // Step 56: AVL — enteric motor neuron, GABAergic (single, unpaired)
+    // Cell body in head, axon runs full ventral cord to tail
+    // Fires compound action potentials: UNC-2 (CaV2) Ca²⁺ spike + EXP-2 K⁺ repolarization
+    // Drives aBoc (non-GABA) + Exp/EMC (GABA → EXP-1 excitatory receptor on enteric muscles)
+    // Partially redundant with DVB for EMC, non-redundant for aBoc
+    // REF: McIntire 1993 — AVL+DVB control EMC; Thomas 1990 — DMP genetics
+    //      Jiang 2022 Nat Commun — AVL fires action potentials
+    b.neuron("AVL",  NT::MOTOR, NTT::GABA);
+    // Step 56: DVB — enteric motor neuron, GABAergic (single, unpaired)
+    // Cell body in dorsorectal ganglion (tail), NMJ to anal depressor
+    // Fires synchronized APs with AVL via INX-1 gap junction
+    // Also contains FLRFamide neuropeptide (second transmitter for residual EMC)
+    // REF: McIntire 1993, Jiang 2022 Nat Commun
+    b.neuron("DVB",  NT::MOTOR, NTT::GABA);
     // Step 38: Egg-laying circuit (Collins 2016 eLife, Schafer 2006)
     // HSN: serotonergic command motor neuron, drives vulval muscle contraction
     // Releases 5-HT + NLP-3 → initiates ~2min active egg-laying state
@@ -757,6 +771,25 @@ void build_sleep_and_gaps(CB& b) {
     b.gj("RIVL", "RIVR", 4);
 }
 
+// ================================================================
+// 12. Defecation Motor Program (Step 56)
+// ================================================================
+void build_defecation(CB& b) {
+    // AVL ↔ DVB: INX-1 gap junction — synchronizes action potential firing
+    // AVL fires compound APs (UNC-2 Ca²⁺ + EXP-2 K⁺), propagates to DVB
+    // Both release GABA onto enteric muscles via EXP-1 excitatory receptor
+    // REF: Jiang 2022 Nat Commun — INX-1 required for AVL→DVB AP propagation
+    b.gj("AVL", "DVB", 3);
+    // AVL ↔ DD05: gap junction in posterior ventral cord
+    // AVL axon runs through ventral cord, gap junctions to posterior D-type neurons
+    // During DMP, may coordinate body wall relaxation for posterior contraction
+    // REF: White 1986 — AVL gap junctions to D-type neurons
+    b.gj("AVL", "DD05", 2);
+    // RIS ⊣ AVL: sleep neuron inhibits defecation during quiescence
+    // DMP suppressed during sleep — consistent with global RIS inhibition
+    b.inh("RIS", "AVL", 1);
+}
+
 } // anonymous namespace
 
 // ================================================================
@@ -789,6 +822,7 @@ void build_default_connectome(
     build_proprioception(b);     // DVA + PVD body sensing
     build_pharynx(b);            // MC/M3/M4/I1/RIP pharyngeal CPG
     build_egg_laying(b);         // HSN/VC egg-laying
+    build_defecation(b);         // Step 56: AVL/DVB defecation motor program
     build_sleep_and_gaps(b);     // RIS sleep + core L-R gap junctions
 
     LOG_INFO("Generated default connectome: ", neurons.size(), " neurons, ",

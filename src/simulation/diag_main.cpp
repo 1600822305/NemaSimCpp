@@ -346,6 +346,8 @@ int main(int argc, char* argv[]) {
     int nsmr_id = conn.get_neuron_id("NSMR");
     int hsnl_id = conn.get_neuron_id("HSNL");     // Step 38: egg-laying
     int vc4_id = conn.get_neuron_id("VC4");
+    int avl_id = conn.get_neuron_id("AVL");       // Step 56: defecation
+    int dvb_id = conn.get_neuron_id("DVB");
 
     // Accumulators
     std::vector<double> grad_mags, grad_normals, biases;
@@ -759,6 +761,21 @@ int main(int argc, char* argv[]) {
               << " mV  S(release)=" << std::setprecision(3) << release(mean(hsnl_v_vs)) << std::endl;
     std::cout << "   VC4:  V mean=" << std::setprecision(1) << mean(vc4_v_vs)
               << " mV  S(release)=" << std::setprecision(3) << release(mean(vc4_v_vs)) << std::endl;
+
+    // Step 56: DMP diagnostics
+    std::cout << "\n26. DEFECATION MOTOR PROGRAM (Step 56):" << std::endl;
+    std::cout << "   DMP cycles: " << sim.dmp_count()
+              << "  (expected ~" << std::setprecision(0) << (duration / 1000.0) / 45.0 << " at 45s period)" << std::endl;
+    {
+        const auto& ns = sim.neurons();
+        int nn = (int)ns.size();
+        double avl_v = (avl_id >= 0 && avl_id < nn) ? ns[avl_id]->get_membrane_potential() : -65.0;
+        double dvb_v = (dvb_id >= 0 && dvb_id < nn) ? ns[dvb_id]->get_membrane_potential() : -65.0;
+        std::cout << "   AVL:  V=" << std::setprecision(1) << avl_v
+                  << " mV  S(release)=" << std::setprecision(3) << release(avl_v) << std::endl;
+        std::cout << "   DVB:  V=" << std::setprecision(1) << dvb_v
+                  << " mV  S(release)=" << std::setprecision(3) << release(dvb_v) << std::endl;
+    }
 
     std::cout << "\n9. DISTANCE TO FOOD:" << std::endl;
     std::cout << "   initial=" << std::setprecision(2) << dists.front()

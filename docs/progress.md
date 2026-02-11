@@ -696,16 +696,27 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 - 验证: 光@食物时 near_food 39%→35.7% (光产生排斥但食物吸引占优)
 - **regtest**: 17 pass, 0 FAIL
 
+### Step 56: Defecation Motor Program (DMP) — AVL/DVB Enteric Circuit ✅ (2026-02-11)
+> 详细文档: [steps/step56_defecation_motor_program.md](steps/step56_defecation_motor_program.md)
+
+- **新增回路**: 45s 周期性排便运动程序 (Thomas 1990, Jiang 2022 Nat Commun)
+- 新增 AVL + DVB 肠道运动神经元（单个无配对，GABA），神经元总数 138 → **140**
+- 肠道 Ca²⁺ 振荡器 (IP3/ITR-1) → 45s 自主定时器
+- 三阶段运动: pBoc(0-1s) → aBoc(1.5-2.5s,AVL 50pA) → Exp(2.5-3.5s,AVL+DVB 70pA)
+- 连接: AVL↔DVB(gj3,INX-1) + AVL↔DD05(gj2) + RIS⊣AVL(1)
+- 调制: 5-HT 延长周期(+15%) + 睡眠压制 + 仅食物上表达
+- **regtest**: 17 pass, 0 FAIL
+
 ---
 
 ## 当前系统状态
 
 ```
 架构: 8 层 (环境/躯体/感知/神经元/连接组/神经调质/运动/行为)
-神经元: 138 个 MVP 子集 (302 全集待加载)
+神经元: 140 个 MVP 子集 (302 全集待加载)
   感觉: 38 (ASE/AWC/AWA/ASH/ALM/PLM/NSM/CEP/AFD/ADF/ASJ/ASK L/R + OLQ 4× + URX L/R + AQR + PQR + BAG L/R + PVD L/R)
   中间: 32 (AIA/AIB/AIY/AIZ/RIA/RIB/RIM/RIC/AVA/AVB/AVD/AVE/PVC/AUA/I1/RIP L/R + RIS + DVA)
-  运动: 68 (SMD/RMD/SMB 4×2+4 + RIV L/R + RMED/RMEV + AS01-07 + DB01-07/VB01-07/DA01-05/VA01-05/DD01-05/VD01-05 + MC/M3 L/R + M4 + HSN L/R + VC4/VC5)
+  运动: 70 (SMD/RMD/SMB 4×2+4 + RIV L/R + RMED/RMEV + AS01-07 + DB01-07/VB01-07/DA01-05/VA01-05/DD01-05/VD01-05 + MC/M3 L/R + M4 + HSN L/R + VC4/VC5 + AVL + DVB)
 突触: ~197 化学 + ~36 间隙连接 (全部带 Tsodyks-Markram STP, 支持分数 sections)
   Step 42: Cook 2019 校准 (+8 RIA↔RIV, -2 AVE→RIV) + RIV↔RIV gap
 神经调质: 6 种 (5-HT, DA, OA, TA, NLP-12, PDF) — volume transmission + 饱食度(泵驱动)
@@ -726,7 +737,7 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 工具: CLI 运行时参数覆盖 (--as_factor/--pulse_amp/--duration/--seed/--light 等, 无需重编译调参)
       --fitness 模式: 4 seeds × 3 scenarios 自动评估, 输出标量 fitness score
 可视化: Dear ImGui + ImPlot + GLFW, 3列布局, 实时调参+信号链诊断
-状态: 趋化+触觉回避+化学回避+排斥weathervane+病原体学习(CI反向!)+多化学物种+RIM稳定+神经调质+ARS(双通路:DARPP-32+NLP-12)+觅食循环+STP+盐学习+温度趋性+咽部泵食+睡眠/静止(RIS/FLP-11)+RIV omega(TA门控)+后退运动+RIA↔RIV负反馈环路+PDF roaming+food-edge反转(latch检测)+5-HT受体多样性(MOD-1/SER-4/SER-1/SER-5)+光回避(ASJ/LITE-1), 纯涌现 (138神经元)
+状态: 趋化+触觉回避+化学回避+排斥weathervane+病原体学习(CI反向!)+多化学物种+RIM稳定+神经调质+ARS(双通路:DARPP-32+NLP-12)+觅食循环+STP+盐学习+温度趋性+咽部泵食+睡眠/静止(RIS/FLP-11)+RIV omega(TA门控)+后退运动+RIA↔RIV负反馈环路+PDF roaming+food-edge反转(latch检测)+5-HT受体多样性(MOD-1/SER-4/SER-1/SER-5)+光回避(ASJ/LITE-1)+排便DMP(AVL/DVB 45s), 纯涌现 (140神经元)
 工具: celegans_diag.exe (信号链诊断+fitness) + celegans_regtest.exe (回归检测+电流溯源)
 
 运动驱动 (Step 13 — 生物学机制):

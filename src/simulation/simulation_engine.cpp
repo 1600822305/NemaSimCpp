@@ -470,6 +470,9 @@ void SimulationEngine::step() {
     update_fatigue();            // fatigue accumulation → RIS activation
     apply_sleep_effects();       // FLP-11 → global motor inhibition
 
+    // 5b7. Step 56: Defecation Motor Program (DMP)
+    update_defecation();         // 45s intestinal pacemaker → AVL/DVB activation
+
     // 5c. Neuromodulation update (Step 20, Layer 6)
     // Slow timescale: 5-HT/DA/OA concentrations rise/fall over seconds
     // Effects: tonic currents on target neurons, speed modulation
@@ -518,6 +521,10 @@ void SimulationEngine::step() {
         if (basal_slow < 0.65) basal_slow = 0.65;  // floor: max 35% reduction
         effective_speed *= basal_slow;
     }
+
+    // Step 56: DMP body contraction speed modulation
+    // pBoc/aBoc/Exp phases cause brief locomotion pauses
+    effective_speed *= dmp_speed_factor_;
 
     if (effective_speed > 3.0) effective_speed = 3.0;
     if (effective_speed < 0.1) effective_speed = 0.1;

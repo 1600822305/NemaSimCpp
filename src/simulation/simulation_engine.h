@@ -92,6 +92,9 @@ public:
     // Egg-laying (Step 38)
     double egg_pressure() const { return egg_pressure_; }
     double egg_laid_count() const { return egg_laid_count_; }
+    // Defecation (Step 56)
+    int dmp_count() const { return dmp_count_; }
+    bool dmp_active() const { return dmp_active_; }
     // Pharyngeal pump (Step 24)
     double pump_rate_hz() const { return pharynx_.pump_rate_hz(); }
     int total_pumps() const { return pharynx_.total_pumps(); }
@@ -266,6 +269,19 @@ private:
     bool is_sleeping_ = false;            // current sleep state
     void update_fatigue();                // fatigue accumulation / decay
     void apply_sleep_effects();           // FLP-11 global inhibition during sleep
+
+    // Step 56: Defecation Motor Program (DMP)
+    // Intestinal Ca²⁺ oscillator (IP3/ITR-1) generates ~45s rhythm — non-neural pacemaker
+    // Three motor steps: pBoc (posterior body contraction), aBoc (anterior), Exp (enteric)
+    // AVL+DVB fire synchronized GABA APs → EXP-1 excitatory receptor → enteric muscle contraction
+    // REF: Thomas 1990, Dal Santo 1999, Jiang 2022 Nat Commun
+    double dmp_timer_ = 0.0;              // ms since last DMP (intestinal Ca²⁺ oscillator)
+    double dmp_period_ = 45000.0;         // ms, ~45s cycle (temperature-compensated)
+    double dmp_phase_timer_ = -1.0;       // ms into current DMP execution (-1 = inactive)
+    int dmp_count_ = 0;                   // total DMP cycles completed
+    bool dmp_active_ = false;             // true during DMP motor execution
+    double dmp_speed_factor_ = 1.0;       // [0,1] speed modulation during DMP phases
+    void update_defecation();             // called each step
 
     // Reversal & omega turn tracking
     bool is_reversing_ = false;

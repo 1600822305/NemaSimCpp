@@ -177,4 +177,111 @@ void SimulationEngine::apply_sleep_effects() {
     }
 }
 
+// ================================================================
+// Step 56: Defecation Motor Program (DMP)
+// ================================================================
+// Intestinal Ca²⁺ oscillator (IP3/ITR-1) → ~45s rhythm → AVL/DVB activation
+// Three motor steps executed sequentially:
+//   pBoc (0-1s):   posterior body contraction — non-neural (Ca²⁺ wave direct)
+//   aBoc (1.5-2.5s): anterior body contraction — requires AVL (non-GABA)
+//   Exp  (2.5-3.5s): enteric muscle contraction — AVL+DVB GABA → EXP-1
+// Modulation: off food → no DMP; sleep → suppressed; 5-HT → slightly longer period
+// Touch/reversal resets timer (Thomas 1990, Liu & Thomas 1994)
+// REF: Thomas 1990 Genetics, Dal Santo 1999, Jiang 2022 Nat Commun
+void SimulationEngine::update_defecation() {
+    int n = static_cast<int>(neurons_.size());
+    int avl_id = nid("AVL");
+    int dvb_id = nid("DVB");
+    if (avl_id < 0 || dvb_id < 0) return;
+
+    // DMP only active on food (intestinal Ca²⁺ oscillator requires feeding)
+    // REF: Liu & Thomas 1994 — off lawn, DMP not expressed
+    Vector2d head_pos = body_.get_head_position();
+    double food = environment_.sample_food_density(head_pos);
+    bool on_food = (food > 0.2);
+
+    // During sleep: suppress DMP (RIS global inhibition already handles AVL)
+    if (is_sleeping_) {
+        // Timer still advances slowly (biological: clock maintains phase)
+        dmp_timer_ += dt_ * 0.3;  // 30% rate during sleep
+        return;
+    }
+
+    // NOTE: biological touch reset (ALM/PLM gentle touch → timer=0) not modeled here
+    // Our reversals are chemotaxis/nociceptive-driven, not touch-specific
+    // REF: Thomas 1990 — gentle touch resets defecation phase (separate from reversal)
+
+    // Advance intestinal pacemaker timer (autonomous oscillator, always runs)
+    // REF: Liu & Thomas 1994 — clock phase maintained even off food
+    dmp_timer_ += dt_;
+
+    // 5-HT modulation: higher serotonin → slightly longer period
+    // REF: Ségalat 1995 — exogenous 5-HT inhibits EMCs
+    double sht = neuromod_.get_concentration("5-HT");
+    double effective_period = dmp_period_ * (1.0 + 0.15 * sht);  // up to ~15% longer
+
+    // Trigger new DMP cycle when timer exceeds period (only on food)
+    // Off food: timer resets but motor program not expressed (Liu & Thomas 1994)
+    if (dmp_timer_ >= effective_period) {
+        dmp_timer_ = 0.0;
+        if (!dmp_active_ && on_food) {
+            dmp_active_ = true;
+            dmp_phase_timer_ = 0.0;
+        }
+    }
+
+    // Execute 3-phase DMP motor program
+    if (dmp_active_) {
+        dmp_phase_timer_ += dt_;
+
+        // Phase 1: pBoc (0–1000ms) — posterior body contraction
+        // Non-neural: intestinal Ca²⁺ wave directly contracts posterior body wall
+        // Modeled as brief speed reduction (body shortens posteriorly)
+        if (dmp_phase_timer_ < 1000.0) {
+            // Mild posterior contraction → speed reduction
+            dmp_speed_factor_ = 0.6;  // 40% speed reduction
+        }
+        // Phase 2: aBoc (1500–2500ms) — anterior body contraction
+        // Requires AVL (non-redundant, non-GABA mechanism)
+        // AVL receives intestinal signal (AEX-5 peptide → AEX-2 GPCR → Gsα)
+        else if (dmp_phase_timer_ >= 1500.0 && dmp_phase_timer_ < 2500.0) {
+            double aboc_drive = 50.0;  // Strong activation for AP firing
+            if (avl_id < n) neurons_[avl_id]->set_external_current(aboc_drive);
+            // Mild anterior contraction
+            dmp_speed_factor_ = 0.7;
+        }
+        // Phase 3: Exp/EMC (2500–3500ms) — enteric muscle contraction
+        // AVL + DVB fire synchronized GABA APs → EXP-1 on enteric muscles
+        // REF: Jiang 2022 — compound APs (UNC-2 Ca²⁺ + EXP-2 K⁺)
+        else if (dmp_phase_timer_ >= 2500.0 && dmp_phase_timer_ < 3500.0) {
+            double exp_drive = 70.0;  // Maximal drive for AP burst
+            if (avl_id < n) neurons_[avl_id]->set_external_current(exp_drive);
+            if (dvb_id < n) neurons_[dvb_id]->set_external_current(exp_drive);
+            // Brief pause during expulsion
+            dmp_speed_factor_ = 0.5;
+        }
+        // Inter-phase and post-DMP: baseline drive
+        else {
+            if (avl_id < n) neurons_[avl_id]->set_external_current(1.0);
+            if (dvb_id < n) neurons_[dvb_id]->set_external_current(1.0);
+            dmp_speed_factor_ = 1.0;
+        }
+
+        // DMP complete after 4s
+        if (dmp_phase_timer_ >= 4000.0) {
+            dmp_active_ = false;
+            dmp_phase_timer_ = -1.0;
+            dmp_count_++;
+            // Reset baseline currents
+            if (avl_id < n) neurons_[avl_id]->set_external_current(1.0);
+            if (dvb_id < n) neurons_[dvb_id]->set_external_current(1.0);
+        }
+    } else {
+        // Between DMP cycles: low baseline (AVL/DVB are quiet)
+        if (avl_id < n) neurons_[avl_id]->set_external_current(1.0);
+        if (dvb_id < n) neurons_[dvb_id]->set_external_current(1.0);
+        dmp_speed_factor_ = 1.0;
+    }
+}
+
 } // namespace celegans
