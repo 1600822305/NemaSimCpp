@@ -56,7 +56,7 @@ void SimulationEngine::setup_neuromodulation() {
         // ADF pathogen signaling works via synapses (ADF→AIB) + sickness→weathervane.
         // Step 38: HSN as 5-HT source (egg-laying command motor neuron)
         // REF: Waggoner 1998 — HSN releases 5-HT to initiate egg-laying active state
-        for (int hsn_id : hsn_ids_) {
+        for (int hsn_id : nids("HSN")) {
             if (hsn_id >= 0) serotonin.source_neuron_ids.push_back(hsn_id);
         }
 
@@ -77,7 +77,7 @@ void SimulationEngine::setup_neuromodulation() {
         // REF: Summers 2015 JNeurosci — 5-HT via MOD-1 (5-HT-gated Cl⁻) inhibits AIB
         // On food: 5-HT↑ → AIB↓ → animals continue forward despite repellent
         // Off food: 5-HT↓ → AIB active → full avoidance response
-        for (int aib_id : aib_ids_) {
+        for (int aib_id : nids("AIB")) {
             if (aib_id >= 0) serotonin.targets.push_back(
                 {aib_id, "MOD-1", ModulationEffect::EXCITABILITY, -6.0}); // -6 pA inhibitory
         }
@@ -142,7 +142,7 @@ void SimulationEngine::setup_neuromodulation() {
         // neurons including AIZ (confirmed by mod-1 promoter expression).
         // REF: Flavell 2013 Cell — MOD-1 on roaming-promoting interneurons
         //      Ranganathan 2000 Nature — MOD-1 5-HT-gated Cl⁻ channel
-        for (int aiz_id : aiz_ids_) {
+        for (int aiz_id : nids("AIZ")) {
             if (aiz_id >= 0) serotonin.targets.push_back(
                 {aiz_id, "MOD-1", ModulationEffect::EXCITABILITY, -3.0}); // -3 pA inhibitory
         }
@@ -226,8 +226,8 @@ void SimulationEngine::setup_neuromodulation() {
         // Off food: DA drops → DVA excitation from DA decreases (proprioception still drives DVA)
         // REF: Bhattacharya 2014 PLOS Genetics — DOP-1 in DVA regulates NLP-12 release
         //      dop-1 mutant: reduced NLP-12-Venus fluorescence change, impaired ARS
-        if (dva_id_ >= 0) dopamine.targets.push_back(
-            {dva_id_, "DOP-1", ModulationEffect::EXCITABILITY, 4.0}); // +4 pA excitatory (primes DVA, not enough alone for NLP-12 release)
+        if (nid("DVA") >= 0) dopamine.targets.push_back(
+            {nid("DVA"), "DOP-1", ModulationEffect::EXCITABILITY, 4.0}); // +4 pA excitatory (primes DVA, not enough alone for NLP-12 release)
 
         neuromod_.add_modulator(std::move(dopamine));
     }
@@ -380,7 +380,7 @@ void SimulationEngine::setup_neuromodulation() {
         nlp12.release_threshold = 0.5;  // higher than amines: DVA must be strongly active (searching + food_memory)
 
         // Source neuron: DVA (single, unpaired)
-        if (dva_id_ >= 0) nlp12.source_neuron_ids.push_back(dva_id_);
+        if (nid("DVA") >= 0) nlp12.source_neuron_ids.push_back(nid("DVA"));
 
         // Target 1: CKR-1 → SMD head motor neurons (excitatory GPCR)
         // PRIMARY ARS mechanism: NLP-12 → CKR-1 → SMD activation → large head swings
@@ -489,10 +489,10 @@ void SimulationEngine::setup_neuromodulation() {
         //      "PDF signaling necessary and sufficient to keep NSM inactive during roaming"
         // NSM on-food drive ≈ 21pA; at PDF=0.4: inhibition = -8pA → net 13pA (moderate)
         // The bistable positive feedback amplifies small PDF changes to flip the switch.
-        if (nsml_id_ >= 0) pdf.targets.push_back(
-            {nsml_id_, "PDFR-1", ModulationEffect::EXCITABILITY, -25.0}); // -25 pA at peak PDF
-        if (nsmr_id_ >= 0) pdf.targets.push_back(
-            {nsmr_id_, "PDFR-1", ModulationEffect::EXCITABILITY, -25.0});
+        if (nid("NSML") >= 0) pdf.targets.push_back(
+            {nid("NSML"), "PDFR-1", ModulationEffect::EXCITABILITY, -25.0}); // -25 pA at peak PDF
+        if (nid("NSMR") >= 0) pdf.targets.push_back(
+            {nid("NSMR"), "PDFR-1", ModulationEffect::EXCITABILITY, -25.0});
 
         neuromod_.add_modulator(std::move(pdf));
     }

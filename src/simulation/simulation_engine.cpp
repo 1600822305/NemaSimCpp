@@ -94,7 +94,7 @@ void SimulationEngine::initialize_default() {
             // REF: Randi 2018 Cell — ASICs mediate food responses in NSM
             //      Flavell 2013 Cell — NSM drives dwelling via serotonin
             //      Flavell 2023 Cell — NSM functional organization
-            // NSM IDs cached as nsml_id_/nsmr_id_ — drive set in update_pharynx section
+            // NSM drive set in update_pharynx section (via nid("NSML")/nid("NSMR"))
         } else if (starts_with(info.name, "CEP")) {
             // CEP: head mechanosensory, detects bacteria (food presence)
             // TONIC: fires when on food lawn, not responding to changes
@@ -121,32 +121,6 @@ void SimulationEngine::initialize_default() {
         }
     }
 
-    // 8. Collect head motor neuron IDs (SMD/RMD receive tonic from upstream)
-    for (auto& info : neuron_infos) {
-        if (starts_with(info.name, "SMD") || starts_with(info.name, "RMD")) {
-            head_motor_ids_.push_back(info.id);
-        }
-    }
-
-    // Step 25: Collect AIB IDs for 5-HT→MOD-1 inhibition
-    // Step 26: Collect ADF and AIY IDs for pathogen learning
-    for (auto& info : neuron_infos) {
-        if (starts_with(info.name, "AIB")) {
-            aib_ids_.push_back(info.id);
-        }
-        if (starts_with(info.name, "ADF")) {
-            adf_ids_.push_back(info.id);
-        }
-        if (starts_with(info.name, "AIY")) {
-            aiy_ids_.push_back(info.id);
-        }
-        if (starts_with(info.name, "AWB")) {
-            awb_ids_.push_back(info.id);
-        }
-        if (starts_with(info.name, "AIZ")) {
-            aiz_ids_.push_back(info.id);
-        }
-    }
 
     // 9. Build proprioceptive mappings (motor neuron → body segment for MEC channel)
     // Step 29: Proprioceptive wave propagation (Wen 2012 Neuron, Boyle 2012)
@@ -190,36 +164,6 @@ void SimulationEngine::initialize_default() {
     add_pm("VA04", 24, 20, 28, false);
     add_pm("VA05", 32, 28, 36, false);
 
-    // 10. Collect touch neuron IDs (Step 18) + pharyngeal neuron IDs (Step 24)
-    for (auto& info : neuron_infos) {
-        if (starts_with(info.name, "ALM")) alm_ids_.push_back(info.id);
-        if (starts_with(info.name, "PLM")) plm_ids_.push_back(info.id);
-        if (starts_with(info.name, "OLQ")) olq_ids_.push_back(info.id);  // Step 33
-        if (starts_with(info.name, "CEP")) cep_ids_.push_back(info.id);  // Step 47b
-        if (starts_with(info.name, "URX")) urx_ids_.push_back(info.id);  // Step 34
-        if (starts_with(info.name, "AUA")) aua_ids_.push_back(info.id); // Step 34
-        if (info.name == "AQR") aqr_id_ = info.id;   // Step 34
-        if (info.name == "PQR") pqr_id_ = info.id;   // Step 34
-        if (starts_with(info.name, "BAG")) bag_ids_.push_back(info.id); // Step 35
-        if (info.name == "DVA") dva_id_ = info.id;                     // Step 36
-        if (starts_with(info.name, "PVD")) pvd_ids_.push_back(info.id); // Step 36
-        if (starts_with(info.name, "HSN")) hsn_ids_.push_back(info.id); // Step 38
-        if (starts_with(info.name, "VC")) vc_ids_.push_back(info.id);   // Step 38
-        if (starts_with(info.name, "RIC")) ric_ids_.push_back(info.id);
-        // Step 24: Pharyngeal neurons
-        if (starts_with(info.name, "MC") && info.name.size() <= 3) mc_ids_.push_back(info.id);
-        if (starts_with(info.name, "M3")) m3_ids_.push_back(info.id);
-        if (info.name == "M4") m4_id_ = info.id;
-        if (starts_with(info.name, "I1")) i1_ids_.push_back(info.id);
-        // Step 27: RIS sleep neuron
-        if (info.name == "RIS") ris_id_ = info.id;
-        // Step 31: RIV omega turn neurons
-        if (info.name == "RIVL") rivl_id_ = info.id;
-        if (info.name == "RIVR") rivr_id_ = info.id;
-        // Step 28: RIA multi-compartment IDs
-        if (info.name == "RIAL") rial_id_ = info.id;
-        if (info.name == "RIAR") riar_id_ = info.id;
-    }
 
     // Initialize transducers with current concentration at head
     // Step 41: use correct signal source per transducer type
@@ -254,7 +198,6 @@ void SimulationEngine::initialize_default() {
 
     LOG_INFO("Chemosensory: ", chemo_mappings_.size(), " neurons with gradient transduction");
     LOG_INFO("Other sensory: ", other_sensory_ids_.size(), " neurons, baseline ", sensory_baseline_, " pA");
-    LOG_INFO("Head tonic: ", head_motor_ids_.size(), " head motor neurons, ", head_tonic_, " pA");
     LOG_INFO("Proprioceptive MEC: ", proprio_mappings_.size(), " motor neuron stretch mappings");
     LOG_INFO("Neuromodulators: ", neuromod_.modulators().size(), " species configured");
 
@@ -309,35 +252,49 @@ void SimulationEngine::initialize(const Config& config) {
 
 // === Performance: one-time cache of neuron IDs, typed pointers, synapse indices ===
 void SimulationEngine::cache_neuron_ids_and_synapses() {
-    // Cached neuron IDs (eliminate per-step hash lookups)
-    aval_id_  = connectome_.get_neuron_id("AVAL");
-    avar_id_  = connectome_.get_neuron_id("AVAR");
-    avbl_id_  = connectome_.get_neuron_id("AVBL");
-    avbr_id_  = connectome_.get_neuron_id("AVBR");
-    smddl_id_ = connectome_.get_neuron_id("SMDDL");
-    smddr_id_ = connectome_.get_neuron_id("SMDDR");
-    smdvl_id_ = connectome_.get_neuron_id("SMDVL");
-    smdvr_id_ = connectome_.get_neuron_id("SMDVR");
-    nsml_id_  = connectome_.get_neuron_id("NSML");
-    nsmr_id_  = connectome_.get_neuron_id("NSMR");
-
-    // Cached typed pointers (eliminate per-step dynamic_cast)
+    const auto& ninfos = connectome_.neuron_infos();
     int nn = static_cast<int>(neurons_.size());
+
+    // 1. Auto-register ALL neuron IDs by exact name (Step 52)
+    nid_.clear();
+    for (auto& ni : ninfos) nid_[ni.name] = ni.id;
+
+    // 2. Auto-register prefix-based neuron groups
+    nids_.clear();
+    static const char* prefixes[] = {
+        "AIB", "ADF", "AIY", "AWB", "AIZ",
+        "ALM", "PLM", "OLQ", "CEP", "URX", "AUA", "BAG", "PVD",
+        "HSN", "VC", "RIC", "MC", "M3", "I1",
+    };
+    for (auto prefix : prefixes) {
+        auto& group = nids_[prefix];
+        for (auto& ni : ninfos)
+            if (starts_with(ni.name, prefix)) group.push_back(ni.id);
+    }
+    // Composite group: head_motor = SMD + RMD
+    {
+        auto& hm = nids_["head_motor"];
+        for (auto& ni : ninfos)
+            if (starts_with(ni.name, "SMD") || starts_with(ni.name, "RMD"))
+                hm.push_back(ni.id);
+    }
+
+    // 3. Cached typed pointers (eliminate per-step dynamic_cast)
     auto sc = [&](int id) -> SingleCompartmentNeuron* {
         return (id >= 0 && id < nn) ? dynamic_cast<SingleCompartmentNeuron*>(neurons_[id].get()) : nullptr;
     };
-    smd_scn_[0] = sc(smddl_id_);
-    smd_scn_[1] = sc(smdvl_id_);
-    smd_scn_[2] = sc(smddr_id_);
-    smd_scn_[3] = sc(smdvr_id_);
-    ria_mcn_[0] = (rial_id_ >= 0 && rial_id_ < nn)
-        ? dynamic_cast<MultiCompartmentNeuron*>(neurons_[rial_id_].get()) : nullptr;
-    ria_mcn_[1] = (riar_id_ >= 0 && riar_id_ < nn)
-        ? dynamic_cast<MultiCompartmentNeuron*>(neurons_[riar_id_].get()) : nullptr;
+    smd_scn_[0] = sc(nid("SMDDL"));
+    smd_scn_[1] = sc(nid("SMDVL"));
+    smd_scn_[2] = sc(nid("SMDDR"));
+    smd_scn_[3] = sc(nid("SMDVR"));
+    int rial = nid("RIAL"), riar = nid("RIAR");
+    ria_mcn_[0] = (rial >= 0 && rial < nn)
+        ? dynamic_cast<MultiCompartmentNeuron*>(neurons_[rial].get()) : nullptr;
+    ria_mcn_[1] = (riar >= 0 && riar < nn)
+        ? dynamic_cast<MultiCompartmentNeuron*>(neurons_[riar].get()) : nullptr;
 
-    // Pre-index learning synapses (eliminate per-update full scan)
+    // 4. Pre-index learning synapses (eliminate per-update full scan)
     const auto& synapses = connectome_.synapses();
-    const auto& ninfos = connectome_.neuron_infos();
     awc_aiy_syn_indices_.clear();
     aser_syn_indices_.clear();
     awc_syn_indices_.clear();
@@ -355,8 +312,9 @@ void SimulationEngine::cache_neuron_ids_and_synapses() {
     }
 
     update_awc_pref_cache();
-    LOG_INFO("Performance cache: ", awc_aiy_syn_indices_.size(), " AWC→AIY, ",
-             aser_syn_indices_.size(), " ASER→*, ", awc_syn_indices_.size(), " AWC→* synapses indexed");
+    LOG_INFO("Neuron ID cache: ", nid_.size(), " names, ", nids_.size(), " groups; ",
+             awc_aiy_syn_indices_.size(), " AWC→AIY, ",
+             aser_syn_indices_.size(), " ASER→*, ", awc_syn_indices_.size(), " AWC→* synapses");
 }
 
 void SimulationEngine::update_awc_pref_cache() {
@@ -439,12 +397,12 @@ void SimulationEngine::step() {
     if (sickness_ > 0.01) {
         int nn = static_cast<int>(neurons_.size());
         double I_mod1 = mod1_aiy_gain_ * sickness_;  // up to -12pA at sickness=1
-        for (int aiy_id : aiy_ids_) {
+        for (int aiy_id : nids("AIY")) {
             if (aiy_id >= 0 && aiy_id < nn)
                 neurons_[aiy_id]->add_synaptic_current(I_mod1);
         }
         double I_mod1_aiz = mod1_aiz_gain_ * sickness_;
-        for (int aiz_id : aiz_ids_) {
+        for (int aiz_id : nids("AIZ")) {
             if (aiz_id >= 0 && aiz_id < nn)
                 neurons_[aiz_id]->add_synaptic_current(I_mod1_aiz);
         }
@@ -485,8 +443,8 @@ void SimulationEngine::step() {
         // At 0Hz (off food): I = 1 pA → S(V)≈0.1 → no 5-HT release
         double nsm_drive = 30.0 * (pr / (pr + 2.0)) + 1.0;
         int n = static_cast<int>(neurons_.size());
-        if (nsml_id_ >= 0 && nsml_id_ < n) neurons_[nsml_id_]->set_external_current(nsm_drive);
-        if (nsmr_id_ >= 0 && nsmr_id_ < n) neurons_[nsmr_id_]->set_external_current(nsm_drive);
+        if (nid("NSML") >= 0 && nid("NSML") < n) neurons_[nid("NSML")]->set_external_current(nsm_drive);
+        if (nid("NSMR") >= 0 && nid("NSMR") < n) neurons_[nid("NSMR")]->set_external_current(nsm_drive);
     }
 
     // 5b. Update satiety effects (RIC tonic drive, NSM suppression, chemotaxis)
@@ -520,8 +478,8 @@ void SimulationEngine::step() {
     double sleep_speed_factor = 1.0;
     {
         int nn = static_cast<int>(neurons_.size());
-        if (ris_id_ >= 0 && ris_id_ < nn) {
-            double rv = neurons_[ris_id_]->get_membrane_potential();
+        if (nid("RIS") >= 0 && nid("RIS") < nn) {
+            double rv = neurons_[nid("RIS")]->get_membrane_potential();
             double flp11 = 1.0 / (1.0 + fast_exp(-(rv - (-35.0)) / 5.0));
             sleep_speed_factor = 1.0 - 0.97 * flp11;  // up to 97% speed reduction (near-atonia)
         }
@@ -576,10 +534,10 @@ void SimulationEngine::step() {
     {
         double ava_rel = 0.0, avb_rel = 0.0;
         int n = static_cast<int>(neurons_.size());
-        if (aval_id_ >= 0 && aval_id_ < n) ava_rel += neurons_[aval_id_]->get_transmitter_release_rate();
-        if (avar_id_ >= 0 && avar_id_ < n) ava_rel += neurons_[avar_id_]->get_transmitter_release_rate();
-        if (avbl_id_ >= 0 && avbl_id_ < n) avb_rel += neurons_[avbl_id_]->get_transmitter_release_rate();
-        if (avbr_id_ >= 0 && avbr_id_ < n) avb_rel += neurons_[avbr_id_]->get_transmitter_release_rate();
+        if (nid("AVAL") >= 0 && nid("AVAL") < n) ava_rel += neurons_[nid("AVAL")]->get_transmitter_release_rate();
+        if (nid("AVAR") >= 0 && nid("AVAR") < n) ava_rel += neurons_[nid("AVAR")]->get_transmitter_release_rate();
+        if (nid("AVBL") >= 0 && nid("AVBL") < n) avb_rel += neurons_[nid("AVBL")]->get_transmitter_release_rate();
+        if (nid("AVBR") >= 0 && nid("AVBR") < n) avb_rel += neurons_[nid("AVBR")]->get_transmitter_release_rate();
         ava_rel *= 0.5; avb_rel *= 0.5; // average L/R
         body_.set_locomotion_state(avb_rel, ava_rel);
     }
@@ -691,7 +649,7 @@ void SimulationEngine::apply_sensory_input() {
     // Step 26: ADF serotonin neurons — driven by sickness state
     // REF: Zhang 2005 Nature — PA14 exposure → TPH-1 upregulation → ADF 5-HT↑
     // ADF baseline=2pA (low), sickness drives strong depolarization → 5-HT release
-    for (int adf_id : adf_ids_) {
+    for (int adf_id : nids("ADF")) {
         if (adf_id >= 0 && adf_id < n) {
             double I_adf = 0.5 + 30.0 * sickness_;  // 0.5pA baseline (silent), up to 30.5pA when sick
             neurons_[adf_id]->set_external_current(I_adf);
@@ -707,7 +665,7 @@ void SimulationEngine::apply_sensory_input() {
     {
         Vector2d head_pos = body_.get_head_position();
         double repellent = environment_.sample_repellent(head_pos);
-        for (int awb_id : awb_ids_) {
+        for (int awb_id : nids("AWB")) {
             if (awb_id >= 0 && awb_id < n) {
                 // Base response: low (2pA) — AWB mainly activated after learning
                 // Learned amplification: sickness × repellent → strong AWB drive
@@ -765,13 +723,13 @@ void SimulationEngine::apply_head_tonic() {
     // RIS inhibits RIA/RIB (approach circuit) → tonic drive drops
     // REF: Konietzka 2020 — RIS depolarization → cessation of head movement
     double tonic = head_tonic_;
-    if (is_sleeping_ && ris_id_ >= 0 && ris_id_ < static_cast<int>(neurons_.size())) {
-        double rv = neurons_[ris_id_]->get_membrane_potential();
+    if (is_sleeping_ && nid("RIS") >= 0 && nid("RIS") < static_cast<int>(neurons_.size())) {
+        double rv = neurons_[nid("RIS")]->get_membrane_potential();
         double flp11 = 1.0 / (1.0 + fast_exp(-(rv - (-35.0)) / 5.0));
         tonic *= (1.0 - 0.95 * flp11);  // near-zero tonic during deep sleep
     }
     int n = static_cast<int>(neurons_.size());
-    for (int id : head_motor_ids_) {
+    for (int id : nids("head_motor")) {
         if (id >= 0 && id < n) {
             neurons_[id]->set_external_current(tonic);
         }
@@ -802,8 +760,8 @@ void SimulationEngine::apply_head_tonic() {
         if (riv_post_rev_amp_r_ > 1.0) riv_pulse_r = riv_post_rev_amp_r_ * decay;
     }
 
-    if (rivl_id_ >= 0 && rivl_id_ < n) neurons_[rivl_id_]->set_external_current(riv_tonic + riv_pulse_l);
-    if (rivr_id_ >= 0 && rivr_id_ < n) neurons_[rivr_id_]->set_external_current(riv_tonic + riv_pulse_r);
+    if (nid("RIVL") >= 0 && nid("RIVL") < n) neurons_[nid("RIVL")]->set_external_current(riv_tonic + riv_pulse_l);
+    if (nid("RIVR") >= 0 && nid("RIVR") < n) neurons_[nid("RIVR")]->set_external_current(riv_tonic + riv_pulse_r);
 }
 
 void SimulationEngine::apply_weathervane() {
@@ -899,10 +857,10 @@ void SimulationEngine::apply_weathervane() {
     double sht_conc_wv = neuromod_.get_concentration("5-HT");
     double smd_wv_frac = 0.4 + 0.6 * std::max(0.0, 1.0 - sht_conc_wv / 0.7);
     if (smd_wv_frac > 1.0) smd_wv_frac = 1.0;
-    if (smddl_id_ >= 0 && smddl_id_ < n) neurons_[smddl_id_]->add_synaptic_current( bias_current * smd_wv_frac);
-    if (smddr_id_ >= 0 && smddr_id_ < n) neurons_[smddr_id_]->add_synaptic_current( bias_current * smd_wv_frac);
-    if (smdvl_id_ >= 0 && smdvl_id_ < n) neurons_[smdvl_id_]->add_synaptic_current(-bias_current * smd_wv_frac);
-    if (smdvr_id_ >= 0 && smdvr_id_ < n) neurons_[smdvr_id_]->add_synaptic_current(-bias_current * smd_wv_frac);
+    if (nid("SMDDL") >= 0 && nid("SMDDL") < n) neurons_[nid("SMDDL")]->add_synaptic_current( bias_current * smd_wv_frac);
+    if (nid("SMDDR") >= 0 && nid("SMDDR") < n) neurons_[nid("SMDDR")]->add_synaptic_current( bias_current * smd_wv_frac);
+    if (nid("SMDVL") >= 0 && nid("SMDVL") < n) neurons_[nid("SMDVL")]->add_synaptic_current(-bias_current * smd_wv_frac);
+    if (nid("SMDVR") >= 0 && nid("SMDVR") < n) neurons_[nid("SMDVR")]->add_synaptic_current(-bias_current * smd_wv_frac);
 
     // Direct curvature bias: bypass SMD oscillator bottleneck (110mV amplitude drowns ±24pA bias)
     // REF: diagnosed in Step 15 — SMD bias alone gives CI=0.07, with curv_bias CI=0.76
@@ -1021,10 +979,10 @@ void SimulationEngine::apply_ria_smd_modulation() {
     int n = static_cast<int>(neurons_.size());
 
     double ria_release_L = 0.0, ria_release_R = 0.0;
-    if (rial_id_ >= 0 && rial_id_ < n)
-        ria_release_L = neurons_[rial_id_]->get_transmitter_release_rate();
-    if (riar_id_ >= 0 && riar_id_ < n)
-        ria_release_R = neurons_[riar_id_]->get_transmitter_release_rate();
+    if (nid("RIAL") >= 0 && nid("RIAL") < n)
+        ria_release_L = neurons_[nid("RIAL")]->get_transmitter_release_rate();
+    if (nid("RIAR") >= 0 && nid("RIAR") < n)
+        ria_release_R = neurons_[nid("RIAR")]->get_transmitter_release_rate();
 
     // Modulation gain: how much RIA release shifts CCA-1 V_half (mV)
     // At release=0.5 (baseline): shift=0 (symmetric)
@@ -1110,7 +1068,7 @@ void SimulationEngine::apply_touch_stimulus() {
         // Scale current by proximity: closer = stronger
         double prox = 1.0 - min_wall_dist / nose_margin_;  // 0→1
         double olq_drive = nose_current * prox;
-        for (int id : olq_ids_) {
+        for (int id : nids("OLQ")) {
             if (id >= 0 && id < n) {
                 neurons_[id]->set_external_current(olq_drive);
             }
@@ -1120,13 +1078,13 @@ void SimulationEngine::apply_touch_stimulus() {
 
     if (front_touch) {
         // Strong current pulse to ALM neurons → triggers reversal via ALM→AVD→AVA
-        for (int id : alm_ids_) {
+        for (int id : nids("ALM")) {
             if (id >= 0 && id < n) {
                 neurons_[id]->set_external_current(touch_current_);
             }
         }
         // Also activate OLQ at full strength during body touch
-        for (int id : olq_ids_) {
+        for (int id : nids("OLQ")) {
             if (id >= 0 && id < n) {
                 neurons_[id]->set_external_current(nose_current);
             }
@@ -1135,7 +1093,7 @@ void SimulationEngine::apply_touch_stimulus() {
 
     if (rear_touch) {
         // Strong current pulse to PLM neurons → triggers forward acceleration
-        for (int id : plm_ids_) {
+        for (int id : nids("PLM")) {
             if (id >= 0 && id < n) {
                 neurons_[id]->set_external_current(touch_current_);
             }
@@ -1185,7 +1143,7 @@ void SimulationEngine::apply_touch_stimulus() {
         // Net URX drive = O₂ excitation + NPR-1 inhibition
         double urx_net = std::max(urx_drive + npr1_inh, 0.0);
 
-        for (int id : urx_ids_) {
+        for (int id : nids("URX")) {
             if (id >= 0 && id < n) {
                 neurons_[id]->set_external_current(urx_net);
             }
@@ -1193,25 +1151,25 @@ void SimulationEngine::apply_touch_stimulus() {
 
         // AQR: head O₂ sensor (same threshold, weaker gain)
         // AQR is unpaired, same location as URX (head pseudocoelom)
-        if (aqr_id_ >= 0 && aqr_id_ < n) {
+        if (nid("AQR") >= 0 && nid("AQR") < n) {
             double aqr_drive = 0.0;
             if (o2_head > 14.0) {
                 aqr_drive = (o2_gain_ * 0.5) * (o2_head - 14.0) / 7.0;  // 50% of URX
             }
             double aqr_net = std::max(aqr_drive + npr1_inh * 0.5, 0.0);
-            neurons_[aqr_id_]->set_external_current(aqr_net);
+            neurons_[nid("AQR")]->set_external_current(aqr_net);
         }
 
         // PQR: tail O₂ sensor
         // Tail high O₂ → PQR activates → AVA → accelerate forward (escape)
         // REF: Busch 2012 — PQR tail position facilitates forward escape
-        if (pqr_id_ >= 0 && pqr_id_ < n) {
+        if (nid("PQR") >= 0 && nid("PQR") < n) {
             double pqr_drive = 0.0;
             if (o2_tail > 14.0) {
                 pqr_drive = (o2_gain_ * 0.5) * (o2_tail - 14.0) / 7.0;
             }
             double pqr_net = std::max(pqr_drive + npr1_inh * 0.5, 0.0);
-            neurons_[pqr_id_]->set_external_current(pqr_net);
+            neurons_[nid("PQR")]->set_external_current(pqr_net);
         }
 
         // AUA: NPR-1 tonic inhibition (proxy for missing RMG suppression)
@@ -1219,7 +1177,7 @@ void SimulationEngine::apply_touch_stimulus() {
         // Without RMG neuron, we apply inhibitory current directly to AUA
         // This prevents AUA from amplifying weak URX signals into strong AVA drive
         // REF: Laurent 2015 eLife — NPR-1 inhibits RMG Ca2+ responses
-        for (int id : aua_ids_) {
+        for (int id : nids("AUA")) {
             if (id >= 0 && id < n) {
                 neurons_[id]->add_synaptic_current(npr1_aua_);
             }
@@ -1271,7 +1229,7 @@ void SimulationEngine::apply_touch_stimulus() {
         // In N2: URX is suppressed by NPR-1 → no cross-inhibition → BAG works
         // Carrillo 2013: "ablating URX in npr-1(lf) restores CO₂ avoidance"
         double urx_inhibition = 0.0;
-        for (int id : urx_ids_) {
+        for (int id : nids("URX")) {
             if (id >= 0 && id < n) {
                 urx_inhibition += neurons_[id]->get_transmitter_release_rate();
             }
@@ -1280,7 +1238,7 @@ void SimulationEngine::apply_touch_stimulus() {
 
         double bag_net = std::max(bag_drive - urx_inhibition, 0.0);
 
-        for (int id : bag_ids_) {
+        for (int id : nids("BAG")) {
             if (id >= 0 && id < n) {
                 neurons_[id]->set_external_current(bag_net);
             }
@@ -1298,7 +1256,7 @@ void SimulationEngine::apply_touch_stimulus() {
     // ======================================================================
     {
         // --- DVA: whole-body curvature integration ---
-        if (dva_id_ >= 0 && dva_id_ < n) {
+        if (nid("DVA") >= 0 && nid("DVA") < n) {
             const auto& segs = body_.segments();
             int nseg = static_cast<int>(segs.size());
             double sum_abs_curv = 0.0;
@@ -1313,14 +1271,14 @@ void SimulationEngine::apply_touch_stimulus() {
             double dva_drive = dva_gain_ * mean_abs_curv;
             if (dva_drive > 30.0) dva_drive = 30.0;  // clamp
 
-            neurons_[dva_id_]->set_external_current(dva_drive);
+            neurons_[nid("DVA")]->set_external_current(dva_drive);
         }
 
         // --- PVD: harsh touch + posterior proprioception ---
         Vector2d head = body_.get_head_position();
         double wall_dist = std::max(0.0, std::min({head.x, 50.0 - head.x, head.y, 50.0 - head.y}));
 
-        for (int id : pvd_ids_) {
+        for (int id : nids("PVD")) {
             if (id < 0 || id >= n) continue;
             double I_pvd = 0.0;
 
@@ -1376,7 +1334,7 @@ void SimulationEngine::apply_touch_stimulus() {
         double ta_inh = -20.0 * ta_conc;  // -20pA at max TA
         I_hsn = std::max(I_hsn + ta_inh, 0.0);
 
-        for (int id : hsn_ids_) {
+        for (int id : nids("HSN")) {
             if (id >= 0 && id < n) {
                 neurons_[id]->set_external_current(I_hsn);
             }
@@ -1391,7 +1349,7 @@ void SimulationEngine::apply_touch_stimulus() {
 
         // During active state: VC gets excitation from HSN (via gap junction + 5-HT)
         if (current_time_ < egg_active_end_) {
-            for (int id : vc_ids_) {
+            for (int id : nids("VC")) {
                 if (id >= 0 && id < n) {
                     neurons_[id]->set_external_current(15.0);  // 5-HT potentiation
                 }
@@ -1613,10 +1571,10 @@ void SimulationEngine::apply_riv_omega() {
     //      Donnelly 2013 — TA gates omega timing via LGC-55 on RIV
 
     int n = static_cast<int>(neurons_.size());
-    if (rivl_id_ < 0 || rivr_id_ < 0 || rivl_id_ >= n || rivr_id_ >= n) return;
+    if (nid("RIVL") < 0 || nid("RIVR") < 0 || nid("RIVL") >= n || nid("RIVR") >= n) return;
 
-    double rivl_rel = neurons_[rivl_id_]->get_transmitter_release_rate();
-    double rivr_rel = neurons_[rivr_id_]->get_transmitter_release_rate();
+    double rivl_rel = neurons_[nid("RIVL")]->get_transmitter_release_rate();
+    double rivr_rel = neurons_[nid("RIVR")]->get_transmitter_release_rate();
     double riv_max = std::max(rivl_rel, rivr_rel);
 
     // Step 32: AS dorsal resistance — pre-reversal snapshot gating

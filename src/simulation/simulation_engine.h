@@ -17,6 +17,7 @@
 #include <vector>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <functional>
 
 namespace celegans {
@@ -149,14 +150,11 @@ private:
     std::vector<ChemoMapping> chemo_mappings_;        // AWC/AWA sample food odor (volatile)
     std::vector<ChemoMapping> soluble_mappings_;     // Step 26b: ASE sample soluble field (salt/amino acids)
     std::vector<ChemoMapping> noci_mappings_;         // Step 25: ASH nociceptors sample repellent field
-    std::vector<int> aib_ids_;                  // Step 25: AIB interneuron IDs (5-HT→MOD-1 inhibition)
 
     // Non-chemosensory neurons (touch, etc.) get fixed baseline
     std::vector<int> other_sensory_ids_;
     double sensory_baseline_ = 3.0; // pA, low baseline for touch neurons (no stimulus)
 
-    // Head motor neuron IDs (for tonic upstream drive)
-    std::vector<int> head_motor_ids_;
     double head_tonic_ = 3.0;  // pA, near CCA-1 window for rebound oscillation
 
     // Proprioceptive mapping: motor neuron → body segment
@@ -169,34 +167,16 @@ private:
     };
     std::vector<ProprioMapping> proprio_mappings_;
 
-    // Touch avoidance (Step 18, Chalfie 1985)
-    std::vector<int> alm_ids_;  // anterior touch neuron IDs
-    std::vector<int> plm_ids_;  // posterior touch neuron IDs
-    std::vector<int> olq_ids_; // Step 33: nose touch neuron IDs (4 quadrant)
-    std::vector<int> cep_ids_; // Step 47b: CEP mechanosensory (bacterial lawn contact → DA)
-    // Step 34: O₂ sensing neuron IDs
-    std::vector<int> urx_ids_;  // URX L/R (high O₂ sensors)
-    std::vector<int> aua_ids_;  // AUA L/R (O₂ signal relay/integration)
-    int aqr_id_ = -1;          // AQR (anterior body cavity, unpaired)
-    int pqr_id_ = -1;          // PQR (posterior body cavity, unpaired)
     double o2_gain_ = 30.0;    // max pA for O₂ transduction
     double npr1_tonic_ = -28.0; // NPR-1 tonic inhibition on URX (N2 = constitutively active)
     double npr1_aua_ = -12.0;  // NPR-1 inhibition on AUA (proxy for missing RMG suppression)
-    // Step 35: CO₂ sensing (BAG neurons)
-    std::vector<int> bag_ids_;  // BAG L/R (CO₂ sensors)
     double co2_gain_ = 40.0;   // max pA for CO₂ transduction
     double co2_threshold_ = 0.5; // % CO₂ activation threshold
     double prev_co2_head_ = 0.04; // previous CO₂ for phasic response
-    // Step 36: Proprioception (DVA + PVD)
-    int dva_id_ = -1;              // DVA whole-body proprioceptive interneuron
-    std::vector<int> pvd_ids_;     // PVD L/R harsh touch + proprioception
     double dva_gain_ = 15.0;       // pA per unit mean |curvature| (TRP-4 sensitivity)
     double pvd_harsh_thresh_ = 1.0; // mm, harsh touch distance threshold (closer than ALM 2mm)
     double pvd_harsh_current_ = 60.0; // pA, harsh touch stimulus (PVD→AVA 2 sec already strong)
     double pvd_proprio_gain_ = 8.0;  // pA per unit posterior |curvature|
-    // Step 38: Egg-laying (HSN/VC)
-    std::vector<int> hsn_ids_;     // HSN L/R serotonergic command motor neurons
-    std::vector<int> vc_ids_;      // VC4/VC5 cholinergic motor neurons
     double egg_pressure_ = 0.0;    // 0-1, egg accumulation pressure (slow ramp)
     double egg_tau_fill_ = 120000.0;  // ms (120s) to fill — eggs accumulate ~10min/egg
     double egg_threshold_ = 0.7;   // egg_pressure threshold for HSN activation
@@ -217,15 +197,10 @@ private:
     double dCdt_filtered_ = 0.0;           // filtered concentration derivative (tau=4s)
     double prev_temp_dev_ = 0.0;           // previous |T-Tc| for thermal klinokinesis
     double dTdev_filtered_ = 0.0;          // filtered d|T-Tc|/dt (tau=4s, Ryu & Samuel 2002)
-    // Step 31: RIV neuron IDs for emergent omega turn
-    int rivl_id_ = -1;
-    int rivr_id_ = -1;
     double riv_omega_threshold_ = 0.5;     // RIV release rate threshold for omega mode
 
     // Klinotaxis: Step 28 — RIA multi-compartment Ca²⁺ gate-and-switch
     // REF: Hendricks 2012 Nature — nrV/nrD compartmentalized calcium
-    int rial_id_ = -1;                  // RIAL neuron ID
-    int riar_id_ = -1;                  // RIAR neuron ID
     double ria_ca_diff_filtered_ = 0.0; // filtered (nrV-nrD) Ca2+ AC component
     double ria_ca_diff_mean_ = 0.0;     // DC baseline of Ca2+ diff (2s tau, for removal)
 
@@ -241,10 +216,6 @@ private:
     // Step 24: Pharyngeal pumping system (replaces placeholder satiety)
     // REF: Avery (WormBook 2012), Raizen & Avery 1994
     PharyngealPump pharynx_;            // pharyngeal muscle AP model
-    std::vector<int> mc_ids_;           // MC motor neuron IDs (pacemaker)
-    std::vector<int> m3_ids_;           // M3 motor neuron IDs (relaxation)
-    int m4_id_ = -1;                    // M4 motor neuron ID (isthmus peristalsis)
-    std::vector<int> i1_ids_;           // I1 interneuron IDs (bridge)
     void update_pharynx();             // Step 24: pharyngeal CPG + real feeding
     void apply_pharyngeal_modulation(); // 5-HT→MC excitation, OA→MC inhibition
 
@@ -252,7 +223,6 @@ private:
     double satiety_ = 0.0;             // [0,1] — 0=hungry, 1=full
     double satiety_tau_deplete_ = 40000.0; // ms to get hungry (40s off food)
     void update_satiety();              // called each step (now uses pharynx pump rate)
-    std::vector<int> ric_ids_;          // RIC neuron IDs (OA source, tonic drive)
 
     // Step 47: Food-edge head poke reversal (eLife 2024, Flavell lab)
     // When head exits food boundary → reversal with high probability (dwelling)
@@ -278,10 +248,6 @@ private:
     double sickness_ = 0.0;             // [0,1] internal malaise state
     double sickness_tau_rise_ = 30000.0; // ms, slow accumulation while eating toxin (~30s)
     double sickness_tau_decay_ = 600000.0; // ms, very slow recovery (~10min, persistent memory)
-    std::vector<int> adf_ids_;           // ADF serotonin neuron IDs
-    std::vector<int> aiy_ids_;           // AIY interneuron IDs (approach pathway)
-    std::vector<int> awb_ids_;           // Step 43: AWB repulsive olfactory neuron IDs
-    std::vector<int> aiz_ids_;           // Step 43: AIZ interneuron IDs (MOD-1 target)
     double awb_pathogen_gain_ = 25.0;    // pA, AWB drive from pathogen odor × sickness
     double mod1_aiy_gain_ = -12.0;       // pA, ADF sickness 5-HT → MOD-1 ⊣ AIY (max at sickness=1)
     double mod1_aiz_gain_ = -6.0;        // pA, ADF sickness 5-HT → MOD-1 ⊣ AIZ (half of AIY)
@@ -296,7 +262,6 @@ private:
     double fatigue_tau_rise_ = 240000.0;  // ms, ~240s to accumulate when active
     double fatigue_tau_decay_ = 45000.0;  // ms, ~45s to clear during sleep
     double fatigue_threshold_ = 0.7;      // RIS activation threshold
-    int ris_id_ = -1;                     // RIS neuron ID
     bool is_sleeping_ = false;            // current sleep state
     void update_fatigue();                // fatigue accumulation / decay
     void apply_sleep_effects();           // FLP-11 global inhibition during sleep
@@ -314,11 +279,18 @@ private:
     double riv_post_rev_amp_r_ = 0.0;  // RIVR pulse amplitude (gradient-biased)
     std::mt19937 touch_rng_{123};
 
-    // === Performance: cached neuron IDs (avoid per-step hash lookups) ===
-    int aval_id_ = -1, avar_id_ = -1;
-    int avbl_id_ = -1, avbr_id_ = -1;
-    int smddl_id_ = -1, smddr_id_ = -1, smdvl_id_ = -1, smdvr_id_ = -1;
-    int nsml_id_ = -1, nsmr_id_ = -1;
+    // === Neuron ID cache (auto-populated from connectome, Step 52) ===
+    std::unordered_map<std::string, int> nid_;                    // exact name → ID
+    std::unordered_map<std::string, std::vector<int>> nids_;      // group key → IDs
+    int nid(const char* name) const {
+        auto it = nid_.find(name);
+        return (it != nid_.end()) ? it->second : -1;
+    }
+    const std::vector<int>& nids(const char* key) const {
+        static const std::vector<int> empty;
+        auto it = nids_.find(key);
+        return (it != nids_.end()) ? it->second : empty;
+    }
 
     // === Performance: cached typed pointers (avoid per-step dynamic_cast) ===
     SingleCompartmentNeuron* smd_scn_[4] = {};  // [0]=SMDDL [1]=SMDVL [2]=SMDDR [3]=SMDVR

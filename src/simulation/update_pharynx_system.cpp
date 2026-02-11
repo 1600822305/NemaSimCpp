@@ -21,7 +21,7 @@ void SimulationEngine::apply_pharyngeal_modulation() {
     double mc_5ht_current = 15.0 * sht_conc;
     double mc_oa_current = -10.0 * oa_conc;
 
-    for (int id : mc_ids_) {
+    for (int id : nids("MC")) {
         if (id >= 0 && id < n) {
             double food_conc = environment_.sample_food_density(body_.get_head_position());
             double food_drive = 8.0 * food_conc / (food_conc + 0.1);
@@ -36,18 +36,18 @@ void SimulationEngine::apply_pharyngeal_modulation() {
     } else if (pharynx_.phase() == PharyngealPump::Phase::EXCITATION) {
         m3_drive = 5.0;
     }
-    for (int id : m3_ids_) {
+    for (int id : nids("M3")) {
         if (id >= 0 && id < n) {
             neurons_[id]->add_synaptic_current(2.0 + m3_drive);
         }
     }
 
-    if (m4_id_ >= 0 && m4_id_ < n) {
+    if (nid("M4") >= 0 && nid("M4") < n) {
         double m4_5ht = 8.0 * sht_conc;
-        neurons_[m4_id_]->add_synaptic_current(2.0 + m4_5ht);
+        neurons_[nid("M4")]->add_synaptic_current(2.0 + m4_5ht);
     }
 
-    for (int id : i1_ids_) {
+    for (int id : nids("I1")) {
         if (id >= 0 && id < n) {
             neurons_[id]->add_synaptic_current(1.0);
         }
@@ -59,7 +59,7 @@ void SimulationEngine::update_pharynx() {
 
     double mc_release = 0.0;
     int mc_count = 0;
-    for (int id : mc_ids_) {
+    for (int id : nids("MC")) {
         if (id >= 0 && id < n) {
             double v = neurons_[id]->get_membrane_potential();
             double s = 1.0 / (1.0 + fast_exp(-(v - (-35.0)) / 5.0));
@@ -71,7 +71,7 @@ void SimulationEngine::update_pharynx() {
 
     double m3_release = 0.0;
     int m3_count = 0;
-    for (int id : m3_ids_) {
+    for (int id : nids("M3")) {
         if (id >= 0 && id < n) {
             double v = neurons_[id]->get_membrane_potential();
             double s = 1.0 / (1.0 + fast_exp(-(v - (-35.0)) / 5.0));

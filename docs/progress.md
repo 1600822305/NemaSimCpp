@@ -658,6 +658,14 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 - 辅助函数: `syn()`/`inh()`/`gj()`/`comp()` 减少样板代码
 - **regtest**: 17 pass, 0 FAIL
 
+### Step 52: 重构 — ids_ map 自动注册 ✅ (2026-02-11)
+> 详细文档: [steps/step52_ids_map_autoregister.md](steps/step52_ids_map_autoregister.md)
+
+- 移除 **38 个**手动缓存字段 (17 单体 + 21 分组)，替换为 `nid_`/`nids_` 两个 map
+- 统一 `cache_neuron_ids_and_synapses()` 自动注册：精确名 + 19 个前缀组 + 1 个复合组
+- 新增神经元只需在 `connectome_builder.cpp` 添加一行，ID 自动可用
+- **regtest**: 17 pass, 0 FAIL
+
 ---
 
 ## 当前系统状态

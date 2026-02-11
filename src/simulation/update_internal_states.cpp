@@ -31,7 +31,7 @@ void SimulationEngine::update_satiety() {
     // Effect 2: Satiety excites RIC
     double ric_baseline = 5.0;
     double ric_satiety = 10.0 * satiety_;
-    for (int rid : ric_ids_) {
+    for (int rid : nids("RIC")) {
         if (rid >= 0 && rid < n) {
             neurons_[rid]->add_synaptic_current(ric_baseline + ric_satiety);
         }
@@ -72,13 +72,13 @@ void SimulationEngine::update_food_memory() {
     if (food_memory_ > 1.0) food_memory_ = 1.0;
 
     int n = static_cast<int>(neurons_.size());
-    if (aval_id_ >= 0 && aval_id_ < n) {
+    if (nid("AVAL") >= 0 && nid("AVAL") < n) {
         double ars_current = 1.5 * food_memory_;
-        neurons_[aval_id_]->add_synaptic_current(ars_current);
+        neurons_[nid("AVAL")]->add_synaptic_current(ars_current);
     }
-    if (dva_id_ >= 0 && dva_id_ < n) {
+    if (nid("DVA") >= 0 && nid("DVA") < n) {
         double ars_dva_current = 5.0 * food_memory_;
-        neurons_[dva_id_]->add_synaptic_current(ars_dva_current);
+        neurons_[nid("DVA")]->add_synaptic_current(ars_dva_current);
     }
 }
 
@@ -94,8 +94,8 @@ void SimulationEngine::apply_gradient_klinokinesis() {
 
     int n = static_cast<int>(neurons_.size());
     double kk_current = 1.0 * no_signal_factor;
-    if (aval_id_ >= 0 && aval_id_ < n) neurons_[aval_id_]->add_synaptic_current(kk_current);
-    if (avar_id_ >= 0 && avar_id_ < n) neurons_[avar_id_]->add_synaptic_current(kk_current);
+    if (nid("AVAL") >= 0 && nid("AVAL") < n) neurons_[nid("AVAL")]->add_synaptic_current(kk_current);
+    if (nid("AVAR") >= 0 && nid("AVAR") < n) neurons_[nid("AVAR")]->add_synaptic_current(kk_current);
 }
 
 // ================================================================
@@ -120,22 +120,22 @@ void SimulationEngine::update_fatigue() {
     }
 
     int n = static_cast<int>(neurons_.size());
-    if (ris_id_ >= 0 && ris_id_ < n) {
+    if (nid("RIS") >= 0 && nid("RIS") < n) {
         double fatigue_drive = 40.0 / (1.0 + fast_exp(-12.0 * (fatigue_ - fatigue_threshold_)));
         double sleep_maintenance = is_sleeping_ ? 25.0 : 0.0;
         double ris_drive = 2.0 + fatigue_drive + sleep_maintenance;
-        double ris_V = neurons_[ris_id_]->get_membrane_potential();
+        double ris_V = neurons_[nid("RIS")]->get_membrane_potential();
         double ris_release = 1.0 / (1.0 + fast_exp(-(ris_V - (-35.0)) / 5.0));
         double self_inhibition = -3.0 * ris_release;
-        neurons_[ris_id_]->set_external_current(ris_drive + self_inhibition);
+        neurons_[nid("RIS")]->set_external_current(ris_drive + self_inhibition);
     }
 }
 
 void SimulationEngine::apply_sleep_effects() {
     int n = static_cast<int>(neurons_.size());
-    if (ris_id_ < 0 || ris_id_ >= n) return;
+    if (nid("RIS") < 0 || nid("RIS") >= n) return;
 
-    double ris_V = neurons_[ris_id_]->get_membrane_potential();
+    double ris_V = neurons_[nid("RIS")]->get_membrane_potential();
     double flp11 = 1.0 / (1.0 + fast_exp(-(ris_V - (-35.0)) / 5.0));
 
     if (flp11 < 0.1) return;
@@ -150,14 +150,14 @@ void SimulationEngine::apply_sleep_effects() {
     }
 
     double mc_inhibition = -12.0 * flp11;
-    for (int id : mc_ids_) {
+    for (int id : nids("MC")) {
         if (id >= 0 && id < n) {
             neurons_[id]->add_synaptic_current(mc_inhibition);
         }
     }
 
     double head_inhibition = -20.0 * flp11;
-    for (int id : head_motor_ids_) {
+    for (int id : nids("head_motor")) {
         if (id >= 0 && id < n) {
             neurons_[id]->add_synaptic_current(head_inhibition);
         }
