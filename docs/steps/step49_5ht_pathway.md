@@ -41,6 +41,16 @@ Dag & Flavell 2023 (Cell) 首次完整映射了所有 5-HT 受体在连接组上
 - **机制**: ser-5 RNAi 在 ASH 中消除食物/5-HT 依赖的辛醇敏感性增强
 - **与 TYRA-3 区分**: SER-5 = 进食时持续警戒 (tonic)，TYRA-3 = 逃逸增敏 (phasic)
 
+### LGC-50 → RIA (兴奋性 5-HT 门控阳离子通道)
+- **发现**: 2021 年去孤儿化的第 6 种 5-HT 受体 (Morud 2021 Curr Biol)
+- **类型**: 阳离子通道（兴奋性！与 MOD-1 的 Cl⁻ 抑制性相反）
+- **表达**: RIA（Morud 2021 Fig 7）、AUA（Dag 2023 Fig S5B）
+- **功能**: 三大核心减速受体之一 (Dag 2023)，病原体回避学习必需
+- **减速机制**: 回路级 — LGC-50 增强 RIA 输出 → 更强头部转向 → 减慢净行进
+- **学习角色**: LGC-50 向突触的再分布受嗅觉条件化调制（突触可塑性基石）
+- **建模**: 用 SYNAPSE_GAIN (+0.15) 而非 EXCITABILITY，因 LGC-50 主要影响突触强度
+- **AUA 延迟**: 表达确认但 AUA 调制会干扰 O₂ 导航，需先实现 O₂ 上下文门控
+
 ### SPEED_SCALE 受体标签修正
 - **错误**: 此前标注为 SER-7，但 SER-7 是咽部专用受体 (Song & Avery 2012, MC 神经元)
 - **修正**: SER-7 → SER-4，基于 Dag & Flavell 2023 Fig 2 确认 SER-4 是核心减速受体
@@ -50,7 +60,7 @@ Dag & Flavell 2023 (Cell) 首次完整映射了所有 5-HT 受体在连接组上
 ### 修改文件
 - `src/simulation/simulation_engine.cpp` — `setup_neuromodulation()` 5-HT 部分
 
-### 新增靶标 (8 个 ModulationTarget)
+### 新增靶标 (10 个 ModulationTarget)
 
 | 靶标 | 受体 | 效应类型 | 强度 | 方向 |
 |------|------|---------|------|------|
@@ -62,11 +72,13 @@ Dag & Flavell 2023 (Cell) 首次完整映射了所有 5-HT 受体在连接组上
 | AIZR | MOD-1 | EXCITABILITY | -3.0 pA | 抑制 |
 | ASHL | SER-5 | EXCITABILITY | +4.0 pA | 兴奋 |
 | ASHR | SER-5 | EXCITABILITY | +4.0 pA | 兴奋 |
+| RIAL | LGC-50 | SYNAPSE_GAIN | +0.15 | 增益 |
+| RIAR | LGC-50 | SYNAPSE_GAIN | +0.15 | 增益 |
 
 ### 标签修正
 - SPEED_SCALE: `"SER-7"` → `"SER-4"` (值 -0.40 不变)
 
-### 5-HT 靶标总览 (Step 49 后: 16 个)
+### 5-HT 靶标总览 (Step 49 后: 18 个)
 
 | # | 靶标 | 受体 | 效应 | 强度 | Step |
 |---|------|------|------|------|------|
@@ -79,6 +91,7 @@ Dag & Flavell 2023 (Cell) 首次完整映射了所有 5-HT 受体在连接组上
 | 11-12 | RIC L/R | SER-1 | 兴奋 | +2.0 pA | **49** |
 | 13-14 | AIZ L/R | MOD-1 | 抑制 | -3.0 pA | **49** |
 | 15-16 | ASH L/R | SER-5 | 兴奋 | +4.0 pA | **49** |
+| 17-18 | RIA L/R | LGC-50 | SYNAPSE_GAIN | +0.15 | **49b** |
 
 ## 验证结果
 
@@ -118,3 +131,4 @@ Dag & Flavell 2023 (Cell) 首次完整映射了所有 5-HT 受体在连接组上
 - Flavell SW, Pokala N, Macosko EZ, et al. (2013) "Serotonin and the neuropeptide PDF initiate and extend opposing behavioral states in C. elegans." Cell 154(5):1023-1035.
 - Ranganathan R, Cannon SC, Horvitz HR (2000) "MOD-1 is a serotonin-gated chloride channel that modulates locomotory behaviour in C. elegans." Nature 408:470-475.
 - Song BM, Avery L (2012) "Serotonin activates overall feeding by activating two separate neural pathways in C. elegans." J Neurosci 32:1920-1931.
+- Morud J, Hardege I, Liu H, et al. (2021) "Deorphanization of novel biogenic amine-gated ion channels identifies a new serotonin receptor for learning." Curr Biol 31(19):4282-4292.

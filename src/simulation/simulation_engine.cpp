@@ -1828,6 +1828,33 @@ void SimulationEngine::setup_neuromodulation() {
         if (ashr >= 0) serotonin.targets.push_back(
             {ashr, "SER-5", ModulationEffect::EXCITABILITY, 4.0});
 
+        // Step 49b: LGC-50 → RIA (excitatory 5-HT-gated CATION channel)
+        // LGC-50 is the 6th and most recently identified 5-HT receptor (Morud 2021).
+        // Unlike MOD-1 (Cl⁻ inhibitory), LGC-50 is a CATION channel (excitatory).
+        // One of three CORE slowing receptors (Dag & Flavell 2023 Cell Fig 2).
+        // Slowing mechanism is circuit-level: LGC-50 → RIA excited → enhanced head
+        // steering → less efficient forward progression → net slowing.
+        // LGC-50 in RIA is essential for pathogen avoidance learning:
+        //   lgc-50 null mutants fail to learn PA14 avoidance (Morud 2021 Fig 7)
+        //   LGC-50 trafficking to synapses modulated by olfactory conditioning
+        // Modeled as SYNAPSE_GAIN (not EXCITABILITY) because LGC-50's primary role
+        // is synaptic plasticity: receptor trafficking to synapses amplifies RIA output
+        // during 5-HT release. This strengthens RIA→SMD klinotaxis signal → circuit-level
+        // slowing (more head steering → less efficient forward progression) without
+        // destabilizing RIA membrane potential (which SER-1 +3pA already modulates).
+        // At 5-HT=0.5: gain = 1 + 0.15×0.5 = 1.075 (7.5% stronger RIA output).
+        // REF: Morud 2021 Curr Biol — LGC-50 deorphanization, RIA expression, learning
+        //      Dag & Flavell 2023 Cell — LGC-50 core slowing receptor
+        // NOTE: rial/riar already resolved above for SER-1
+        if (rial >= 0) serotonin.targets.push_back(
+            {rial, "LGC-50", ModulationEffect::SYNAPSE_GAIN, 0.15}); // +15% RIA output at peak 5-HT
+        if (riar >= 0) serotonin.targets.push_back(
+            {riar, "LGC-50", ModulationEffect::SYNAPSE_GAIN, 0.15});
+
+        // LGC-50 → AUA: DEFERRED. AUA is an O₂ relay neuron (Step 34).
+        // Expression confirmed (Dag 2023 Fig S5B) but AUA modulation disrupts
+        // O₂-dependent navigation. Requires proper O₂ context gating first.
+
         neuromod_.add_modulator(std::move(serotonin));
     }
 

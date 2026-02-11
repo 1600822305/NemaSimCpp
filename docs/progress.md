@@ -636,7 +636,8 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 - **MOD-1 → AIZ** (-3pA 抑制性 Cl⁻): 抑制 dwelling 时不必要的热探索
 - **SER-5 → ASH** (+4pA 兴奋性): 进食时增敏伤害感觉，维持化学警戒
 - **SPEED_SCALE 标签修正**: SER-7→SER-4 (SER-7 是咽部专用, Dag & Flavell 2023)
-- **5-HT 靶标**: 8→16 (覆盖 4/6 种已知受体: MOD-1, SER-4, SER-1, SER-5)
+- **LGC-50 → RIA** (SYNAPSE_GAIN +0.15): 阳离子通道，突触可塑性增益 (Morud 2021)
+- **5-HT 靶标**: 8→18 (覆盖 5/6 种已知受体: MOD-1, SER-4, SER-1, SER-5, LGC-50; SER-7已在咽部实现)
 - **结果**: CI=0.51-0.85 (mean 0.70↑), near_food=33%, 5-HT=0.50-0.52
 - **REF**: Dag & Flavell 2023 Cell, Dernovici 2007, Harris 2009, Ranganathan 2000
 - **regtest**: 17 pass, 0 FAIL
@@ -655,7 +656,7 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
   Step 42: Cook 2019 校准 (+8 RIA↔RIV, -2 AVE→RIV) + RIV↔RIV gap
 神经调质: 6 种 (5-HT, DA, OA, TA, NLP-12, PDF) — volume transmission + 饱食度(泵驱动)
   5-HT 源: NSM(食物) + HSN(产卵) — 4个源神经元 (Step 43: ADF 移除)
-  5-HT 靶标 (16个, 4种受体): MOD-1→AIY/AIB/AIZ(抑制) + SER-4→RIC(抑制)+speed(-0.40)+reversal(-0.50) + SER-1→RIA/RIC(兴奋) + SER-5→ASH(增敏)
+  5-HT 靶标 (18个, 5种受体): MOD-1→AIY/AIB/AIZ(抑制) + SER-4→RIC(抑制)+speed(-0.40)+reversal(-0.50) + SER-1→RIA/RIC(兴奋) + SER-5→ASH(增敏) + LGC-50→RIA(SYNAPSE_GAIN)
   TA 源: RIM (逃逸协调) — LGC-55→SMD/AVB/RIV抑制 + TYRA-3→ASH增敏 + SER-2→AIY抑制
   NLP-12 源: DVA (本体感觉) — CKR-1→SMD(+5pA, 头摆ARS) + CKR-2→AVA(+2pA) + DA→DOP-1→DVA(+4pA)
 离子通道: 8/14 种 (EGL-19/UNC-2/CCA-1/SHL-1/KQT-3/SLO-1/NCA/MEC)
