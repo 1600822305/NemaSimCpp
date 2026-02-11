@@ -1757,9 +1757,13 @@ void SimulationEngine::setup_neuromodulation() {
             {-1, "MOD-1", ModulationEffect::REVERSAL_RATE, -0.50}); // 50% fewer reversals at peak 5-HT
 
         // Target: speed reduction (enhanced slowing on food)
+        // Step 49: label fix SER-7→SER-4. SER-7 is pharynx-specific (Song & Avery 2012).
+        // Speed reduction is mediated by SER-4 (Gαi/o) on locomotion circuit neurons.
+        // Dag & Flavell 2023 Cell: SER-4 is one of three core inhibitory receptors for slowing.
         // REF: Sawin 2000 — serotonin reduces locomotion speed
+        //      Dag & Flavell 2023 Cell Fig 2 — SER-4 core slowing receptor
         serotonin.targets.push_back(
-            {-1, "SER-7", ModulationEffect::SPEED_SCALE, -0.40}); // behavioral state: dwelling generally slower (stacks with instant food-contact slowing)
+            {-1, "SER-4", ModulationEffect::SPEED_SCALE, -0.40}); // behavioral state: dwelling generally slower (stacks with instant food-contact slowing)
 
         // Target: RIC inhibition (cross-inhibit OA source during dwelling)
         // 5-HT → SER-4 on RIC → inhibit → no OA during active dwelling
@@ -1770,6 +1774,59 @@ void SimulationEngine::setup_neuromodulation() {
             {ricl, "SER-4", ModulationEffect::EXCITABILITY, -4.0}); // Step 48: -8→-4 pA (allow RIC activation when satiated)
         if (ricr >= 0) serotonin.targets.push_back(
             {ricr, "SER-4", ModulationEffect::EXCITABILITY, -4.0});
+
+        // Step 49: SER-1 → RIA (excitatory Gαq GPCR)
+        // SER-1 (5HT2ce) is prominently expressed in RIA head interneurons.
+        // On food: 5-HT → SER-1 → RIA enhanced → modulates head curving during dwelling
+        // Helps fine-tune klinotaxis for local food patch navigation while dwelling.
+        // ser-1 mutant: defective food-induced slowing + changes direction more frequently
+        // REF: Dernovici 2007 J Comp Neurol — ser-1::GFP in RIA and RIC
+        //      Dag & Flavell 2023 Cell — SER-1 modulates slowing behavior
+        int rial = connectome_.get_neuron_id("RIAL");
+        int riar = connectome_.get_neuron_id("RIAR");
+        if (rial >= 0) serotonin.targets.push_back(
+            {rial, "SER-1", ModulationEffect::EXCITABILITY, 3.0}); // +3 pA excitatory (Gαq)
+        if (riar >= 0) serotonin.targets.push_back(
+            {riar, "SER-1", ModulationEffect::EXCITABILITY, 3.0});
+
+        // Step 49: SER-1 → RIC (excitatory Gαq GPCR)
+        // SER-1 also expressed in RIC (Dernovici 2007).
+        // Creates push-pull with SER-4 (-4pA): net at peak 5-HT = -4+2 = -2 pA
+        // Biological logic: prevents complete OA shutdown during dwelling.
+        // Allows faster RIC recovery when 5-HT drops → quicker roaming transition.
+        // REF: Dernovici 2007 — ser-1::GFP in RIC
+        if (ricl >= 0) serotonin.targets.push_back(
+            {ricl, "SER-1", ModulationEffect::EXCITABILITY, 2.0}); // +2 pA (partial SER-4 antagonism)
+        if (ricr >= 0) serotonin.targets.push_back(
+            {ricr, "SER-1", ModulationEffect::EXCITABILITY, 2.0});
+
+        // Step 49: MOD-1 → AIZ (inhibitory 5-HT-gated Cl⁻ channel)
+        // AIZ is in the cold-thermotaxis/avoidance pathway (Mori 1995).
+        // 5-HT → MOD-1 ⊣ AIZ → suppress unnecessary thermotaxis exploration during dwelling.
+        // Flavell 2013: mod-1 mutants show excessive roaming; MOD-1 inhibits roaming-promoting
+        // neurons including AIZ (confirmed by mod-1 promoter expression).
+        // REF: Flavell 2013 Cell — MOD-1 on roaming-promoting interneurons
+        //      Ranganathan 2000 Nature — MOD-1 5-HT-gated Cl⁻ channel
+        for (int aiz_id : aiz_ids_) {
+            if (aiz_id >= 0) serotonin.targets.push_back(
+                {aiz_id, "MOD-1", ModulationEffect::EXCITABILITY, -3.0}); // -3 pA inhibitory
+        }
+
+        // Step 49: SER-5 → ASH (excitatory GPCR, 5HT6-like)
+        // SER-5 in ASH required for 5-HT-dependent enhancement of nociceptive responses.
+        // On food: 5-HT → SER-5 → ASH more sensitive to harmful chemicals.
+        // Maintains chemical vigilance while dwelling/feeding.
+        // Stacks with TYRA-3→ASH (+5pA from TA, escape sensitization) but different mechanism:
+        //   SER-5 = tonic food-context sensitization, TYRA-3 = phasic escape sensitization.
+        // ser-5 RNAi in ASH abolishes food/5-HT-dependent octanol sensitivity increase.
+        // REF: Harris 2009 J Neurosci — SER-5 in ASH for aversive chemosensation
+        //      Dag & Flavell 2023 Cell — SER-5 modulates slowing behavior
+        int ashl = connectome_.get_neuron_id("ASHL");
+        int ashr = connectome_.get_neuron_id("ASHR");
+        if (ashl >= 0) serotonin.targets.push_back(
+            {ashl, "SER-5", ModulationEffect::EXCITABILITY, 4.0}); // +4 pA excitatory (sensitize nociception)
+        if (ashr >= 0) serotonin.targets.push_back(
+            {ashr, "SER-5", ModulationEffect::EXCITABILITY, 4.0});
 
         neuromod_.add_modulator(std::move(serotonin));
     }

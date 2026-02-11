@@ -628,6 +628,19 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 - **REF**: Flavell 2020 eLife (Ji et al.), Flavell 2013 Cell, Chase & Koelle 2007
 - **regtest**: 17 pass, 0 FAIL
 
+### Step 49: 5-HT 通路完善 — 受体多样性闭环 ✅ (2026-02-11)
+> 详细文档: [steps/step49_5ht_pathway.md](steps/step49_5ht_pathway.md)
+
+- **SER-1 → RIA** (+3pA 兴奋性 Gαq): 头部转向调制，增强 dwelling 时 klinotaxis 导航
+- **SER-1 → RIC** (+2pA 兴奋性 Gαq): 与 SER-4 推拉 (net -2pA)，防止 OA 完全关闭
+- **MOD-1 → AIZ** (-3pA 抑制性 Cl⁻): 抑制 dwelling 时不必要的热探索
+- **SER-5 → ASH** (+4pA 兴奋性): 进食时增敏伤害感觉，维持化学警戒
+- **SPEED_SCALE 标签修正**: SER-7→SER-4 (SER-7 是咽部专用, Dag & Flavell 2023)
+- **5-HT 靶标**: 8→16 (覆盖 4/6 种已知受体: MOD-1, SER-4, SER-1, SER-5)
+- **结果**: CI=0.51-0.85 (mean 0.70↑), near_food=33%, 5-HT=0.50-0.52
+- **REF**: Dag & Flavell 2023 Cell, Dernovici 2007, Harris 2009, Ranganathan 2000
+- **regtest**: 17 pass, 0 FAIL
+
 ---
 
 ## 当前系统状态
@@ -642,7 +655,7 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
   Step 42: Cook 2019 校准 (+8 RIA↔RIV, -2 AVE→RIV) + RIV↔RIV gap
 神经调质: 6 种 (5-HT, DA, OA, TA, NLP-12, PDF) — volume transmission + 饱食度(泵驱动)
   5-HT 源: NSM(食物) + HSN(产卵) — 4个源神经元 (Step 43: ADF 移除)
-  5-HT 靶标: AIY/AIB(EXCITABILITY) + speed(-0.40) + reversal_rate(-0.50) + RIC(-8pA)
+  5-HT 靶标 (16个, 4种受体): MOD-1→AIY/AIB/AIZ(抑制) + SER-4→RIC(抑制)+speed(-0.40)+reversal(-0.50) + SER-1→RIA/RIC(兴奋) + SER-5→ASH(增敏)
   TA 源: RIM (逃逸协调) — LGC-55→SMD/AVB/RIV抑制 + TYRA-3→ASH增敏 + SER-2→AIY抑制
   NLP-12 源: DVA (本体感觉) — CKR-1→SMD(+5pA, 头摆ARS) + CKR-2→AVA(+2pA) + DA→DOP-1→DVA(+4pA)
 离子通道: 8/14 种 (EGL-19/UNC-2/CCA-1/SHL-1/KQT-3/SLO-1/NCA/MEC)
@@ -658,7 +671,7 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 工具: CLI 运行时参数覆盖 (--as_factor/--pulse_amp/--duration/--seed 等, 无需重编译调参)
       --fitness 模式: 4 seeds × 3 scenarios 自动评估, 输出标量 fitness score
 可视化: Dear ImGui + ImPlot + GLFW, 3列布局, 实时调参+信号链诊断
-状态: 趋化+触觉回避+化学回避+排斥weathervane+病原体学习(CI反向!)+多化学物种+RIM稳定+神经调质+ARS(双通路:DARPP-32+NLP-12)+觅食循环+STP+盐学习+温度趋性+咽部泵食+睡眠/静止(RIS/FLP-11)+RIV omega(TA门控)+后退运动+RIA↔RIV负反馈环路+PDF roaming+food-edge反转, 纯涌现 (132神经元)
+状态: 趋化+触觉回避+化学回避+排斥weathervane+病原体学习(CI反向!)+多化学物种+RIM稳定+神经调质+ARS(双通路:DARPP-32+NLP-12)+觅食循环+STP+盐学习+温度趋性+咽部泵食+睡眠/静止(RIS/FLP-11)+RIV omega(TA门控)+后退运动+RIA↔RIV负反馈环路+PDF roaming+food-edge反转+5-HT受体多样性(MOD-1/SER-4/SER-1/SER-5), 纯涌现 (132神经元)
 工具: celegans_diag.exe (信号链诊断+fitness) + celegans_regtest.exe (回归检测+电流溯源)
 
 运动驱动 (Step 13 — 生物学机制):
@@ -693,7 +706,7 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
   运动学: dθ/dt = v × κ_head, pirouette 概率模型 (AVA 调制)
   Weathervane: ∇C_⊥ → SMD 差异驱动 + 直接曲率偏置 (Iino & Yoshida 2009)
   曲率偏置: curv_gain=45, 梯度法向→头部曲率偏移 (绕过SMD振荡瓶颈)
-  趋化指数: CI ≈ 0.21-0.93 (no_toxin), time_near_food ≈ 33% (300s, 文献60-80%)
+  趋化指数: CI ≈ 0.51-0.85 (no_toxin, mean 0.70), time_near_food ≈ 33% (300s, 文献60-80%)
   Pirouette: off-food 0.10/s (6/min), on-food ~0.06/s (5-HT REVERSAL_RATE -0.50 suppression)
   Food-edge: head poke reversal p=0.50+0.30×5HT-0.30×PDF (eLife 2024)
   Basal slowing: on_lawn sigmoid × 0.25 → 25% on-food 速度下降 (instant, DOP-3 volume transmission)
