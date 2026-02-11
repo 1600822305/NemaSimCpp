@@ -94,10 +94,29 @@ void BodyModel::update_positions(double dt) {
     double v_max = 0.6 * speed_scale_; // mm/s; muscle_work ~0.3-0.5 → effective speed ~0.15-0.30
     double forward_speed = v_max * muscle_work;
 
-    // --- 2. Heading update: dθ/dt = v × κ_head ---
+    // --- 1b. Locomotion direction from command neuron balance ---
+    // Step 41: Implement backward locomotion during reversal
+    // REF: Fang-Yen 2010 — reverse speed ~60% of forward speed
+    //      Chalfie 1985 — AVA command neuron drives backward movement
+    // Smooth drives (tau=100ms) to avoid jitter at direction transitions
+    smooth_fwd_ += (forward_drive_ - smooth_fwd_) * dt / 0.1;
+    smooth_rev_ += (reverse_drive_ - smooth_rev_) * dt / 0.1;
+    mean_rev_ += (smooth_rev_ - mean_rev_) * dt / 5.0;
+
+    // Net direction: +1 forward, -1 backward
+    // Hysteresis: need 0.1 margin to switch (prevents oscillation at transition)
+    double direction = 1.0;
+    if (smooth_rev_ > smooth_fwd_ + 0.1) {
+        direction = -1.0;
+        forward_speed *= 0.6;  // reverse speed is ~60% of forward (Fang-Yen 2010)
+    }
+
+    // --- 2. Heading update: dθ/dt = v × direction × κ_head ---
     // REF: Padmanabhan 2012 — body with curvature κ moving at speed v turns at v·κ
+    // During reversal (direction=-1): heading change reverses, consistent with
+    // tail-first locomotion where the same curvature produces opposite turning
     double head_curv = segments_[0].curvature + curvature_bias_;
-    double dtheta = forward_speed * head_curv * dt;
+    double dtheta = forward_speed * direction * head_curv * dt;
     // Clamp heading change rate
     // Run regime: 50°/s = 0.87 rad/s (Pierce-Shimomura 1999)
     // Omega turn: 300°/s = 5.24 rad/s (deep ventral bend, Gray 2005)
@@ -106,17 +125,15 @@ void BodyModel::update_positions(double dt) {
     if (dtheta < -max_dtheta) dtheta = -max_dtheta;
     segments_[0].angle += dtheta;
 
-    // --- 3. Pirouette model ---
-    // DISABLED: Random uniform[-π,π] heading resets destroyed weathervane chemotaxis.
-    // Replaced by engine-based reversal + gradient-biased omega turn (Step 18):
-    //   AVA > threshold → reversal → omega turn biased toward food (70% probability)
-    // The AVA smoothing is kept for diagnostic/monitoring purposes only.
-    smooth_rev_ += (reverse_drive_ - smooth_rev_) * dt / 0.5;
-    mean_rev_ += (smooth_rev_ - mean_rev_) * dt / 5.0;
-
-    // --- 4. Update head position (always forward) ---
+    // --- 4. Update head position ---
+    // Step 41: direction=-1 during reversal → head moves backward
+    // This physical backward displacement is essential for pirouette function:
+    // the body position at omega turn onset depends on reversal duration,
+    // which varies stochastically, creating post-pirouette heading diversity
+    // REF: Pierce-Shimomura 1999 — "direction of new run after pirouette
+    //      was essentially random" (emerges from backward displacement + omega geometry)
     Vector2d head_dir = Vector2d::from_angle(segments_[0].angle);
-    segments_[0].position += head_dir * forward_speed * dt;
+    segments_[0].position += head_dir * forward_speed * direction * dt;
 
     // --- 5. Save curvatures ---
     for (int i = 0; i < NUM_BODY_SEGMENTS; ++i) {

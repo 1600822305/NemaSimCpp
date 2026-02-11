@@ -182,6 +182,42 @@ void ConnectomeLoader::generate_default_connectome(
         //      Ha 2010 Neuron — ADF essential for aversive olfactory learning
         {"ADFL", NeuronType::SENSORY, NeurotransmitterType::SEROTONIN},
         {"ADFR", NeuronType::SENSORY, NeurotransmitterType::SEROTONIN},
+        // Step 33: OLQ nose touch mechanosensory neurons (labial cilia)
+        // 4 quadrant neurons: sense close-range obstacles (dist < 0.3mm)
+        // OLQ mediates head withdrawal reflex via RMD (Hart 1995)
+        // Only 5% of nose touch avoidance (ASH=45%, FLP=29%) — subtle, exploratory
+        // REF: Kaplan & Horvitz 1993, Hart 1995, White 1986
+        {"OLQDL", NeuronType::SENSORY, NeurotransmitterType::GLUTAMATE},
+        {"OLQDR", NeuronType::SENSORY, NeurotransmitterType::GLUTAMATE},
+        {"OLQVL", NeuronType::SENSORY, NeurotransmitterType::GLUTAMATE},
+        {"OLQVR", NeuronType::SENSORY, NeurotransmitterType::GLUTAMATE},
+        // Step 34: O₂ sensing neurons
+        // URX: primary O₂ sensor, gcy-35/gcy-36 soluble guanylate cyclase
+        // Activated by HIGH O₂ (>14%), drives hyperoxia avoidance
+        // NPR-1 215V (N2) tonically inhibits URX → mild O₂ response on food
+        // REF: Gray 2004 Nature, Cheung 2005 Neuron, Chang 2006 PLoS Biology
+        {"URXL", NeuronType::SENSORY, NeurotransmitterType::ACETYLCHOLINE},
+        {"URXR", NeuronType::SENSORY, NeurotransmitterType::ACETYLCHOLINE},
+        // AQR: anterior body cavity O₂ sensor (single, unpaired)
+        // Exposed to pseudocoelomic fluid, expresses gcy-35
+        // REF: Chang 2006 — AQR+PQR+URX form distributed O₂ circuit
+        {"AQR",  NeuronType::SENSORY, NeurotransmitterType::GLUTAMATE},
+        // PQR: posterior body cavity O₂ sensor (single, unpaired)
+        // Tail position → high O₂ at tail → accelerate forward (Busch 2012)
+        {"PQR",  NeuronType::SENSORY, NeurotransmitterType::GLUTAMATE},
+        // Step 35: BAG — CO₂ sensor (gcy-9 receptor guanylate cyclase)
+        // Activated by CO₂ > 0.5%, drives CO₂ avoidance (turning + speed change)
+        // N2: NPR-1 suppresses URX → URX doesn't inhibit CO₂ circuit → avoids CO₂
+        // Phasic response: sensitive to CO₂ changes, OFF rebound on CO₂ decrease
+        // REF: Hallem & Sternberg 2008 PNAS, Bretscher 2011 Neuron, Carrillo 2013
+        {"BAGL", NeuronType::SENSORY, NeurotransmitterType::GLUTAMATE},
+        {"BAGR", NeuronType::SENSORY, NeurotransmitterType::GLUTAMATE},
+        // Step 36: PVD — harsh touch + proprioception (multi-dendritic)
+        // Dendrites tile entire body wall; dual-mode: harsh touch + body bend sensing
+        // Glutamatergic (GLR-1 mediated harsh touch response, Hart 1995)
+        // REF: Way & Chalfie 1989, Albeg 2011, Tao 2019
+        {"PVDL", NeuronType::SENSORY, NeurotransmitterType::GLUTAMATE},
+        {"PVDR", NeuronType::SENSORY, NeurotransmitterType::GLUTAMATE},
         // Key interneurons
         {"AIAL", NeuronType::INTER, NeurotransmitterType::ACETYLCHOLINE},
         {"AIAR", NeuronType::INTER, NeurotransmitterType::ACETYLCHOLINE},
@@ -195,6 +231,18 @@ void ConnectomeLoader::generate_default_connectome(
         {"RIAR", NeuronType::INTER, NeurotransmitterType::ACETYLCHOLINE},
         {"RIBL", NeuronType::INTER, NeurotransmitterType::ACETYLCHOLINE},
         {"RIBR", NeuronType::INTER, NeurotransmitterType::ACETYLCHOLINE},
+        // Step 34: AUA — O₂ signal relay/integration interneuron
+        // Receives from URX (O₂) + ADF (5-HT) → outputs to AVA/AVB
+        // Key integration point: O₂ and serotonin converge here
+        // REF: Chang 2006 PLoS Biology, WormWiring (Cook 2019)
+        {"AUAL", NeuronType::INTER, NeurotransmitterType::GLUTAMATE},
+        {"AUAR", NeuronType::INTER, NeurotransmitterType::GLUTAMATE},
+        // Step 36: DVA — whole-body proprioceptive interneuron (single, unpaired)
+        // Axon spans entire body; TRP-4 TRPN stretch receptor channel
+        // Senses body curvature → modulates motor neuron gain
+        // trp-4 mutant: abnormal body bending (Li 2006 Nature)
+        // REF: Li 2006 Nature, Hu 2011, Yeon 2018 PLoS Biology
+        {"DVA",  NeuronType::INTER, NeurotransmitterType::GLUTAMATE},
         // Command interneurons
         {"AVAL", NeuronType::INTER, NeurotransmitterType::ACETYLCHOLINE},
         {"AVAR", NeuronType::INTER, NeurotransmitterType::ACETYLCHOLINE},
@@ -227,25 +275,75 @@ void ConnectomeLoader::generate_default_connectome(
         {"SMBDR", NeuronType::MOTOR, NeurotransmitterType::ACETYLCHOLINE},
         {"SMBVL", NeuronType::MOTOR, NeurotransmitterType::ACETYLCHOLINE},
         {"SMBVR", NeuronType::MOTOR, NeurotransmitterType::ACETYLCHOLINE},
-        // Ventral cord motor neurons (representative subset)
+        // Ventral cord motor neurons (Step 39: expanded from 3→5-7 per class)
+        // REF: White 1986, Haspel 2010 (body segment mapping)
+        // DA: dorsal A-class, backward locomotion (real: DA1-9, we use DA1-5)
         {"DA01", NeuronType::MOTOR, NeurotransmitterType::ACETYLCHOLINE},
         {"DA02", NeuronType::MOTOR, NeurotransmitterType::ACETYLCHOLINE},
         {"DA03", NeuronType::MOTOR, NeurotransmitterType::ACETYLCHOLINE},
+        {"DA04", NeuronType::MOTOR, NeurotransmitterType::ACETYLCHOLINE},
+        {"DA05", NeuronType::MOTOR, NeurotransmitterType::ACETYLCHOLINE},
+        // DB: dorsal B-class, forward locomotion (real: DB1-7, all 7)
         {"DB01", NeuronType::MOTOR, NeurotransmitterType::ACETYLCHOLINE},
         {"DB02", NeuronType::MOTOR, NeurotransmitterType::ACETYLCHOLINE},
         {"DB03", NeuronType::MOTOR, NeurotransmitterType::ACETYLCHOLINE},
+        {"DB04", NeuronType::MOTOR, NeurotransmitterType::ACETYLCHOLINE},
+        {"DB05", NeuronType::MOTOR, NeurotransmitterType::ACETYLCHOLINE},
+        {"DB06", NeuronType::MOTOR, NeurotransmitterType::ACETYLCHOLINE},
+        {"DB07", NeuronType::MOTOR, NeurotransmitterType::ACETYLCHOLINE},
+        // VA: ventral A-class, backward locomotion (real: VA1-12, we use VA1-5)
         {"VA01", NeuronType::MOTOR, NeurotransmitterType::ACETYLCHOLINE},
         {"VA02", NeuronType::MOTOR, NeurotransmitterType::ACETYLCHOLINE},
         {"VA03", NeuronType::MOTOR, NeurotransmitterType::ACETYLCHOLINE},
+        {"VA04", NeuronType::MOTOR, NeurotransmitterType::ACETYLCHOLINE},
+        {"VA05", NeuronType::MOTOR, NeurotransmitterType::ACETYLCHOLINE},
+        // VB: ventral B-class, forward locomotion (real: VB1-11, we use VB1-7)
         {"VB01", NeuronType::MOTOR, NeurotransmitterType::ACETYLCHOLINE},
         {"VB02", NeuronType::MOTOR, NeurotransmitterType::ACETYLCHOLINE},
         {"VB03", NeuronType::MOTOR, NeurotransmitterType::ACETYLCHOLINE},
+        {"VB04", NeuronType::MOTOR, NeurotransmitterType::ACETYLCHOLINE},
+        {"VB05", NeuronType::MOTOR, NeurotransmitterType::ACETYLCHOLINE},
+        {"VB06", NeuronType::MOTOR, NeurotransmitterType::ACETYLCHOLINE},
+        {"VB07", NeuronType::MOTOR, NeurotransmitterType::ACETYLCHOLINE},
+        // DD: dorsal D-class, GABAergic cross-inhibition (real: DD1-6, we use DD1-5)
         {"DD01", NeuronType::MOTOR, NeurotransmitterType::GABA},
         {"DD02", NeuronType::MOTOR, NeurotransmitterType::GABA},
         {"DD03", NeuronType::MOTOR, NeurotransmitterType::GABA},
+        {"DD04", NeuronType::MOTOR, NeurotransmitterType::GABA},
+        {"DD05", NeuronType::MOTOR, NeurotransmitterType::GABA},
+        // VD: ventral D-class, GABAergic cross-inhibition (real: VD1-13, we use VD1-5)
         {"VD01", NeuronType::MOTOR, NeurotransmitterType::GABA},
         {"VD02", NeuronType::MOTOR, NeurotransmitterType::GABA},
         {"VD03", NeuronType::MOTOR, NeurotransmitterType::GABA},
+        {"VD04", NeuronType::MOTOR, NeurotransmitterType::GABA},
+        {"VD05", NeuronType::MOTOR, NeurotransmitterType::GABA},
+        // Step 31: RIV — omega turn motor neurons (GABAergic, ventral head bend)
+        // RIV innervates ventral neck muscles; specifies ventral bias of omega turns
+        // REF: Gray 2005 PNAS — RIV ablation reduces omega frequency
+        //      Donnelly 2013 — RIV triggers omega via ventral head bend
+        {"RIVL", NeuronType::MOTOR, NeurotransmitterType::GABA},
+        {"RIVR", NeuronType::MOTOR, NeurotransmitterType::GABA},
+        // Step 32: AS motor neurons — dorsal-only body wall projections
+        // AS receives both AVA and AVB → always active → tonic dorsal bias
+        // Breaks dorsal-ventral symmetry; provides background against which
+        // RIV must compete → graded omega turns emerge from RIV-AS force balance
+        // REF: White 1986 (anatomy), Haspel 2010 (dorsal projection),
+        //      Chen 2006 (active during both forward and backward)
+        {"AS01", NeuronType::MOTOR, NeurotransmitterType::GLUTAMATE},
+        {"AS02", NeuronType::MOTOR, NeurotransmitterType::GLUTAMATE},
+        {"AS03", NeuronType::MOTOR, NeurotransmitterType::GLUTAMATE},
+        {"AS04", NeuronType::MOTOR, NeurotransmitterType::GLUTAMATE},
+        {"AS05", NeuronType::MOTOR, NeurotransmitterType::GLUTAMATE},
+        {"AS06", NeuronType::MOTOR, NeurotransmitterType::GLUTAMATE},
+        {"AS07", NeuronType::MOTOR, NeurotransmitterType::GLUTAMATE},
+        // Step 33: RME head motor neurons — GABAergic amplitude control
+        // RMED/RMEV modulate head bending amplitude via push-pull with SMD
+        // RMED innervates VENTRAL head muscles (contralateral!)
+        // RMEV innervates DORSAL head muscles (contralateral!)
+        // RMEL/RMER omitted: no effect on D/V bending (Huang 2016 eLife)
+        // REF: White 1986, Huang 2016 eLife, Jorgensen 2005 WormBook
+        {"RMED", NeuronType::MOTOR, NeurotransmitterType::GABA},
+        {"RMEV", NeuronType::MOTOR, NeurotransmitterType::GABA},
         // Step 24: Pharyngeal nervous system (independent CPG)
         // 20 neurons total, 14 types; we implement the 5 essential types (9 neurons)
         // REF: Albertson & Thomson 1976, Avery (WormBook 2012)
@@ -275,6 +373,18 @@ void ConnectomeLoader::generate_default_connectome(
         //      Konietzka 2020 Nat Commun — RIS also functions as locomotion stop neuron
         //      Maluck 2023 PLOS Genetics — RIS promotes survival independently of sleep
         {"RIS",  NeuronType::INTER, NeurotransmitterType::GABA},
+        // Step 38: Egg-laying circuit (Collins 2016 eLife, Schafer 2006)
+        // HSN: serotonergic command motor neuron, drives vulval muscle contraction
+        // Releases 5-HT + NLP-3 → initiates ~2min active egg-laying state
+        // Tyramine feedback via LGC-55 terminates active state (uv1 cells)
+        // REF: Waggoner 1998 Neuron, Brewer 2019 PLoS Genetics
+        {"HSNL", NeuronType::MOTOR, NeurotransmitterType::SEROTONIN},
+        {"HSNR", NeuronType::MOTOR, NeurotransmitterType::SEROTONIN},
+        // VC4/VC5: cholinergic motor neurons, most proximal to vulva
+        // Mechanically activated by vulval muscle contraction → positive feedback
+        // REF: Collins 2016 eLife, 2021 J Neurosci — VC facilitates egg release
+        {"VC4",  NeuronType::MOTOR, NeurotransmitterType::ACETYLCHOLINE},
+        {"VC5",  NeuronType::MOTOR, NeurotransmitterType::ACETYLCHOLINE},
     };
 
     for (size_t i = 0; i < defs.size(); ++i) {
@@ -289,7 +399,7 @@ void ConnectomeLoader::generate_default_connectome(
     std::unordered_map<std::string, int> name_to_id;
     for (auto& n : neurons) name_to_id[n.name] = n.id;
 
-    auto add_syn = [&](const char* pre, const char* post, int sections) {
+    auto add_syn = [&](const char* pre, const char* post, double sections) {
         auto pre_it = name_to_id.find(pre);
         auto post_it = name_to_id.find(post);
         if (pre_it != name_to_id.end() && post_it != name_to_id.end()) {
@@ -303,7 +413,7 @@ void ConnectomeLoader::generate_default_connectome(
     };
 
     // Step 28: compartment-targeted synapse (for multi-compartment neurons)
-    auto add_syn_comp = [&](const char* pre, const char* post, int sections, int post_comp) {
+    auto add_syn_comp = [&](const char* pre, const char* post, double sections, int post_comp) {
         auto pre_it = name_to_id.find(pre);
         auto post_it = name_to_id.find(post);
         if (pre_it != name_to_id.end() && post_it != name_to_id.end()) {
@@ -317,7 +427,7 @@ void ConnectomeLoader::generate_default_connectome(
         }
     };
 
-    auto add_gj = [&](const char* a, const char* b, int sections) {
+    auto add_gj = [&](const char* a, const char* b, double sections) {
         auto a_it = name_to_id.find(a);
         auto b_it = name_to_id.find(b);
         if (a_it != name_to_id.end() && b_it != name_to_id.end()) {
@@ -347,28 +457,48 @@ void ConnectomeLoader::generate_default_connectome(
     // NOTE: PLM→AVA inhibitory and ALM→AVB inhibitory moved after add_syn_inh
     // AVD → AVA excitatory relay (signal from touch → backward command)
     // Weak: only effective when AVD is strongly activated by touch (not tonic)
-    add_syn("AVDL", "AVAL", 1); add_syn("AVDR", "AVAR", 1);
+    // Step 42: Cook 2019 weights: AVDL→AVAL=37, AVDR→AVAR=52
+    // Conservative: 1→2 (full Cook scaling overdrives AVA tonic level)
+    add_syn("AVDL", "AVAL", 2); add_syn("AVDR", "AVAR", 2);
     // Interneuron → Command interneuron
     // AIA ⊣ AIB: inhibitory (suppresses pirouettes when ON chemosensory active)
     // REF: Chalasani 2007 — AIA inhibits AIB via inhibitory ACh receptors
     // NOTE: uses add_syn_inh defined below for inhibitory synapse
     // (moved to after add_syn_inh lambda definition)
-    add_syn("AIBL", "AVAL", 3); add_syn("AIBR", "AVAR", 3);
-    add_syn("AIYL", "RIAR", 4); add_syn("AIYR", "RIAL", 4);
+    // Step 42: Cook 2019 weights: AIBL→AVAL=5, AIBR→AVAR=2
+    // Preserve L/R asymmetry but keep functional balance
+    add_syn("AIBL", "AVAL", 2); add_syn("AIBR", "AVAR", 1);
+    // Step 42: Cook 2019 weights: AIYL→RIAL=51, AIYR→RIAR=50 (scale ÷10)
+    add_syn("AIYL", "RIAR", 5); add_syn("AIYR", "RIAL", 5);
+    // Step 42: Cook 2019 weights: AIYL→AIZL=67, AIYR→AIZR=70
+    // Keep at 3 for now (increasing destabilizes downstream TA/omega dynamics)
     add_syn("AIYL", "AIZL", 3); add_syn("AIYR", "AIZR", 3);
     // AIY → AVB: promotes forward locomotion
     // REF: Gray 2005 — AIY ablation reduces forward runs
     add_syn("AIYL", "AVBL", 3); add_syn("AIYR", "AVBR", 3);
-    // Command → Motor
+    // Command → Motor (Step 39: expanded to full complement)
+    // AVA → A-class (backward): anterior stronger, posterior weaker (gradient)
     add_syn("AVAL", "DA01", 5); add_syn("AVAL", "DA02", 4); add_syn("AVAL", "DA03", 3);
+    add_syn("AVAL", "DA04", 2); add_syn("AVAL", "DA05", 2);
     add_syn("AVAL", "VA01", 4); add_syn("AVAL", "VA02", 3); add_syn("AVAL", "VA03", 3);
+    add_syn("AVAL", "VA04", 2); add_syn("AVAL", "VA05", 2);
     add_syn("AVAR", "DA01", 5); add_syn("AVAR", "DA02", 4); add_syn("AVAR", "DA03", 3);
+    add_syn("AVAR", "DA04", 2); add_syn("AVAR", "DA05", 2);
+    // AVB → B-class (forward): anterior stronger, posterior weaker
     add_syn("AVBL", "DB01", 5); add_syn("AVBL", "DB02", 4); add_syn("AVBL", "DB03", 3);
+    add_syn("AVBL", "DB04", 3); add_syn("AVBL", "DB05", 2); add_syn("AVBL", "DB06", 2);
+    add_syn("AVBL", "DB07", 1);
     add_syn("AVBL", "VB01", 4); add_syn("AVBL", "VB02", 3); add_syn("AVBL", "VB03", 3);
+    add_syn("AVBL", "VB04", 2); add_syn("AVBL", "VB05", 2); add_syn("AVBL", "VB06", 2);
+    add_syn("AVBL", "VB07", 1);
     add_syn("AVBR", "DB01", 5); add_syn("AVBR", "DB02", 4); add_syn("AVBR", "DB03", 3);
-    // D-type cross inhibition
+    add_syn("AVBR", "DB04", 3); add_syn("AVBR", "DB05", 2); add_syn("AVBR", "DB06", 2);
+    add_syn("AVBR", "DB07", 1);
+    // D-type cross inhibition (Step 39: expanded to 5 pairs)
     add_syn("DD01", "VD01", 3); add_syn("DD02", "VD02", 3); add_syn("DD03", "VD03", 3);
+    add_syn("DD04", "VD04", 3); add_syn("DD05", "VD05", 3);
     add_syn("VD01", "DD01", 3); add_syn("VD02", "DD02", 3); add_syn("VD03", "DD03", 3);
+    add_syn("VD04", "DD04", 3); add_syn("VD05", "DD05", 3);
     // Head motor → SMD/RMD circuits
     add_syn("RIAL", "SMDVL", 4); add_syn("RIAR", "SMDVR", 4);
     add_syn("RIAL", "SMDDL", 3); add_syn("RIAR", "SMDDR", 3);
@@ -408,7 +538,7 @@ void ConnectomeLoader::generate_default_connectome(
     // In C. elegans some ACh synapses act inhibitory via ACC chloride channels
     // REF: Pereira 2015 (ACh receptor diversity), Hendricks 2012
     // These use GABA-like reversal to model functional inhibition
-    auto add_syn_inh = [&](const char* pre, const char* post, int sections) {
+    auto add_syn_inh = [&](const char* pre, const char* post, double sections) {
         auto pre_it = name_to_id.find(pre);
         auto post_it = name_to_id.find(post);
         if (pre_it != name_to_id.end() && post_it != name_to_id.end()) {
@@ -464,11 +594,230 @@ void ConnectomeLoader::generate_default_connectome(
     // RIB → AVB (additional forward drive)
     add_syn("RIBL", "AVBL", 2); add_syn("RIBR", "AVBR", 2);
 
+    // ================================================================
+    // Step 37: AVE backward command — reversal grading + omega gating
+    // AVE is the second backward command interneuron pair (with AVA)
+    // AVA: lower threshold → short exploratory reversals
+    // AVE: higher threshold → long committed reversals → omega
+    // REF: Chalfie 1985, Piggott 2011, Kawano 2011
+    // ================================================================
+
+    // AIB → AVE: chemosensory relay → backward command (weaker than AIB→AVA)
+    // AVE has higher activation threshold → only fires on strong AIB drive
+    // REF: White 1986 — AIB makes synapses onto AVE
+    add_syn("AIBL", "AVEL", 1); add_syn("AIBR", "AVER", 1);
+
+    // ASH → AVE: nociception direct → committed reversal
+    // REF: White 1986 — ASH synapses onto AVE (2 sections)
+    add_syn("ASHL", "AVEL", 2); add_syn("ASHR", "AVER", 2);
+
+    // AVE → DA: backward motor neuron drive (same targets as AVA)
+    // REF: Chalfie 1985 — AVE commands DA/VA motor neurons
+    // Step 39: expanded to all 5 DA neurons
+    add_syn("AVEL", "DA01", 1); add_syn("AVER", "DA02", 1); add_syn("AVEL", "DA03", 1);
+    add_syn("AVER", "DA04", 1); add_syn("AVEL", "DA05", 1);
+
     // RIM connections (Step 19b — Ouellette 2022 eLife)
     // AIB → RIM: activates RIM during reversals (reversal signal relay)
     add_syn("AIBL", "RIML", 3); add_syn("AIBR", "RIMR", 3);
     // AVE → RIM: additional reversal input
     add_syn("AVEL", "RIML", 2); add_syn("AVER", "RIMR", 2);
+
+    // Step 31: RIV omega turn circuit (Gray 2005, Donnelly 2013)
+    // RIV omega burst via POST-INHIBITORY REBOUND (not direct AVA excitation):
+    //   Reversal: TA→LGC-55 holds RIV at -80mV → CCA-1 T-type Ca²⁺ deinactivates
+    //   Reversal ends: TA decays → inhibition released → CCA-1 rebound burst → omega
+    //   (AVA→RIV removed: AVA has 0.24 tonic release → 23pA continuous drive
+    //    → RIV fires during forward locomotion → destroys SMD head oscillation)
+    // Step 42C: Complete RIA↔RIV negative feedback loop (Cook 2019 anatomy)
+    // RIA→RIV excitatory (ACh): Cook 2019 RIAL→RIVR=12, RIAL→RIVL=8, RIAR→RIVL=3, RIAR→RIVR=3
+    // RIV→RIA inhibitory (GABA): Cook 2019 RIVL→RIAL=5, RIVR→RIAL=6, RIVL→RIAR=2, RIVR→RIAR=2
+    // This creates a self-limiting oscillatory loop:
+    //   RIA excites RIV → RIV inhibits RIA → RIA drive drops → RIV quiets → RIA recovers → cycle
+    // Without feedback: RIA tonic drive keeps RIV depolarized → CCA-1 h inactivated → no omega
+    // With feedback: RIV self-limits → oscillates around low activity → h can deinactivate
+    // During reversal: TA deeply suppresses RIV → h fully deinactivates
+    // Reversal ends: TA decays → RIA-RIV loop resumes → first burst = omega trigger
+    // NOTE: AVE→RIV removed (does NOT exist in Cook 2019)
+    add_syn("RIAL", "RIVR", 1); add_syn("RIAL", "RIVL", 1);
+    add_syn("RIAR", "RIVL", 1); add_syn("RIAR", "RIVR", 1);
+    // RIV→RIA inhibitory feedback (GABA via UNC-49)
+    add_syn_inh("RIVL", "RIAL", 1);   add_syn_inh("RIVR", "RIAL", 1);
+    add_syn_inh("RIVL", "RIAR", 0.5); add_syn_inh("RIVR", "RIAR", 0.5);
+    // RIV ⊣ RMD dorsal: suppress dorsal muscles during omega → deepen ventral bend
+    // REF: Donnelly 2013 — asymmetric D/V muscle drive for deep omega
+    add_syn_inh("RIVL", "RMDDL", 1); add_syn_inh("RIVR", "RMDDR", 1);
+
+    // Step 32: AS motor neuron circuit (White 1986, Haspel 2010, Chen 2006)
+    // AS is unique: receives BOTH AVA and AVB → always active regardless of direction
+    // This provides tonic dorsal bias that RIV must overcome for omega turns
+    //
+    // AVA → AS: backward command drives AS during reversals (1 section each)
+    // AS are unpaired neurons; alternate L/R innervation along body
+    // REF: White 1986 — AS1 receives from AVAL, AS2 from AVAR, etc.
+    add_syn("AVAL", "AS01", 1); add_syn("AVAR", "AS02", 1);
+    add_syn("AVAL", "AS03", 1); add_syn("AVAR", "AS04", 1); add_syn("AVAL", "AS05", 1);
+    add_syn("AVAR", "AS06", 1); add_syn("AVAL", "AS07", 1);
+    // AVB → AS: forward command also drives AS (1 section each)
+    // REF: Chen 2006 — AS calcium imaging shows activity in both fwd/rev
+    add_syn("AVBL", "AS01", 1); add_syn("AVBR", "AS02", 1);
+    add_syn("AVBL", "AS03", 1); add_syn("AVBR", "AS04", 1); add_syn("AVBL", "AS05", 1);
+    add_syn("AVBR", "AS06", 1); add_syn("AVBL", "AS07", 1);
+    // DD ⊣ AS: GABAergic cross-inhibition during ventral phase
+    // When DD fires (dorsal input → ventral inhibition), also suppress AS dorsal drive
+    // This allows ventral-phase bending without AS fighting it
+    add_syn_inh("DD01", "AS01", 1); add_syn_inh("DD01", "AS02", 1);
+    add_syn_inh("DD02", "AS03", 1); add_syn_inh("DD02", "AS04", 1);
+    add_syn_inh("DD03", "AS04", 1); add_syn_inh("DD03", "AS05", 1);
+    add_syn_inh("DD04", "AS05", 1); add_syn_inh("DD04", "AS06", 1);
+    add_syn_inh("DD05", "AS06", 1); add_syn_inh("DD05", "AS07", 1);
+
+    // DB ↔ AS: gap junction coupling (synchronize dorsal activation)
+    // REF: White 1986 — DB and AS co-innervate dorsal muscles
+    add_gj("DB01", "AS01", 1); add_gj("DB01", "AS02", 1);
+    add_gj("DB02", "AS03", 1); add_gj("DB02", "AS04", 1);
+    add_gj("DB03", "AS04", 1); add_gj("DB03", "AS05", 1);
+    add_gj("DB04", "AS05", 1); add_gj("DB05", "AS06", 1);
+    add_gj("DB06", "AS06", 1); add_gj("DB07", "AS07", 1);
+
+    // ================================================================
+    // Step 33: RME + OLQ synaptic connections
+    // ================================================================
+
+    // SMD →(extrasynaptic) RME: cholinergic volume transmission via GAR-2
+    // SMD does NOT directly synapse onto RME (White 1986 connectome)
+    // Modeled as weak chemical synapse (g ~0.03 nS, 10× weaker than normal)
+    // REF: Huang 2016 eLife — SMD ACh → GAR-2 muscarinic on RME
+    // SMDD active during dorsal bend → activates RMED (same phase)
+    // SMDV active during ventral bend → activates RMEV (same phase)
+    // sections=0.3 approximates extrasynaptic 10× dilution (0.3 × 0.1nS ≈ 0.03nS)
+    add_syn("SMDDL", "RMED", 0.3); add_syn("SMDDR", "RMED", 0.3);
+    add_syn("SMDVL", "RMEV", 0.3); add_syn("SMDVR", "RMEV", 0.3);
+
+    // RME ⊣(GABAB) SMD: extrasynaptic GABA → GBB-1/2 on SMD
+    // Negative feedback: RME inhibits SMD to limit head bending amplitude
+    // Also modeled as weak inhibitory synapse (extrasynaptic)
+    // RMED active during dorsal bend → inhibits SMDV (contralateral)
+    // RMEV active during ventral bend → inhibits SMDD (contralateral)
+    // REF: Huang 2016 eLife — GABAB GBB-1/2 on SMD restrains head bending
+    add_syn_inh("RMED", "SMDVL", 0.3); add_syn_inh("RMED", "SMDVR", 0.3);
+    add_syn_inh("RMEV", "SMDDL", 0.3); add_syn_inh("RMEV", "SMDDR", 0.3);
+
+    // RIA → RME: direct chemical synapse (White 1986 connectome)
+    // RIA provides head oscillation signal to RME
+    add_syn("RIAL", "RMED", 1); add_syn("RIAL", "RMEV", 1);
+    add_syn("RIAR", "RMED", 1); add_syn("RIAR", "RMEV", 1);
+
+    // OLQ → RMD: head withdrawal reflex (Hart 1995)
+    // Touch on one side → RMD activation → head moves away
+    // REF: Hart 1995 — OLQ+IL1 required for head withdrawal
+    add_syn("OLQDL", "RMDDL", 1); add_syn("OLQDR", "RMDDR", 1);
+    add_syn("OLQVL", "RMDVL", 1); add_syn("OLQVR", "RMDVR", 1);
+
+    // OLQ → RIC: indirect path to AVA (not direct!)
+    // REF: White 1986 — OLQ synapses onto RIC, which connects to command INs
+    add_syn("OLQDL", "RICL", 1); add_syn("OLQDR", "RICR", 1);
+    add_syn("OLQVL", "RICL", 1); add_syn("OLQVR", "RICR", 1);
+
+    // OLQ ↔ CEP: gap junction coupling with dopaminergic mechanosensory
+    // REF: White 1986 — OLQ and CEP share gap junctions at lip
+    add_gj("OLQDL", "CEPDL", 1); add_gj("OLQDR", "CEPDR", 1);
+    add_gj("OLQVL", "CEPVL", 1); add_gj("OLQVR", "CEPVR", 1);
+
+    // ================================================================
+    // Step 34: O₂ sensing circuit (Gray 2004, Chang 2006, Laurent 2015)
+    // URX → AUA → AVA: hyperoxia avoidance pathway
+    // AQR/PQR → AVA: body cavity O₂ → reversal
+    // ================================================================
+
+    // URX → AUA: primary O₂ relay (WormWiring: 2 sections each)
+    // AUA integrates O₂ (URX) + serotonin (ADF) signals
+    add_syn("URXL", "AUAL", 2); add_syn("URXR", "AUAR", 2);
+
+    // AUA → AVA: O₂ relay → backward command (hyperoxia → reversal)
+    // REF: Chang 2006 — "AUA receives from URX and synapses onto AVA"
+    // NPR-1 215V suppresses AUA neurosecretion (Laurent 2015: acts downstream of Ca2+)
+    // Use 0.3 sections to model NPR-1 presynaptic inhibition in N2
+    // (WormWiring anatomical: 2+1 sections, but NPR-1 reduces effective release ~10x)
+    add_syn("AUAL", "AVAL", 0.3); add_syn("AUAL", "AVAR", 0.3);
+    add_syn("AUAR", "AVAL", 0.3); add_syn("AUAR", "AVAR", 0.3);
+
+    // URX → AVB: direct speed modulation (WormWiring: URXL→AVBL 1 section)
+    // High O₂ → URX active → AVB excited → faster forward (escape high O₂)
+    add_syn("URXL", "AVBL", 1);
+
+    // AQR → AVA: anterior body cavity O₂ → backward command
+    // REF: Chang 2006 Fig 8A — AQR converges on AVA
+    add_syn("AQR", "AVAL", 1); add_syn("AQR", "AVAR", 1);
+
+    // PQR → AVA: posterior body cavity O₂ → backward command
+    // REF: Chang 2006 Fig 8A — PQR converges on AVA
+    add_syn("PQR", "AVAL", 1); add_syn("PQR", "AVAR", 1);
+
+    // ================================================================
+    // Step 35: CO₂ sensing circuit (Hallem 2008, Bretscher 2011, Carrillo 2013)
+    // BAG detects CO₂ via gcy-9 → cGMP → TAX-2/TAX-4
+    // Downstream: BAG → RIG → AIY/AIB (simplified as direct BAG→AIY/AIB)
+    // N2: NPR-1 suppresses URX → URX doesn't inhibit CO₂ circuit → avoids CO₂
+    // ================================================================
+
+    // BAG ⊣ AIY: CO₂ high → suppress forward drive (via RIG/GluCl, inhibitory)
+    // REF: White 1986 — BAG→RIG→AIY pathway; GluCl-mediated inhibition
+    add_syn_inh("BAGL", "AIYL", 1); add_syn_inh("BAGR", "AIYR", 1);
+
+    // BAG → AIB: CO₂ high → promote turning/reversal (excitatory)
+    // REF: White 1986 — BAG→AIB (1 section each)
+    add_syn("BAGL", "AIBL", 1); add_syn("BAGR", "AIBR", 1);
+
+    // BAG → RIA: head turning modulation (1 section each)
+    // REF: White 1986 — BAG makes synapses onto RIA
+    add_syn("BAGL", "RIAL", 1); add_syn("BAGR", "RIAR", 1);
+
+    // ================================================================
+    // Step 36: Proprioception circuit (Li 2006, Way 1989, Yeon 2018)
+    // DVA: whole-body stretch receptor → motor neuron gain modulation
+    // PVD: harsh touch + posterior body proprioception → AVA
+    // ================================================================
+
+    // DVA → DB: modulate forward wave amplitude (White 1986: DVA→DB ~2 sections)
+    // DVA senses body curvature via TRP-4 → adjusts B-class MN drive
+    // Step 39: expanded to all 7 DB neurons
+    add_syn("DVA", "DB01", 1); add_syn("DVA", "DB02", 1); add_syn("DVA", "DB03", 1);
+    add_syn("DVA", "DB04", 1); add_syn("DVA", "DB05", 1); add_syn("DVA", "DB06", 1);
+    add_syn("DVA", "DB07", 1);
+
+    // DVA → VB: same modulation for ventral B-class (1 section each)
+    // Step 39: expanded to all 7 VB neurons
+    add_syn("DVA", "VB01", 1); add_syn("DVA", "VB02", 1); add_syn("DVA", "VB03", 1);
+    add_syn("DVA", "VB04", 1); add_syn("DVA", "VB05", 1); add_syn("DVA", "VB06", 1);
+    add_syn("DVA", "VB07", 1);
+
+    // DVA → AVA: extreme bending → protective reversal (weak, 0.5 section)
+    // REF: White 1986 — DVA makes few synapses onto AVA
+    add_syn("DVA", "AVAL", 0.5);
+
+    // PVD → AVA: harsh touch → backward movement (2 sections, strong)
+    // REF: Way & Chalfie 1989, Hart 1995 — PVD is harsh touch sensor
+    // GLR-1 glutamate receptors on AVA mediate this response
+    add_syn("PVDL", "AVAL", 2); add_syn("PVDR", "AVAR", 2);
+
+    // PVD ↔ DVA: gap junction — proprioceptive signal integration
+    // PVD dendrites tile body wall → local curvature → DVA integrates globally
+    add_gj("PVDL", "DVA", 1); add_gj("PVDR", "DVA", 1);
+
+    // ================================================================
+    // Step 38: Egg-laying circuit (Collins 2016, Schafer 2006)
+    // HSN: 5-HT command motor neuron → vulval muscle contraction
+    // VC4/VC5: ACh motor neurons → facilitate egg release
+    // ================================================================
+
+    // PLM ⊣ HSN: gentle touch inhibits egg laying (safety mechanism)
+    // REF: Zhang 2008 — PLM inhibits HSN activity during locomotion
+    add_syn_inh("PLML", "HSNL", 1); add_syn_inh("PLMR", "HSNR", 1);
+
+    // VC → VB: egg-laying slows locomotion (weak inhibition)
+    // REF: Collins 2016 — VC synapses onto locomotion motor neurons
+    add_syn_inh("VC4", "VB01", 0.5); add_syn_inh("VC5", "VB02", 0.5);
 
     // Step 23: Thermotaxis circuit — AFD→AIY (Mori & Ohshima 1995)
     // AFD is the primary thermosensory neuron, AIY is the shared integration node
@@ -485,6 +834,10 @@ void ConnectomeLoader::generate_default_connectome(
     add_gj("AVBL", "AVBR", 12);
     add_gj("AVDL", "AVDR", 5);
     add_gj("AVEL", "AVER", 4);
+    // Step 37: AVA ↔ AVE gap junction — tight coupling of backward command pair
+    // REF: White 1986, Kawano 2011 — AVA/AVE calcium tightly coupled
+    // 2023 Frontiers: RIM promotes reversal via gap junctions to AVA/AVE
+    add_gj("AVAL", "AVEL", 3); add_gj("AVAR", "AVER", 3);
     add_gj("ASEL", "ASER", 2);
     add_gj("AIBL", "AIBR", 3);
     // RIM ↔ AVA gap junctions: CRITICAL for forward run stabilization
@@ -492,10 +845,14 @@ void ConnectomeLoader::generate_default_connectome(
     //   Forward state: RIM at rest (-60mV) pulls AVA down via gap junction
     //   → prevents spontaneous reversal initiation (behavioral inertia)
     //   Reversal state: AIB activates both AVA and RIM → cooperative switch
-    // 2 sections = 1.0 nS — pulls AVA further from reversal threshold
+    // Step 42: Cook 2019 weights: RIMR↔AVAL=11, RIML↔AVAR=8 (cross-wired)
+    // Keep at 2: increasing destabilizes TA dynamics (TA baseline rises → speed drop)
     add_gj("RIML", "AVAL", 2); add_gj("RIMR", "AVAR", 2);
     // RIM L-R coupling
     add_gj("RIML", "RIMR", 3);
+    // Step 42: RIV L-R coupling (Cook 2019: RIVL↔RIVR=28)
+    // Conservative: SMDV↔RIV gap OMITTED — SMD oscillation prevents CCA-1 h deinactivation
+    add_gj("RIVL", "RIVR", 4);
     // Touch circuit gap junctions (Chalfie 1985: touch cells → agonist interneurons)
     // ALM → AVD: anterior touch excites backward interneuron
     add_gj("ALML", "AVDL", 4); add_gj("ALMR", "AVDR", 4);
@@ -532,6 +889,10 @@ void ConnectomeLoader::generate_default_connectome(
     // RIP ↔ I1: the SOLE bridge between somatic and pharyngeal nervous systems
     // REF: Albertson & Thomson 1976 — bilateral gap junction pair
     add_gj("RIPL", "I1L", 2); add_gj("RIPR", "I1R", 2);
+
+    // Step 38: HSN ↔ VC gap junction — synchronize egg-laying motor output
+    // REF: White 1986, Collins 2016 — HSN and VC electrically coupled
+    add_gj("HSNL", "VC4", 2); add_gj("HSNR", "VC5", 2);
 
     // ================================================================
     // Step 27: RIS sleep neuron connections

@@ -37,6 +37,10 @@ public:
     double get_speed() const { return speed_; }
     void set_curvature_bias(double b) { curvature_bias_ = b; }
     void set_omega_mode(bool on) { omega_mode_ = on; }
+    // Step 41: Post-pirouette heading perturbation (Pierce-Shimomura 1999)
+    void perturb_heading(double dtheta) {
+        segments_[0].angle += dtheta;
+    }
     double get_body_length() const { return body_length_; }
 
     // Forward/reverse state from command neuron balance

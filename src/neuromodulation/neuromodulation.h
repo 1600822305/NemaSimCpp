@@ -89,6 +89,14 @@ public:
     // Maps neuron_id → synapse gain multiplier
     double get_synapse_gain(int neuron_id) const;
 
+    // Step 41: Reset all neuromodulator concentrations to 0
+    // Call after network warmup to clear initial transients
+    void reset_concentrations() {
+        for (auto& mod : modulators_) mod.concentration = 0.0;
+        speed_scale_ = 1.0;
+        reversal_rate_scale_ = 1.0;
+    }
+
     // Global speed modulation from neuromodulators
     double get_speed_scale() const { return speed_scale_; }
 

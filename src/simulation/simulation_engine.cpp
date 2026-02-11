@@ -92,13 +92,18 @@ void SimulationEngine::initialize_default() {
             // TONIC: fires proportionally to food concentration, not dC/dt
             // REF: Flavell 2013 — NSM tonically active on food
             // uses_food_density=true: bacteria are localized (σ=3mm), not diffuse
-            chemo_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::TONIC, 30.0, 1.0, 500.0), true});
+            // Step 41: half_max=0.5 (was default 0.1) — NSM only active ON food lawn
+            // At 10mm (food_density=0.04): sat=0.08 → I=3.4pA (below release threshold)
+            // At 2mm  (food_density=0.5):  sat=0.50 → I=16pA  (strong release → 5-HT)
+            chemo_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::TONIC, 30.0, 1.0, 500.0, 5000.0, 0.5), true});
         } else if (starts_with(info.name, "CEP")) {
             // CEP: head mechanosensory, detects bacteria (food presence)
             // TONIC: fires when on food lawn, not responding to changes
             // REF: Sawin 2000 — CEP active on bacterial lawn
             // uses_food_density=true: detects physical bacteria contact
-            chemo_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::TONIC, 20.0, 1.0, 500.0), true});
+            // Step 41: half_max=0.5 (was default 0.1) — CEP only active ON food lawn
+            // Same fix as NSM: prevents spurious DA release at 10mm from food
+            chemo_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::TONIC, 20.0, 1.0, 500.0, 5000.0, 0.5), true});
         } else if (starts_with(info.name, "AFD")) {
             // AFD: thermosensory neuron — handled by thermo_mappings, not chemo
             // ThermoTransducer: gain=150, baseline=5pA, Tc_tau=3600s(1hr), fast_tau=200ms
@@ -146,27 +151,51 @@ void SimulationEngine::initialize_default() {
         int id = connectome_.get_neuron_id(name);
         if (id >= 0) proprio_mappings_.push_back({id, seg, start, end, dorsal});
     };
-    // Step 29: B-class sequential proprioceptive wave (Wen 2012, Boyle 2012)
+    // Step 29/39: B-class sequential proprioceptive wave (Wen 2012, Boyle 2012)
     // Each B-neuron senses curvature INSIDE the previous unit's territory.
     // D/V alternation relay: DB01(+) -> VB02(-) -> DB03(+) = S-wave
+    // Step 39: expanded from 3 to 7 units for continuous coverage
     add_pm("DB01", 2,  0,  4,  true);   // senses SMD territory (seg 0-3)
-    add_pm("DB02", 7,  4,  10, true);   // senses DB01/VB01 territory
-    add_pm("DB03", 15, 10, 20, true);   // senses DB02/VB02 territory
+    add_pm("DB02", 6,  4,  9,  true);   // senses DB01 territory
+    add_pm("DB03", 11, 9,  14, true);   // senses DB02 territory
+    add_pm("DB04", 16, 14, 19, true);   // senses DB03 territory
+    add_pm("DB05", 21, 19, 24, true);   // senses DB04 territory
+    add_pm("DB06", 26, 24, 29, true);   // senses DB05 territory
+    add_pm("DB07", 32, 29, 35, true);   // senses DB06 territory
     add_pm("VB01", 2,  0,  4,  false);
-    add_pm("VB02", 7,  4,  10, false);
-    add_pm("VB03", 15, 10, 20, false);
-    // A-class: keep original sync mapping (baseline muscle drive)
-    add_pm("DA01", 0,  0,  4,  true);
-    add_pm("DA02", 5,  4,  10, true);
-    add_pm("DA03", 15, 10, 20, true);
-    add_pm("VA01", 0,  0,  4,  false);
-    add_pm("VA02", 5,  4,  10, false);
-    add_pm("VA03", 15, 10, 20, false);
+    add_pm("VB02", 6,  4,  9,  false);
+    add_pm("VB03", 11, 9,  14, false);
+    add_pm("VB04", 16, 14, 19, false);
+    add_pm("VB05", 21, 19, 24, false);
+    add_pm("VB06", 26, 24, 29, false);
+    add_pm("VB07", 32, 29, 35, false);
+    // A-class: sync mapping (baseline muscle drive, Step 29 rule: A-class unchanged)
+    // Step 39: expanded from 3 to 5 units
+    add_pm("DA01", 0,  0,  6,  true);
+    add_pm("DA02", 8,  4,  12, true);
+    add_pm("DA03", 16, 12, 20, true);
+    add_pm("DA04", 24, 20, 28, true);
+    add_pm("DA05", 32, 28, 36, true);
+    add_pm("VA01", 0,  0,  6,  false);
+    add_pm("VA02", 8,  4,  12, false);
+    add_pm("VA03", 16, 12, 20, false);
+    add_pm("VA04", 24, 20, 28, false);
+    add_pm("VA05", 32, 28, 36, false);
 
     // 10. Collect touch neuron IDs (Step 18) + pharyngeal neuron IDs (Step 24)
     for (auto& info : neuron_infos) {
         if (starts_with(info.name, "ALM")) alm_ids_.push_back(info.id);
         if (starts_with(info.name, "PLM")) plm_ids_.push_back(info.id);
+        if (starts_with(info.name, "OLQ")) olq_ids_.push_back(info.id);  // Step 33
+        if (starts_with(info.name, "URX")) urx_ids_.push_back(info.id);  // Step 34
+        if (starts_with(info.name, "AUA")) aua_ids_.push_back(info.id); // Step 34
+        if (info.name == "AQR") aqr_id_ = info.id;   // Step 34
+        if (info.name == "PQR") pqr_id_ = info.id;   // Step 34
+        if (starts_with(info.name, "BAG")) bag_ids_.push_back(info.id); // Step 35
+        if (info.name == "DVA") dva_id_ = info.id;                     // Step 36
+        if (starts_with(info.name, "PVD")) pvd_ids_.push_back(info.id); // Step 36
+        if (starts_with(info.name, "HSN")) hsn_ids_.push_back(info.id); // Step 38
+        if (starts_with(info.name, "VC")) vc_ids_.push_back(info.id);   // Step 38
         if (starts_with(info.name, "RIC")) ric_ids_.push_back(info.id);
         // Step 24: Pharyngeal neurons
         if (starts_with(info.name, "MC") && info.name.size() <= 3) mc_ids_.push_back(info.id);
@@ -175,15 +204,21 @@ void SimulationEngine::initialize_default() {
         if (starts_with(info.name, "I1")) i1_ids_.push_back(info.id);
         // Step 27: RIS sleep neuron
         if (info.name == "RIS") ris_id_ = info.id;
+        // Step 31: RIV omega turn neurons
+        if (info.name == "RIVL") rivl_id_ = info.id;
+        if (info.name == "RIVR") rivr_id_ = info.id;
         // Step 28: RIA multi-compartment IDs
         if (info.name == "RIAL") rial_id_ = info.id;
         if (info.name == "RIAR") riar_id_ = info.id;
     }
 
     // Initialize transducers with current concentration at head
-    double init_conc = environment_.sample_chemical(body_.get_head_position());
+    // Step 41: use correct signal source per transducer type
+    // NSM/CEP use food_density (narrow sigma), others use volatile chemical field
+    double init_vol = environment_.sample_chemical(body_.get_head_position());
+    double init_food = environment_.sample_food_density(body_.get_head_position());
     for (auto& cm : chemo_mappings_) {
-        cm.transducer.reset(init_conc);
+        cm.transducer.reset(cm.uses_food_density ? init_food : init_vol);
     }
 
     // 10b. Setup temperature field and thermosensory transducers (Step 23)
@@ -213,6 +248,18 @@ void SimulationEngine::initialize_default() {
     LOG_INFO("Head tonic: ", head_motor_ids_.size(), " head motor neurons, ", head_tonic_, " pA");
     LOG_INFO("Proprioceptive MEC: ", proprio_mappings_.size(), " motor neuron stretch mappings");
     LOG_INFO("Neuromodulators: ", neuromod_.modulators().size(), " species configured");
+
+    // Performance: one-time cache of neuron IDs, typed pointers, synapse indices
+    cache_neuron_ids_and_synapses();
+
+    // Step 41: Warmup — let network equilibrate, then reset neuromodulators
+    // Initial neuron transients cause brief spurious release that inflates 5-HT/DA/OA
+    // 50 steps × 10ms = 500ms is enough for membrane potentials to settle
+    for (int i = 0; i < 50; ++i) step();
+    neuromod_.reset_concentrations();
+    current_time_ = 0.0;  // reset clock so simulation starts at t=0
+    body_.initialize(Vector2d{25.0, 25.0}, 0.0);  // reset body to start position
+
     LOG_INFO("Initialization complete. dt = ", dt_, " ms");
 }
 
@@ -249,6 +296,74 @@ void SimulationEngine::initialize(const Config& config) {
     double arena_w = config.get_double("arena_width", 50.0);
     double arena_h = config.get_double("arena_height", 50.0);
     environment_.initialize(arena_w, arena_h);
+}
+
+// === Performance: one-time cache of neuron IDs, typed pointers, synapse indices ===
+void SimulationEngine::cache_neuron_ids_and_synapses() {
+    // Cached neuron IDs (eliminate per-step hash lookups)
+    aval_id_  = connectome_.get_neuron_id("AVAL");
+    avar_id_  = connectome_.get_neuron_id("AVAR");
+    avbl_id_  = connectome_.get_neuron_id("AVBL");
+    avbr_id_  = connectome_.get_neuron_id("AVBR");
+    smddl_id_ = connectome_.get_neuron_id("SMDDL");
+    smddr_id_ = connectome_.get_neuron_id("SMDDR");
+    smdvl_id_ = connectome_.get_neuron_id("SMDVL");
+    smdvr_id_ = connectome_.get_neuron_id("SMDVR");
+    nsml_id_  = connectome_.get_neuron_id("NSML");
+    nsmr_id_  = connectome_.get_neuron_id("NSMR");
+
+    // Cached typed pointers (eliminate per-step dynamic_cast)
+    int nn = static_cast<int>(neurons_.size());
+    auto sc = [&](int id) -> SingleCompartmentNeuron* {
+        return (id >= 0 && id < nn) ? dynamic_cast<SingleCompartmentNeuron*>(neurons_[id].get()) : nullptr;
+    };
+    smd_scn_[0] = sc(smddl_id_);
+    smd_scn_[1] = sc(smdvl_id_);
+    smd_scn_[2] = sc(smddr_id_);
+    smd_scn_[3] = sc(smdvr_id_);
+    ria_mcn_[0] = (rial_id_ >= 0 && rial_id_ < nn)
+        ? dynamic_cast<MultiCompartmentNeuron*>(neurons_[rial_id_].get()) : nullptr;
+    ria_mcn_[1] = (riar_id_ >= 0 && riar_id_ < nn)
+        ? dynamic_cast<MultiCompartmentNeuron*>(neurons_[riar_id_].get()) : nullptr;
+
+    // Pre-index learning synapses (eliminate per-update full scan)
+    const auto& synapses = connectome_.synapses();
+    const auto& ninfos = connectome_.neuron_infos();
+    awc_aiy_syn_indices_.clear();
+    aser_syn_indices_.clear();
+    awc_syn_indices_.clear();
+    for (size_t i = 0; i < synapses.size(); ++i) {
+        int pre = synapses[i].pre_id(), post = synapses[i].post_id();
+        if (pre < 0 || pre >= nn || post < 0 || post >= nn) continue;
+        const auto& pname = ninfos[pre].name;
+        if (pname.compare(0, 3, "AWC") == 0) {
+            awc_syn_indices_.push_back(i);
+            if (ninfos[post].name.compare(0, 3, "AIY") == 0)
+                awc_aiy_syn_indices_.push_back(i);
+        }
+        if (pname.compare(0, 4, "ASER") == 0)
+            aser_syn_indices_.push_back(i);
+    }
+
+    update_awc_pref_cache();
+    LOG_INFO("Performance cache: ", awc_aiy_syn_indices_.size(), " AWC→AIY, ",
+             aser_syn_indices_.size(), " ASER→*, ", awc_syn_indices_.size(), " AWC→* synapses indexed");
+}
+
+void SimulationEngine::update_awc_pref_cache() {
+    const auto& synapses = connectome_.synapses();
+    double sum_wmod = 0.0; int count = 0;
+    for (size_t idx : awc_aiy_syn_indices_) {
+        sum_wmod += synapses[idx].weight_mod();
+        count++;
+    }
+    if (count > 0) {
+        awc_pref_cached_ = (sum_wmod / count - 0.55) * 3.0;
+        if (awc_pref_cached_ > 1.0) awc_pref_cached_ = 1.0;
+        if (awc_pref_cached_ < -2.0) awc_pref_cached_ = -2.0;
+    } else {
+        awc_pref_cached_ = 1.0;
+    }
 }
 
 void SimulationEngine::step() {
@@ -309,9 +424,9 @@ void SimulationEngine::step() {
     // Uses add_synaptic_current() → MUST be after reset
     apply_thermo_input();
 
-    // 2d. Omega turn: post-reversal deep ventral bend (Step 18)
-    // Uses add_synaptic_current() on SMD → MUST be after reset
-    apply_omega_turn();
+    // 2d. Step 31: RIV-driven omega turn (emergent from TA gating)
+    // RIV burst → curvature_bias + omega_mode (replaces hardcoded Step 18)
+    apply_riv_omega();
 
     // Step 15/19: Weathervane — gradient ⊥ heading → SMD bias (Iino & Yoshida 2009)
     apply_weathervane();
@@ -376,18 +491,24 @@ void SimulationEngine::step() {
     // 8. Command neuron balance → locomotion direction
     // AVA dominant → reverse, AVB dominant → forward
     {
-        int ava_l = connectome_.get_neuron_id("AVAL");
-        int ava_r = connectome_.get_neuron_id("AVAR");
-        int avb_l = connectome_.get_neuron_id("AVBL");
-        int avb_r = connectome_.get_neuron_id("AVBR");
         double ava_rel = 0.0, avb_rel = 0.0;
         int n = static_cast<int>(neurons_.size());
-        if (ava_l >= 0 && ava_l < n) ava_rel += neurons_[ava_l]->get_transmitter_release_rate();
-        if (ava_r >= 0 && ava_r < n) ava_rel += neurons_[ava_r]->get_transmitter_release_rate();
-        if (avb_l >= 0 && avb_l < n) avb_rel += neurons_[avb_l]->get_transmitter_release_rate();
-        if (avb_r >= 0 && avb_r < n) avb_rel += neurons_[avb_r]->get_transmitter_release_rate();
+        if (aval_id_ >= 0 && aval_id_ < n) ava_rel += neurons_[aval_id_]->get_transmitter_release_rate();
+        if (avar_id_ >= 0 && avar_id_ < n) ava_rel += neurons_[avar_id_]->get_transmitter_release_rate();
+        if (avbl_id_ >= 0 && avbl_id_ < n) avb_rel += neurons_[avbl_id_]->get_transmitter_release_rate();
+        if (avbr_id_ >= 0 && avbr_id_ < n) avb_rel += neurons_[avbr_id_]->get_transmitter_release_rate();
         ava_rel *= 0.5; avb_rel *= 0.5; // average L/R
         body_.set_locomotion_state(avb_rel, ava_rel);
+    }
+
+    // Step 41: Pirouette reversal overrides locomotion direction
+    // The pirouette Poisson process is a decision-layer shortcut (bypasses AVA circuit
+    // for WHEN to reverse). Consistently, execution also bypasses command neuron balance
+    // to specify backward movement. This avoids AVA injection side effects (AVE→RIV
+    // excitation would prevent omega turn CCA-1 h deinactivation).
+    // REF: Fang-Yen 2010 — reverse speed ~60% of forward
+    if (is_reversing_) {
+        body_.set_locomotion_state(0.0, 1.0);  // force backward: fwd=0, rev=1
     }
 
     // 9. Body physics update
@@ -546,6 +667,34 @@ void SimulationEngine::apply_head_tonic() {
             neurons_[id]->set_external_current(tonic);
         }
     }
+
+    // Step 31: RIV baseline + post-reversal pulse
+    //
+    // Tonic: 2 pA (below CCA-1 oscillation threshold ~3 pA)
+    //   During reversal: TA→-20×[TA] suppresses RIV → CCA-1 h deinactivates
+    //   After reversal: TA decays → tonic pushes V toward CCA-1 window
+    //
+    // Post-reversal pulse: models reversal→forward transition signal
+    //   Biological basis (Donnelly 2013, Neural Sequences 2024):
+    //   "omega initiated when animal reinitiates forward locomotion"
+    //   Pulse amplitude ∝ [TA] at reversal end (set in update_pirouette_state)
+    //   Decays with tau=200ms — enough to trigger CCA-1 burst within h recovery window
+    //
+    double riv_tonic = static_cast<double>(params.riv_tonic);  // pA baseline
+    if (is_sleeping_) riv_tonic *= 0.1;
+
+    // Post-reversal pulse: decaying excitation for ~500ms after reversal ends
+    // L/R asymmetric pulse → gradient-dependent omega direction
+    double riv_pulse_l = 0.0, riv_pulse_r = 0.0;
+    double dt_since_rev = current_time_ - riv_post_rev_time_;
+    if (dt_since_rev >= 0.0 && dt_since_rev < 600.0) {
+        double decay = std::exp(-dt_since_rev / 400.0);
+        if (riv_post_rev_amp_l_ > 1.0) riv_pulse_l = riv_post_rev_amp_l_ * decay;
+        if (riv_post_rev_amp_r_ > 1.0) riv_pulse_r = riv_post_rev_amp_r_ * decay;
+    }
+
+    if (rivl_id_ >= 0 && rivl_id_ < n) neurons_[rivl_id_]->set_external_current(riv_tonic + riv_pulse_l);
+    if (rivr_id_ >= 0 && rivr_id_ < n) neurons_[rivr_id_]->set_external_current(riv_tonic + riv_pulse_r);
 }
 
 void SimulationEngine::apply_weathervane() {
@@ -583,26 +732,7 @@ void SimulationEngine::apply_weathervane() {
     // w_mod=1.0 → pref=+1.0 (naive, attract to food odor)
     // w_mod=0.5 → pref=-0.15 (slight avoidance)
     // w_mod=0.1 → pref=-1.35 (strong repulsion, 1.35× attract gain)
-    double awc_pref = 1.0;  // default: naive attraction
-    {
-        double sum_wmod = 0.0; int count = 0;
-        const auto& synapses = connectome_.synapses();
-        const auto& ninfos = connectome_.neuron_infos();
-        int nn = static_cast<int>(neurons_.size());
-        for (const auto& syn : synapses) {
-            int pre = syn.pre_id(), post = syn.post_id();
-            if (pre < 0 || pre >= nn || post < 0 || post >= nn) continue;
-            if (ninfos[pre].name.compare(0, 3, "AWC") == 0 &&
-                ninfos[post].name.compare(0, 3, "AIY") == 0) {
-                sum_wmod += syn.weight_mod(); count++;
-            }
-        }
-        if (count > 0) {
-            awc_pref = (sum_wmod / count - 0.55) * 3.0;  // asymmetric: avoidance > attraction
-            if (awc_pref > 1.0) awc_pref = 1.0;
-            if (awc_pref < -2.0) awc_pref = -2.0;
-        }
-    }
+    double awc_pref = awc_pref_cached_;  // updated by update_awc_pref_cache() after learning
     double odor_bias = weathervane_gain * grad_normal * chemo_wv_gain * awc_pref;
 
     // --- Channel 2: Soluble (ASE) ---
@@ -649,22 +779,21 @@ void SimulationEngine::apply_weathervane() {
 
     int n = static_cast<int>(neurons_.size());
 
-    // Apply: positive bias → more dorsal drive (curve toward gradient)
-    //        negative bias → more ventral drive
-    // Use add_synaptic_current to accumulate (external current is set by other stages)
-    auto apply_bias = [&](const char* name, double current) {
-        int id = connectome_.get_neuron_id(name);
-        if (id >= 0 && id < n) {
-            neurons_[id]->add_synaptic_current(current);
-        }
-    };
-
     // Step 19: Apply bias to shift half-center duty cycle
     // Sign: positive grad_normal → dorsal bias → positive curvature → heading increases
-    apply_bias("SMDDL", bias_current);
-    apply_bias("SMDDR", bias_current);
-    apply_bias("SMDVL", -bias_current);
-    apply_bias("SMDVR", -bias_current);
+    // Step 33: Reduce SMD fraction to prevent multi-channel weathervane
+    // from overwhelming SMD oscillator. Curvature_bias bypass is the main
+    // turning mechanism; SMD just needs gentle duty-cycle modulation.
+    // Step 41: Modulate by 5-HT — off-food (5-HT≈0) → full weathervane (1.0)
+    //          on-food (5-HT≈0.7) → reduced (0.4) to prevent SMD saturation
+    // REF: Iino 2009 — both pirouette + weathervane needed for efficient chemotaxis
+    double sht_conc_wv = neuromod_.get_concentration("5-HT");
+    double smd_wv_frac = 0.4 + 0.6 * std::max(0.0, 1.0 - sht_conc_wv / 0.7);
+    if (smd_wv_frac > 1.0) smd_wv_frac = 1.0;
+    if (smddl_id_ >= 0 && smddl_id_ < n) neurons_[smddl_id_]->add_synaptic_current( bias_current * smd_wv_frac);
+    if (smddr_id_ >= 0 && smddr_id_ < n) neurons_[smddr_id_]->add_synaptic_current( bias_current * smd_wv_frac);
+    if (smdvl_id_ >= 0 && smdvl_id_ < n) neurons_[smdvl_id_]->add_synaptic_current(-bias_current * smd_wv_frac);
+    if (smdvr_id_ >= 0 && smdvr_id_ < n) neurons_[smdvr_id_]->add_synaptic_current(-bias_current * smd_wv_frac);
 
     // Direct curvature bias: bypass SMD oscillator bottleneck (110mV amplitude drowns ±24pA bias)
     // REF: diagnosed in Step 15 — SMD bias alone gives CI=0.07, with curv_bias CI=0.76
@@ -684,8 +813,17 @@ void SimulationEngine::apply_weathervane() {
     double curv_clamp = clamp * 0.15;
     if (curv_bias > curv_clamp) curv_bias = curv_clamp;
     if (curv_bias < -curv_clamp) curv_bias = -curv_clamp;
-    // Don't override omega turn's ±8.0 curvature_bias (set by apply_omega_turn)
-    if (!omega_pending_) {
+    // Step 41: Curvature bias only during forward locomotion (run phase)
+    // - Omega: RIV-driven deep bend (set by apply_riv_omega), don't override
+    // - Reversal: no sensory steering — worm just backs up
+    //   REF: Iino & Yoshida 2009 — klinotaxis (weathervane) is a run-phase behavior
+    //   Without this: direction=-1 reverses dθ sign → worm steers AWAY during reversal
+    // - Forward: weathervane actively steers toward attractant gradient
+    if (riv_omega_active_) {
+        // omega curvature set by apply_riv_omega()
+    } else if (is_reversing_) {
+        body_.set_curvature_bias(0.0);  // no sensory steering during reversal
+    } else {
         body_.set_curvature_bias(curv_bias);
     }
 }
@@ -714,18 +852,15 @@ void SimulationEngine::apply_smb_neck_bias() {
     double ca_diff = 0.0;
     int count = 0;
 
-    auto read_ria_ca_diff = [&](int ria_id) {
-        if (ria_id < 0 || ria_id >= n) return;
-        auto* mc = dynamic_cast<MultiCompartmentNeuron*>(neurons_[ria_id].get());
-        if (!mc || mc->num_compartments() < 3) return;
+    // Uses cached MultiCompartmentNeuron* pointers (avoid per-step dynamic_cast)
+    for (int i = 0; i < 2; ++i) {
+        auto* mc = ria_mcn_[i];
+        if (!mc || mc->num_compartments() < 3) continue;
         double ca_nrV = mc->get_compartment_calcium(1);  // nrV = compartment 1
         double ca_nrD = mc->get_compartment_calcium(2);  // nrD = compartment 2
         ca_diff += (ca_nrV - ca_nrD);  // sign: ventral Ca > dorsal → curve toward food
         count++;
-    };
-
-    read_ria_ca_diff(rial_id_);
-    read_ria_ca_diff(riar_id_);
+    }
 
     if (count > 0) ca_diff /= count;  // average L/R
 
@@ -751,8 +886,8 @@ void SimulationEngine::apply_smb_neck_bias() {
     if (curvature_offset > max_bias) curvature_offset = max_bias;
     if (curvature_offset < -max_bias) curvature_offset = -max_bias;
 
-    // Don't override omega turn's ±8.0 curvature_bias
-    if (!omega_pending_) {
+    // Don't override RIV-driven omega curvature_bias (Step 31)
+    if (!riv_omega_active_) {
         body_.set_curvature_bias(curvature_offset);
     }
 }
@@ -771,14 +906,12 @@ void SimulationEngine::apply_ria_smd_modulation() {
     //
     // REF: Hendricks 2012, Mellem 2002 — metabotropic modulation of ion channels
     int n = static_cast<int>(neurons_.size());
-    int rial_id = connectome_.get_neuron_id("RIAL");
-    int riar_id = connectome_.get_neuron_id("RIAR");
 
     double ria_release_L = 0.0, ria_release_R = 0.0;
-    if (rial_id >= 0 && rial_id < n)
-        ria_release_L = neurons_[rial_id]->get_transmitter_release_rate();
-    if (riar_id >= 0 && riar_id < n)
-        ria_release_R = neurons_[riar_id]->get_transmitter_release_rate();
+    if (rial_id_ >= 0 && rial_id_ < n)
+        ria_release_L = neurons_[rial_id_]->get_transmitter_release_rate();
+    if (riar_id_ >= 0 && riar_id_ < n)
+        ria_release_R = neurons_[riar_id_]->get_transmitter_release_rate();
 
     // Modulation gain: how much RIA release shifts CCA-1 V_half (mV)
     // At release=0.5 (baseline): shift=0 (symmetric)
@@ -792,18 +925,11 @@ void SimulationEngine::apply_ria_smd_modulation() {
     double shift_R = mod_gain * (ria_release_R - 0.5);
 
     // Apply to SMD neurons: RIAL drives SMDDL/SMDVL, RIAR drives SMDDR/SMDVR
-    auto modulate = [&](const char* name, double shift) {
-        int id = connectome_.get_neuron_id(name);
-        if (id >= 0 && id < n) {
-            auto* scn = dynamic_cast<SingleCompartmentNeuron*>(neurons_[id].get());
-            if (scn) scn->set_cca1_activation_shift(shift);
-        }
-    };
-
-    modulate("SMDDL", shift_L);
-    modulate("SMDVL", shift_L);
-    modulate("SMDDR", shift_R);
-    modulate("SMDVR", shift_R);
+    // Uses cached SingleCompartmentNeuron* pointers (avoid per-step dynamic_cast)
+    if (smd_scn_[0]) smd_scn_[0]->set_cca1_activation_shift(shift_L);  // SMDDL
+    if (smd_scn_[1]) smd_scn_[1]->set_cca1_activation_shift(shift_L);  // SMDVL
+    if (smd_scn_[2]) smd_scn_[2]->set_cca1_activation_shift(shift_R);  // SMDDR
+    if (smd_scn_[3]) smd_scn_[3]->set_cca1_activation_shift(shift_R);  // SMDVR
 }
 
 void SimulationEngine::apply_proprioceptive_stretch() {
@@ -845,11 +971,51 @@ void SimulationEngine::apply_touch_stimulus() {
     bool rear_touch = (tail.x < arena_margin_ || tail.x > arena_w - arena_margin_ ||
                        tail.y < arena_margin_ || tail.y > arena_h - arena_margin_);
 
+    // Step 33: OLQ nose touch — closer range than ALM body touch
+    // OLQ detects head proximity to wall (dist < 0.3mm vs ALM's 2mm)
+    // 4 quadrant neurons: directional sensitivity based on which wall
+    // OLQ→RMD head withdrawal, OLQ→RIC indirect reversal (weak)
+    // NOT triggering full reversal — just head withdrawal + direction change
+    // REF: Kaplan & Horvitz 1993, Hart 1995
+    double nose_current = 30.0;  // pA, weaker than body touch (80pA)
+    double dx_left  = head.x;                  // distance to left wall
+    double dx_right = arena_w - head.x;        // distance to right wall
+    double dy_bottom = head.y;                 // distance to bottom wall
+    double dy_top   = arena_h - head.y;        // distance to top wall
+    double heading = body_.get_head_angle();
+    double cos_h = std::cos(heading);
+    double sin_h = std::sin(heading);
+
+    // Check each wall: activate quadrant-specific OLQ based on heading
+    // OLQ naming: DL=dorsal-left, DR=dorsal-right, VL=ventral-left, VR=ventral-right
+    // Simplified: activate all 4 OLQ when nose is near any wall
+    // Direction selectivity emerges from OLQ→RMD ipsilateral mapping
+    bool nose_touch = false;
+    double min_wall_dist = std::min({dx_left, dx_right, dy_bottom, dy_top});
+    if (min_wall_dist < nose_margin_ && !front_touch) {
+        // Nose close to wall but not yet body-touch range
+        // Scale current by proximity: closer = stronger
+        double prox = 1.0 - min_wall_dist / nose_margin_;  // 0→1
+        double olq_drive = nose_current * prox;
+        for (int id : olq_ids_) {
+            if (id >= 0 && id < n) {
+                neurons_[id]->set_external_current(olq_drive);
+            }
+        }
+        nose_touch = true;
+    }
+
     if (front_touch) {
         // Strong current pulse to ALM neurons → triggers reversal via ALM→AVD→AVA
         for (int id : alm_ids_) {
             if (id >= 0 && id < n) {
                 neurons_[id]->set_external_current(touch_current_);
+            }
+        }
+        // Also activate OLQ at full strength during body touch
+        for (int id : olq_ids_) {
+            if (id >= 0 && id < n) {
+                neurons_[id]->set_external_current(nose_current);
             }
         }
     }
@@ -859,6 +1025,262 @@ void SimulationEngine::apply_touch_stimulus() {
         for (int id : plm_ids_) {
             if (id >= 0 && id < n) {
                 neurons_[id]->set_external_current(touch_current_);
+            }
+        }
+    }
+
+    // ======================================================================
+    // Step 34: O₂ sensing — URX/AQR/PQR transduction
+    // O₂ derived from food field: bacteria consume O₂ → low O₂ at food
+    // O₂(x) = 21% - 13% × food_density(x) (Gray 2004)
+    // URX: activated by HIGH O₂ (>14%), drives hyperoxia avoidance
+    // AQR: head O₂, PQR: tail O₂ (body cavity sensors)
+    // NPR-1 215V (N2): tonic inhibition scales with satiety
+    // REF: Gray 2004 Nature, Cheung 2005, Chang 2006 PLoS Biology
+    // ======================================================================
+    {
+        // Compute O₂ at head and tail from FOOD DENSITY (bacteria, σ≈3mm)
+        // NOT sample_chemical (volatile odor, σ≈12mm) — O₂ depletion is local
+        double food_at_head = environment_.sample_food_density(head);
+        double food_at_tail = environment_.sample_food_density(tail);
+        // Normalize food concentration (peak ~1.0 at source center)
+        // O₂ = 21% - 13% × food_density → range [8%, 21%]
+        double o2_head = 21.0 - 13.0 * std::min(food_at_head, 1.0);
+        double o2_tail = 21.0 - 13.0 * std::min(food_at_tail, 1.0);
+
+        // URX transduction: activated when O₂ > 14% (hyperoxia threshold)
+        // Linear ramp: 0 at 14%, max (o2_gain_) at 21%
+        // gcy-35/gcy-36 → cGMP → TAX-2/TAX-4 channel opening
+        double urx_drive = 0.0;
+        if (o2_head > 14.0) {
+            urx_drive = o2_gain_ * (o2_head - 14.0) / 7.0;  // 0→30 pA
+        }
+
+        // NPR-1 tonic inhibition (N2 215V = constitutively active)
+        // N2: NPR-1 is always on → strongly suppresses O₂ circuit
+        // At 21% O₂: 30pA drive - 25pA NPR-1 = 5pA net (barely active)
+        // REF: Chang 2006 — "N2 is indifferent to high O₂ when food is present"
+        //       Laurent 2015 — NPR-1 inhibits RMG output downstream of Ca2+
+        double npr1_inh = npr1_tonic_;  // constant for N2 (future: modulate for Hawaiian)
+
+        // Net URX drive = O₂ excitation + NPR-1 inhibition
+        double urx_net = std::max(urx_drive + npr1_inh, 0.0);
+
+        for (int id : urx_ids_) {
+            if (id >= 0 && id < n) {
+                neurons_[id]->set_external_current(urx_net);
+            }
+        }
+
+        // AQR: head O₂ sensor (same threshold, weaker gain)
+        // AQR is unpaired, same location as URX (head pseudocoelom)
+        if (aqr_id_ >= 0 && aqr_id_ < n) {
+            double aqr_drive = 0.0;
+            if (o2_head > 14.0) {
+                aqr_drive = (o2_gain_ * 0.5) * (o2_head - 14.0) / 7.0;  // 50% of URX
+            }
+            double aqr_net = std::max(aqr_drive + npr1_inh * 0.5, 0.0);
+            neurons_[aqr_id_]->set_external_current(aqr_net);
+        }
+
+        // PQR: tail O₂ sensor
+        // Tail high O₂ → PQR activates → AVA → accelerate forward (escape)
+        // REF: Busch 2012 — PQR tail position facilitates forward escape
+        if (pqr_id_ >= 0 && pqr_id_ < n) {
+            double pqr_drive = 0.0;
+            if (o2_tail > 14.0) {
+                pqr_drive = (o2_gain_ * 0.5) * (o2_tail - 14.0) / 7.0;
+            }
+            double pqr_net = std::max(pqr_drive + npr1_inh * 0.5, 0.0);
+            neurons_[pqr_id_]->set_external_current(pqr_net);
+        }
+
+        // AUA: NPR-1 tonic inhibition (proxy for missing RMG suppression)
+        // In N2, NPR-1 suppresses RMG hub → RMG→AUA gap junction weakened
+        // Without RMG neuron, we apply inhibitory current directly to AUA
+        // This prevents AUA from amplifying weak URX signals into strong AVA drive
+        // REF: Laurent 2015 eLife — NPR-1 inhibits RMG Ca2+ responses
+        for (int id : aua_ids_) {
+            if (id >= 0 && id < n) {
+                neurons_[id]->add_synaptic_current(npr1_aua_);
+            }
+        }
+    }
+
+    // ======================================================================
+    // Step 35: CO₂ sensing — BAG transduction
+    // CO₂ derived from food field: bacteria produce CO₂
+    // CO₂(x) = 0.04% + 3% × food_density(x) (ambient + bacterial)
+    // BAG: activated by CO₂ > 0.5%, phasic response (dCO₂/dt sensitive)
+    // OFF rebound: CO₂ decrease → transient burst (like AWC OFF)
+    // N2: NPR-1 suppresses URX → URX doesn't inhibit CO₂ circuit → avoids CO₂
+    // REF: Hallem & Sternberg 2008, Bretscher 2011, Carrillo 2013
+    // ======================================================================
+    {
+        double food_at_head = environment_.sample_food_density(head);
+        double co2_head = 0.04 + 3.0 * std::min(food_at_head, 1.0);  // range [0.04%, 3.04%]
+
+        // Phasic component: BAG responds to CO₂ CHANGES more than absolute level
+        // dCO₂/dt > 0 (entering food) → strong activation
+        // dCO₂/dt < 0 (leaving food) → OFF rebound burst
+        double dco2 = (co2_head - prev_co2_head_) / (dt_ * 0.001);  // %/s
+        prev_co2_head_ = co2_head;
+
+        // Tonic component: sustained drive when CO₂ > threshold
+        double tonic_drive = 0.0;
+        if (co2_head > co2_threshold_) {
+            tonic_drive = co2_gain_ * (co2_head - co2_threshold_) / 3.0;  // 0→40 pA
+        }
+
+        // Phasic component: sensitive to rate of change
+        // Rising CO₂ → strong activation; falling CO₂ → OFF rebound
+        double phasic_drive = 0.0;
+        if (dco2 > 0.0) {
+            // Entering high CO₂ zone: strong phasic response
+            phasic_drive = 20.0 * dco2;  // 20 pA per %/s
+        } else if (dco2 < 0.0) {
+            // OFF rebound: leaving CO₂ zone → transient burst (escape acceleration)
+            // REF: Bretscher 2011 — BAG OFF response drives escape from CO₂
+            phasic_drive = -10.0 * dco2;  // positive current from negative dco2
+        }
+
+        // Total BAG drive = tonic + phasic (clamped)
+        double bag_drive = std::max(tonic_drive + phasic_drive, 0.0);
+        if (bag_drive > 60.0) bag_drive = 60.0;  // clamp
+
+        // URX cross-inhibition: in npr-1(lf), active URX suppresses CO₂ circuit
+        // In N2: URX is suppressed by NPR-1 → no cross-inhibition → BAG works
+        // Carrillo 2013: "ablating URX in npr-1(lf) restores CO₂ avoidance"
+        double urx_inhibition = 0.0;
+        for (int id : urx_ids_) {
+            if (id >= 0 && id < n) {
+                urx_inhibition += neurons_[id]->get_transmitter_release_rate();
+            }
+        }
+        urx_inhibition *= 30.0;  // scale: URX S=0.15 → 4.5pA inhibition (weak in N2)
+
+        double bag_net = std::max(bag_drive - urx_inhibition, 0.0);
+
+        for (int id : bag_ids_) {
+            if (id >= 0 && id < n) {
+                neurons_[id]->set_external_current(bag_net);
+            }
+        }
+    }
+
+    // ======================================================================
+    // Step 36: Proprioception — DVA + PVD transduction
+    // DVA: whole-body stretch receptor (TRP-4 TRPN channel)
+    //   Senses mean |curvature| across all segments → modulates B-class MN gain
+    //   trp-4 mutant: exaggerated body bends (Li 2006 Nature)
+    // PVD: harsh touch (stronger than ALM) + posterior body proprioception
+    //   Dendrites tile body wall → dual-mode sensory neuron
+    // REF: Li 2006 Nature, Way & Chalfie 1989, Albeg 2011
+    // ======================================================================
+    {
+        // --- DVA: whole-body curvature integration ---
+        if (dva_id_ >= 0 && dva_id_ < n) {
+            const auto& segs = body_.segments();
+            int nseg = static_cast<int>(segs.size());
+            double sum_abs_curv = 0.0;
+            for (int si = 0; si < nseg; ++si) {
+                sum_abs_curv += std::abs(segs[si].curvature);
+            }
+            double mean_abs_curv = (nseg > 0) ? sum_abs_curv / nseg : 0.0;
+
+            // TRP-4 transduction: stretch → depolarization
+            // mean_abs_curv typical range: 0.05-0.3 /mm during normal locomotion
+            // DVA drive: proportional to mean |curvature|
+            double dva_drive = dva_gain_ * mean_abs_curv;
+            if (dva_drive > 30.0) dva_drive = 30.0;  // clamp
+
+            neurons_[dva_id_]->set_external_current(dva_drive);
+        }
+
+        // --- PVD: harsh touch + posterior proprioception ---
+        Vector2d head = body_.get_head_position();
+        double wall_dist = std::max(0.0, std::min({head.x, 50.0 - head.x, head.y, 50.0 - head.y}));
+
+        for (int id : pvd_ids_) {
+            if (id < 0 || id >= n) continue;
+            double I_pvd = 0.0;
+
+            // Mode 1: Harsh touch — wall collision at closer range than ALM
+            // PVD responds to stronger mechanical stimuli (platinum wire vs eyelash)
+            // Use wall proximity as proxy: PVD fires when very close to wall
+            if (wall_dist < pvd_harsh_thresh_) {
+                double proximity = 1.0 - wall_dist / pvd_harsh_thresh_;
+                I_pvd += pvd_harsh_current_ * proximity;
+            }
+
+            // Mode 2: Posterior body proprioception
+            // PVD dendrites cover posterior body → sense posterior curvature
+            const auto& segs = body_.segments();
+            int nseg = static_cast<int>(segs.size());
+            double post_curv = 0.0;
+            int post_start = nseg / 2;  // posterior half
+            int post_count = 0;
+            for (int si = post_start; si < nseg; ++si) {
+                post_curv += std::abs(segs[si].curvature);
+                post_count++;
+            }
+            if (post_count > 0) {
+                post_curv /= post_count;
+                I_pvd += pvd_proprio_gain_ * post_curv;
+            }
+
+            neurons_[id]->set_external_current(I_pvd);
+        }
+    }
+
+    // ======================================================================
+    // Step 38: Egg-laying — HSN/VC transduction
+    // egg_pressure ramps up slowly (tau=120s), simulating egg accumulation
+    // When egg_pressure > threshold → HSN burst → 5-HT release → egg laid
+    // Tyramine feedback via LGC-55 inhibits HSN (already in TA system)
+    // REF: Collins 2016 eLife, Waggoner 1998 Neuron
+    // ======================================================================
+    {
+        // egg_pressure ramps toward 1.0 (tau_fill = 120s)
+        double egg_target = 1.0;
+        double alpha_fill = dt_ / egg_tau_fill_;
+        egg_pressure_ += alpha_fill * (egg_target - egg_pressure_);
+        if (egg_pressure_ > 1.0) egg_pressure_ = 1.0;
+
+        // HSN activation: sigmoid of (egg_pressure - threshold)
+        double hsn_sigmoid = 1.0 / (1.0 + std::exp(-(egg_pressure_ - egg_threshold_) / 0.05));
+        double I_hsn = hsn_egg_gain_ * hsn_sigmoid;
+
+        // Tyramine inhibition on HSN via LGC-55 (same receptor as RIV/SMD)
+        // REF: Collins 2016 — uv1 tyramine → LGC-55 → HSN hyperpolarization
+        double ta_conc = neuromod_.get_concentration("TA");
+        double ta_inh = -20.0 * ta_conc;  // -20pA at max TA
+        I_hsn = std::max(I_hsn + ta_inh, 0.0);
+
+        for (int id : hsn_ids_) {
+            if (id >= 0 && id < n) {
+                neurons_[id]->set_external_current(I_hsn);
+            }
+        }
+
+        // Egg-laying event: HSN active + egg_pressure high → lay egg
+        // Check if we're in active state or should start one
+        if (hsn_sigmoid > 0.5 && current_time_ > egg_active_end_) {
+            // Start active state
+            egg_active_end_ = current_time_ + egg_active_duration_;
+        }
+
+        // During active state: VC gets excitation from HSN (via gap junction + 5-HT)
+        if (current_time_ < egg_active_end_) {
+            for (int id : vc_ids_) {
+                if (id >= 0 && id < n) {
+                    neurons_[id]->set_external_current(15.0);  // 5-HT potentiation
+                }
+            }
+            // Egg laid at end of active state
+            if (current_time_ + dt_ >= egg_active_end_ && egg_pressure_ > egg_threshold_) {
+                egg_laid_count_ += 1;
+                egg_pressure_ = 0.1;  // reset (not zero — some eggs remain)
             }
         }
     }
@@ -949,93 +1371,135 @@ void SimulationEngine::apply_touch_stimulus() {
     if (is_reversing_ && !was_reversing) {
         // Reversal just started
         reversal_start_time_ = current_time_;
+        // Step 32: Snapshot dorsal tone at reversal start (before TA suppresses SMD)
+        // This captures random SMD phase → basis for AS resistance evaluation
+        double dt_snap = 0.0;
+        for (int i = 0; i < 6; ++i) {
+            dt_snap += body_.segments()[i].dorsal_activation;
+        }
+        pre_rev_dorsal_tone_ = dt_snap / 6.0;
     }
     if (!is_reversing_ && was_reversing) {
-        // Reversal just ended — decide omega turn
+        // Reversal just ended — record duration for diagnostics
         reversal_duration_ = current_time_ - reversal_start_time_;
-        // Longer reversals → higher omega probability (Wang et al. 2020)
-        // P(omega) = 1 - exp(-duration/tau), tau ~ 1000ms
-        double p_omega = 1.0 - std::exp(-reversal_duration_ / 1000.0);
-        std::uniform_real_distribution<double> dist(0.0, 1.0);
-        if (dist(touch_rng_) < p_omega) {
-            omega_pending_ = true;
-            omega_heading_before_ = body_.get_head_angle();
-            Vector2d hp2 = body_.get_head_position();
-            Vector2d fp2 = {35.0, 35.0};
-            omega_dist_before_ = std::sqrt((hp2.x-fp2.x)*(hp2.x-fp2.x)+(hp2.y-fp2.y)*(hp2.y-fp2.y));
 
-            // Gradient-biased omega direction (Pierce-Shimomura 1999 Fig 9)
-            Vector2d head_pos = body_.get_head_position();
-            double heading = body_.get_head_angle();
-            double cos_h = std::cos(heading);
-            double sin_h = std::sin(heading);
+        // Step 31: RIV post-reversal pulse — models reversal→forward transition signal
+        // Biological basis (Donnelly 2013): "The omega turn is initiated by a steep
+        // ventral bend of the head when the animal REINITIATES FORWARD LOCOMOTION"
+        // Pulse amplitude ∝ [TA]: longer reversals accumulate more TA → stronger pulse
+        // → higher RIV burst probability → more omega turns (emergent correlation)
+        riv_post_rev_time_ = current_time_;
+        double ta_conc = neuromod_.get_concentration("TA");
+        // Scale: 50 pA at [TA]=1.0 → must overcome concurrent TA tonic (-20×[TA])
+        // Net at [TA]=0.5: tonic(2) + pulse(25) - TA_tonic(10) = 17 pA → CCA-1 burst
+        // Net at [TA]=0.1: tonic(2) + pulse(5) - TA_tonic(2) = 5 pA → no burst
+        double base_amp = static_cast<double>(params.pulse_amp) * ta_conc;
 
-            // Select target gradient based on satiety mode
-            double omega_sat_switch = 1.0 / (1.0 + std::exp(-10.0 * (satiety_ - 0.5)));
-            Vector2d chem_grad = environment_.chemical_field().gradient(head_pos);
-            Vector2d tgrad = environment_.temperature_gradient(head_pos);
-            double temp_here = environment_.sample_temperature(head_pos);
-            double tsign = (temp_here > cultivation_temp_) ? -1.0 : 1.0;
-            Vector2d temp_target_grad = {tsign * tgrad.x, tsign * tgrad.y};
-
-            // Blend: hungry → chem_grad, fed → temp_target_grad
-            Vector2d grad;
-            grad.x = (1.0 - omega_sat_switch) * chem_grad.x + omega_sat_switch * temp_target_grad.x;
-            grad.y = (1.0 - omega_sat_switch) * chem_grad.y + omega_sat_switch * temp_target_grad.y;
-
-            double grad_along = cos_h * grad.x + sin_h * grad.y;
-            double grad_perp  = -sin_h * grad.x + cos_h * grad.y;
-            double grad_mag = std::sqrt(grad.x * grad.x + grad.y * grad.y);
-
-            double angle_to_target = 0.0;
-            if (grad_mag > 0.001 && dist(touch_rng_) < 0.70) {
-                angle_to_target = std::atan2(grad_perp, grad_along);
-                omega_direction_ = (angle_to_target > 0) ? -1.0 : 1.0;
-            } else {
-                omega_direction_ = (dist(touch_rng_) < 0.8) ? 1.0 : -1.0;
-                angle_to_target = omega_direction_ * 1.57;  // default ~90deg for random
-            }
-
-            // Omega duration proportional to |angle_to_target|
-            // dtheta/dt = speed × curv_bias ≈ 0.21 × 8.0 = 1.68 rad/s
-            // duration = |angle| / 1.68, range 300-2000ms
-            // REF: Gray 2005 — omega turn duration 0.5-3s, mean ~1.5s
-            double omega_rate = 1.68;  // rad/s (speed × curv_bias, approximate)
-            double omega_dur_ms = std::abs(angle_to_target) / omega_rate * 1000.0;
-            if (omega_dur_ms < 300.0) omega_dur_ms = 300.0;
-            if (omega_dur_ms > 2000.0) omega_dur_ms = 2000.0;
-            omega_end_time_ = current_time_ + omega_dur_ms;
-
-        }
+        // L/R asymmetry for omega direction: TWO mechanisms
+        //
+        // 1. GRADIENT signal (ASE→AIA→AIB→RIV sensory relay)
+        //    grad_perp > 0 → food to LEFT → bias RIVL → turn LEFT toward food
+        double heading = body_.get_head_angle();
+        Vector2d grad = environment_.chemical_field().gradient(body_.get_head_position());
+        double grad_perp = -std::sin(heading) * grad.x + std::cos(heading) * grad.y;
+        double grad_lr = std::tanh(grad_perp * 50.0);  // saturating [-1, 1]
+        //
+        // 2. BODY POSTURE signal (Step 41: previously computed but never used)
+        //    Head SMD oscillation phase at reversal onset determines which side
+        //    the head is bent toward → that side initiates the omega turn
+        //    REF: Gray 2005 — omega direction correlates with body posture
+        //    REF: Donnelly 2013 — "steep ventral bend of the head" initiates omega
+        //    pre_rev_dorsal_tone_ > 0.5 → head bent dorsally → omega ventral (RIVR)
+        //    pre_rev_dorsal_tone_ < 0.5 → head bent ventrally → omega dorsal (RIVL)
+        //    Since reversal timing is stochastic, SMD phase is ~uniform → random omega dir
+        double posture_lr = -(pre_rev_dorsal_tone_ - 0.5) * 4.0;  // [-2, 2] range
+        posture_lr = std::tanh(posture_lr);  // saturate to [-1, 1]
+        //
+        // Combined: gradient dominates when present (×0.3), posture fills in (×0.3)
+        // Total asymmetry up to ±60% when both agree
+        double lr_grad   = 0.3 * grad_lr;
+        double lr_posture = 0.3 * posture_lr;
+        riv_post_rev_amp_l_ = base_amp * (1.0 + lr_grad + lr_posture);
+        riv_post_rev_amp_r_ = base_amp * (1.0 - lr_grad - lr_posture);
     }
 }
 
-void SimulationEngine::apply_omega_turn() {
-    // Step 18: Deep ventral bend after reversal (Gray 2005, Wang 2020)
-    // SMD neurons drive the omega turn amplitude.
-    // Inject strong asymmetric current to SMD ventral (or dorsal) to create >140° bend.
-    if (!omega_pending_) return;
+void SimulationEngine::apply_riv_omega() {
+    // Step 31: RIV-driven omega turn (fully emergent from TA gating)
+    //
+    // Mechanism:
+    //   During reversal: AVA active → RIM→TA→LGC-55→RIV(-20pA) = suppressed
+    //   Reversal ends:   AVA quiet → TA decays (τ=2s) → RIV released → burst
+    //   RIV burst → ventral muscle activation (seg 0-7) → deep head bend → omega
+    //   Burst self-terminates via Ca²⁺→SLO-1 adaptation (same as SMD)
+    //
+    // Direction: RIVL vs RIVR asymmetry from upstream gradient signals
+    //   gradient from right → ASER→AIB→RIVR stronger → RIVR burst > RIVL
+    //   → curvature_bias direction set by dominant RIV
+    //
+    // REF: Gray 2005 PNAS — RIV specifies ventral bias of omega turns
+    //      Donnelly 2013 — TA gates omega timing via LGC-55 on RIV
 
-    if (current_time_ > omega_end_time_) {
-        omega_pending_ = false;
-        body_.set_omega_mode(false);
-        return;
+    int n = static_cast<int>(neurons_.size());
+    if (rivl_id_ < 0 || rivr_id_ < 0 || rivl_id_ >= n || rivr_id_ >= n) return;
+
+    double rivl_rel = neurons_[rivl_id_]->get_transmitter_release_rate();
+    double rivr_rel = neurons_[rivr_id_]->get_transmitter_release_rate();
+    double riv_max = std::max(rivl_rel, rivr_rel);
+
+    // Step 32: AS dorsal resistance — pre-reversal snapshot gating
+    // Biological mechanism: AS provides continuous dorsal body wall tension.
+    // RIV ventral force must overcome AS dorsal tone for omega initiation.
+    //
+    // KEY INSIGHT: Use dorsal tone recorded at REVERSAL START (pre_rev_dorsal_tone_),
+    // NOT the tone at RIV burst peak. During reversal, TA via LGC-55 suppresses
+    // SMD (-25pA) → dorsal tone drops → burst peak ALWAYS sees low tone → 100% omega.
+    // Pre-reversal tone captures random SMD phase (before TA suppression) →
+    // P(tone_high) ≈ 30-40% → omega blocked → natural 60-70% omega/reversal.
+    //
+    // This models: the body's dorsal posture at escape onset determines whether
+    // the subsequent omega can override the dorsal muscle tension.
+
+    // --- Omega INITIATION: peak detection + pre-reversal AS resistance ---
+    double prev_max = riv_prev_max_;
+    riv_prev_max_ = riv_max;
+
+    if (!riv_omega_active_) {
+        // Detect RIV burst peak: release was rising, now falling, and crossed threshold
+        bool at_peak = (riv_max < prev_max && prev_max > static_cast<double>(params.omega_threshold));
+        if (at_peak) {
+            // At burst peak: evaluate AS resistance using PRE-REVERSAL dorsal tone
+            // Factor 1.5: omega when pre_rev_tone < (peak - 0.5) / 1.5
+            //   spike peak ~1.0, tone < 0.33 → omega ✓ (P ≈ 60-70%)
+            //   spike peak ~1.0, tone > 0.33 → blocked ✗ (P ≈ 30-40%)
+            double effective_riv = prev_max - pre_rev_dorsal_tone_ * static_cast<double>(params.as_factor);
+            if (effective_riv > static_cast<double>(params.omega_threshold)) {
+                riv_omega_active_ = true;
+                riv_omega_start_ = current_time_;
+                body_.set_omega_mode(true);
+            }
+        }
     }
 
-    // Omega turn: deep bend >140° (Gray 2005)
-    // The muscle_gain (0.3) limits SMD→curvature to ~0.3/mm, far too weak for omega.
-    // Real omega turns involve extreme body wall contraction (curvature ~10-15/mm).
-    // Solution: direct curvature_bias_ bypass (same principle as weathervane bypass).
-    // SMD injection kept for biological authenticity; curvature_bias_ does the actual turn.
-    body_.set_omega_mode(true);
+    // --- Omega CONTINUATION: curvature bias while active ---
+    if (riv_omega_active_) {
+        double omega_curv_gain = 12.0;
+        // Direction: dominant RIV determines turn direction
+        double bias = (rivl_rel - rivr_rel) * omega_curv_gain;
+        // Ensure minimum bias in dominant direction for deep bend
+        if (rivl_rel > rivr_rel && bias < omega_curv_gain * 0.3)
+            bias = omega_curv_gain * rivl_rel;
+        else if (rivr_rel >= rivl_rel && bias > -omega_curv_gain * 0.3)
+            bias = -omega_curv_gain * rivr_rel;
+        body_.set_curvature_bias(bias);
 
-    // Direct curvature bias: ±8.0/mm during omega → ~150° turn in 500ms
-    // omega_direction: -1.0 = LEFT (SMDD/dorsal), +1.0 = RIGHT (SMDV/ventral)
-    // curvature_bias > 0 → positive curvature → LEFT turn (matches omega_direction=-1.0)
-    body_.set_curvature_bias(-omega_direction_ * 8.0);
-    // NOTE: No SMD current injection. The 200pA injection drove SMD to ±100mV,
-    // destroying the half-center oscillator (222mV amplitude vs normal 110mV).
-    // curvature_bias bypass handles the actual heading change directly.
+        // Termination: min 400ms, then end when RIV drops below threshold
+        double omega_elapsed = current_time_ - riv_omega_start_;
+        if (omega_elapsed > 400.0 && riv_max < static_cast<double>(params.omega_threshold)) {
+            riv_omega_active_ = false;
+            body_.set_omega_mode(false);
+        }
+    }
 }
 
 void SimulationEngine::setup_neuromodulation() {
@@ -1065,17 +1529,25 @@ void SimulationEngine::setup_neuromodulation() {
         serotonin.name = "5-HT";
         serotonin.tau_rise = 3000.0;    // 3s to build up (slow volume transmission)
         serotonin.tau_decay = 8000.0;   // 8s to clear (long-lasting dwelling)
-        serotonin.release_threshold = 0.3;
+        // Step 41: raised from 0.3 → 0.5 to prevent ADF baseline activity
+        // from inflating off-food 5-HT (ADF tonic release ~0.45 exceeds 0.4)
+        // NSM on-food release ~0.8 still well above 0.5
+        serotonin.release_threshold = 0.5;
 
         // Source neurons: NSM (pharyngeal, food detection) + ADF (pathogen learning)
         int nsml = connectome_.get_neuron_id("NSML");
         int nsmr = connectome_.get_neuron_id("NSMR");
         if (nsml >= 0) serotonin.source_neuron_ids.push_back(nsml);
         if (nsmr >= 0) serotonin.source_neuron_ids.push_back(nsmr);
-        // Step 26: ADF as 5-HT source (activated by sickness/pathogen exposure)
-        // REF: Zhang 2005 Nature — ADF TPH-1 upregulated during PA14 infection
-        for (int adf_id : adf_ids_) {
-            if (adf_id >= 0) serotonin.source_neuron_ids.push_back(adf_id);
+        // Step 26→41: ADF removed as 5-HT source. ADF is a chemosensory neuron
+        // (detects volatile odors) that fires tonically near food → inflates 5-HT
+        // off-food. In real worms, ADF 5-HT release requires TPH-1 upregulation
+        // specifically during pathogen exposure (Zhang 2005 Nature), not constitutive.
+        // ADF pathogen signaling works via synapses (ADF→AIB) + sickness→weathervane.
+        // Step 38: HSN as 5-HT source (egg-laying command motor neuron)
+        // REF: Waggoner 1998 — HSN releases 5-HT to initiate egg-laying active state
+        for (int hsn_id : hsn_ids_) {
+            if (hsn_id >= 0) serotonin.source_neuron_ids.push_back(hsn_id);
         }
 
         // Target: AIY via MOD-1 (inhibitory Cl- channel)
@@ -1100,7 +1572,7 @@ void SimulationEngine::setup_neuromodulation() {
         // Target: speed reduction (enhanced slowing on food)
         // REF: Sawin 2000 — serotonin reduces locomotion speed
         serotonin.targets.push_back(
-            {-1, "SER-7", ModulationEffect::SPEED_SCALE, -0.15}); // 15% slower at max
+            {-1, "SER-7", ModulationEffect::SPEED_SCALE, -0.40}); // Step 41: 40% slower (Sawin 2000 enhanced slowing)
 
         // Target: RIC inhibition (cross-inhibit OA source during dwelling)
         // 5-HT → SER-4 on RIC → inhibit → no OA during active dwelling
@@ -1139,7 +1611,7 @@ void SimulationEngine::setup_neuromodulation() {
         // Target: global speed reduction (basal slowing response)
         // REF: Sawin 2000 — cat-2 mutants (no DA) fail to slow on food
         dopamine.targets.push_back(
-            {-1, "DOP-3", ModulationEffect::SPEED_SCALE, -0.25}); // 25% slower at max
+            {-1, "DOP-3", ModulationEffect::SPEED_SCALE, -0.30}); // Step 41: 30% slower (basal slowing)
 
         neuromod_.add_modulator(std::move(dopamine));
     }
@@ -1166,7 +1638,7 @@ void SimulationEngine::setup_neuromodulation() {
         // Target: global speed increase (antagonizes 5-HT/DA slowing)
         // REF: Churgin 2017 — OA mutants have reduced roaming
         octopamine.targets.push_back(
-            {-1, "SER-3", ModulationEffect::SPEED_SCALE, 0.30}); // +30% speed at max
+            {-1, "SER-3", ModulationEffect::SPEED_SCALE, 0.35}); // Step 41: +35% speed (compensate stronger 5-HT/DA)
 
         // Target: AIY excitation (promotes forward runs)
         // SER-6 on AIY: excitatory → more forward → roaming
@@ -1233,7 +1705,18 @@ void SimulationEngine::setup_neuromodulation() {
         if (ashr >= 0) tyramine.targets.push_back(
             {ashr, "TYRA-3", ModulationEffect::EXCITABILITY, 5.0});
 
-        // Target 4: TA→OA biosynthetic coupling via RIC
+        // Target 4: LGC-55 → RIV omega turn neurons (Cl⁻ inhibitory)
+        // Gate omega timing: TA suppresses RIV during reversal,
+        // RIV bursts only after TA decays → omega follows reversal end
+        // REF: Donnelly 2013 — TA coordinates reversal→omega sequence
+        int rivl = connectome_.get_neuron_id("RIVL");
+        int rivr = connectome_.get_neuron_id("RIVR");
+        if (rivl >= 0) tyramine.targets.push_back(
+            {rivl, "LGC-55", ModulationEffect::EXCITABILITY, -20.0});
+        if (rivr >= 0) tyramine.targets.push_back(
+            {rivr, "LGC-55", ModulationEffect::EXCITABILITY, -20.0});
+
+        // Target 5: TA→OA biosynthetic coupling via RIC
         // RIM releases TA → diffuses to RIC → TBH-1 converts TA→OA
         // Modeled as weak excitation of RIC proportional to [TA]
         // REF: Alkema 2005 — TDC-1/TBH-1 co-expression in RIC
@@ -1291,10 +1774,8 @@ void SimulationEngine::update_satiety() {
     // At satiety=1.0: -15 pA → NSM release drops below threshold → 5-HT decays
     int n = static_cast<int>(neurons_.size());
     double nsm_suppression = -15.0 * satiety_;  // pA, inhibitory
-    int nsml = connectome_.get_neuron_id("NSML");
-    int nsmr = connectome_.get_neuron_id("NSMR");
-    if (nsml >= 0 && nsml < n) neurons_[nsml]->add_synaptic_current(nsm_suppression);
-    if (nsmr >= 0 && nsmr < n) neurons_[nsmr]->add_synaptic_current(nsm_suppression);
+    if (nsml_id_ >= 0 && nsml_id_ < n) neurons_[nsml_id_]->add_synaptic_current(nsm_suppression);
+    if (nsmr_id_ >= 0 && nsmr_id_ < n) neurons_[nsmr_id_]->add_synaptic_current(nsm_suppression);
 
     // --- Effect 2: Satiety excites RIC ---
     // High satiety → RIC fires → OA released → roaming
@@ -1372,12 +1853,11 @@ void SimulationEngine::update_food_memory() {
     // High food_memory → AVA more excitable → more reversals → LOCAL SEARCH
     // This keeps the worm near the food patch after leaving
     int n = static_cast<int>(neurons_.size());
-    int aval = connectome_.get_neuron_id("AVAL");
-    if (aval >= 0 && aval < n) {
+    if (aval_id_ >= 0 && aval_id_ < n) {
         // Scale: 0→0 pA at no memory, up to +2.5 pA at full memory
         // 2.5 pA gently biases AVA toward reversal without constant triggering
         double ars_current = 2.5 * food_memory_;
-        neurons_[aval]->add_synaptic_current(ars_current);
+        neurons_[aval_id_]->add_synaptic_current(ars_current);
     }
 }
 
@@ -1416,11 +1896,9 @@ void SimulationEngine::apply_gradient_klinokinesis() {
     // Excite AVA: more reversal when no gradient signal
     // 1.0 pA max — very gentle; avoid disrupting weathervane approach
     int n = static_cast<int>(neurons_.size());
-    int aval = connectome_.get_neuron_id("AVAL");
-    int avar = connectome_.get_neuron_id("AVAR");
     double kk_current = 1.0 * no_signal_factor;
-    if (aval >= 0 && aval < n) neurons_[aval]->add_synaptic_current(kk_current);
-    if (avar >= 0 && avar < n) neurons_[avar]->add_synaptic_current(kk_current);
+    if (aval_id_ >= 0 && aval_id_ < n) neurons_[aval_id_]->add_synaptic_current(kk_current);
+    if (avar_id_ >= 0 && avar_id_ < n) neurons_[avar_id_]->add_synaptic_current(kk_current);
 }
 
 // ================================================================
@@ -1527,16 +2005,11 @@ void SimulationEngine::update_salt_learning() {
     // Learning rate: very slow, ~0.001 per second × dt_effective(100ms)
     double lr = 0.0001;
 
-    for (auto& syn : synapses) {
+    // Uses pre-indexed ASER synapse indices (avoid full scan + string compare)
+    for (size_t idx : aser_syn_indices_) {
+        auto& syn = synapses[idx];
         int pre = syn.pre_id();
         int post = syn.post_id();
-        if (pre < 0 || pre >= n || post < 0 || post >= n) continue;
-
-        const std::string& pre_name = ninfos[pre].name;
-
-        // Only modulate ASER output synapses (salt learning locus)
-        if (pre_name != "ASERL" && pre_name != "ASERR" &&
-            pre_name != "ASER" && pre_name.compare(0, 4, "ASER") != 0) continue;
 
         // Pre and post activity (sigmoid release)
         double V_pre = neurons_[pre]->get_membrane_potential();
@@ -1606,16 +2079,12 @@ void SimulationEngine::update_pathogen_learning() {
     // (800 updates × 0.003 × S_pre≈0.2 = 0.48)
     double lr = 0.003 * sickness_;
 
-    for (auto& syn : synapses) {
+    // Uses pre-indexed AWC synapse indices (avoid full scan + string compare)
+    for (size_t idx : awc_syn_indices_) {
+        auto& syn = synapses[idx];
         int pre = syn.pre_id();
         int post = syn.post_id();
-        if (pre < 0 || pre >= n || post < 0 || post >= n) continue;
-
-        const std::string& pre_name = ninfos[pre].name;
         const std::string& post_name = ninfos[post].name;
-
-        // Only modulate AWC output synapses (olfactory learning locus)
-        if (pre_name.compare(0, 3, "AWC") != 0) continue;
 
         // Pre activity (AWC release rate)
         double V_pre = neurons_[pre]->get_membrane_potential();
@@ -1633,6 +2102,9 @@ void SimulationEngine::update_pathogen_learning() {
             syn.adjust_weight_mod(+lr * S_pre);
         }
     }
+
+    // Update cached awc_pref after learning modifies AWC→AIY weights
+    update_awc_pref_cache();
 }
 
 // ================================================================

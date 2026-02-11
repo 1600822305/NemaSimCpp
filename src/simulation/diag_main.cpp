@@ -12,8 +12,225 @@
 
 using namespace celegans;
 
-int main() {
+// Step 42D: Simulation metrics for fitness evaluation
+struct SimMetrics {
+    double ci;              // chemotaxis index (positive = approaching food)
+    double speed;           // mean speed mm/s
+    double omega_ratio;     // omega/reversal ratio
+    double dv_ratio;        // dorsal/ventral curvature symmetry (1.0 = perfect)
+    double near_food_pct;   // % time within 5mm of food
+    int reversals;
+    int omegas;
+};
+
+// Run a single simulation and return key metrics
+SimMetrics run_eval(unsigned int seed, double duration_s, bool no_toxin, bool no_food,
+                    const SimulationEngine::TuningParams& params) {
+    SimulationEngine sim;
+    sim.initialize_default();
+    sim.set_rng_seed(seed);
+    sim.params = params;
+
+    // Setup environment (same as diag)
+    sim.environment().chemical_field().clear();
+    Vector2d food{35.0, 25.0};
+    sim.environment().chemical_field().add_point_source(food, 1.0);
+    sim.environment().soluble_field().add_point_source(food, 0.4);
+    if (!no_toxin && !no_food) {
+        sim.environment().repellent_field().add_point_source(food, 0.8, 25.0);
+    }
+    if (no_food) {
+        sim.environment().chemical_field().clear();
+        sim.environment().soluble_field().clear();
+    }
+    sim.reset_transducers();
+
+    double duration_ms = duration_s * 1000.0;
+    int total_steps = (int)(duration_ms / sim.dt());
+    int sample_interval = (int)(100.0 / sim.dt());
+
+    int reversal_count = 0, omega_count = 0;
+    bool prev_rev = false, prev_omega = false;
+    int near_food_samples = 0, total_samples = 0;
+    double first_dist = -1;
+    std::vector<double> speeds, curvatures;
+
+    for (int s = 0; s < total_steps; ++s) {
+        sim.step();
+        if ((s + 1) % sample_interval == 0) {
+            auto head = sim.body().get_head_position();
+            double dx = head.x - food.x, dy = head.y - food.y;
+            double dist = std::sqrt(dx*dx + dy*dy);
+            if (first_dist < 0) first_dist = dist;
+
+            total_samples++;
+            if (dist < 5.0) near_food_samples++;
+
+            bool cr = sim.is_reversing();
+            bool co = sim.is_omega_turning();
+            if (cr && !prev_rev) reversal_count++;
+            if (co && !prev_omega) omega_count++;
+            prev_rev = cr; prev_omega = co;
+
+            speeds.push_back(sim.body().get_speed());
+            curvatures.push_back(sim.body().segments()[0].curvature);
+        }
+    }
+
+    auto head = sim.body().get_head_position();
+    double dx = head.x - food.x, dy = head.y - food.y;
+    double final_dist = std::sqrt(dx*dx + dy*dy);
+
+    SimMetrics m;
+    m.ci = (first_dist > 0) ? (first_dist - final_dist) / first_dist : 0;
+    m.speed = speeds.empty() ? 0 :
+        std::accumulate(speeds.begin(), speeds.end(), 0.0) / speeds.size();
+    m.reversals = reversal_count;
+    m.omegas = omega_count;
+    m.omega_ratio = (reversal_count > 0) ? (double)omega_count / reversal_count : 0;
+    m.near_food_pct = (total_samples > 0) ? 100.0 * near_food_samples / total_samples : 0;
+
+    // D/V ratio from curvatures
+    double c_max = 0, c_min = 0;
+    for (double c : curvatures) { if (c > c_max) c_max = c; if (c < c_min) c_min = c; }
+    m.dv_ratio = (std::abs(c_min) > 0.001) ? std::abs(c_max) / std::abs(c_min) : 99.9;
+
+    return m;
+}
+
+// Compute fitness from multi-seed multi-scenario results
+double compute_fitness(const std::vector<SimMetrics>& notox,
+                       const std::vector<SimMetrics>& toxic,
+                       const std::vector<SimMetrics>& nofood) {
+    auto avg = [](const std::vector<double>& v) {
+        return v.empty() ? 0.0 : std::accumulate(v.begin(), v.end(), 0.0) / v.size();
+    };
+    std::vector<double> ci_nt, ci_tx, or_nt, or_nf, sp_nt, dv_nt, nf_nt;
+    for (auto& m : notox) {
+        ci_nt.push_back(m.ci); or_nt.push_back(m.omega_ratio);
+        sp_nt.push_back(m.speed); dv_nt.push_back(m.dv_ratio);
+        nf_nt.push_back(m.near_food_pct);
+    }
+    for (auto& m : toxic) ci_tx.push_back(m.ci);
+    for (auto& m : nofood) or_nf.push_back(m.omega_ratio);
+
+    double f = 0;
+    f += 10.0 * avg(ci_nt);                              // positive chemotaxis (most important)
+    f -= 5.0  * std::max(0.0, avg(ci_tx));               // toxic CI should be negative
+    f -= 3.0  * std::abs(avg(or_nt) - 0.65);             // omega/rev target 0.65
+    f -= 3.0  * std::abs(avg(dv_nt) - 1.0);              // D/V symmetry
+    f -= 2.0  * std::abs(avg(sp_nt) - 0.18);             // biological speed ~0.18 mm/s
+    f += 2.0  * avg(nf_nt) / 100.0;                      // near food dwell time
+    return f;
+}
+
+int main(int argc, char* argv[]) {
     Logger::instance().set_level(LogLevel::WARN);
+
+    // CLI parameter overrides (compile once, sweep params without recompile)
+    double cli_duration = 300000.0;  // default 300s
+    float cli_as_factor = -1.0f;
+    float cli_pulse_amp = -1.0f;
+    float cli_omega_threshold = -1.0f;
+    float cli_riv_tonic = -1.0f;
+    bool cli_quiet = false;
+    bool cli_no_toxin = false;
+    bool cli_no_food = false;
+    bool cli_fitness = false;
+    int cli_nseeds = 4;
+    unsigned int cli_seed = 123;
+    for (int i = 1; i < argc; ++i) {
+        std::string arg = argv[i];
+        if (arg == "--duration" && i+1 < argc) cli_duration = std::atof(argv[++i]) * 1000.0;
+        else if (arg == "--as_factor" && i+1 < argc) cli_as_factor = static_cast<float>(std::atof(argv[++i]));
+        else if (arg == "--pulse_amp" && i+1 < argc) cli_pulse_amp = static_cast<float>(std::atof(argv[++i]));
+        else if (arg == "--omega_threshold" && i+1 < argc) cli_omega_threshold = static_cast<float>(std::atof(argv[++i]));
+        else if (arg == "--riv_tonic" && i+1 < argc) cli_riv_tonic = static_cast<float>(std::atof(argv[++i]));
+        else if (arg == "--seed" && i+1 < argc) cli_seed = static_cast<unsigned int>(std::atoi(argv[++i]));
+        else if (arg == "--no-toxin") cli_no_toxin = true;
+        else if (arg == "--no-food") cli_no_food = true;
+        else if (arg == "--quiet" || arg == "-q") cli_quiet = true;
+        else if (arg == "--fitness") cli_fitness = true;
+        else if (arg == "--seeds" && i+1 < argc) cli_nseeds = std::atoi(argv[++i]);
+        else if (arg == "--help" || arg == "-h") {
+            std::cout << "Usage: celegans_diag [options]\n"
+                      << "  --duration <sec>      Simulation duration (default: 300)\n"
+                      << "  --as_factor <f>       AS dorsal resistance factor\n"
+                      << "  --pulse_amp <f>       RIV pulse amplitude scaling\n"
+                      << "  --omega_threshold <f> RIV omega threshold (default: 0.5)\n"
+                      << "  --riv_tonic <f>       RIV tonic drive pA (default: 1.0)\n"
+                      << "  --seed <n>            RNG seed (default: 123)\n"
+                      << "  --no-toxin            Non-toxic food (disable repellent)\n"
+                      << "  --no-food             No food (empty arena, random walk)\n"
+                      << "  --quiet / -q          Only show key metrics\n"
+                      << "  --fitness             Multi-seed fitness evaluation mode\n"
+                      << "  --seeds <n>           Number of seeds for fitness mode (default: 4)\n";
+            return 0;
+        }
+    }
+
+    // === FITNESS EVALUATION MODE ===
+    if (cli_fitness) {
+        SimulationEngine::TuningParams p;
+        if (cli_as_factor > 0) p.as_factor = cli_as_factor;
+        if (cli_pulse_amp > 0) p.pulse_amp = cli_pulse_amp;
+        if (cli_omega_threshold > 0) p.omega_threshold = cli_omega_threshold;
+        if (cli_riv_tonic > 0) p.riv_tonic = cli_riv_tonic;
+        double dur_s = cli_duration / 1000.0;
+
+        std::vector<SimMetrics> res_notox, res_toxic, res_nofood;
+        unsigned int base_seed = cli_seed;
+
+        std::cerr << "FITNESS: " << cli_nseeds << " seeds x 3 scenarios, "
+                  << dur_s << "s each (pa=" << p.pulse_amp
+                  << " af=" << p.as_factor << ")" << std::endl;
+
+        for (int i = 0; i < cli_nseeds; ++i) {
+            unsigned int s = base_seed + i;
+            res_notox.push_back(run_eval(s, dur_s, true,  false, p));
+            res_toxic.push_back(run_eval(s, dur_s, false, false, p));
+            res_nofood.push_back(run_eval(s, dur_s, true,  true,  p));
+            std::cerr << "  seed " << s << " done" << std::endl;
+        }
+
+        // Compute averages
+        auto avg = [](const std::vector<SimMetrics>& v, auto fn) {
+            double sum = 0; for (auto& m : v) sum += fn(m); return sum / v.size();
+        };
+        double ci_nt  = avg(res_notox,  [](auto& m){ return m.ci; });
+        double ci_tx  = avg(res_toxic,  [](auto& m){ return m.ci; });
+        double or_nt  = avg(res_notox,  [](auto& m){ return m.omega_ratio; });
+        double or_nf  = avg(res_nofood, [](auto& m){ return m.omega_ratio; });
+        double sp_nt  = avg(res_notox,  [](auto& m){ return m.speed; });
+        double dv_nt  = avg(res_notox,  [](auto& m){ return m.dv_ratio; });
+        double nf_nt  = avg(res_notox,  [](auto& m){ return m.near_food_pct; });
+
+        double fitness = compute_fitness(res_notox, res_toxic, res_nofood);
+
+        // Output: machine-readable on stdout, human-readable breakdown on stderr
+        std::cerr << std::fixed << std::setprecision(3)
+                  << "\n  CI(notox)=" << ci_nt << "  CI(toxic)=" << ci_tx
+                  << "\n  omega/rev(notox)=" << or_nt << "  omega/rev(nofood)=" << or_nf
+                  << "\n  speed=" << sp_nt << "  D/V=" << dv_nt
+                  << "  near_food=" << nf_nt << "%"
+                  << "\n  --- breakdown ---"
+                  << "\n  +10*CI_notox     = " << 10.0*ci_nt
+                  << "\n  -5*max(0,CI_tox) = " << -5.0*std::max(0.0, ci_tx)
+                  << "\n  -3*|ω-0.65|      = " << -3.0*std::abs(or_nt - 0.65)
+                  << "\n  -3*|DV-1.0|      = " << -3.0*std::abs(dv_nt - 1.0)
+                  << "\n  -2*|spd-0.18|    = " << -2.0*std::abs(sp_nt - 0.18)
+                  << "\n  +2*near_food     = " << 2.0*nf_nt/100.0
+                  << std::endl;
+
+        // Machine-readable: single line on stdout for script parsing
+        std::cout << std::fixed << std::setprecision(4)
+                  << "FITNESS=" << fitness
+                  << " CI_NT=" << ci_nt << " CI_TX=" << ci_tx
+                  << " OR_NT=" << or_nt << " OR_NF=" << or_nf
+                  << " SPD=" << sp_nt << " DV=" << dv_nt
+                  << " NF=" << nf_nt << std::endl;
+        return 0;
+    }
 
     // GPU device detection
     {
@@ -42,6 +259,12 @@ int main() {
 
     SimulationEngine sim;
     sim.initialize_default();
+    sim.set_rng_seed(cli_seed);
+    // Apply CLI parameter overrides (only if explicitly set)
+    if (cli_as_factor >= 0) sim.params.as_factor = cli_as_factor;
+    if (cli_pulse_amp >= 0) sim.params.pulse_amp = cli_pulse_amp;
+    if (cli_omega_threshold >= 0) sim.params.omega_threshold = cli_omega_threshold;
+    if (cli_riv_tonic >= 0) sim.params.riv_tonic = cli_riv_tonic;
 
     // Step 26b: TOXIC FOOD test — multi-chemical-species
     // Food emits: food_odor (volatile, σ²=144) + soluble (salt, σ²=36)
@@ -53,7 +276,19 @@ int main() {
     sim.environment().soluble_field().add_point_source(food, 0.4);  // salt/amino acids (same σ², weaker)
     // Toxin AT food source (same location!) — toxic food, not separate repellent
     Vector2d repellent{35.0, 25.0};
-    sim.environment().repellent_field().add_point_source(repellent, 0.8, 25.0);
+    if (!cli_no_toxin && !cli_no_food) {
+        sim.environment().repellent_field().add_point_source(repellent, 0.8, 25.0);
+    }
+    if (cli_no_food) {
+        sim.environment().chemical_field().clear();
+        sim.environment().soluble_field().clear();
+    }
+
+    // Step 41: Reset transducers after environment changes
+    // initialize_default() food is at (35,35), diag moves it to (35,25)
+    // Without reset, NSM transducer fast_ starts at volatile conc (0.50)
+    // instead of food_density (0.04) → spurious 5-HT release
+    sim.reset_transducers();
 
     auto& conn = sim.connectome();
 
@@ -78,6 +313,23 @@ int main() {
     int ashr_id = conn.get_neuron_id("ASHR");
     int adfl_id = conn.get_neuron_id("ADFL");  // Step 26: ADF serotonin neuron
     int ris_id = conn.get_neuron_id("RIS");      // Step 27: RIS sleep neuron
+    int rivl_id = conn.get_neuron_id("RIVL");    // Step 31: RIV omega turn neurons
+    int rivr_id = conn.get_neuron_id("RIVR");
+    int as01_id = conn.get_neuron_id("AS01");    // Step 32: AS dorsal motor neurons
+    int as02_id = conn.get_neuron_id("AS02");
+    int as03_id = conn.get_neuron_id("AS03");
+    int rmed_id = conn.get_neuron_id("RMED");    // Step 33: RME head inhibition
+    int rmev_id = conn.get_neuron_id("RMEV");
+    int olqdl_id = conn.get_neuron_id("OLQDL");  // Step 33: OLQ nose touch
+    int urxl_id = conn.get_neuron_id("URXL");    // Step 34: O₂ sensing
+    int aqr_id = conn.get_neuron_id("AQR");
+    int pqr_id = conn.get_neuron_id("PQR");
+    int aual_id = conn.get_neuron_id("AUAL");
+    int bagl_id = conn.get_neuron_id("BAGL");    // Step 35: CO₂ sensing
+    int dva_id = conn.get_neuron_id("DVA");       // Step 36: proprioception
+    int pvdl_id = conn.get_neuron_id("PVDL");
+    int hsnl_id = conn.get_neuron_id("HSNL");     // Step 38: egg-laying
+    int vc4_id = conn.get_neuron_id("VC4");
 
     // Accumulators
     std::vector<double> grad_mags, grad_normals, biases;
@@ -95,6 +347,22 @@ int main() {
     std::vector<int> sleep_vs;       // Step 27: is_sleeping flag
     // SMD current diagnostics
     std::vector<double> smddl_v_vs, smdvl_v_vs, smddl_isyn_vs, smddl_iext_vs;
+    // Step 31: RIV omega turn diagnostics
+    std::vector<double> rivl_v_vs, rivr_v_vs;
+    // Step 32: AS dorsal motor diagnostics
+    std::vector<double> as01_v_vs, as_dorsal_tone_vs;
+    // Step 33: RME + OLQ diagnostics
+    std::vector<double> rmed_v_vs, rmev_v_vs, olqdl_v_vs;
+    // Step 34: O₂ sensing diagnostics
+    std::vector<double> urxl_v_vs, aqr_v_vs, aual_v_vs, o2_head_vs;
+    // Step 35: CO₂ sensing diagnostics
+    std::vector<double> bagl_v_vs, co2_head_vs;
+    // Step 36: Proprioception diagnostics
+    std::vector<double> dva_v_vs, pvdl_v_vs, mean_abs_curv_vs;
+    // Step 38: Egg-laying diagnostics
+    std::vector<double> hsnl_v_vs, vc4_v_vs, egg_pressure_vs;
+    double omega_total_duration = 0.0;  // sum of omega durations (ms)
+    double omega_start_time = -1.0;     // track current omega start
     // Step 29: Wave propagation diagnostics
     std::vector<double> curv_seg2_vs, curv_seg7_vs, curv_seg15_vs, muscle_work_vs;
     int curv7_sign_changes = 0;
@@ -105,8 +373,8 @@ int main() {
     double heading_rate_sum = 0;
     int heading_rate_count = 0;
 
-    // Run 300 seconds (see multiple foraging cycles)
-    double duration = 300000.0;
+    // Run simulation (default 300s, override with --duration)
+    double duration = cli_duration;
     int pirouette_count = 0;
     int reversal_count = 0;
     int omega_count = 0;
@@ -214,12 +482,55 @@ int main() {
             bool cur_rev = sim.is_reversing();
             bool cur_omega = sim.is_omega_turning();
             if (cur_rev && !prev_reversing) reversal_count++;
-            if (cur_omega && !prev_omega) omega_count++;
+            if (cur_omega && !prev_omega) {
+                omega_count++;
+                omega_start_time = sim.current_time();
+            }
+            if (!cur_omega && prev_omega && omega_start_time > 0) {
+                omega_total_duration += sim.current_time() - omega_start_time;
+                omega_start_time = -1.0;
+            }
             // Wall proximity check
             if (head.x < 2.0 || head.x > 48.0 || head.y < 2.0 || head.y > 48.0)
                 wall_touch_count++;
             prev_reversing = cur_rev;
             prev_omega = cur_omega;
+
+            // Step 31: RIV voltage tracking
+            rivl_v_vs.push_back(getV(rivl_id));
+            rivr_v_vs.push_back(getV(rivr_id));
+            // Step 32: AS + dorsal tone tracking
+            as01_v_vs.push_back(getV(as01_id));
+            double dtone = 0.0;
+            for (int si = 0; si < 6; ++si) dtone += sim.body().segments()[si].dorsal_activation;
+            as_dorsal_tone_vs.push_back(dtone / 6.0);
+            // Step 33: RME + OLQ tracking
+            rmed_v_vs.push_back(getV(rmed_id));
+            rmev_v_vs.push_back(getV(rmev_id));
+            olqdl_v_vs.push_back(getV(olqdl_id));
+            // Step 34: O₂ sensing tracking
+            urxl_v_vs.push_back(getV(urxl_id));
+            aqr_v_vs.push_back(getV(aqr_id));
+            aual_v_vs.push_back(getV(aual_id));
+            // Compute O₂ at head from FOOD DENSITY (bacteria, σ≈3mm)
+            double food_h = sim.environment().sample_food_density(head);
+            o2_head_vs.push_back(21.0 - 13.0 * std::min(food_h, 1.0));
+            // Step 35: CO₂ and BAG tracking
+            bagl_v_vs.push_back(getV(bagl_id));
+            co2_head_vs.push_back(0.04 + 3.0 * std::min(food_h, 1.0));
+            // Step 36: DVA + PVD tracking
+            dva_v_vs.push_back(getV(dva_id));
+            pvdl_v_vs.push_back(getV(pvdl_id));
+            {
+                const auto& segs = sim.body().segments();
+                double sac = 0.0;
+                for (size_t si = 0; si < segs.size(); ++si) sac += std::abs(segs[si].curvature);
+                mean_abs_curv_vs.push_back(segs.size() > 0 ? sac / segs.size() : 0.0);
+            }
+            // Step 38: HSN + VC + egg_pressure tracking
+            hsnl_v_vs.push_back(getV(hsnl_id));
+            vc4_v_vs.push_back(getV(vc4_id));
+            egg_pressure_vs.push_back(sim.egg_pressure());
 
             // Neuromodulation time series
             sht_vs.push_back(sim.neuromodulation().get_concentration("5-HT"));
@@ -347,6 +658,86 @@ int main() {
     std::cout << "   wall proximity samples: " << wall_touch_count 
               << " / " << (int)(duration/100.0) << std::endl;
 
+    // Step 31: RIV omega turn diagnostics
+    std::cout << "\n20. RIV OMEGA TURN (Step 31):" << std::endl;
+    auto release = [](double V) { return 1.0 / (1.0 + std::exp(-(V - (-35.0)) / 5.0)); };
+    auto [rivl_min, rivl_max] = minmax(rivl_v_vs);
+    auto [rivr_min, rivr_max] = minmax(rivr_v_vs);
+    std::cout << "   RIVL: V=[" << std::setprecision(1) << rivl_min << ", " << rivl_max
+              << "] mV  mean=" << std::setprecision(1) << mean(rivl_v_vs) << " mV"
+              << "  S(release)=" << std::setprecision(3) << release(mean(rivl_v_vs)) << std::endl;
+    std::cout << "   RIVR: V=[" << std::setprecision(1) << rivr_min << ", " << rivr_max
+              << "] mV  mean=" << std::setprecision(1) << mean(rivr_v_vs) << " mV"
+              << "  S(release)=" << std::setprecision(3) << release(mean(rivr_v_vs)) << std::endl;
+    double omega_rev_ratio = (reversal_count > 0) ? (double)omega_count / reversal_count : 0;
+    double avg_omega_dur = (omega_count > 0) ? omega_total_duration / omega_count : 0;
+    std::cout << "   omega/reversal ratio: " << std::setprecision(2) << omega_rev_ratio
+              << " (" << omega_count << "/" << reversal_count << ")" << std::endl;
+    std::cout << "   avg omega duration: " << std::setprecision(0) << avg_omega_dur << " ms" << std::endl;
+    std::cout << "   TA at trace end: " << std::setprecision(3)
+              << sim.neuromodulation().get_concentration("TA") << std::endl;
+    // Step 32: AS dorsal motor neuron diagnostics
+    std::cout << "   AS01: V mean=" << std::setprecision(1) << mean(as01_v_vs)
+              << " mV  S(release)=" << std::setprecision(3) << release(mean(as01_v_vs)) << std::endl;
+    auto [dt_min, dt_max] = minmax(as_dorsal_tone_vs);
+    std::cout << "   dorsal tone (seg0-5): mean=" << std::setprecision(3) << mean(as_dorsal_tone_vs)
+              << "  range=[" << std::setprecision(3) << dt_min << ", " << dt_max << "]" << std::endl;
+
+    // Step 33: RME + OLQ diagnostics
+    std::cout << "\n21. RME HEAD CONTROL (Step 33):" << std::endl;
+    std::cout << "   RMED: V mean=" << std::setprecision(1) << mean(rmed_v_vs)
+              << " mV  S(release)=" << std::setprecision(3) << release(mean(rmed_v_vs)) << std::endl;
+    std::cout << "   RMEV: V mean=" << std::setprecision(1) << mean(rmev_v_vs)
+              << " mV  S(release)=" << std::setprecision(3) << release(mean(rmev_v_vs)) << std::endl;
+    // Head curvature symmetry check (AS01 bias vs RME correction)
+    auto [hc_min, hc_max] = minmax(curvatures);
+    double d_v_ratio = (std::abs(hc_min) > 0.001) ? std::abs(hc_max) / std::abs(hc_min) : 99.9;
+    std::cout << "   head curv D/V ratio: " << std::setprecision(2) << d_v_ratio
+              << " (target ~1.0, was 3.6 pre-RME)" << std::endl;
+    std::cout << "   OLQDL: V mean=" << std::setprecision(1) << mean(olqdl_v_vs)
+              << " mV  S(release)=" << std::setprecision(3) << release(mean(olqdl_v_vs)) << std::endl;
+
+    // Step 34: O₂ sensing diagnostics
+    std::cout << "\n22. O2 SENSING (Step 34):" << std::endl;
+    auto [o2_min, o2_max] = minmax(o2_head_vs);
+    std::cout << "   O2 at head: mean=" << std::setprecision(1) << mean(o2_head_vs)
+              << "%  range=[" << o2_min << ", " << o2_max << "]%" << std::endl;
+    std::cout << "   URXL: V mean=" << std::setprecision(1) << mean(urxl_v_vs)
+              << " mV  S(release)=" << std::setprecision(3) << release(mean(urxl_v_vs)) << std::endl;
+    std::cout << "   AQR:  V mean=" << std::setprecision(1) << mean(aqr_v_vs)
+              << " mV  S(release)=" << std::setprecision(3) << release(mean(aqr_v_vs)) << std::endl;
+    std::cout << "   AUAL: V mean=" << std::setprecision(1) << mean(aual_v_vs)
+              << " mV  S(release)=" << std::setprecision(3) << release(mean(aual_v_vs)) << std::endl;
+
+    // Step 35: CO₂ sensing diagnostics
+    std::cout << "\n23. CO2 SENSING (Step 35):" << std::endl;
+    auto [co2_min, co2_max] = minmax(co2_head_vs);
+    std::cout << "   CO2 at head: mean=" << std::setprecision(2) << mean(co2_head_vs)
+              << "%  range=[" << co2_min << ", " << co2_max << "]%" << std::endl;
+    std::cout << "   BAGL: V mean=" << std::setprecision(1) << mean(bagl_v_vs)
+              << " mV  S(release)=" << std::setprecision(3) << release(mean(bagl_v_vs)) << std::endl;
+
+    // Step 36: Proprioception diagnostics
+    std::cout << "\n24. PROPRIOCEPTION (Step 36):" << std::endl;
+    auto [mac_min, mac_max] = minmax(mean_abs_curv_vs);
+    std::cout << "   mean |curv|: mean=" << std::setprecision(3) << mean(mean_abs_curv_vs)
+              << " /mm  range=[" << mac_min << ", " << mac_max << "]" << std::endl;
+    std::cout << "   DVA:  V mean=" << std::setprecision(1) << mean(dva_v_vs)
+              << " mV  S(release)=" << std::setprecision(3) << release(mean(dva_v_vs)) << std::endl;
+    std::cout << "   PVDL: V mean=" << std::setprecision(1) << mean(pvdl_v_vs)
+              << " mV  S(release)=" << std::setprecision(3) << release(mean(pvdl_v_vs)) << std::endl;
+
+    // Step 38: Egg-laying diagnostics
+    std::cout << "\n25. EGG-LAYING (Step 38):" << std::endl;
+    std::cout << "   egg_pressure: final=" << std::setprecision(3) << egg_pressure_vs.back()
+              << "  range=[" << std::setprecision(3) << minmax(egg_pressure_vs).first
+              << ", " << minmax(egg_pressure_vs).second << "]" << std::endl;
+    std::cout << "   eggs_laid: " << std::setprecision(0) << sim.egg_laid_count() << std::endl;
+    std::cout << "   HSNL: V mean=" << std::setprecision(1) << mean(hsnl_v_vs)
+              << " mV  S(release)=" << std::setprecision(3) << release(mean(hsnl_v_vs)) << std::endl;
+    std::cout << "   VC4:  V mean=" << std::setprecision(1) << mean(vc4_v_vs)
+              << " mV  S(release)=" << std::setprecision(3) << release(mean(vc4_v_vs)) << std::endl;
+
     std::cout << "\n9. DISTANCE TO FOOD:" << std::endl;
     std::cout << "   initial=" << std::setprecision(2) << dists.front()
               << "  final=" << dists.back() << " mm" << std::endl;
@@ -367,8 +758,7 @@ int main() {
     std::cout << "   AIY:       L=" << mean(aiyl_vs) << "  R=" << mean(aiyr_vs) << " mV" << std::endl;
     std::cout << "   RIA:       L=" << mean(rial_vs) << "  R=" << mean(riar_vs) << " mV" << std::endl;
     std::cout << "   AVA:       L=" << mean(aval_vs) << " mV" << std::endl;
-    // Release rates at V_thresh=-35, slope=5
-    auto release = [](double V) { return 1.0 / (1.0 + std::exp(-(V - (-35.0)) / 5.0)); };
+    // Release rates at V_thresh=-35, slope=5 (reuses 'release' lambda from Step 31 section)
     std::cout << "   Release rates (S = sigmoid(V)):" << std::endl;
     std::cout << "     ASEL=" << std::setprecision(3) << release(mean(asel_vs))
               << "  ASER=" << release(mean(aser_vs))

@@ -59,10 +59,13 @@ void NeuromodulationManager::update(
                 }
             }
         }
-        // Normalize: max release when all sources are fully active
+        // Normalize: max release when active sources are fully active
+        // Step 40: use active_sources instead of total sources in denominator
+        // Prevents inactive sources (e.g. HSN when not egg-laying) from
+        // diluting concentration driven by active sources (e.g. NSM on food)
         double max_possible = 1.0 - mod.release_threshold;
         double release_drive = (active_sources > 0 && max_possible > 0)
-            ? total_release / (mod.source_neuron_ids.size() * max_possible)
+            ? total_release / (active_sources * max_possible)
             : 0.0;
         if (release_drive > 1.0) release_drive = 1.0;
 
