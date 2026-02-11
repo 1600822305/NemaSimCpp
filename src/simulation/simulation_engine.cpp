@@ -88,14 +88,13 @@ void SimulationEngine::initialize_default() {
             // At C=0.8: I=3+80×0.62=52pA, at C=0.5: I=43pA, at C=0.2: I=22pA
             noci_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::TONIC, 80.0, 3.0, 500.0, 5000.0, 0.5)});
         } else if (starts_with(info.name, "NSM")) {
-            // NSM: pharyngeal neuron, detects food (absolute concentration)
-            // TONIC: fires proportionally to food concentration, not dC/dt
-            // REF: Flavell 2013 — NSM tonically active on food
-            // uses_food_density=true: bacteria are localized (σ=3mm), not diffuse
-            // Step 41: half_max=0.5 (was default 0.1) — NSM only active ON food lawn
-            // At 10mm (food_density=0.04): sat=0.08 → I=3.4pA (below release threshold)
-            // At 2mm  (food_density=0.5):  sat=0.50 → I=16pA  (strong release → 5-HT)
-            chemo_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::TONIC, 30.0, 1.0, 500.0, 5000.0, 0.5), true});
+            // Step 45: NSM is an ENTERIC sensory neuron — detects food INGESTION,
+            // not food proximity. Uses ASIC channels (DEL-7/DEL-3) to sense
+            // pharyngeal pumping. Drive computed from pump_rate_hz after update_pharynx().
+            // REF: Randi 2018 Cell — ASICs mediate food responses in NSM
+            //      Flavell 2013 Cell — NSM drives dwelling via serotonin
+            //      Flavell 2023 Cell — NSM functional organization
+            // NSM IDs cached as nsml_id_/nsmr_id_ — drive set in update_pharynx section
         } else if (starts_with(info.name, "CEP")) {
             // CEP: head mechanosensory, detects bacteria (food presence)
             // TONIC: fires when on food lawn, not responding to changes
@@ -467,6 +466,24 @@ void SimulationEngine::step() {
     // 5a2. Step 24: Pharyngeal CPG — MC/M3 drive pump, 5-HT/OA modulate
     apply_pharyngeal_modulation();  // 5-HT→MC excitation, OA→MC inhibition
     update_pharynx();               // pharyngeal muscle AP + food ingestion → satiety
+
+    // 5a3. Step 45: NSM enteric drive — pump_rate → ASIC → NSM activation → 5-HT
+    // NSM is a pharyngeal neuron that detects food INGESTION via ASIC channels
+    // (DEL-7/DEL-3), not food proximity. pump_rate_hz is the correct input signal.
+    // REF: Randi 2018 Cell — ASICs mediate food responses in NSM
+    //      Flavell 2013 Cell — NSM tonically active on food (= while pumping)
+    {
+        double pr = pharynx_.pump_rate_hz();
+        // I = gain × (rate / (rate + half_max)) + baseline
+        // gain=30pA, half_max=2.0Hz, baseline=1.0pA
+        // At 4Hz (on food): I = 30×(4/6)+1 = 21 pA → S(V)≈0.8 → strong 5-HT
+        // At 2Hz (edge):    I = 30×(2/4)+1 = 16 pA → S(V)≈0.7 → moderate
+        // At 0Hz (off food): I = 1 pA → S(V)≈0.1 → no 5-HT release
+        double nsm_drive = 30.0 * (pr / (pr + 2.0)) + 1.0;
+        int n = static_cast<int>(neurons_.size());
+        if (nsml_id_ >= 0 && nsml_id_ < n) neurons_[nsml_id_]->set_external_current(nsm_drive);
+        if (nsmr_id_ >= 0 && nsmr_id_ < n) neurons_[nsmr_id_]->set_external_current(nsm_drive);
+    }
 
     // 5b. Update satiety effects (RIC tonic drive, NSM suppression, chemotaxis)
     update_satiety();
@@ -1611,8 +1628,11 @@ void SimulationEngine::setup_neuromodulation() {
         serotonin.tau_decay = 8000.0;   // 8s to clear (long-lasting dwelling)
         // Step 41: raised from 0.3 → 0.5 to prevent ADF baseline activity
         // from inflating off-food 5-HT (ADF tonic release ~0.45 exceeds 0.4)
-        // NSM on-food release ~0.8 still well above 0.5
-        serotonin.release_threshold = 0.5;
+        // Step 43: ADF removed as 5-HT source → high threshold no longer needed
+        // Step 45: restored to 0.3 (original value) — with ADF gone, the original
+        // concern is moot. NSM off-food S=0.05-0.20, well below 0.3 → no leak.
+        // On-food NSM S=0.7-0.85 → drive=(0.7-0.3)/0.7=0.57 → strong dwelling.
+        serotonin.release_threshold = 0.3;
 
         // Source neurons: NSM (pharyngeal, food detection) + ADF (pathogen learning)
         int nsml = connectome_.get_neuron_id("NSML");
@@ -1875,24 +1895,26 @@ void SimulationEngine::setup_neuromodulation() {
         // DVA→SMDVL has 1 synapse; rest is extrasynaptic NLP-12 volume transmission
         // REF: Ramachandran 2021 — ckr-1(lf) reduces reorientations 40-50%
         //      SMD photostimulation recapitulates NLP-12 overexpression effects
-        if (smddl_id_ >= 0) nlp12.targets.push_back(
-            {smddl_id_, "CKR-1", ModulationEffect::EXCITABILITY, 5.0});
-        if (smddr_id_ >= 0) nlp12.targets.push_back(
-            {smddr_id_, "CKR-1", ModulationEffect::EXCITABILITY, 5.0});
-        if (smdvl_id_ >= 0) nlp12.targets.push_back(
-            {smdvl_id_, "CKR-1", ModulationEffect::EXCITABILITY, 5.0});
-        if (smdvr_id_ >= 0) nlp12.targets.push_back(
-            {smdvr_id_, "CKR-1", ModulationEffect::EXCITABILITY, 5.0});
+        // NOTE: must use get_neuron_id() here — cached IDs not yet populated
+        const char* smd_names[] = {"SMDDL", "SMDDR", "SMDVL", "SMDVR"};
+        for (auto name : smd_names) {
+            int id = connectome_.get_neuron_id(name);
+            if (id >= 0) nlp12.targets.push_back(
+                {id, "CKR-1", ModulationEffect::EXCITABILITY, 5.0});
+        }
 
         // Target 2: CKR-2 → AVA command interneurons (weak excitatory)
         // Secondary: modest reversal bias during local search
         // CKR-2 has broader expression than CKR-1 (Ramachandran 2021 Fig 5)
         // Replaces hardcoded food_memory→AVA +2.5pA injection (Step 20d)
         // REF: Hu 2011 — CKR-2/egl-30 Gαq coupling → excitatory
-        if (aval_id_ >= 0) nlp12.targets.push_back(
-            {aval_id_, "CKR-2", ModulationEffect::EXCITABILITY, 2.0});
-        if (avar_id_ >= 0) nlp12.targets.push_back(
-            {avar_id_, "CKR-2", ModulationEffect::EXCITABILITY, 2.0});
+        // NOTE: must use get_neuron_id() — cached IDs not yet populated
+        int aval = connectome_.get_neuron_id("AVAL");
+        int avar = connectome_.get_neuron_id("AVAR");
+        if (aval >= 0) nlp12.targets.push_back(
+            {aval, "CKR-2", ModulationEffect::EXCITABILITY, 2.0});
+        if (avar >= 0) nlp12.targets.push_back(
+            {avar, "CKR-2", ModulationEffect::EXCITABILITY, 2.0});
 
         neuromod_.add_modulator(std::move(nlp12));
     }
@@ -1935,14 +1957,16 @@ void SimulationEngine::update_satiety() {
     if (satiety_ < 0.0) satiety_ = 0.0;
     if (satiety_ > 1.0) satiety_ = 1.0;
 
-    // --- Effect 1: Satiety reduces NSM gain ---
-    // High satiety → insulin → NSM less responsive to food
-    // Implemented: inject hyperpolarizing current into NSM proportional to satiety
-    // At satiety=1.0: -15 pA → NSM release drops below threshold → 5-HT decays
+    // --- Effect 1: REMOVED — satiety does NOT suppress NSM ---
+    // NSM is an enteric sensory neuron that fires whenever the worm eats
+    // (via ASIC DEL-7/DEL-3), regardless of satiety state (Randi 2018 Cell).
+    // The previous -15pA suppression created a self-limiting loop:
+    //   eat → satiety ↑ → NSM suppressed → 5-HT drops → speed up → leave food
+    // This is biologically incorrect. Satiety triggers roaming via a COMPETING
+    // pathway (RIC→OA, Effect 2 below), not by suppressing NSM.
+    // REF: Flavell 2013 Cell — satiated animals roam via PDF/OA, not NSM suppression
+    //      You 2008 Cell — satiety quiescence via ASI→TGF-β/insulin, separate from NSM
     int n = static_cast<int>(neurons_.size());
-    double nsm_suppression = -15.0 * satiety_;  // pA, inhibitory
-    if (nsml_id_ >= 0 && nsml_id_ < n) neurons_[nsml_id_]->add_synaptic_current(nsm_suppression);
-    if (nsmr_id_ >= 0 && nsmr_id_ < n) neurons_[nsmr_id_]->add_synaptic_current(nsm_suppression);
 
     // --- Effect 2: Satiety excites RIC ---
     // High satiety → RIC fires → OA released → roaming

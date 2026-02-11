@@ -328,6 +328,8 @@ int main(int argc, char* argv[]) {
     int bagl_id = conn.get_neuron_id("BAGL");    // Step 35: CO₂ sensing
     int dva_id = conn.get_neuron_id("DVA");       // Step 36: proprioception
     int pvdl_id = conn.get_neuron_id("PVDL");
+    int nsml_id = conn.get_neuron_id("NSML");     // Step 45: NSM 5-HT source diagnostic
+    int nsmr_id = conn.get_neuron_id("NSMR");
     int hsnl_id = conn.get_neuron_id("HSNL");     // Step 38: egg-laying
     int vc4_id = conn.get_neuron_id("VC4");
 
@@ -359,6 +361,8 @@ int main(int argc, char* argv[]) {
     std::vector<double> bagl_v_vs, co2_head_vs;
     // Step 36: Proprioception diagnostics
     std::vector<double> dva_v_vs, pvdl_v_vs, mean_abs_curv_vs;
+    // Step 45: NSM 5-HT source diagnostics
+    std::vector<double> nsml_v_vs, nsml_s_vs;
     // Step 38: Egg-laying diagnostics
     std::vector<double> hsnl_v_vs, vc4_v_vs, egg_pressure_vs;
     double omega_total_duration = 0.0;  // sum of omega durations (ms)
@@ -531,6 +535,10 @@ int main(int argc, char* argv[]) {
             hsnl_v_vs.push_back(getV(hsnl_id));
             vc4_v_vs.push_back(getV(vc4_id));
             egg_pressure_vs.push_back(sim.egg_pressure());
+
+            // Step 45: NSM diagnostics
+            nsml_v_vs.push_back(getV(nsml_id));
+            { double v = getV(nsml_id); nsml_s_vs.push_back(1.0 / (1.0 + std::exp(-(v - (-35.0)) / 5.0))); }
 
             // Neuromodulation time series
             sht_vs.push_back(sim.neuromodulation().get_concentration("5-HT"));
@@ -780,6 +788,29 @@ int main(int argc, char* argv[]) {
     }
     std::cout << "   speed_scale=" << std::setprecision(3) << sim.neuromodulation().get_speed_scale()
               << "  (effective=" << sim.neuromodulation().get_speed_scale() * sim.params.speed_scale << ")" << std::endl;
+
+    // Step 45: NSM 5-HT source diagnostic
+    {
+        double nsml_v_mean = mean(nsml_v_vs);
+        double nsml_s_mean = mean(nsml_s_vs);
+        double nsml_s_max = *std::max_element(nsml_s_vs.begin(), nsml_s_vs.end());
+        double nsml_v_max = *std::max_element(nsml_v_vs.begin(), nsml_v_vs.end());
+        double nsml_v_min = *std::min_element(nsml_v_vs.begin(), nsml_v_vs.end());
+        // Compute how much above threshold the release rate is
+        double threshold = 0.3;  // 5-HT release_threshold (Step 45: restored from 0.5)
+        double above_thresh = nsml_s_mean - threshold;
+        double max_possible = 1.0 - threshold;
+        double release_drive_est = (above_thresh > 0 && max_possible > 0) ? above_thresh / max_possible : 0.0;
+        std::cout << "   NSM (5-HT source): V mean=" << std::setprecision(1) << nsml_v_mean
+                  << " range=[" << nsml_v_min << ", " << nsml_v_max << "] mV" << std::endl;
+        std::cout << "     S(release) mean=" << std::setprecision(3) << nsml_s_mean
+                  << " max=" << nsml_s_max
+                  << "  threshold=" << threshold
+                  << "  above=" << std::setprecision(3) << above_thresh
+                  << "  est_drive=" << release_drive_est << std::endl;
+        std::cout << "     satiety_suppression: sat=" << std::setprecision(2) << sim.satiety()
+                  << " → NSM I_suppress=" << std::setprecision(1) << -15.0 * sim.satiety() << " pA" << std::endl;
+    }
 
     // Time series: 5-HT, DA, OA, satiety, distance every 20s
     std::cout << "   Time series (every 20s):" << std::endl;

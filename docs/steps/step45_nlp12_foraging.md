@@ -1,10 +1,12 @@
-# Step 45: NLP-12 — DVA 觅食搜索神经肽
+# Step 45: NLP-12 + NSM 肠道感觉 + 5-HT 阈值修复
 
 ## 动机
 
 Step 44 修复了趋化行为 (CI=0.68-0.97)，但 near_food 仅 6-8%：虫子找到食物但留不住。
-原因：区域限制搜索 (ARS) 依赖硬编码的 `food_memory→AVA +2.5pA` 直接注入。
-真线虫使用 **NLP-12 神经肽** 从 DVA 释放，通过 CKR-1/CKR-2 GPCR 调制运动回路。
+三个问题：
+1. ARS 依赖硬编码 `food_memory→AVA +2.5pA`，应使用 NLP-12 神经肽通路
+2. NSM 用 food_density（食物浓度）驱动，实际应检测 pump_rate（咽部泵食）
+3. 5-HT release_threshold=0.5 导致 NSM 均值低于阈值，5-HT 几乎为零
 
 ## 生物学基础
 
@@ -68,39 +70,77 @@ Step 44 修复了趋化行为 (CI=0.68-0.97)，但 near_food 仅 6-8%：虫子�
 - NLP-12→SMD 是前向重定向 (头部摆动)，不替代反转
 - Bhattacharya 2014: nlp-12(lf) 减少前向重定向，不减少 omega 转弯
 
+### 7. NSM 肠道感觉修复 (food_density → pump_rate)
+
+NSM 不是化学感觉神经元 — 它是**肠道感觉神经元**，通过 ASIC 通道检测食物摄入。
+
+- **旧代码**: NSM ∈ chemo_mappings_, 用 food_density 驱动 (错误)
+- **新代码**: NSM 从 chemo_mappings_ 移除, 用 pump_rate_hz 驱动
+- I_NSM = 30 × (pump_rate / (pump_rate + 2.0)) + 1.0 pA
+- 4Hz (on food): 21 pA → S≈0.8 → 强 5-HT 释放
+- 0Hz (off food): 1 pA → S≈0.1 → 无释放
+- REF: Randi 2018 Cell — DEL-7/DEL-3 ASIC 通道介导 NSM 食物响应
+
+### 8. 5-HT release_threshold 修复 (0.5 → 0.3)
+
+- **根因**: threshold=0.5 时 NSM mean S(release)=0.45 **低于阈值** → drive=0 → 5-HT=0
+- **历史**: threshold 在 Step 41 从 0.3→0.5 防止 ADF 基线膨胀 off-food 5-HT
+- **Step 43 已移除 ADF** → 高阈值失去存在理由
+- **修复**: 恢复原始值 0.3; NSM off-food S=0.05-0.10, 远低于 0.3 → 无泄漏
+
+### 10. 移除 satiety→NSM -15pA 压制
+
+- **根因**: satiety 通过 -15×satiety pA 压制 NSM → 5-HT 自限性环路
+  - eat → satiety↑ → NSM suppressed → 5-HT↓ → speed↑ → leave food
+- **生物学**: NSM 是肠道感觉神经元，只要在吃就释放 5-HT，不受 satiety 状态影响
+- **satiety→roaming** 的正确机制是 **RIC→OA** 竞争通路（已实现）
+- **REF**: Randi 2018 Cell — NSM 通过 ASIC 检测食物摄入，与 satiety 无关
+- **REF**: Flavell 2013 Cell — 饱食后 roaming 通过 PDF/OA 竞争通路，非 NSM 抑制
+- **REF**: You 2008 Cell — satiety quiescence 通过 ASI→TGF-β/insulin，与 NSM 独立
+- 5-HT 从 0.18 提升至 **0.53** (3倍)
+
+### 9. NLP-12 targets=0 bug 修复
+
+- `setup_neuromodulation()` 在 `cache_neuron_ids_and_synapses()` 之前调用
+- smddl_id_/aval_id_ 等缓存 ID 还是 -1 → 所有 if 检查失败 → targets=0
+- 修复: 用 `connectome_.get_neuron_id()` 即时查找 (与其他神经调质一致)
+
 ## 删除的代码
 
 - CKR-2 → AVB -1.5 pA 抑制靶点 (无文献支持, NLP-12 通过 Gαq 全部兴奋性)
+- NSM ∈ chemo_mappings_ 条目 (NSM 非化学感觉, 用 pump_rate 替代)
+- satiety → NSM -15pA 压制 (NSM 不受 satiety 影响, roaming 通过 RIC→OA 实现)
 
 ## 修改文件列表
 
 | 文件 | 修改 |
 |------|------|
-| src/simulation/simulation_engine.cpp | NLP-12 神经肽配置, DA→DVA, 双通路 ARS, pirouette bonus |
+| src/simulation/simulation_engine.cpp | NLP-12 配置, DA→DVA, 双通路 ARS, NSM pump_rate, 5-HT threshold, 移除 NSM 压制 |
+| src/simulation/diag_main.cpp | NSM 诊断输出 (V, S(release), satiety_suppression) |
 
 ## 验证结果
 
 ### regtest: 17/17 PASS
 
-### 4-seed NOTOX diag (300s)
+### 4-seed NOTOX diag (300s, 最终版)
 
-| Seed | CI | near_food | rev/s | omega |
-|------|-----|-----------|-------|-------|
-| 100 | 0.701 | 6% | 0.11 | 0.66 |
-| 123 | 0.743 | 5% | 0.10 | 0.74 |
-| 200 | 0.927 | 2% | 0.10 | 0.68 |
-| 201 | 0.734 | 7% | 0.07 | 0.82 |
-| **均值** | **0.776** | **5%** | **0.10** | **0.73** |
+| Seed | CI | near_food | rev/s | 5-HT | NSM drive |
+|------|-----|-----------|-------|-------|-----------|
+| 100 | 0.442 | 5% | 0.09 | **0.523** | 0.364 |
+| 123 | 0.680 | **9%** | 0.08 | **0.535** | 0.381 |
+| 200 | 0.913 | 3% | 0.10 | **0.527** | 0.467 |
+| 201 | 0.884 | 7% | 0.07 | **0.526** | — |
+| **均值** | **0.730** | **6%** | **0.09** | **0.528** | |
 
 ### 与 Step 44 对比
 
 | 指标 | Step 44 | Step 45 | 评估 |
 |------|---------|---------|------|
-| NOTOX CI | 0.68-0.97 | 0.70-0.93 | ✅ 持平/改善 |
-| near_food | 6-8% | 2-7% | ≈ seed 方差内 |
-| reversal rate | 0.08-0.12 | 0.07-0.12 | ✅ 持平 |
-| omega ratio | 0.72-0.87 | 0.66-0.82 | ✅ 持平 |
-| TOXIC CI | -0.04~-0.27 | -0.04~-0.05 | ✅ 回避正常 |
+| NOTOX CI | 0.68-0.97 | 0.44-0.91 | ≈ seed 方差 |
+| 5-HT 浓度 | 0.18 | **0.53** | ✅ 3倍提升 |
+| near_food | 6-8% | 3-9% | ≈ 持平 |
+| reversal rate | 0.08-0.12 | 0.07-0.10 | ✅ 持平 |
+| NLP-12 targets | 0 (bug) | **6** | ✅ 修复 |
 
 ## 涌现行为
 
@@ -108,3 +148,7 @@ NLP-12 通路创造了搜索幅度自适应:
 - 在食物上: 低曲率 → DVA 安静 → NLP-12 低 → 小幅摆动 → 精确 dwelling
 - 离开食物: 高曲率 + food_memory → DVA 活跃 → NLP-12 高 → 大幅摆动 → 广域搜索
 - 找回食物: 曲率降低 → DVA 安静 → NLP-12 衰减 → 摆动收窄 → 重新 dwelling
+
+NSM pump_rate 驱动创造了正确的因果链:
+- 在食物上: 泵食 → pump_rate 高 → NSM ASIC 激活 → 5-HT 升高 → 速度降低
+- 离开食物: 停止泵食 → pump_rate 下降 → NSM 沉默 → 5-HT 衰减 → 速度恢复

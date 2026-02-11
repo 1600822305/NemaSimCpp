@@ -575,20 +575,21 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 - **regtest**: 17 pass, 0 FAIL
 - **文档**: docs/steps/step44_off_food_search.md
 
-### Step 45: NLP-12 — DVA 觅食搜索神经肽 ✅ (2026-02-11)
+### Step 45: NLP-12 + NSM 肠道感觉 + 5-HT 阈值修复 ✅ (2026-02-11)
 > 详细文档: [steps/step45_nlp12_foraging.md](steps/step45_nlp12_foraging.md)
 
 - **NLP-12 神经肽**: DVA→NLP-12 (CCK 同源物), tau_rise=3s, tau_decay=15s, threshold=0.5
-- **CKR-1→SMD**: +5pA×4 头部运动神经元 → 头部摆动幅度 ↑ → 前向重定向 (ARS 主通路)
-- **CKR-2→AVA**: +2pA×2 命令中间神经元 → 温和反转偏置 (辅助通路)
-- **DA→DOP-1→DVA**: +4pA 多巴胺预激活 DVA → NLP-12 储备 (Bhattacharya 2014)
-- **双通路 ARS**: 快速 DARPP-32→AVA +1.5pA (胞内) + 慢速 NLP-12→CKR-1→SMD (体积传递)
-- **food_memory→DVA**: +5pA 驱动 DVA → NLP-12 释放 → 涌现式搜索幅度自适应
-- **信号**: Gαq (EGL-30) 纯兴奋性通路; 删除无证据 CKR-2→AVB 抑制靶点
-- **结果**: CI=0.70-0.93 (4-seed), near_food=2-7%, reversal_rate=0.07-0.12/s
-- **REF**: Ramachandran 2021 eLife, Bhattacharya 2014 PLOS Genetics, Hu 2011 Neuron
+- **CKR-1→SMD**: +5pA×4 (ARS 主通路), **CKR-2→AVA**: +2pA×2 (辅助通路)
+- **DA→DOP-1→DVA**: +4pA 多巴胺预激活 (Bhattacharya 2014)
+- **双通路 ARS**: 快速 DARPP-32→AVA +1.5pA + 慢速 NLP-12→CKR-1→SMD
+- **NLP-12 targets=0 bug**: setup_neuromodulation() 在 cache_neuron_ids() 前调用 → 用 get_neuron_id() 修复
+- **NSM 肠道感觉**: food_density→pump_rate_hz (Randi 2018 Cell: ASIC DEL-7/DEL-3 检测泵食)
+- **5-HT threshold**: 0.5→0.3 (ADF 在 Step 43 已移除, 高阈值失去理由; NSM mean S=0.45<0.5 → drive=0)
+- **删除**: 无证据 CKR-2→AVB 抑制靶点, NSM chemo_mappings_ 条目
+- **移除 satiety→NSM -15pA**: NSM 不受 satiety 影响 (Randi 2018); roaming 通过 RIC→OA (已有)
+- **结果**: CI=0.44-0.91, 5-HT 0.18→**0.53** (3倍↑), NLP-12 targets 0→**6**
+- **REF**: Ramachandran 2021 eLife, Randi 2018 Cell, Flavell 2013/2023 Cell, You 2008 Cell
 - **regtest**: 17 pass, 0 FAIL
-- **文档**: docs/steps/step45_nlp12_foraging.md
 
 ---
 
