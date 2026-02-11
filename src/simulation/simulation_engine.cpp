@@ -113,11 +113,13 @@ void SimulationEngine::initialize_default() {
             // gain=150: strong modulation when approaching/leaving Tc (ratio AFD/ASE~0.78)
             thermo_mappings_.push_back({info.id, ThermoTransducer(150.0, 5.0, 3600000.0, 200.0)});
         } else if (!starts_with(info.name, "ALM") && !starts_with(info.name, "PLM")
-                   && !starts_with(info.name, "ADF") && !starts_with(info.name, "AWB")) {
+                   && !starts_with(info.name, "ADF") && !starts_with(info.name, "AWB")
+                   && !starts_with(info.name, "ASJ") && !starts_with(info.name, "ASK")) {
             // Non-touch sensory neurons: low baseline
             other_sensory_ids_.push_back(info.id);
             // ALM/PLM excluded: zero baseline, only activated by wall collision
             // ADF excluded: driven by sickness_ state (Step 26)
+            // ASJ/ASK excluded: Step 55 — driven by light field (LITE-1 photoreceptor)
         }
     }
 
@@ -671,6 +673,56 @@ void SimulationEngine::apply_sensory_input() {
                 // Learned amplification: sickness × repellent → strong AWB drive
                 double I_awb = 2.0 + awb_pathogen_gain_ * sickness_ * repellent;
                 neurons_[awb_id]->set_external_current(I_awb);
+            }
+        }
+    }
+
+    // Step 55: Light avoidance — LITE-1 photoreceptor on ASJ/ASK/AWB/ASH
+    // C. elegans detects UV/blue light despite lacking eyes
+    // LITE-1 → Gα → guanylate cyclase → cGMP → TAX-2/TAX-4 CNG → depolarization
+    // REF: Ward 2008 Nat Neurosci — ASJ primary photoreceptor
+    //      Liu 2010 — ASJ+ASK+AWB+ASH combinatorial light sensing
+    //      Edwards 2008 — LITE-1 identified in genetic screen
+    if (environment_.has_light()) {
+        Vector2d head_pos = body_.get_head_position();
+        double light = environment_.sample_light(head_pos);
+        if (light > 0.01) {
+            // ASJ: primary photoreceptor — strongest light response
+            // Ward 2008: light evokes ~20pA inward current in ASJ via CNG channels
+            // gain=60: at light=0.5 → 30pA, at light=1.0 → 60pA (strong reversal drive)
+            // baseline=1pA: low spontaneous activity
+            for (int asj_id : nids("ASJ")) {
+                if (asj_id >= 0 && asj_id < n) {
+                    double I_asj = 1.0 + 60.0 * light;
+                    neurons_[asj_id]->set_external_current(I_asj);
+                }
+            }
+            // ASK: secondary photoreceptor — weaker light response
+            // Liu 2010: ASK contributes to phototaxis but less than ASJ
+            // gain=30: half of ASJ (secondary role)
+            for (int ask_id : nids("ASK")) {
+                if (ask_id >= 0 && ask_id < n) {
+                    double I_ask = 1.0 + 30.0 * light;
+                    neurons_[ask_id]->set_external_current(I_ask);
+                }
+            }
+            // AWB: additive light drive on top of repellent/pathogen drive
+            // AWB LITE-1 expression confirmed (Liu 2010, eLife 2025)
+            // Weaker than ASJ (tertiary role), gain=20
+            for (int awb_id : nids("AWB")) {
+                if (awb_id >= 0 && awb_id < n) {
+                    double I_existing = neurons_[awb_id]->get_I_ext();
+                    neurons_[awb_id]->set_external_current(I_existing + 20.0 * light);
+                }
+            }
+            // ASH: additive light drive on top of nociceptive drive
+            // ASH responds to light but less than ASJ (polymodal nociceptor)
+            // gain=15: weakest photosensory contribution
+            for (int ash_id : nids("ASH")) {
+                if (ash_id >= 0 && ash_id < n) {
+                    double I_existing = neurons_[ash_id]->get_I_ext();
+                    neurons_[ash_id]->set_external_current(I_existing + 15.0 * light);
+                }
             }
         }
     }

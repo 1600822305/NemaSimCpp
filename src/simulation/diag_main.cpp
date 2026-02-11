@@ -136,6 +136,8 @@ int main(int argc, char* argv[]) {
     bool cli_quiet = false;
     bool cli_no_toxin = false;
     bool cli_no_food = false;
+    bool cli_light = false;
+    double cli_light_x = 25.0, cli_light_y = 25.0, cli_light_intensity = 1.0;
     bool cli_fitness = false;
     int cli_nseeds = 4;
     unsigned int cli_seed = 123;
@@ -149,6 +151,10 @@ int main(int argc, char* argv[]) {
         else if (arg == "--seed" && i+1 < argc) cli_seed = static_cast<unsigned int>(std::atoi(argv[++i]));
         else if (arg == "--no-toxin" || arg == "--no_toxin") cli_no_toxin = true;
         else if (arg == "--no-food" || arg == "--no_food") cli_no_food = true;
+        else if (arg == "--light") cli_light = true;
+        else if (arg == "--light_x" && i+1 < argc) { cli_light = true; cli_light_x = std::atof(argv[++i]); }
+        else if (arg == "--light_y" && i+1 < argc) { cli_light = true; cli_light_y = std::atof(argv[++i]); }
+        else if (arg == "--light_intensity" && i+1 < argc) { cli_light = true; cli_light_intensity = std::atof(argv[++i]); }
         else if (arg == "--quiet" || arg == "-q") cli_quiet = true;
         else if (arg == "--fitness") cli_fitness = true;
         else if (arg == "--seeds" && i+1 < argc) cli_nseeds = std::atoi(argv[++i]);
@@ -162,6 +168,9 @@ int main(int argc, char* argv[]) {
                       << "  --seed <n>            RNG seed (default: 123)\n"
                       << "  --no-toxin            Non-toxic food (disable repellent)\n"
                       << "  --no-food             No food (empty arena, random walk)\n"
+                      << "  --light               Enable light source at (25,25)\n"
+                      << "  --light_x/y <f>       Light source position\n"
+                      << "  --light_intensity <f>  Light intensity 0-1 (default: 1.0)\n"
                       << "  --quiet / -q          Only show key metrics\n"
                       << "  --fitness             Multi-seed fitness evaluation mode\n"
                       << "  --seeds <n>           Number of seeds for fitness mode (default: 4)\n";
@@ -282,6 +291,11 @@ int main(int argc, char* argv[]) {
     if (cli_no_food) {
         sim.environment().chemical_field().clear();
         sim.environment().soluble_field().clear();
+    }
+
+    // Step 55: Light source (UV/blue)
+    if (cli_light) {
+        sim.environment().set_light_source({cli_light_x, cli_light_y}, cli_light_intensity);
     }
 
     // Step 41: Reset transducers after environment changes

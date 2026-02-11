@@ -58,6 +58,22 @@ double Environment::sample_food_density(Vector2d pos) const {
     return food;
 }
 
+double Environment::sample_light(Vector2d pos) const {
+    if (light_intensity_ <= 0.0) return 0.0;
+    // Gaussian light field: σ=8mm (broader than food lawn)
+    // UV/blue light scatters broadly on agar surface
+    // REF: Ward 2008 — focused light on head triggers reversal
+    const double light_sigma2 = 64.0;  // mm² (σ=8mm)
+    double r2 = (pos.x - light_pos_.x) * (pos.x - light_pos_.x) +
+                (pos.y - light_pos_.y) * (pos.y - light_pos_.y);
+    return light_intensity_ * fast_exp(-r2 / (2.0 * light_sigma2));
+}
+
+void Environment::set_light_source(Vector2d pos, double intensity) {
+    light_pos_ = pos;
+    light_intensity_ = intensity;
+}
+
 void Environment::set_temperature_gradient(double center_temp, Vector2d gradient_dir, double gradient_strength) {
     temp_center_ = center_temp;
     double len = std::sqrt(gradient_dir.x * gradient_dir.x + gradient_dir.y * gradient_dir.y);

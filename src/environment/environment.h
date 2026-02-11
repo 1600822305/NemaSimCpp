@@ -24,6 +24,12 @@ public:
     // Used for feeding/satiety, NOT for gradient-based navigation.
     double sample_food_density(Vector2d pos) const;
 
+    // Step 55: Light field — UV/blue light source (Ward 2008 Nat Neurosci)
+    // C. elegans detects light via LITE-1 in ASJ/ASK/AWB/ASH neurons
+    double sample_light(Vector2d pos) const;
+    void set_light_source(Vector2d pos, double intensity);
+    bool has_light() const { return light_intensity_ > 0.0; }
+
     double width() const { return width_; }
     double height() const { return height_; }
 
@@ -50,6 +56,10 @@ private:
     double temp_center_ = 20.0;  // °C at arena center
     double temp_grad_x_ = 0.0;   // °C/mm in x direction
     double temp_grad_y_ = 0.0;   // °C/mm in y direction
+
+    // Step 55: Light source (UV/blue)
+    Vector2d light_pos_ = {-1.0, -1.0}; // negative = no light
+    double light_intensity_ = 0.0;       // [0,1] normalized intensity
 };
 
 } // namespace celegans

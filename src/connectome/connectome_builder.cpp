@@ -174,6 +174,22 @@ void build_neurons(CB& b) {
     // REF: Way & Chalfie 1989, Albeg 2011, Tao 2019
     b.neuron("PVDL", NT::SENSORY, NTT::GLUTAMATE);
     b.neuron("PVDR", NT::SENSORY, NTT::GLUTAMATE);
+    // Step 55: ASJ — PRIMARY photoreceptor + dauer pheromone sensor
+    // Expresses LITE-1 gustatory receptor homolog → UV/blue light detection
+    // Signal: LITE-1 → Gα (GOA-1/GPA-3) → guanylate cyclase → cGMP → TAX-2/TAX-4 CNG
+    // Also senses dauer pheromone (daf-7/TGF-β) and DAF-28/insulin
+    // REF: Ward 2008 Nat Neurosci — ASJ is photoreceptor cell
+    //      Liu 2010 — LITE-1 phototaxis via multiple sensory neurons
+    //      Bargmann & Horvitz 1991 — ASJ chemosensory function
+    b.neuron("ASJL", NT::SENSORY, NTT::GLUTAMATE);
+    b.neuron("ASJR", NT::SENSORY, NTT::GLUTAMATE);
+    // Step 55: ASK — secondary photoreceptor + pheromone sensor
+    // Expresses LITE-1, responds to UV/blue light (Liu 2010)
+    // Also senses osas#9 dispersal pheromone (avoidance) and lysine (attraction)
+    // REF: Liu 2010, eLife 2025 (LITE-1 chemoreceptor)
+    //      Bargmann & Horvitz 1991 — ASK amphid sensory neuron
+    b.neuron("ASKL", NT::SENSORY, NTT::GLUTAMATE);
+    b.neuron("ASKR", NT::SENSORY, NTT::GLUTAMATE);
 
     // --- Interneurons ---
     b.neuron("AIAL", NT::INTER, NTT::ACETYLCHOLINE);
@@ -409,6 +425,45 @@ void build_touch_nociception(CB& b) {
     // AWB↔AUA: ELECTRICAL synapse (gap junction), not chemical
     // REF: Filipowicz 2022 BMC Biology — "AWB electrically synapses onto AUA and RMG"
     b.gj("AWBL", "AUAL", 2); b.gj("AWBR", "AUAR", 2);
+}
+
+// ================================================================
+// 3b. Phototaxis / Light Avoidance Circuit (Step 55)
+// ================================================================
+void build_phototaxis(CB& b) {
+    // ASJ: primary photoreceptor → downstream interneurons
+    // Cook 2019: ASJ→AIA(2), ASJ→AIB(1), ASJ→RIA(2)
+    // ASJ detects UV/blue light via LITE-1 → CNG channel depolarization
+    // ASJ→AIA: excitatory → AIA ⊣ AIB → suppresses reversal (indirect path)
+    // ASJ→AIB: excitatory → AIB → AVA → promotes reversal (direct path)
+    // ASJ→RIA: excitatory → RIA → SMD → head motor (steering away from light)
+    // Net effect: ASJ light → AIB dominates → reversal + reorientation
+    // REF: Ward 2008 Nat Neurosci, Liu 2010, Cook 2019
+    b.syn("ASJL", "AIAL", 2); b.syn("ASJR", "AIAR", 2);
+    b.syn("ASJL", "AIBL", 1); b.syn("ASJR", "AIBR", 1);
+    b.syn("ASJL", "RIAL", 2); b.syn("ASJR", "RIAR", 2);
+
+    // ASK: secondary photoreceptor → interneurons
+    // Cook 2019: ASK→AIA(3), ASK→AIB(1), ASK→AIY(2)
+    // ASK also senses pheromones (osas#9 avoidance) — multifunctional
+    // REF: Liu 2010, eLife 2025 LITE-1 chemoreceptor
+    b.syn("ASKL", "AIAL", 2); b.syn("ASKR", "AIAR", 2);
+    b.syn("ASKL", "AIBL", 1); b.syn("ASKR", "AIBR", 1);
+    b.syn("ASKL", "AIYL", 1); b.syn("ASKR", "AIYR", 1);
+
+    // AWB: volatile repellent + photosensitive (LITE-1 expressed)
+    // NEW connections for light circuit — AWB→AIB (reversal), AWB→AIZ
+    // Cook 2019: AWB→AIZ(3), AWB↔AIB gap junction exists but chemical→AIB too
+    // REF: Liu 2010 — ASJ+ASK+AWB+ASH mediate light avoidance combinatorially
+    b.syn("AWBL", "AIZL", 1); b.syn("AWBR", "AIZR", 1);
+
+    // Gap junctions: photosensory neuron coupling
+    // ASJ ↔ ASK: co-labeled in amphid, share sensory environment
+    // REF: Cook 2019 — ASJ↔ASK gap junction
+    b.gj("ASJL", "ASKL", 2); b.gj("ASJR", "ASKR", 2);
+    // ASJ L↔R + ASK L↔R: bilateral symmetry coupling
+    b.gj("ASJL", "ASJR", 1);
+    b.gj("ASKL", "ASKR", 1);
 }
 
 // ================================================================
@@ -725,6 +780,7 @@ void build_default_connectome(
     // 2. Wire circuits (order doesn't matter — all neurons already registered)
     build_chemotaxis(b);         // ASE/AWC/AWA/AFD → AIA/AIB/AIY/AIZ
     build_touch_nociception(b);  // ALM/PLM/ASH/OLQ/AWB touch & pain
+    build_phototaxis(b);         // Step 55: ASJ/ASK/AWB light avoidance
     build_interneuron(b);        // AIA/AIB/AIY/RIB → AVA/AVB relay
     build_head_motor(b);         // SMD/RMD/RME/SMB oscillator + klinotaxis
     build_command_ventral(b);    // AVA/AVB/AVE → motor neurons, DD↔VD, AS
