@@ -44,9 +44,10 @@ Vector2d Environment::temperature_gradient(Vector2d pos) const {
 }
 
 double Environment::sample_food_density(Vector2d pos) const {
-    // Food (bacteria) is localized: σ²=9mm² (σ≈3mm radius colony)
-    // vs navigation gradient σ²=144mm² (volatile attractant diffusion)
-    // REF: Bargmann 2006 — bacteria lawn ~3mm diameter on agar
+    // Food (bacteria) is localized near source, much narrower than volatile gradient
+    // σ=4mm → lawn edge (density=0.4) at ~5.4mm from center
+    // vs navigation gradient σ²=144mm² (volatile attractant diffusion, σ=12mm)
+    // REF: Bargmann 2006 — bacteria lawn radius on standard NGM plate
     double food = 0.0;
     const double food_sigma2 = 16.0;  // mm² (σ=4mm, bacterial lawn ~4mm radius)
     for (const auto& src : chem_field_.sources()) {

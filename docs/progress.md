@@ -675,6 +675,16 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 - 5-HT MOD-1 → PVC: -5pA (食物上前进指令压制)
 - **regtest**: 17 pass, 0 FAIL
 
+### Step 54: Food Edge Detection Bug Fix ✅ (2026-02-11)
+> 详细文档: [steps/step54_food_edge_detection_fix.md](steps/step54_food_edge_detection_fix.md)
+
+- **BUG FIX**: head poke reversal 的 food_edge_exit 边缘检测从 Step 47 起就从未触发
+  - 原因: `prev > 0.4 && current < 0.3` 在平滑高斯场中不可能单步跳变 0.1
+  - 修复: latch-based 阈值穿越检测器（`was_on_lawn_` 标志）
+- near_food: **5% → 34%** (10-seed avg, 300s)
+- CI: ~0.50-0.65 (no_toxin), toxic CI 仍为负
+- **regtest**: 17 pass, 0 FAIL
+
 ---
 
 ## 当前系统状态
@@ -705,7 +715,7 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 工具: CLI 运行时参数覆盖 (--as_factor/--pulse_amp/--duration/--seed 等, 无需重编译调参)
       --fitness 模式: 4 seeds × 3 scenarios 自动评估, 输出标量 fitness score
 可视化: Dear ImGui + ImPlot + GLFW, 3列布局, 实时调参+信号链诊断
-状态: 趋化+触觉回避+化学回避+排斥weathervane+病原体学习(CI反向!)+多化学物种+RIM稳定+神经调质+ARS(双通路:DARPP-32+NLP-12)+觅食循环+STP+盐学习+温度趋性+咽部泵食+睡眠/静止(RIS/FLP-11)+RIV omega(TA门控)+后退运动+RIA↔RIV负反馈环路+PDF roaming+food-edge反转+5-HT受体多样性(MOD-1/SER-4/SER-1/SER-5), 纯涌现 (132神经元)
+状态: 趋化+触觉回避+化学回避+排斥weathervane+病原体学习(CI反向!)+多化学物种+RIM稳定+神经调质+ARS(双通路:DARPP-32+NLP-12)+觅食循环+STP+盐学习+温度趋性+咽部泵食+睡眠/静止(RIS/FLP-11)+RIV omega(TA门控)+后退运动+RIA↔RIV负反馈环路+PDF roaming+food-edge反转(latch检测)+5-HT受体多样性(MOD-1/SER-4/SER-1/SER-5), 纯涌现 (134神经元)
 工具: celegans_diag.exe (信号链诊断+fitness) + celegans_regtest.exe (回归检测+电流溯源)
 
 运动驱动 (Step 13 — 生物学机制):
@@ -740,7 +750,7 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
   运动学: dθ/dt = v × κ_head, pirouette 概率模型 (AVA 调制)
   Weathervane: ∇C_⊥ → SMD 差异驱动 + 直接曲率偏置 (Iino & Yoshida 2009)
   曲率偏置: curv_gain=45, 梯度法向→头部曲率偏移 (绕过SMD振荡瓶颈)
-  趋化指数: CI ≈ 0.51-0.85 (no_toxin, mean 0.70), time_near_food ≈ 33% (300s, 文献60-80%)
+  趋化指数: CI ≈ 0.50-0.75 (no_toxin, mean 0.58), time_near_food ≈ 34% (300s, 文献60-80%)
   Pirouette: off-food 0.10/s (6/min), on-food ~0.06/s (5-HT REVERSAL_RATE -0.50 suppression)
   Food-edge: head poke reversal p=0.50+0.30×5HT-0.30×PDF (eLife 2024)
   Basal slowing: on_lawn sigmoid × 0.25 → 25% on-food 速度下降 (instant, DOP-3 volume transmission)

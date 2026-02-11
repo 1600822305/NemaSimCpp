@@ -228,6 +228,7 @@ private:
     // When head exits food boundary → reversal with high probability (dwelling)
     // REF: Flavell 2024 eLife — head poke reversal 1.1/min, leaving 1/95min
     double prev_food_at_head_ = 0.0;    // previous step food density at head
+    bool was_on_lawn_ = false;          // Step 54: latch for food edge crossing detector
 
     // Area-Restricted Search (Step 20d)
     // Models DA → DARPP-32 phosphorylation → GLR-1 enhancement → more reversals

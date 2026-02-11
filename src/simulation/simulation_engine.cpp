@@ -1457,9 +1457,14 @@ void SimulationEngine::apply_touch_stimulus() {
         // REF: Flavell 2024 eLife — foraging decisions at food boundary
         //      Gray 2005 PNAS — AIB promotes reversals
         //      Sawin 2000 — CEP mechanosensory detection of bacteria
+        // Step 54 BUG FIX: prev_food > 0.4 && current_food < 0.3 in a single step
+        // was IMPOSSIBLE with smooth Gaussian gradient (change ~0.00001/step).
+        // Fix: latch-based crossing detector — track was_on_lawn_ flag.
         double food_at_head = environment_.sample_food_density(body_.get_head_position());
-        bool food_edge_exit = (prev_food_at_head_ > 0.4 && food_at_head < 0.3);
-        prev_food_at_head_ = food_at_head;
+        bool currently_on_lawn = (food_at_head > 0.4);
+        bool food_edge_exit = (was_on_lawn_ && food_at_head < 0.3);
+        if (currently_on_lawn) was_on_lawn_ = true;
+        if (food_at_head < 0.3) was_on_lawn_ = false;
 
         if (food_edge_exit && current_time_ > reversal_refractory_end_) {
             // State-dependent reversal probability at food edge
