@@ -650,6 +650,14 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 - 方法: 同类拆源文件 (Split Source, Same Class)，零接口变化
 - **regtest**: 17 pass, 0 FAIL
 
+### Step 51: 重构 — 拆分 generate_default_connectome() ✅ (2026-02-11)
+> 详细文档: [steps/step51_refactor_connectome_builder.md](steps/step51_refactor_connectome_builder.md)
+
+- **connectome_loader.cpp**: 942 → **148 行** (-84%)
+- 新增 `connectome_builder.cpp` (620行): CB 辅助结构 + 12 个 `build_xxx()` 按回路组织
+- 辅助函数: `syn()`/`inh()`/`gj()`/`comp()` 减少样板代码
+- **regtest**: 17 pass, 0 FAIL
+
 ---
 
 ## 当前系统状态

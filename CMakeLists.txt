@@ -52,6 +52,7 @@ add_library(celegans_connectome STATIC
     src/connectome/gap_junction.cpp
     src/connectome/connectome.cpp
     src/connectome/connectome_loader.cpp
+    src/connectome/connectome_builder.cpp
 )
 target_link_libraries(celegans_connectome PUBLIC celegans_neuron)
 
