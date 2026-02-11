@@ -604,6 +604,19 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 - **REF**: Flavell 2013 Cell, Barrios 2012 Nat Neurosci, Janssen 2009
 - **regtest**: 17 pass, 0 FAIL
 
+### Step 47: Food-Edge Head Poke Reversal — 食物边缘反转 ✅ (2026-02-11)
+> 详细文档: [steps/step47_food_edge_reversal.md](steps/step47_food_edge_reversal.md)
+
+- **关键发现** (eLife 2024 Flavell lab): 虫子 97% 时间在食物上，head poke reversal 1.1/min vs leaving 1/95min
+- **机制**: 头部从食物→非食物转换 (food_density 0.4→0.3) → 状态依赖反转
+- **反转概率**: p = 0.50 + 0.30×[5-HT] - 0.30×[PDF] (dwelling=0.66, roaming=0.41)
+- **速度调参实验**: speed_scale 1.0/1.2/1.5 + 5-HT -0.60/-0.80 全部 tank CI (5-HT tau=8s 延续到 off-food)
+- **instant food_slow**: 4种方案测试，全部 tank CI (speed trap 效应)
+- **结论**: 只有 head poke reversal 保持 CI 同时提供 dwelling 机制
+- **结果**: CI=0.56-0.90 (mean 0.77), 5-HT=0.51-0.54, speed=0.17
+- **REF**: Flavell 2024 eLife, Gray 2005 PNAS, Sawin 2000 Neuron
+- **regtest**: 17 pass, 0 FAIL
+
 ---
 
 ## 当前系统状态
@@ -616,7 +629,7 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
   运动: 68 (SMD/RMD/SMB 4×2+4 + RIV L/R + RMED/RMEV + AS01-07 + DB01-07/VB01-07/DA01-05/VA01-05/DD01-05/VD01-05 + MC/M3 L/R + M4 + HSN L/R + VC4/VC5)
 突触: ~197 化学 + ~36 间隙连接 (全部带 Tsodyks-Markram STP, 支持分数 sections)
   Step 42: Cook 2019 校准 (+8 RIA↔RIV, -2 AVE→RIV) + RIV↔RIV gap
-神经调质: 5 种 (5-HT, DA, OA, TA, NLP-12) — volume transmission + 饱食度(泵驱动)
+神经调质: 6 种 (5-HT, DA, OA, TA, NLP-12, PDF) — volume transmission + 饱食度(泵驱动)
   5-HT 源: NSM(食物) + HSN(产卵) — 4个源神经元 (Step 43: ADF 移除)
   5-HT 靶标: AIY/AIB(EXCITABILITY) + speed(-0.40) + reversal_rate(-0.50) + RIC(-8pA)
   TA 源: RIM (逃逸协调) — LGC-55→SMD/AVB/RIV抑制 + TYRA-3→ASH增敏 + SER-2→AIY抑制
@@ -634,7 +647,7 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 工具: CLI 运行时参数覆盖 (--as_factor/--pulse_amp/--duration/--seed 等, 无需重编译调参)
       --fitness 模式: 4 seeds × 3 scenarios 自动评估, 输出标量 fitness score
 可视化: Dear ImGui + ImPlot + GLFW, 3列布局, 实时调参+信号链诊断
-状态: 趋化+触觉回避+化学回避+排斥weathervane+病原体学习(CI反向!)+多化学物种+RIM稳定+神经调质+ARS(双通路:DARPP-32+NLP-12)+觅食循环+STP+盐学习+温度趋性+咽部泵食+睡眠/静止(RIS/FLP-11)+RIV omega(TA门控)+后退运动+RIA↔RIV负反馈环路, 纯涌现 (132神经元)
+状态: 趋化+触觉回避+化学回避+排斥weathervane+病原体学习(CI反向!)+多化学物种+RIM稳定+神经调质+ARS(双通路:DARPP-32+NLP-12)+觅食循环+STP+盐学习+温度趋性+咽部泵食+睡眠/静止(RIS/FLP-11)+RIV omega(TA门控)+后退运动+RIA↔RIV负反馈环路+PDF roaming+food-edge反转, 纯涌现 (132神经元)
 工具: celegans_diag.exe (信号链诊断+fitness) + celegans_regtest.exe (回归检测+电流溯源)
 
 运动驱动 (Step 13 — 生物学机制):
@@ -669,9 +682,10 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
   运动学: dθ/dt = v × κ_head, pirouette 概率模型 (AVA 调制)
   Weathervane: ∇C_⊥ → SMD 差异驱动 + 直接曲率偏置 (Iino & Yoshida 2009)
   曲率偏置: curv_gain=45, 梯度法向→头部曲率偏移 (绕过SMD振荡瓶颈)
-  趋化指数: CI ≈ 0.68-0.97 (no_toxin), time_near_food ≈ 8-52% (300s, seed-dependent)
+  趋化指数: CI ≈ 0.56-0.90 (no_toxin), time_near_food ≈ 2-8% (300s, seed-dependent)
   Pirouette: off-food 0.10/s (6/min), on-food ~0.06/s (5-HT REVERSAL_RATE -0.50 suppression)
-  速度: 0.21 mm/s (speed_scale=2.0, 文献值 ~0.15-0.2 mm/s)
+  Food-edge: head poke reversal p=0.50+0.30×5HT-0.30×PDF (eLife 2024)
+  速度: 0.17 mm/s (speed_scale=2.0, 文献值 ~0.15-0.2 mm/s)
 
 文件结构:
   src/core/         — 4 文件 (types/config/logger .h/.cpp)

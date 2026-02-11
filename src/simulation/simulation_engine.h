@@ -253,6 +253,11 @@ private:
     void update_satiety();              // called each step (now uses pharynx pump rate)
     std::vector<int> ric_ids_;          // RIC neuron IDs (OA source, tonic drive)
 
+    // Step 47: Food-edge head poke reversal (eLife 2024, Flavell lab)
+    // When head exits food boundary → reversal with high probability (dwelling)
+    // REF: Flavell 2024 eLife — head poke reversal 1.1/min, leaving 1/95min
+    double prev_food_at_head_ = 0.0;    // previous step food density at head
+
     // Area-Restricted Search (Step 20d)
     // Models DA → DARPP-32 phosphorylation → GLR-1 enhancement → more reversals
     // REF: Hills 2004 J Neurosci, Wakabayashi 2004, Calhoun 2014 eLife

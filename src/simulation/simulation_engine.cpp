@@ -524,6 +524,14 @@ void SimulationEngine::step() {
     }
     // Step 44: clamp effective speed_scale to prevent extreme values
     double effective_speed = params.speed_scale * neuromod_.get_speed_scale() * sleep_speed_factor;
+
+    // NOTE: Instant food-contact slowing (Sawin 2000 basal/enhanced) was tested
+    // extensively but consistently tanks CI by slowing off-food navigation
+    // (5-HT tau_decay=8s carries the effect off food). Needs a fundamentally
+    // different approach (not via effective_speed multiplier). See Step 47 notes.
+    // The head poke reversal mechanism (below, in pirouette section) is the
+    // primary mechanism keeping worms on food (eLife 2024: 97% time on food).
+
     if (effective_speed > 3.0) effective_speed = 3.0;
     if (effective_speed < 0.1) effective_speed = 0.1;
     body_.set_speed_scale(effective_speed);
@@ -1446,9 +1454,43 @@ void SimulationEngine::apply_touch_stimulus() {
         //      Bhattacharya 2014 — nlp-12(lf) reduces forward reorientations, NOT omega turns
         pir_rate += 0.08 * food_memory_;
 
+        // Step 47: Head poke reversal at food boundary (eLife 2024, Flavell lab)
+        // When head exits food patch → reversal with state-dependent probability
+        // Data: head poke reversal 1.1/min, lawn leaving only 1/95min
+        //   → ~98% of food-edge encounters result in staying on food
+        // Mechanism: CEP stops detecting bacteria → DA signal drops → AIB→AVA reversal
+        // Probability modulated by behavioral state:
+        //   Dwelling (high 5-HT, low PDF): ~80% reversal → worm stays on food
+        //   Roaming (low 5-HT, high PDF):  ~20% reversal → worm can leave to explore
+        //   Matches: "leaving rates 20-fold higher in roaming" (eLife 2024)
+        // REF: Flavell 2024 eLife — foraging decisions at food boundary
+        //      Gray 2005 PNAS — AIB promotes reversals
+        //      Sawin 2000 — CEP mechanosensory detection of bacteria
+        double food_at_head = environment_.sample_food_density(body_.get_head_position());
+        bool food_edge_exit = (prev_food_at_head_ > 0.4 && food_at_head < 0.3);
+        prev_food_at_head_ = food_at_head;
+
+        if (food_edge_exit && current_time_ > reversal_refractory_end_) {
+            // State-dependent reversal probability at food edge
+            double sht = neuromod_.get_concentration("5-HT");
+            double pdf = neuromod_.get_concentration("PDF");
+            // Dwelling: 5-HT high → p=0.80, Roaming: PDF high → p→0.20
+            double p_edge_rev = 0.50 + 0.30 * sht - 0.30 * pdf;
+            if (p_edge_rev < 0.15) p_edge_rev = 0.15;
+            if (p_edge_rev > 0.85) p_edge_rev = 0.85;
+
+            std::uniform_real_distribution<double> rdist01(0.0, 1.0);
+            if (rdist01(touch_rng_) < p_edge_rev) {
+                is_reversing_ = true;
+                // Short reversal: head poke reversals are brief (~500ms)
+                planned_reversal_end_ = current_time_ + 500.0;
+            }
+        }
+
+        // Standard gradient-dependent pirouette (unchanged)
         double p_pir = pir_rate * (dt_ / 1000.0);
         std::uniform_real_distribution<double> rdist(0.0, 1.0);
-        if (current_time_ > reversal_refractory_end_ && rdist(touch_rng_) < p_pir) {
+        if (!is_reversing_ && current_time_ > reversal_refractory_end_ && rdist(touch_rng_) < p_pir) {
             is_reversing_ = true;
             // Draw reversal duration: exponential with mean 1000ms
             // REF: Gray 2005 — mean reversal ~1s; Luo 2014 — τ_run=6.2s, τ_pir=7.4s
@@ -1684,7 +1726,7 @@ void SimulationEngine::setup_neuromodulation() {
         // Target: speed reduction (enhanced slowing on food)
         // REF: Sawin 2000 — serotonin reduces locomotion speed
         serotonin.targets.push_back(
-            {-1, "SER-7", ModulationEffect::SPEED_SCALE, -0.40}); // Step 41: 40% slower (Sawin 2000 enhanced slowing)
+            {-1, "SER-7", ModulationEffect::SPEED_SCALE, -0.40}); // behavioral state: dwelling generally slower (stacks with instant food-contact slowing)
 
         // Target: RIC inhibition (cross-inhibit OA source during dwelling)
         // 5-HT → SER-4 on RIC → inhibit → no OA during active dwelling
