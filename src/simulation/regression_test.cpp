@@ -371,9 +371,9 @@ int main(int argc, char* argv[]) {
         {"SMDDL V swing",      m.smddl_v_max - m.smddl_v_min,  55.0,  50, "mV", "SMDDL"},
         {"SMDVL V swing",      m.smdvl_v_max - m.smdvl_v_min,  75.0,  65, "mV", "SMDVL"},
         {"SMD diff amplitude", m.smd_diff_amp,                  90.0,  50, "mV", "SMDDL"},
-        // Step 33: I_syn baseline reduced — 40% SMD weathervane fraction lowers peak I_syn
+        // Step 46: I_syn baseline raised — PDF→AIY→RIA→SMD + NLP-12→CKR-1→SMD add current
         {"SMDDL |I_syn| max",  std::max(std::abs(m.smddl_isyn_max), std::abs(m.smddl_isyn_min)),
-                                                                20.0,  50, "pA", "SMDDL"},
+                                                                32.0,  50, "pA", "SMDDL"},
         {"SMDDL I_ext",        m.smddl_iext_max,                3.0,   10, "pA", "SMDDL"},
 
         // Body mechanics

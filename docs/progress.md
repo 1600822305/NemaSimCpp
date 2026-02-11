@@ -591,6 +591,19 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 - **REF**: Ramachandran 2021 eLife, Randi 2018 Cell, Flavell 2013/2023 Cell, You 2008 Cell
 - **regtest**: 17 pass, 0 FAIL
 
+### Step 46: PDF-1 — Roaming 神经肽 (5-HT/PDF 双稳态开关) ✅ (2026-02-11)
+> 详细文档: [steps/step46_pdf_roaming.md](steps/step46_pdf_roaming.md)
+
+- **PDF-1 神经肽**: roaming/dwelling 双稳态开关的"另一半" (Flavell 2013 Cell)
+- **源神经元**: AVB (前进命令) + RIA (头部转向) — roaming 时活跃 → PDF 积累
+- **PDFR-1**: Gαs→cAMP; tau_rise=5s, tau_decay=20s (神经肽，缓慢)
+- **靶点**: SPEED_SCALE +25%, REVERSAL_RATE +30%, AIY +3pA (促进 roaming)
+- **对抗 5-HT**: PDF speed +25% vs 5-HT -40%; PDF reversal +30% vs 5-HT -50%
+- **regtest baseline**: SMDDL I_syn 20→32 pA (PDF→AIY→RIA→SMD 传导)
+- **结果**: CI=0.72-0.92 (更稳定), 5-HT=0.54, PDF=0.20, near_food=3-9%
+- **REF**: Flavell 2013 Cell, Barrios 2012 Nat Neurosci, Janssen 2009
+- **regtest**: 17 pass, 0 FAIL
+
 ---
 
 ## 当前系统状态

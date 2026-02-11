@@ -1919,7 +1919,73 @@ void SimulationEngine::setup_neuromodulation() {
         neuromod_.add_modulator(std::move(nlp12));
     }
 
-    LOG_INFO("Neuromodulation setup: 5-HT (dwelling), DA (basal slowing), OA (roaming), TA (escape), NLP-12 (ARS)");
+    // --- PDF-1 (Pigment Dispersing Factor) ---
+    // Step 46: Roaming neuromodulator — opposes 5-HT dwelling (Flavell 2013 Cell)
+    // The roaming/dwelling switch is driven by TWO opposing neuromodulators:
+    //   5-HT (NSM) → dwelling: slow, low reversal, stay on food
+    //   PDF (AVB) → roaming: fast, high exploration, leave food when satiated
+    // pdf-1 and pdfr-1 mutants show excessive dwelling, reduced roaming
+    // PDFR-1: Gαs-coupled GPCR → cAMP → promotes speed + head movements
+    //
+    // Source neurons (Flavell 2013 Fig 6): AVB, RIA, ASI, PVP, SIAV, RIF
+    //   AVB is the primary source — forward command neuron, active during roaming
+    //   We also include RIA (head curvature regulation)
+    // Target effects via PDFR-1:
+    //   - Speed increase (faster locomotion during roaming)
+    //   - Head movement increase (wider exploration)
+    //   - Reversal rate increase (more turns → wider coverage)
+    //
+    // REF: Flavell 2013 Cell — 5-HT/PDF roaming/dwelling bistable switch
+    //      Barrios 2012 Nat Neurosci — PDF-1 in exploratory behavior
+    //      Janssen 2009 — PDFR-1 Gαs coupling
+    {
+        Neuromodulator pdf;
+        pdf.name = "PDF";
+        pdf.tau_rise = 5000.0;     // 5s — neuropeptide DCV release (slower than amines)
+        pdf.tau_decay = 20000.0;   // 20s — peptide degradation (very slow, extends roaming)
+        pdf.release_threshold = 0.3;
+
+        // Source neurons: AVB (forward command) + RIA (head curvature)
+        // AVB is active during forward runs → PDF accumulates during roaming
+        // On food with high 5-HT: AVB suppressed (via MOD-1→AIY→less AVB drive) → PDF low
+        // Off food: AVB active → PDF high → roaming
+        int avbl = connectome_.get_neuron_id("AVBL");
+        int avbr = connectome_.get_neuron_id("AVBR");
+        int rial = connectome_.get_neuron_id("RIAL");
+        int riar = connectome_.get_neuron_id("RIAR");
+        if (avbl >= 0) pdf.source_neuron_ids.push_back(avbl);
+        if (avbr >= 0) pdf.source_neuron_ids.push_back(avbr);
+        if (rial >= 0) pdf.source_neuron_ids.push_back(rial);
+        if (riar >= 0) pdf.source_neuron_ids.push_back(riar);
+
+        // Target 1: PDFR-1 → speed increase (roaming = fast locomotion)
+        // Opposes 5-HT SER-7 speed reduction (-0.40) and DA DOP-3 (-0.30)
+        // Net: roaming (high PDF, low 5-HT) = fast; dwelling (high 5-HT, low PDF) = slow
+        // REF: Flavell 2013 — pdf-1 mutants move slower on food
+        pdf.targets.push_back(
+            {-1, "PDFR-1", ModulationEffect::SPEED_SCALE, 0.25}); // +25% speed at peak PDF
+
+        // Target 2: PDFR-1 → reversal rate increase (roaming = more turns)
+        // Opposes 5-HT reversal suppression (-0.50)
+        // Net: roaming has moderate reversal rate; dwelling has low reversal rate
+        pdf.targets.push_back(
+            {-1, "PDFR-1", ModulationEffect::REVERSAL_RATE, 0.30}); // +30% reversals at peak
+
+        // Target 3: PDFR-1 → AIY excitation (promotes forward drive)
+        // PDF → PDFR-1 on AIY → cAMP → more forward runs
+        // Complements OA→SER-6→AIY but through different receptor/pathway
+        // REF: Flavell 2013 — optogenetic cAMP in PDFR-1 cells → prolonged roaming
+        int aiyl = connectome_.get_neuron_id("AIYL");
+        int aiyr = connectome_.get_neuron_id("AIYR");
+        if (aiyl >= 0) pdf.targets.push_back(
+            {aiyl, "PDFR-1", ModulationEffect::EXCITABILITY, 3.0}); // +3 pA
+        if (aiyr >= 0) pdf.targets.push_back(
+            {aiyr, "PDFR-1", ModulationEffect::EXCITABILITY, 3.0});
+
+        neuromod_.add_modulator(std::move(pdf));
+    }
+
+    LOG_INFO("Neuromodulation setup: 5-HT (dwelling), DA (basal slowing), OA (roaming), TA (escape), NLP-12 (ARS), PDF (roaming)");
 }
 
 // ================================================================
