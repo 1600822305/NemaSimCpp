@@ -209,6 +209,12 @@ void build_neurons(CB& b) {
     b.neuron("AVDR", NT::INTER, NTT::GLUTAMATE);
     b.neuron("AVEL", NT::INTER, NTT::ACETYLCHOLINE);
     b.neuron("AVER", NT::INTER, NTT::ACETYLCHOLINE);
+    // Step 53: PVC — forward command interneuron (5th command pair)
+    // Receives PLM (posterior touch), AIY (chemotaxis), DVA (proprioception)
+    // Outputs to AVB (main forward drive). 5-HT MOD-1 inhibits on food.
+    // REF: Chalfie 1985, White 1986, Kawano 2011, Zheng 1999
+    b.neuron("PVCL", NT::INTER, NTT::GLUTAMATE);
+    b.neuron("PVCR", NT::INTER, NTT::GLUTAMATE);
     // RIM: reversal-active interneuron, stabilizes forward/reverse states
     // REF: Ouellette 2022 eLife — RIM gap junctions create behavioral inertia
     b.neuron("RIML", NT::INTER, NTT::GLUTAMATE);
@@ -546,6 +552,20 @@ void build_command_ventral(CB& b) {
     b.gj("DB03", "AS04", 1); b.gj("DB03", "AS05", 1);
     b.gj("DB04", "AS05", 1); b.gj("DB05", "AS06", 1);
     b.gj("DB06", "AS06", 1); b.gj("DB07", "AS07", 1);
+
+    // Step 53: PVC forward command interneuron circuit
+    // --- Inputs to PVC ---
+    // PLM → PVC: posterior gentle touch → accelerate forward (Chalfie 1985)
+    b.syn("PLML", "PVCL", 2); b.syn("PLMR", "PVCR", 2);
+    // AIY → PVC: chemotaxis forward drive (White 1986, Kawano 2011)
+    b.syn("AIYL", "PVCL", 1); b.syn("AIYR", "PVCR", 1);
+    // DVA → PVC: proprioceptive input (Li 2006, Cook 2019)
+    b.syn("DVA",  "PVCL", 1); b.syn("DVA",  "PVCR", 1);
+    // AVD → PVC: touch integration relay (White 1986)
+    b.syn("AVDL", "PVCL", 1); b.syn("AVDR", "PVCR", 1);
+    // --- Outputs from PVC ---
+    // PVC → AVB: main forward command drive (Zheng 1999, Kawano 2011)
+    b.syn("PVCL", "AVBL", 3); b.syn("PVCR", "AVBR", 3);
 }
 
 // ================================================================
@@ -658,15 +678,22 @@ void build_sleep_and_gaps(CB& b) {
     // RIS gap junctions: AIB (5 sections in connectome, community 4)
     b.gj("RIS", "AIBL", 2); b.gj("RIS", "AIBR", 2);
 
+    // RIS ⊣ PVC: sleep should also suppress forward command (Step 53)
+    b.inh("RIS", "PVCL", 1); b.inh("RIS", "PVCR", 1);
+
     // Core gap junctions — command interneuron L-R coupling
     b.gj("AVAL", "AVAR", 10);
     b.gj("AVBL", "AVBR", 12);
     b.gj("AVDL", "AVDR", 5);
     b.gj("AVEL", "AVER", 4);
+    b.gj("PVCL", "PVCR", 4);  // Step 53: PVC L-R coupling
     // Step 37: AVA ↔ AVE gap junction
     b.gj("AVAL", "AVEL", 3); b.gj("AVAR", "AVER", 3);
     b.gj("ASEL", "ASER", 2);
     b.gj("AIBL", "AIBR", 3);
+    // AVA ↔ PVC gap junctions: forward/backward mutual coupling (White 1986)
+    // During reversal: AVA active → depolarizes PVC → but chemical inhibition dominates
+    b.gj("AVAL", "PVCL", 2); b.gj("AVAR", "PVCR", 2);
     // RIM ↔ AVA gap junctions: CRITICAL for forward run stabilization
     // REF: Ouellette 2022 eLife — RIM gap junctions propagate hyperpolarization
     b.gj("RIML", "AVAL", 2); b.gj("RIMR", "AVAR", 2);

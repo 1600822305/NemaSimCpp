@@ -264,7 +264,7 @@ void SimulationEngine::cache_neuron_ids_and_synapses() {
     static const char* prefixes[] = {
         "AIB", "ADF", "AIY", "AWB", "AIZ",
         "ALM", "PLM", "OLQ", "CEP", "URX", "AUA", "BAG", "PVD",
-        "HSN", "VC", "RIC", "MC", "M3", "I1",
+        "HSN", "VC", "RIC", "MC", "M3", "I1", "PVC",
     };
     for (auto prefix : prefixes) {
         auto& group = nids_[prefix];

@@ -666,21 +666,30 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 - 新增神经元只需在 `connectome_builder.cpp` 添加一行，ID 自动可用
 - **regtest**: 17 pass, 0 FAIL
 
+### Step 53: PVC — 前进指令中间神经元 ✅ (2026-02-11)
+> 详细文档: [steps/step53_pvc_forward_command.md](steps/step53_pvc_forward_command.md)
+
+- 新增 PVCL/PVCR (GLU 中间神经元)，神经元总数 132 → **134**
+- 输入: PLM(2)、AIY(1)、DVA(1)、AVD(1) → PVC; 输出: PVC → AVB(3)
+- 配套: PVC L↔R gj(4)、AVA↔PVC gj(2)、RIS⊣PVC(1)
+- 5-HT MOD-1 → PVC: -5pA (食物上前进指令压制)
+- **regtest**: 17 pass, 0 FAIL
+
 ---
 
 ## 当前系统状态
 
 ```
 架构: 8 层 (环境/躯体/感知/神经元/连接组/神经调质/运动/行为)
-神经元: 132 个 MVP 子集 (302 全集待加载)
+神经元: 134 个 MVP 子集 (302 全集待加载)
   感觉: 34 (ASE/AWC/AWA/ASH/ALM/PLM/NSM/CEP/AFD/ADF L/R + OLQ 4× + URX L/R + AQR + PQR + BAG L/R + PVD L/R)
-  中间: 30 (AIA/AIB/AIY/AIZ/RIA/RIB/RIM/RIC/AVA/AVB/AVD/AVE/AUA/I1/RIP L/R + RIS + DVA)
+  中间: 32 (AIA/AIB/AIY/AIZ/RIA/RIB/RIM/RIC/AVA/AVB/AVD/AVE/PVC/AUA/I1/RIP L/R + RIS + DVA)
   运动: 68 (SMD/RMD/SMB 4×2+4 + RIV L/R + RMED/RMEV + AS01-07 + DB01-07/VB01-07/DA01-05/VA01-05/DD01-05/VD01-05 + MC/M3 L/R + M4 + HSN L/R + VC4/VC5)
 突触: ~197 化学 + ~36 间隙连接 (全部带 Tsodyks-Markram STP, 支持分数 sections)
   Step 42: Cook 2019 校准 (+8 RIA↔RIV, -2 AVE→RIV) + RIV↔RIV gap
 神经调质: 6 种 (5-HT, DA, OA, TA, NLP-12, PDF) — volume transmission + 饱食度(泵驱动)
   5-HT 源: NSM(食物) + HSN(产卵) — 4个源神经元 (Step 43: ADF 移除)
-  5-HT 靶标 (18个, 5种受体): MOD-1→AIY/AIB/AIZ(抑制) + SER-4→RIC(抑制)+speed(-0.40)+reversal(-0.50) + SER-1→RIA/RIC(兴奋) + SER-5→ASH(增敏) + LGC-50→RIA(SYNAPSE_GAIN)
+  5-HT 靶标 (20个, 5种受体): MOD-1→AIY/AIB/AIZ/PVC(抑制) + SER-4→RIC(抑制)+speed(-0.40)+reversal(-0.50) + SER-1→RIA/RIC(兴奋) + SER-5→ASH(增敏) + LGC-50→RIA(SYNAPSE_GAIN)
   TA 源: RIM (逃逸协调) — LGC-55→SMD/AVB/RIV抑制 + TYRA-3→ASH增敏 + SER-2→AIY抑制
   NLP-12 源: DVA (本体感觉) — CKR-1→SMD(+5pA, 头摆ARS) + CKR-2→AVA(+2pA) + DA→DOP-1→DVA(+4pA)
 离子通道: 8/14 种 (EGL-19/UNC-2/CCA-1/SHL-1/KQT-3/SLO-1/NCA/MEC)

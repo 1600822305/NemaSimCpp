@@ -82,6 +82,15 @@ void SimulationEngine::setup_neuromodulation() {
                 {aib_id, "MOD-1", ModulationEffect::EXCITABILITY, -6.0}); // -6 pA inhibitory
         }
 
+        // Step 53: Target: PVC inhibition (suppress forward command on food)
+        // MOD-1 (5-HT-gated Cl⁻) on PVC: on-food 5-HT↑ → PVC↓ → AVB weaker → slower
+        // Off food: no 5-HT → PVC active → AVB strong → faster forward locomotion
+        // REF: Zheng 1999 — PVC promotes forward; Flavell 2013 — MOD-1 inhibits roaming neurons
+        for (int pvc_id : nids("PVC")) {
+            if (pvc_id >= 0) serotonin.targets.push_back(
+                {pvc_id, "MOD-1", ModulationEffect::EXCITABILITY, -5.0}); // -5 pA inhibitory
+        }
+
         // Target: reversal rate suppression (dwelling = fewer pirouettes)
         // On food: 5-HT → MOD-1 → fewer reversals → stay on food (dwelling)
         // Off food: no 5-HT → full reversal rate → area-restricted search
