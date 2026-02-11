@@ -36,6 +36,7 @@ public:
     Vector2d get_segment_position(int segment) const;
     double get_speed() const { return speed_; }
     void set_curvature_bias(double b) { curvature_bias_ = b; }
+    double get_curvature_bias() const { return curvature_bias_; }
     void set_omega_mode(bool on) { omega_mode_ = on; }
     // Step 41: Post-pirouette heading perturbation (Pierce-Shimomura 1999)
     void perturb_heading(double dtheta) {

@@ -111,7 +111,7 @@ void SimulationEngine::initialize_default() {
             // gain=150: strong modulation when approaching/leaving Tc (ratio AFD/ASE~0.78)
             thermo_mappings_.push_back({info.id, ThermoTransducer(150.0, 5.0, 3600000.0, 200.0)});
         } else if (!starts_with(info.name, "ALM") && !starts_with(info.name, "PLM")
-                   && !starts_with(info.name, "ADF")) {
+                   && !starts_with(info.name, "ADF") && !starts_with(info.name, "AWB")) {
             // Non-touch sensory neurons: low baseline
             other_sensory_ids_.push_back(info.id);
             // ALM/PLM excluded: zero baseline, only activated by wall collision
@@ -137,6 +137,12 @@ void SimulationEngine::initialize_default() {
         }
         if (starts_with(info.name, "AIY")) {
             aiy_ids_.push_back(info.id);
+        }
+        if (starts_with(info.name, "AWB")) {
+            awb_ids_.push_back(info.id);
+        }
+        if (starts_with(info.name, "AIZ")) {
+            aiz_ids_.push_back(info.id);
         }
     }
 
@@ -420,6 +426,27 @@ void SimulationEngine::step() {
 
     // === All add_synaptic_current() calls below — safe from I_syn_ reset ===
 
+    // Step 43: ADF sickness 5-HT → MOD-1 ⊣ AIY/AIZ (direct current injection)
+    // Biological mechanism: sickness → ADF TPH-1 upregulation → LOCAL 5-HT release
+    // → MOD-1 (Cl⁻ channel) on AIY/AIZ → hyperpolarization → approach suppressed
+    // NOT as synapse: ADF baseline V=-40mV → release=0.27 → disrupts healthy chemotaxis
+    // NOT as neuromod: ADF removed as 5-HT source in Step 41 (tonic off-food inflation)
+    // Direct injection: zero baseline effect, scales linearly with sickness
+    // REF: Zhang 2005 Nature, Ha 2010 Neuron, Frontiers Immunol 2024
+    if (sickness_ > 0.01) {
+        int nn = static_cast<int>(neurons_.size());
+        double I_mod1 = mod1_aiy_gain_ * sickness_;  // up to -12pA at sickness=1
+        for (int aiy_id : aiy_ids_) {
+            if (aiy_id >= 0 && aiy_id < nn)
+                neurons_[aiy_id]->add_synaptic_current(I_mod1);
+        }
+        double I_mod1_aiz = mod1_aiz_gain_ * sickness_;
+        for (int aiz_id : aiz_ids_) {
+            if (aiz_id >= 0 && aiz_id < nn)
+                neurons_[aiz_id]->add_synaptic_current(I_mod1_aiz);
+        }
+    }
+
     // 2b. Thermosensory input: AFD samples temperature field (Step 23)
     // Uses add_synaptic_current() → MUST be after reset
     apply_thermo_input();
@@ -474,7 +501,7 @@ void SimulationEngine::step() {
         int nn = static_cast<int>(neurons_.size());
         if (ris_id_ >= 0 && ris_id_ < nn) {
             double rv = neurons_[ris_id_]->get_membrane_potential();
-            double flp11 = 1.0 / (1.0 + std::exp(-(rv - (-35.0)) / 5.0));
+            double flp11 = 1.0 / (1.0 + fast_exp(-(rv - (-35.0)) / 5.0));
             sleep_speed_factor = 1.0 - 0.97 * flp11;  // up to 97% speed reduction (near-atonia)
         }
     }
@@ -558,7 +585,7 @@ void SimulationEngine::apply_sensory_input() {
     // Sharp sigmoid switch at satiety=0.5:
     //   Hungry (sat<0.3): full chemotaxis (find food!)
     //   Fed (sat>0.7): chemotaxis nearly off (temperature priority)
-    double sat_switch = 1.0 / (1.0 + std::exp(-10.0 * (satiety_ - 0.5)));
+    double sat_switch = 1.0 / (1.0 + fast_exp(-10.0 * (satiety_ - 0.5)));
     double chemo_sat_gain = 1.0 - 0.85 * sat_switch;  // hungry: 1.0, fed: 0.15
 
     // Step 26b: Sickness suppresses chemosensory gain (illness-induced anorexia)
@@ -571,10 +598,13 @@ void SimulationEngine::apply_sensory_input() {
 
     for (auto& cm : chemo_mappings_) {
         if (cm.neuron_id < 0 || cm.neuron_id >= n) continue;
-        // NSM/CEP: use narrow food density, NOT suppressed by sickness (need to detect food for satiety)
+        // NSM/CEP: use narrow food density, NOT suppressed by sickness OR satiety
+        // NSM/CEP detect physical food contact → drive 5-HT/DA unconditionally on food
+        // Satiety modulation acts DOWNSTREAM (ASE/AWC/AWA chemotaxis gain), not on NSM
+        // BUG FIX: chemo_sat_gain was suppressing NSM to 0.15 when fed → 5-HT=0.019
         double input_conc = cm.uses_food_density ? food_density : concentration;
         double I_sensory = cm.transducer.update(input_conc, dt_);
-        double gain_mod = cm.uses_food_density ? chemo_sat_gain : (chemo_sat_gain * sick_suppression);
+        double gain_mod = cm.uses_food_density ? 1.0 : (chemo_sat_gain * sick_suppression);
         I_sensory *= static_cast<double>(params.sensory_gain) * gain_mod;
         neurons_[cm.neuron_id]->set_external_current(I_sensory);
     }
@@ -607,10 +637,33 @@ void SimulationEngine::apply_sensory_input() {
     // ADF baseline=2pA (low), sickness drives strong depolarization → 5-HT release
     for (int adf_id : adf_ids_) {
         if (adf_id >= 0 && adf_id < n) {
-            double I_adf = 2.0 + 30.0 * sickness_;  // 2pA baseline, up to 32pA when sick
+            double I_adf = 0.5 + 30.0 * sickness_;  // 0.5pA baseline (silent), up to 30.5pA when sick
             neurons_[adf_id]->set_external_current(I_adf);
         }
     }
+
+    // Step 43: AWB repulsive olfactory neurons — sense pathogen volatiles
+    // AWB detects repulsive odors (1-undecene, serrawettin) at the food/toxin source
+    // After aversive learning (sickness > 0), AWB response is amplified
+    // AWB→AUA→AVA drives reflexive backward locomotion away from pathogen
+    // AWB ⊣ AIY further suppresses approach
+    // REF: Troemel 1997 Cell, Ha 2010 Neuron, BMC Biology 2022
+    {
+        Vector2d head_pos = body_.get_head_position();
+        double repellent = environment_.sample_repellent(head_pos);
+        for (int awb_id : awb_ids_) {
+            if (awb_id >= 0 && awb_id < n) {
+                // Base response: low (2pA) — AWB mainly activated after learning
+                // Learned amplification: sickness × repellent → strong AWB drive
+                double I_awb = 2.0 + awb_pathogen_gain_ * sickness_ * repellent;
+                neurons_[awb_id]->set_external_current(I_awb);
+            }
+        }
+    }
+
+    // Step 43: ADF sickness 5-HT → MOD-1 ⊣ AIY/AIZ
+    // MOVED to post-reset section in step() — add_synaptic_current() would be
+    // wiped by reset_synaptic_current() if called here.
 
     // Touch/other sensory: low baseline (no active stimulus)
     for (int id : other_sensory_ids_) {
@@ -633,7 +686,7 @@ void SimulationEngine::apply_thermo_input() {
     // Sharp sigmoid switch at satiety=0.5:
     //   Hungry: weak thermotaxis (food priority)
     //   Fed: strong thermotaxis (navigate to cultivation temperature)
-    double sat_switch_t = 1.0 / (1.0 + std::exp(-10.0 * (satiety_ - 0.5)));
+    double sat_switch_t = 1.0 / (1.0 + fast_exp(-10.0 * (satiety_ - 0.5)));
     double thermo_sat_gain = 0.2 + 1.8 * sat_switch_t;  // hungry: 0.2, fed: 2.0
 
     for (auto& tm : thermo_mappings_) {
@@ -658,7 +711,7 @@ void SimulationEngine::apply_head_tonic() {
     double tonic = head_tonic_;
     if (is_sleeping_ && ris_id_ >= 0 && ris_id_ < static_cast<int>(neurons_.size())) {
         double rv = neurons_[ris_id_]->get_membrane_potential();
-        double flp11 = 1.0 / (1.0 + std::exp(-(rv - (-35.0)) / 5.0));
+        double flp11 = 1.0 / (1.0 + fast_exp(-(rv - (-35.0)) / 5.0));
         tonic *= (1.0 - 0.95 * flp11);  // near-zero tonic during deep sleep
     }
     int n = static_cast<int>(neurons_.size());
@@ -688,7 +741,7 @@ void SimulationEngine::apply_head_tonic() {
     double riv_pulse_l = 0.0, riv_pulse_r = 0.0;
     double dt_since_rev = current_time_ - riv_post_rev_time_;
     if (dt_since_rev >= 0.0 && dt_since_rev < 600.0) {
-        double decay = std::exp(-dt_since_rev / 400.0);
+        double decay = fast_exp(-dt_since_rev / 400.0);
         if (riv_post_rev_amp_l_ > 1.0) riv_pulse_l = riv_post_rev_amp_l_ * decay;
         if (riv_post_rev_amp_r_ > 1.0) riv_pulse_r = riv_post_rev_amp_r_ * decay;
     }
@@ -714,7 +767,7 @@ void SimulationEngine::apply_weathervane() {
     double weathervane_gain = static_cast<double>(params.weathervane_gain);
 
     // Step 23c: Satiety modulates chemotaxis weathervane gain
-    double sat_switch_wv = 1.0 / (1.0 + std::exp(-10.0 * (satiety_ - 0.5)));
+    double sat_switch_wv = 1.0 / (1.0 + fast_exp(-10.0 * (satiety_ - 0.5)));
     double chemo_wv_gain = 1.0 - 0.85 * sat_switch_wv;  // fed: 0.15, hungry: 1.0
 
     // Step 26b: DUAL-CHANNEL WEATHERVANE
@@ -887,8 +940,12 @@ void SimulationEngine::apply_smb_neck_bias() {
     if (curvature_offset < -max_bias) curvature_offset = -max_bias;
 
     // Don't override RIV-driven omega curvature_bias (Step 31)
+    // ADD to existing curvature_bias (set by apply_weathervane), don't replace!
+    // Bug fix: apply_smb_neck_bias() was overwriting weathervane's gradient-proportional
+    // curvature_bias (up to ±7.5) with RIA Ca²⁺ signal (±0.5 max), destroying chemotaxis.
+    // Both should co-exist: weathervane provides gradient steering, RIA provides neural modulation.
     if (!riv_omega_active_) {
-        body_.set_curvature_bias(curvature_offset);
+        body_.set_curvature_bias(body_.get_curvature_bias() + curvature_offset);
     }
 }
 
@@ -1248,7 +1305,7 @@ void SimulationEngine::apply_touch_stimulus() {
         if (egg_pressure_ > 1.0) egg_pressure_ = 1.0;
 
         // HSN activation: sigmoid of (egg_pressure - threshold)
-        double hsn_sigmoid = 1.0 / (1.0 + std::exp(-(egg_pressure_ - egg_threshold_) / 0.05));
+        double hsn_sigmoid = 1.0 / (1.0 + fast_exp(-(egg_pressure_ - egg_threshold_) / 0.05));
         double I_hsn = hsn_egg_gain_ * hsn_sigmoid;
 
         // Tyramine inhibition on HSN via LGC-55 (same receptor as RIV/SMD)
@@ -1327,7 +1384,7 @@ void SimulationEngine::apply_touch_stimulus() {
     //    Hungry → chemical klinokinesis: dC/dt < 0 triggers pirouettes
     //    Fed    → thermal klinokinesis: d|T-Tc|/dt > 0 triggers pirouettes
     //    Both use the same biased random walk strategy (Pierce-Shimomura 1999)
-    double sat_switch = 1.0 / (1.0 + std::exp(-10.0 * (satiety_ - 0.5)));
+    double sat_switch = 1.0 / (1.0 + fast_exp(-10.0 * (satiety_ - 0.5)));
     // Normalize signals to comparable scales:
     //   dCdt_filtered_: typical range ±0.005 → k_chem=1500 → sigmoid range 0.01-0.06
     //   dTdev_filtered_: typical range ±0.1°C/s → k_therm=30 → similar sigmoid range
@@ -1347,7 +1404,7 @@ void SimulationEngine::apply_touch_stimulus() {
         // Asymmetry ratio 16:1 ensures long runs toward food, short runs away
         // REF: Pierce-Shimomura 1999 — pirouette rate heavily suppressed during approach
         double pir_rate = r_min + (r_max - r_min) /
-                          (1.0 + std::exp(-combined));
+                          (1.0 + fast_exp(-combined));
 
         double p_pir = pir_rate * (dt_ / 1000.0);
         std::uniform_real_distribution<double> rdist(0.0, 1.0);
@@ -1553,12 +1610,15 @@ void SimulationEngine::setup_neuromodulation() {
         // Target: AIY via MOD-1 (inhibitory Cl- channel)
         // 5-HT → MOD-1 on AIY → hyperpolarize → reduce forward drive
         // REF: Flavell 2013 — NSM 5-HT inhibits AIY
+        // Step 43: recalibrated from -5.0 to -2.5 pA after removing buggy excitatory
+        // ADF→AIY synapse (was +1.8pA at baseline). Old net: -5×0.73+1.8=-1.85pA.
+        // New net: -2.5×0.73=-1.83pA (same baseline effect, no excitatory compensation)
         int aiyl = connectome_.get_neuron_id("AIYL");
         int aiyr = connectome_.get_neuron_id("AIYR");
         if (aiyl >= 0) serotonin.targets.push_back(
-            {aiyl, "MOD-1", ModulationEffect::EXCITABILITY, -5.0}); // -5 pA inhibitory
+            {aiyl, "MOD-1", ModulationEffect::EXCITABILITY, -2.5});
         if (aiyr >= 0) serotonin.targets.push_back(
-            {aiyr, "MOD-1", ModulationEffect::EXCITABILITY, -5.0});
+            {aiyr, "MOD-1", ModulationEffect::EXCITABILITY, -2.5});
 
         // Step 25: Target: AIB inhibition (suppress avoidance while feeding)
         // REF: Summers 2015 JNeurosci — 5-HT via MOD-1 (5-HT-gated Cl⁻) inhibits AIB
@@ -1716,7 +1776,20 @@ void SimulationEngine::setup_neuromodulation() {
         if (rivr >= 0) tyramine.targets.push_back(
             {rivr, "LGC-55", ModulationEffect::EXCITABILITY, -20.0});
 
-        // Target 5: TA→OA biosynthetic coupling via RIC
+        // Target 5: SER-2 → AIY (Gαi GPCR, inhibitory)
+        // Step 43c: RIM TA → SER-2 → AIY imprinted aversive learning
+        // During pathogen encounter: RIM fires → TA ↑ → AIY inhibited → approach suppressed
+        // SER-2 is required for retrieval of imprinted olfactory memory
+        // REF: Jin, Pokala & Bargmann 2016 Cell 164:632-643
+        //      Bowitch 2018 G3 — SER-2 on AIY necessary for memory retrieval
+        int aiyl_ta = connectome_.get_neuron_id("AIYL");
+        int aiyr_ta = connectome_.get_neuron_id("AIYR");
+        if (aiyl_ta >= 0) tyramine.targets.push_back(
+            {aiyl_ta, "SER-2", ModulationEffect::EXCITABILITY, -10.0}); // -10 pA inhibitory
+        if (aiyr_ta >= 0) tyramine.targets.push_back(
+            {aiyr_ta, "SER-2", ModulationEffect::EXCITABILITY, -10.0});
+
+        // Target 6: TA→OA biosynthetic coupling via RIC
         // RIM releases TA → diffuses to RIC → TBH-1 converts TA→OA
         // Modeled as weak excitation of RIC proportional to [TA]
         // REF: Alkema 2005 — TDC-1/TBH-1 co-expression in RIC
@@ -1891,7 +1964,7 @@ void SimulationEngine::apply_gradient_klinokinesis() {
     // No-signal factor: high when gradient weak, low when gradient strong
     // Threshold 0.002 /mm — very conservative, only truly lost worms
     //   5mm: 0.000, 10mm: 0.004, 15mm: 0.37, 20mm: 0.86, 25mm: 0.95
-    double no_signal_factor = std::exp(-grad_mag / 0.002);
+    double no_signal_factor = fast_exp(-grad_mag / 0.002);
 
     // Excite AVA: more reversal when no gradient signal
     // 1.0 pA max — very gentle; avoid disrupting weathervane approach
@@ -2014,8 +2087,8 @@ void SimulationEngine::update_salt_learning() {
         // Pre and post activity (sigmoid release)
         double V_pre = neurons_[pre]->get_membrane_potential();
         double V_post = neurons_[post]->get_membrane_potential();
-        double S_pre = 1.0 / (1.0 + std::exp(-(V_pre - (-35.0)) / 5.0));
-        double S_post = 1.0 / (1.0 + std::exp(-(V_post - (-35.0)) / 5.0));
+        double S_pre = 1.0 / (1.0 + fast_exp(-(V_pre - (-35.0)) / 5.0));
+        double S_post = 1.0 / (1.0 + fast_exp(-(V_post - (-35.0)) / 5.0));
 
         // Hebbian-like: Δw = lr × learn_signal × pre × post
         // Positive learn_signal (fed) → strengthen active synapses
@@ -2088,7 +2161,7 @@ void SimulationEngine::update_pathogen_learning() {
 
         // Pre activity (AWC release rate)
         double V_pre = neurons_[pre]->get_membrane_potential();
-        double S_pre = 1.0 / (1.0 + std::exp(-(V_pre - (-35.0)) / 5.0));
+        double S_pre = 1.0 / (1.0 + fast_exp(-(V_pre - (-35.0)) / 5.0));
         if (S_pre < 0.05) continue;  // skip if AWC not active
 
         // AWC→AIY: WEAKEN (reduce approach pathway)
@@ -2259,7 +2332,7 @@ void SimulationEngine::update_pharynx() {
         if (id >= 0 && id < n) {
             double v = neurons_[id]->get_membrane_potential();
             // Sigmoid release function: S = 1/(1+exp(-(V-V_half)/slope))
-            double s = 1.0 / (1.0 + std::exp(-(v - (-35.0)) / 5.0));
+            double s = 1.0 / (1.0 + fast_exp(-(v - (-35.0)) / 5.0));
             mc_release += s;
             mc_count++;
         }
@@ -2272,7 +2345,7 @@ void SimulationEngine::update_pharynx() {
     for (int id : m3_ids_) {
         if (id >= 0 && id < n) {
             double v = neurons_[id]->get_membrane_potential();
-            double s = 1.0 / (1.0 + std::exp(-(v - (-35.0)) / 5.0));
+            double s = 1.0 / (1.0 + fast_exp(-(v - (-35.0)) / 5.0));
             m3_release += s;
             m3_count++;
         }
@@ -2342,7 +2415,7 @@ void SimulationEngine::update_fatigue() {
     int n = static_cast<int>(neurons_.size());
     if (ris_id_ >= 0 && ris_id_ < n) {
         // Base drive: sigmoid of fatigue around threshold
-        double fatigue_drive = 40.0 / (1.0 + std::exp(-12.0 * (fatigue_ - fatigue_threshold_)));
+        double fatigue_drive = 40.0 / (1.0 + fast_exp(-12.0 * (fatigue_ - fatigue_threshold_)));
         // Sleep maintenance: once asleep, RIS gets extra sustained drive
         // This models the flip-flop stable state — sleep is self-reinforcing
         double sleep_maintenance = is_sleeping_ ? 25.0 : 0.0;
@@ -2352,7 +2425,7 @@ void SimulationEngine::update_fatigue() {
         // Weak feedback: allows RIS to reach high activation during sleep
         // Strong feedback would prevent sleep maintenance
         double ris_V = neurons_[ris_id_]->get_membrane_potential();
-        double ris_release = 1.0 / (1.0 + std::exp(-(ris_V - (-35.0)) / 5.0));
+        double ris_release = 1.0 / (1.0 + fast_exp(-(ris_V - (-35.0)) / 5.0));
         double self_inhibition = -3.0 * ris_release;  // weak negative feedback
         neurons_[ris_id_]->set_external_current(ris_drive + self_inhibition);
     }
@@ -2370,7 +2443,7 @@ void SimulationEngine::apply_sleep_effects() {
 
     // Compute FLP-11 concentration from RIS release rate
     double ris_V = neurons_[ris_id_]->get_membrane_potential();
-    double flp11 = 1.0 / (1.0 + std::exp(-(ris_V - (-35.0)) / 5.0));
+    double flp11 = 1.0 / (1.0 + fast_exp(-(ris_V - (-35.0)) / 5.0));
 
     // Only apply effects when FLP-11 is significant (>0.3)
     if (flp11 < 0.1) return;

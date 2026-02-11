@@ -2,6 +2,7 @@
 
 #include <string>
 #include <cmath>
+#include "core/fast_math.h"
 
 namespace celegans {
 
@@ -26,13 +27,13 @@ protected:
 
     // Utility: steady-state Boltzmann sigmoid
     static double boltzmann(double V, double V_half, double k) {
-        return 1.0 / (1.0 + std::exp(-(V - V_half) / k));
+        return 1.0 / (1.0 + fast_exp(-(V - V_half) / k));
     }
 
     // Utility: exponential relaxation toward steady-state
     static double relax(double var, double var_inf, double tau, double dt) {
         if (tau < 1e-6) return var_inf;
-        return var_inf + (var - var_inf) * std::exp(-dt / tau);
+        return var_inf + (var - var_inf) * fast_exp(-dt / tau);
     }
 };
 
@@ -132,7 +133,7 @@ public:
 
     void step(double V, double /*Ca*/, double dt) override {
         double m_inf = boltzmann(V, -43.0, 5.0);
-        double tau_m = 50.0 + 200.0 / (1.0 + std::exp((V + 35.0) / 15.0)); // ms
+        double tau_m = 50.0 + 200.0 / (1.0 + fast_exp((V + 35.0) / 15.0)); // ms
         m_ = relax(m_, m_inf, tau_m, dt);
     }
 

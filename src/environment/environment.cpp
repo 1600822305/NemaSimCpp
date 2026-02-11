@@ -1,3 +1,5 @@
+#include <cmath>
+#include "core/fast_math.h"
 #include "environment/environment.h"
 
 namespace celegans {
@@ -50,7 +52,7 @@ double Environment::sample_food_density(Vector2d pos) const {
     for (const auto& src : chem_field_.sources()) {
         double r2 = (pos.x - src.pos.x) * (pos.x - src.pos.x) +
                      (pos.y - src.pos.y) * (pos.y - src.pos.y);
-        food += src.strength * std::exp(-r2 / (2.0 * food_sigma2));
+        food += src.strength * fast_exp(-r2 / (2.0 * food_sigma2));
     }
     return food;
 }

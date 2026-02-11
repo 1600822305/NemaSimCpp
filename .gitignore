@@ -29,3 +29,6 @@ trajectory.csv
 Thumbs.db
 Desktop.ini
 .DS_Store
+diag_detail.txt
+diag_notoxin*.txt
+timing.txt

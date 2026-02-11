@@ -79,7 +79,7 @@ public:
     // Returns soma transmitter release rate
     double get_transmitter_release_rate() const override {
         double V = get_membrane_potential();
-        return 1.0 / (1.0 + std::exp(-(V - release_threshold_) / release_slope_));
+        return 1.0 / (1.0 + fast_exp(-(V - release_threshold_) / release_slope_));
     }
 
     double get_calcium() const override {
@@ -139,7 +139,7 @@ public:
     // Compartment-specific transmitter release rate
     double get_compartment_release_rate(int comp) const {
         double V = get_compartment_V(comp);
-        return 1.0 / (1.0 + std::exp(-(V - release_threshold_) / release_slope_));
+        return 1.0 / (1.0 + fast_exp(-(V - release_threshold_) / release_slope_));
     }
 
     // Compartment-specific external current

@@ -2,6 +2,7 @@
 
 #include "core/types.h"
 #include <cmath>
+#include "core/fast_math.h"
 
 namespace celegans {
 
@@ -20,7 +21,7 @@ public:
     // Graded synapse: conductance depends on presynaptic V via sigmoid
     double compute_current(double V_pre, double V_post, double dt) {
         // Graded transmitter release: S(V_pre)
-        double S = 1.0 / (1.0 + std::exp(-(V_pre - V_thresh_) / V_slope_));
+        double S = 1.0 / (1.0 + fast_exp(-(V_pre - V_thresh_) / V_slope_));
 
         // --- Short-Term Plasticity (Tsodyks-Markram for graded synapses) ---
         // STD: vesicle pool recovery and depletion
@@ -47,7 +48,7 @@ public:
 
     // Legacy const version (no plasticity update, for read-only use)
     double compute_current(double V_pre, double V_post) const {
-        double S = 1.0 / (1.0 + std::exp(-(V_pre - V_thresh_) / V_slope_));
+        double S = 1.0 / (1.0 + fast_exp(-(V_pre - V_thresh_) / V_slope_));
         return -weight_ * weight_mod_ * g_max_ * S * (V_post - E_syn_);
     }
 

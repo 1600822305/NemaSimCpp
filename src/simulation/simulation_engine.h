@@ -2,6 +2,7 @@
 
 #include "core/types.h"
 #include "core/config.h"
+#include "core/fast_math.h"
 #include "neuron/single_compartment.h"
 #include "neuron/neuron_factory.h"
 #include "connectome/connectome.h"
@@ -273,6 +274,11 @@ private:
     double sickness_tau_decay_ = 600000.0; // ms, very slow recovery (~10min, persistent memory)
     std::vector<int> adf_ids_;           // ADF serotonin neuron IDs
     std::vector<int> aiy_ids_;           // AIY interneuron IDs (approach pathway)
+    std::vector<int> awb_ids_;           // Step 43: AWB repulsive olfactory neuron IDs
+    std::vector<int> aiz_ids_;           // Step 43: AIZ interneuron IDs (MOD-1 target)
+    double awb_pathogen_gain_ = 25.0;    // pA, AWB drive from pathogen odor × sickness
+    double mod1_aiy_gain_ = -12.0;       // pA, ADF sickness 5-HT → MOD-1 ⊣ AIY (max at sickness=1)
+    double mod1_aiz_gain_ = -6.0;        // pA, ADF sickness 5-HT → MOD-1 ⊣ AIZ (half of AIY)
     void update_sickness();              // accumulate sickness from toxic food intake
     void update_pathogen_learning();     // AWC→AIY w_mod↓, AWC→AIB w_mod↑
 

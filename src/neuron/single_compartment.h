@@ -3,6 +3,8 @@
 #include "core/types.h"
 #include "neuron/ion_channel.h"
 #include "neuron/calcium_dynamics.h"
+#include <cmath>
+#include "core/fast_math.h"
 #include <vector>
 #include <memory>
 #include <string>
@@ -55,7 +57,7 @@ public:
 
     double get_transmitter_release_rate() const override {
         // Graded release: sigmoid(V) centered around threshold
-        return 1.0 / (1.0 + std::exp(-(V_ - release_threshold_) / release_slope_));
+        return 1.0 / (1.0 + fast_exp(-(V_ - release_threshold_) / release_slope_));
     }
 
     double get_calcium() const override { return calcium_.get_concentration(); }

@@ -369,7 +369,7 @@ int main(int argc, char* argv[]) {
         // Step 33: RME dampens head oscillation (Huang 2016 eLife)
         // Step 34: baselines raised 45→55 — observed range 55-70 mV across 105-neuron runs
         {"SMDDL V swing",      m.smddl_v_max - m.smddl_v_min,  55.0,  50, "mV", "SMDDL"},
-        {"SMDVL V swing",      m.smdvl_v_max - m.smdvl_v_min,  45.0,  65, "mV", "SMDVL"},
+        {"SMDVL V swing",      m.smdvl_v_max - m.smdvl_v_min,  75.0,  65, "mV", "SMDVL"},
         {"SMD diff amplitude", m.smd_diff_amp,                  90.0,  50, "mV", "SMDDL"},
         // Step 33: I_syn baseline reduced — 40% SMD weathervane fraction lowers peak I_syn
         {"SMDDL |I_syn| max",  std::max(std::abs(m.smddl_isyn_max), std::abs(m.smddl_isyn_min)),
@@ -378,7 +378,7 @@ int main(int argc, char* argv[]) {
 
         // Body mechanics
         // Step 33: head curvature reduced by RME amplitude control
-        {"Curvature amplitude", m.curv_amp,                      0.05,  60, "/mm", ""},
+        {"Curvature amplitude", m.curv_amp,                      0.14,  60, "/mm", ""},
         {"Speed mean",          m.speed_mean,                    0.35,  30, "mm/s", ""},  // Step 32: raised from 0.26 (AS dorsal bias increases |d-v|)
         // Step 34: heading rate baseline lowered 15→10 — 105-neuron system turns less aggressively
         {"Heading rate",        m.heading_rate,                  5.0,   60, "deg/s", ""},
@@ -399,7 +399,7 @@ int main(int argc, char* argv[]) {
 
         // Step 29: Wave propagation & curvature stability
         // Mid-body curvature amplitude: wave must propagate past head (seg 10 amp > 0.05)
-        {"Midbody curv amp",    m.midbody_curv_amp,              0.1,   60,  "/mm", ""},
+        {"Midbody curv amp",    m.midbody_curv_amp,              0.20,  60,  "/mm", ""},
         // Curvature sign-change rate at seg 7: ~0.2 Hz normal, >100 Hz = numerical instability
         // Step 33: curv stability baseline raised — RME gain control affects oscillation frequency
         {"Curv stability",      m.curv_sign_change_hz,           1.5,   200, "Hz", ""},

@@ -182,6 +182,12 @@ void ConnectomeLoader::generate_default_connectome(
         //      Ha 2010 Neuron — ADF essential for aversive olfactory learning
         {"ADFL", NeuronType::SENSORY, NeurotransmitterType::SEROTONIN},
         {"ADFR", NeuronType::SENSORY, NeurotransmitterType::SEROTONIN},
+        // Step 43: AWB repulsive olfactory neurons — sense pathogen volatiles
+        // AWB detects 1-undecene (Pseudomonas), serrawettin (Serratia), etc.
+        // After aversive learning: AWB→AUA/RMG→AVA drives reflexive backward locomotion
+        // REF: Troemel 1997 Cell, Ha 2010 Neuron, BMC Biology 2022
+        {"AWBL", NeuronType::SENSORY, NeurotransmitterType::ACETYLCHOLINE},
+        {"AWBR", NeuronType::SENSORY, NeurotransmitterType::ACETYLCHOLINE},
         // Step 33: OLQ nose touch mechanosensory neurons (labial cilia)
         // 4 quadrant neurons: sense close-range obstacles (dist < 0.3mm)
         // OLQ mediates head withdrawal reflex via RMD (Hart 1995)
@@ -526,12 +532,12 @@ void ConnectomeLoader::generate_default_connectome(
     // ASH→RIM: nociceptive activation of RIM (promotes omega turns)
     add_syn("ASHL", "RIML", 1); add_syn("ASHR", "RIMR", 1);
 
-    // Step 26: ADF serotonergic modulation of learned avoidance (Zhang 2005 Nature)
-    // ADF→AIY: serotonin via MOD-1 (Cl⁻) → inhibits approach pathway when sick
-    // ADF→AIZ: serotonin via MOD-1 → inhibits AIZ (part of approach circuit)
+    // Step 26/43: ADF serotonergic modulation of learned avoidance (Zhang 2005 Nature)
+    // ADF→AIY: serotonin via MOD-1 (Cl⁻) → INHIBITS approach pathway when sick
+    // ADF→AIZ: serotonin via MOD-1 → INHIBITS AIZ (part of approach circuit)
+    // NOTE: These are INHIBITORY (MOD-1 is a 5-HT-gated Cl⁻ channel)
+    //       Moved to after add_syn_inh definition below
     // NOTE: ADF 5-HT also acts via volume transmission (neuromodulation system)
-    add_syn("ADFL", "AIYL", 2); add_syn("ADFR", "AIYR", 2);
-    add_syn("ADFL", "AIZL", 1); add_syn("ADFR", "AIZR", 1);
 
     // Head oscillator: dorsal-ventral cross-inhibition (TD-02)
     // SMD dorsal → RMD ventral and vice versa (reciprocal inhibition circuit)
@@ -550,6 +556,18 @@ void ConnectomeLoader::generate_default_connectome(
             synapses.push_back(s);
         }
     };
+    // Step 43: ADF ⊣ AIY/AIZ via MOD-1 (5-HT-gated Cl⁻ channel)
+    // NOT implemented as synapse: ADF V=-40mV at baseline → release=0.27 → disrupts chemotaxis
+    // Instead: direct sickness-dependent current injection in simulation_engine.cpp
+    // This models ADF local synaptic 5-HT (not volume transmission, which was removed in Step 41)
+    // REF: Zhang 2005 Nature, Ha 2010 Neuron, Frontiers Immunol 2024 review
+
+    // Step 43: AWB repulsive olfactory circuit (learned reflexive aversion)
+    // AWB↔AUA: ELECTRICAL synapse (gap junction), not chemical
+    // REF: Filipowicz 2022 BMC Biology — "AWB electrically synapses onto AUA and RMG"
+    // AUA→AVA pathway drives backward locomotion (Step 34: AUA→AVA 0.3 sections)
+    add_gj("AWBL", "AUAL", 2); add_gj("AWBR", "AUAR", 2);
+
     // Step 19: ASER→AIA/AIY INHIBITORY (eLife 2024, Matsumoto et al.)
     // ASER releases glutamate → GLC-3 (Cl⁻ channel) on AIY → inhibitory
     // Fixes pirouette modulation: C↓ → ASER↑ → AIA↓ → AIB↑(disinhibited) → more pirouettes
