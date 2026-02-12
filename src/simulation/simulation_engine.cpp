@@ -180,14 +180,13 @@ void SimulationEngine::initialize_default() {
     //   SMD(0-3) -> DB01 senses seg2 -> DB01(4-9) -> VB02 senses seg7
     //   -> VB02(10-19) -> DB03 senses seg15 -> DB03(20-29)
     // D/V alternation relay: DB01(+curv) -> VB02(-curv) -> DB03(+curv) = S-wave
-    // A-class: sync mapping (baseline muscle drive, unchanged from Step 28)
+    // Proprioceptive wave propagation setup
     auto add_pm = [&](const char* name, int seg, int start, int end, bool dorsal) {
         int id = connectome_.get_neuron_id(name);
         if (id >= 0) proprio_mappings_.push_back({id, seg, start, end, dorsal});
     };
-    // Step 29/39: B-class sequential proprioceptive wave (Wen 2012, Boyle 2012)
-    // Each B-neuron senses curvature INSIDE the previous unit's territory.
-    // D/V alternation relay: DB01(+) -> VB02(-) -> DB03(+) = S-wave
+    // Step 29/39: B-class FORWARD wave (Wen 2012, Boyle 2012)
+    // Each B-neuron senses curvature in ANTERIOR neighbor's territory → HEAD→TAIL wave
     // Step 39: expanded from 3 to 7 units for continuous coverage
     add_pm("DB01", 2,  0,  4,  true);   // senses SMD territory (seg 0-3)
     add_pm("DB02", 6,  4,  9,  true);   // senses DB01 territory
@@ -203,18 +202,40 @@ void SimulationEngine::initialize_default() {
     add_pm("VB05", 21, 19, 24, false);
     add_pm("VB06", 26, 24, 29, false);
     add_pm("VB07", 32, 29, 35, false);
-    // A-class: sync mapping (baseline muscle drive, Step 29 rule: A-class unchanged)
-    // Step 39: expanded from 3 to 5 units
-    add_pm("DA01", 0,  0,  6,  true);
-    add_pm("DA02", 8,  4,  12, true);
-    add_pm("DA03", 16, 12, 20, true);
-    add_pm("DA04", 24, 20, 28, true);
-    add_pm("DA05", 32, 28, 36, true);
-    add_pm("VA01", 0,  0,  6,  false);
-    add_pm("VA02", 8,  4,  12, false);
-    add_pm("VA03", 16, 12, 20, false);
-    add_pm("VA04", 24, 20, 28, false);
-    add_pm("VA05", 32, 28, 36, false);
+    // Step 94: VB08-11 forward proprioception (added Step 87, mappings were missing)
+    add_pm("VB08", 27, 25, 29, false);  // senses VB07 territory
+    add_pm("VB09", 30, 29, 32, false);  // senses VB08 territory
+    add_pm("VB10", 34, 32, 36, false);  // senses VB09 territory
+    add_pm("VB11", 37, 36, 39, false);  // senses VB10 territory
+
+    // Step 94: A-class BACKWARD wave — REVERSED proprioceptive direction
+    // Each A-neuron senses curvature in POSTERIOR neighbor's territory → TAIL→HEAD wave
+    // REF: Kawano 2011 JNeurosci — backward wave propagates tail to head
+    //      Wen 2012 — A-class MNs use same stretch-receptor mechanism as B-class
+    //      Gao 2018 eLife — A-class proprioceptive coupling for backward locomotion
+    // DA: 9 dorsal A-class, each senses POSTERIOR neighbor
+    add_pm("DA01", 10, 4,  8,  true);   // senses DA02 territory (8-12)
+    add_pm("DA02", 14, 8,  12, true);   // senses DA03 territory (12-16)
+    add_pm("DA03", 18, 12, 16, true);   // senses DA04 territory (16-20)
+    add_pm("DA04", 22, 16, 20, true);   // senses DA05 territory (20-25)
+    add_pm("DA05", 27, 20, 25, true);   // senses DA06 territory (25-29)
+    add_pm("DA06", 31, 25, 29, true);   // senses DA07 territory (29-33)
+    add_pm("DA07", 35, 29, 33, true);   // senses DA08 territory (33-38)
+    add_pm("DA08", 40, 33, 38, true);   // senses DA09 territory (38-42)
+    add_pm("DA09", 44, 38, 42, true);   // senses tail stretch (initiates wave)
+    // VA: 12 ventral A-class, each senses POSTERIOR neighbor
+    add_pm("VA01", 8,  4,  7,  false);  // senses VA02 territory (7-10)
+    add_pm("VA02", 11, 7,  10, false);  // senses VA03 territory (10-13)
+    add_pm("VA03", 14, 10, 13, false);  // senses VA04 territory (13-16)
+    add_pm("VA04", 17, 13, 16, false);  // senses VA05 territory (16-19)
+    add_pm("VA05", 20, 16, 19, false);  // senses VA06 territory (19-22)
+    add_pm("VA06", 23, 19, 22, false);  // senses VA07 territory (22-25)
+    add_pm("VA07", 27, 22, 25, false);  // senses VA08 territory (25-29)
+    add_pm("VA08", 30, 25, 29, false);  // senses VA09 territory (29-32)
+    add_pm("VA09", 33, 29, 32, false);  // senses VA10 territory (32-35)
+    add_pm("VA10", 37, 32, 35, false);  // senses VA11 territory (35-39)
+    add_pm("VA11", 40, 35, 39, false);  // senses VA12 territory (39-42)
+    add_pm("VA12", 44, 39, 42, false);  // senses tail stretch (initiates wave)
 
 
     // Initialize transducers with current concentration at head

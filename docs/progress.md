@@ -923,6 +923,15 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **AS01 seg 2-6→4-8**: 避免head区域背侧偏置
 - **regtest**: 20/20 PASS
 
+### Step 94: 后退波传播修复 — A-class 本体感觉方向反转 ✅ (2026-02-13)
+> 详细文档: [steps/step94_backward_wave.md](steps/step94_backward_wave.md)
+
+- **A-class 本体感觉方向修正**: DA/VA 从感知前方→感知后方 (tail→head 波)
+- **VB08-11 前向本体感觉补全**: Step 87 遗漏的映射
+- **DA06-09/VA06-12 完整补全**: 从 5→9/12 个完整 A-class 映射
+- **REF**: Kawano 2011, Wen 2012, Gao 2018 — 后退波反向传播
+- **regtest**: 20/20 PASS
+
 ---
 
 ## 当前系统状态
