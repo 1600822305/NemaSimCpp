@@ -441,7 +441,11 @@ void build_neurons(CB& b) {
     b.neuron("VA10", NT::MOTOR, NTT::ACETYLCHOLINE);
     b.neuron("VA11", NT::MOTOR, NTT::ACETYLCHOLINE);
     b.neuron("VA12", NT::MOTOR, NTT::ACETYLCHOLINE);
-    // VB: ventral B-class, forward locomotion (real: VB1-11, we use VB1-7)
+    // VB: ventral B-class, forward locomotion (VB1-11, all 11)
+    // Step 87: expanded from 7→11 (complete complement)
+    // VB transduces proprioceptive signal for forward wave propagation
+    // REF: Wen 2012 Neuron — B-type MNs drive forward locomotion via proprioception
+    //      Chalfie 1985 — B-type required for forward movement
     b.neuron("VB01", NT::MOTOR, NTT::ACETYLCHOLINE);
     b.neuron("VB02", NT::MOTOR, NTT::ACETYLCHOLINE);
     b.neuron("VB03", NT::MOTOR, NTT::ACETYLCHOLINE);
@@ -449,6 +453,10 @@ void build_neurons(CB& b) {
     b.neuron("VB05", NT::MOTOR, NTT::ACETYLCHOLINE);
     b.neuron("VB06", NT::MOTOR, NTT::ACETYLCHOLINE);
     b.neuron("VB07", NT::MOTOR, NTT::ACETYLCHOLINE);
+    b.neuron("VB08", NT::MOTOR, NTT::ACETYLCHOLINE);
+    b.neuron("VB09", NT::MOTOR, NTT::ACETYLCHOLINE);
+    b.neuron("VB10", NT::MOTOR, NTT::ACETYLCHOLINE);
+    b.neuron("VB11", NT::MOTOR, NTT::ACETYLCHOLINE);
     // DD: dorsal D-class, GABAergic cross-inhibition (DD1-6, all 6)
     // Step 86: expanded from 5→6 (complete complement)
     // DD receives cholinergic input via LGC-46, inhibits ventral muscles
@@ -968,6 +976,9 @@ void build_command_ventral(CB& b) {
     b.syn("AVBL", "VB01", 4); b.syn("AVBL", "VB02", 3); b.syn("AVBL", "VB03", 3);
     b.syn("AVBL", "VB04", 2); b.syn("AVBL", "VB05", 2); b.syn("AVBL", "VB06", 2);
     b.syn("AVBL", "VB07", 1);
+    // Step 87: VB08-11 posterior B-class (gradient continues)
+    b.syn("AVBL", "VB08", 1); b.syn("AVBL", "VB09", 1);
+    b.syn("AVBL", "VB10", 1); b.syn("AVBL", "VB11", 1);
     b.syn("AVBR", "DB01", 5); b.syn("AVBR", "DB02", 4); b.syn("AVBR", "DB03", 3);
     b.syn("AVBR", "DB04", 3); b.syn("AVBR", "DB05", 2); b.syn("AVBR", "DB06", 2);
     b.syn("AVBR", "DB07", 1);
@@ -1083,6 +1094,9 @@ void build_proprioception(CB& b) {
     b.syn("DVA", "VB01", 1); b.syn("DVA", "VB02", 1); b.syn("DVA", "VB03", 1);
     b.syn("DVA", "VB04", 1); b.syn("DVA", "VB05", 1); b.syn("DVA", "VB06", 1);
     b.syn("DVA", "VB07", 1);
+    // Step 87: DVA→VB08-11 proprioceptive modulation (complete VB set)
+    b.syn("DVA", "VB08", 1); b.syn("DVA", "VB09", 1);
+    b.syn("DVA", "VB10", 1); b.syn("DVA", "VB11", 1);
     // DVA → AVA: extreme bending → protective reversal (weak, 0.5 section)
     b.syn("DVA", "AVAL", 0.5);
     // PVD → AVA: harsh touch → backward movement (2 sections, strong)
@@ -1163,6 +1177,17 @@ void build_sleep_and_gaps(CB& b) {
     b.gj("RIML", "RIMR", 3);
     // Step 42: RIV L-R coupling (Cook 2019: RIVL↔RIVR=28)
     b.gj("RIVL", "RIVR", 4);
+
+    // Step 87: VB↔VB adjacent gap junctions — proprioceptive wave propagation
+    // Wen 2012 Neuron: B-type MNs propagate bending waves via proprioceptive
+    // coupling between adjacent neurons. Gap junctions between neighboring VBs
+    // provide the anatomic platform for propagating bending signals.
+    // ConnectomeToolbox/Cook 2019: VB(n)↔VB(n+1) = 3-5 sections
+    b.gj("VB01", "VB02", 2); b.gj("VB02", "VB03", 2);
+    b.gj("VB03", "VB04", 2); b.gj("VB04", "VB05", 2);
+    b.gj("VB05", "VB06", 2); b.gj("VB06", "VB07", 2);
+    b.gj("VB07", "VB08", 2); b.gj("VB08", "VB09", 2);
+    b.gj("VB09", "VB10", 2); b.gj("VB10", "VB11", 2);
 }
 
 // ================================================================
@@ -1191,6 +1216,7 @@ void build_defecation(CB& b) {
     b.inh("AVL", "DB05", 1);  // posterior dorsal B-class
     b.inh("DVB", "VB06", 1);  // DVB in tail → posterior MNs
     b.inh("DVB", "VB07", 1);
+    b.inh("DVB", "VB08", 1);  // Step 87: DVB contacts posterior VB08
     // RIS ⊣ AVL: sleep neuron inhibits defecation during quiescence
     // DMP suppressed during sleep — consistent with global RIS inhibition
     b.inh("RIS", "AVL", 1);

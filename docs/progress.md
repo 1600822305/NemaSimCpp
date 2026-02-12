@@ -864,16 +864,24 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **VD→AVA 逆向抑制** (Gao 2015 Nat Commun): UNC-49 GABA受体偏向奖励行为
 - **regtest**: 20/20 PASS (202/434/112)
 
+### Step 87: VB B-class 前进运动扩展 (VB7→11) ✅ (2026-02-12)
+> 详细文档: [steps/step87_vb_expansion.md](steps/step87_vb_expansion.md)
+
+- **+4 神经元**: VB08-11 — B-class 胆硷能前进 MN 完整补全 (11/11)
+- **VB↔VB 本体感觉耦合**: 10对相邻间隙连接 (Wen 2012 Neuron)
+- **体节精化**: VB ~5-6→~3-4 段/神经元
+- **regtest**: 20/20 PASS (206/443/122)
+
 ---
 
 ## 当前系统状态
 
 ```
 架构: 8 层 (环境/躯体/感知/神经元/连接组/神经调质/运动/行为)
-神经元: 202 个 MVP 子集 (302 全集待加载)
+神经元: 206 个 MVP 子集 (302 全集待加载)
   感觉: 57 (ASE/AWC/AWA/ASH/ALM/PLM/NSM/CEP/ADE/PDE/AFD/ADF/ASJ/ASK/ASI/ADL/FLP/PHB/PHA L/R + AVM + OLQ 4× + IL1 4× + URX L/R + AQR + PQR + BAG L/R + PVD L/R)
   中间: 55 (+AVF L/R, LUA L/R) (AIA/AIB/AIY/AIZ/RIA/RIB/RIM/RIC/AVA/AVB/AVD/AVE/PVC/AVF/AUA/AVK/AVJ/AVH/PVP/AIN/LUA/I1/RIP L/R + RIS + RIH + RMG L/R + DVA + DVC + PVT + PVR + RIG)
-  运动: 90 (+DD06, VD06-13) (SMD/RMD/SMB 4×2+4 + RIV L/R + RMED/RMEV + AS01-07 + DB01-07/VB01-07/DA01-09/VA01-12/DD01-06/VD01-13 + MC/M3 L/R + M4 + HSN L/R + VC4/VC5 + AVL + DVB)
+  运动: 94 (+VB08-11) (SMD/RMD/SMB 4×2+4 + RIV L/R + RMED/RMEV + AS01-07 + DB01-07/VB01-11/DA01-09/VA01-12/DD01-06/VD01-13 + MC/M3 L/R + M4 + HSN L/R + VC4/VC5 + AVL + DVB)
 突触: ~215 化学 + ~56 间隙连接 (全部带 Tsodyks-Markram STP, 支持分数 sections)
   Step 42: Cook 2019 校准 (+8 RIA↔RIV, -2 AVE→RIV) + RIV↔RIV gap
 神经调质: 7 种 (5-HT, DA, OA, TA, NLP-12, PDF, FLP-11) — volume transmission + 饱食度(泵驱动)

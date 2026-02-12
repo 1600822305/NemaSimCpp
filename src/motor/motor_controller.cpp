@@ -17,7 +17,7 @@ void MotorController::initialize(const std::unordered_map<std::string, int>& nam
     mappings_.clear();
 
     // B-class (forward): dorsal DB, ventral VB
-    // Step 39: expanded to 7 units, continuous coverage seg 4-40
+    // Step 39: DB 7 units, continuous coverage seg 4-42
     // Segments 0-5: head, 6-42: body, 43-47: tail
     add_mapping(name_to_id, "DB01", 4, 9, true);
     add_mapping(name_to_id, "DB02", 9, 14, true);
@@ -26,13 +26,20 @@ void MotorController::initialize(const std::unordered_map<std::string, int>& nam
     add_mapping(name_to_id, "DB05", 24, 29, true);
     add_mapping(name_to_id, "DB06", 29, 35, true);
     add_mapping(name_to_id, "DB07", 35, 42, true);
-    add_mapping(name_to_id, "VB01", 4, 9, false);
-    add_mapping(name_to_id, "VB02", 9, 14, false);
-    add_mapping(name_to_id, "VB03", 14, 19, false);
-    add_mapping(name_to_id, "VB04", 19, 24, false);
-    add_mapping(name_to_id, "VB05", 24, 29, false);
-    add_mapping(name_to_id, "VB06", 29, 35, false);
-    add_mapping(name_to_id, "VB07", 35, 42, false);
+    // Step 87: VB expanded 7→11 (complete complement)
+    // ~3-4 segments each for finer ventral forward control
+    // REF: Wen 2012 Neuron, White 1986
+    add_mapping(name_to_id, "VB01", 4, 8, false);
+    add_mapping(name_to_id, "VB02", 8, 11, false);
+    add_mapping(name_to_id, "VB03", 11, 15, false);
+    add_mapping(name_to_id, "VB04", 15, 18, false);
+    add_mapping(name_to_id, "VB05", 18, 22, false);
+    add_mapping(name_to_id, "VB06", 22, 25, false);
+    add_mapping(name_to_id, "VB07", 25, 29, false);
+    add_mapping(name_to_id, "VB08", 29, 32, false);
+    add_mapping(name_to_id, "VB09", 32, 36, false);
+    add_mapping(name_to_id, "VB10", 36, 39, false);
+    add_mapping(name_to_id, "VB11", 39, 42, false);
 
     // A-class (reverse): dorsal DA, ventral VA
     // Step 84: expanded DA 5→9, VA 5→12 (Haspel 2011, Gao 2018 eLife)
