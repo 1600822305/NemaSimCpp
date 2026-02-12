@@ -503,6 +503,15 @@ int main(int argc, char* argv[]) {
     int rih_id = conn.get_neuron_id("RIH");
     int rmddl_id = conn.get_neuron_id("RMDDL");
     int rmgl_id = conn.get_neuron_id("RMGL");     // Step 75: pathogen aversion hub
+    // Step 102-106: new neuron IDs for diagnostics
+    int siadl_id = conn.get_neuron_id("SIADL");   // Step 102: SIA head motor
+    int sibdl_id = conn.get_neuron_id("SIBDL");   // Step 102: SIB head motor
+    int saadl_id = conn.get_neuron_id("SAADL");   // Step 103: SAA turn circuit
+    int smbdl_id = conn.get_neuron_id("SMBDL");   // SMB (pre-existing)
+    int uradl_id = conn.get_neuron_id("URADL");   // Step 105: URA inner labial motor
+    int pvm_id   = conn.get_neuron_id("PVM");      // Step 106: posterior touch
+    int sdqr_id  = conn.get_neuron_id("SDQR");    // Step 106: body-side O2
+    int ala_id   = conn.get_neuron_id("ALA");      // Step 106: stress sleep
 
     // Accumulators
     std::vector<double> grad_mags, grad_normals, biases;
@@ -543,6 +552,9 @@ int main(int argc, char* argv[]) {
     int nose_touch_samples = 0;  // count of samples where nose touch was active
     // Step 75: Pathogen aversion diagnostics
     std::vector<double> rmgl_v_vs;
+    // Step 102-106: new neuron voltage accumulators
+    std::vector<double> siadl_v_vs, sibdl_v_vs, saadl_v_vs, smbdl_v_vs;
+    std::vector<double> uradl_v_vs, pvm_v_vs, sdqr_v_vs, ala_v_vs;
     // Step 78: Tap habituation tracking
     int prev_tap_count = 0;          // track tap count changes
     double tap_onset_time = -1.0;    // when current tap started
@@ -838,6 +850,16 @@ int main(int argc, char* argv[]) {
 
             // Step 75: RMG pathogen aversion hub tracking
             rmgl_v_vs.push_back(getV(rmgl_id));
+
+            // Step 102-106: new neuron voltage sampling
+            siadl_v_vs.push_back(getV(siadl_id));
+            sibdl_v_vs.push_back(getV(sibdl_id));
+            saadl_v_vs.push_back(getV(saadl_id));
+            smbdl_v_vs.push_back(getV(smbdl_id));
+            uradl_v_vs.push_back(getV(uradl_id));
+            pvm_v_vs.push_back(getV(pvm_id));
+            sdqr_v_vs.push_back(getV(sdqr_id));
+            ala_v_vs.push_back(getV(ala_id));
 
             // Store
             grad_mags.push_back(grad_mag);
@@ -1687,6 +1709,55 @@ int main(int argc, char* argv[]) {
             } else {
                 std::cout << "   [..] Intermediate RMG activity" << std::endl;
             }
+        }
+    }
+
+    // Step 102-106: NEW NEURON DIAGNOSTICS
+    {
+        std::cout << "\n36. HEAD MOTOR & MISC NEURONS (Step 102-106):" << std::endl;
+        // Head motor neurons (Step 102)
+        std::cout << "   SIA head motor:" << std::endl;
+        std::cout << "     SIADL: V mean=" << std::setprecision(1) << mean(siadl_v_vs)
+                  << " mV  S(release)=" << std::setprecision(3) << release(mean(siadl_v_vs)) << std::endl;
+        std::cout << "     SIBDL: V mean=" << std::setprecision(1) << mean(sibdl_v_vs)
+                  << " mV  S(release)=" << std::setprecision(3) << release(mean(sibdl_v_vs)) << std::endl;
+        // Turn circuit (Step 103)
+        std::cout << "   SAA turn circuit:" << std::endl;
+        std::cout << "     SAADL: V mean=" << std::setprecision(1) << mean(saadl_v_vs)
+                  << " mV  S(release)=" << std::setprecision(3) << release(mean(saadl_v_vs)) << std::endl;
+        std::cout << "     SMBDL: V mean=" << std::setprecision(1) << mean(smbdl_v_vs)
+                  << " mV  S(release)=" << std::setprecision(3) << release(mean(smbdl_v_vs)) << std::endl;
+        // Inner labial motor (Step 105)
+        std::cout << "   URA inner labial motor:" << std::endl;
+        std::cout << "     URADL: V mean=" << std::setprecision(1) << mean(uradl_v_vs)
+                  << " mV  S(release)=" << std::setprecision(3) << release(mean(uradl_v_vs)) << std::endl;
+        // Misc neurons (Step 106)
+        std::cout << "   Misc neurons:" << std::endl;
+        std::cout << "     PVM:   V mean=" << std::setprecision(1) << mean(pvm_v_vs)
+                  << " mV  S(release)=" << std::setprecision(3) << release(mean(pvm_v_vs)) << std::endl;
+        std::cout << "     SDQR:  V mean=" << std::setprecision(1) << mean(sdqr_v_vs)
+                  << " mV  S(release)=" << std::setprecision(3) << release(mean(sdqr_v_vs)) << std::endl;
+        std::cout << "     ALA:   V mean=" << std::setprecision(1) << mean(ala_v_vs)
+                  << " mV  S(release)=" << std::setprecision(3) << release(mean(ala_v_vs)) << std::endl;
+        // Check for dead neurons (resting at -65mV with no input)
+        auto check_alive = [](const std::string& name, double v_mean) {
+            if (v_mean < -60.0) {
+                std::cout << "   [!!] " << name << " may be DEAD (V=" << std::setprecision(1)
+                          << v_mean << " mV, near resting)" << std::endl;
+                return false;
+            }
+            return true;
+        };
+        bool all_alive = true;
+        all_alive &= check_alive("SIADL", mean(siadl_v_vs));
+        all_alive &= check_alive("SIBDL", mean(sibdl_v_vs));
+        all_alive &= check_alive("SAADL", mean(saadl_v_vs));
+        all_alive &= check_alive("URADL", mean(uradl_v_vs));
+        all_alive &= check_alive("PVM", mean(pvm_v_vs));
+        all_alive &= check_alive("SDQR", mean(sdqr_v_vs));
+        all_alive &= check_alive("ALA", mean(ala_v_vs));
+        if (all_alive) {
+            std::cout << "   [OK] All new neurons receiving input (V > -60 mV)" << std::endl;
         }
     }
 
