@@ -233,6 +233,20 @@ void build_neurons(CB& b) {
     // REF: White 1986, Emmons 2024 (PMC10983851)
     b.neuron("PLNL", NT::SENSORY, NTT::GLUTAMATE);
     b.neuron("PLNR", NT::SENSORY, NTT::GLUTAMATE);
+    // Step 109: OLL — outer labial lateral sensory neurons (L/R pair)
+    // Community 4: with CEP/URY/RMD/SMD (head motor/mechanosensory)
+    // Polymodal: mechanosensation (touch) + cold sensing
+    // Ciliated endings in outer labial sensilla; glia-ensheathed
+    // REF: White 1986, Emmons 2024, Chatzigeorgiou 2021 (PMC8099987)
+    b.neuron("OLLL", NT::SENSORY, NTT::GLUTAMATE);
+    b.neuron("OLLR", NT::SENSORY, NTT::GLUTAMATE);
+    // Step 109: PHC — phasmid tail chemosensory neurons (L/R pair)
+    // Tailspike group: with ALN/PLN/PVR/AVG (Emmons 2024)
+    // Sexually dimorphic (Serrano-Saiz 2017); hermaphrodite: chemosensory
+    // Completes phasmid trio: PHA + PHB + PHC
+    // REF: White 1986, Zou 2017, Emmons 2024
+    b.neuron("PHCL", NT::SENSORY, NTT::GLUTAMATE);
+    b.neuron("PHCR", NT::SENSORY, NTT::GLUTAMATE);
     // Step 61: ASI — amphid sensory, insulin/dauer pathway
     // Secretes DAF-7 (TGF-β) and INS-1 (insulin-like) → food quality signaling
     // Key node for developmental decision (dauer vs reproductive)
@@ -358,6 +372,13 @@ void build_neurons(CB& b) {
     // REF: White 1986, Emmons 2024 (PMC10983851)
     b.neuron("BDUL", NT::INTER, NTT::GLUTAMATE);
     b.neuron("BDUR", NT::INTER, NTT::GLUTAMATE);
+    // Step 109: AVG — ventral cord pioneer interneuron (single, unpaired)
+    // Pioneers right ventral cord tract during embryogenesis
+    // Expresses UNC-6/netrin; guidepost role for follower axons
+    // Adult: weak scattered connectivity, tailspike group member
+    // "PVT shares properties with AVG" (Emmons 2024)
+    // REF: White 1986, Durbin 1987, Emmons 2024
+    b.neuron("AVG",  NT::INTER, NTT::GLUTAMATE);
     // Command interneurons
     b.neuron("AVAL", NT::INTER, NTT::ACETYLCHOLINE);
     b.neuron("AVAR", NT::INTER, NTT::ACETYLCHOLINE);
@@ -1747,6 +1768,31 @@ void build_ventral_cord_integrators(CB& b) {
     b.syn("BDUL", "AVAL", 1); b.syn("BDUR", "AVAR", 1);
     // BDU↔ALN: gap junction (Emmons 2024: PVR-ALN connected)
     b.gj("BDUL", "ALNL", 1); b.gj("BDUR", "ALNR", 1);
+
+    // Step 109: OLL — outer labial lateral sensory (Community 4)
+    // Polymodal: mechanosensation + cold sensing (Chatzigeorgiou 2021)
+    // OLL→RMD: head motor (like OLQ, ipsilateral)
+    b.syn("OLLL", "RMDDL", 1); b.syn("OLLR", "RMDDR", 1);
+    // OLL↔RIH: gap junction — nose touch integration hub (like OLQ/CEP/FLP)
+    b.gj("OLLL", "RIH", 1); b.gj("OLLR", "RIH", 1);
+    // RIS→OLL: "greater output than input to CEP, URY, and OLL" (Emmons 2024)
+    b.syn("RIS", "OLLL", 1); b.syn("RIS", "OLLR", 1);
+    // OLL↔CEP: gap junction — Community 4 mechanosensory coordination
+    b.gj("OLLL", "CEPDL", 1); b.gj("OLLR", "CEPDR", 1);
+
+    // Step 109: PHC — phasmid tail chemosensory (tailspike group)
+    // PHC→AVA: tail aversive → reversal (like PHB)
+    b.syn("PHCL", "AVAL", 1); b.syn("PHCR", "AVAR", 1);
+    // PHC↔PHA: gap junction — coordinate phasmid sensing
+    b.gj("PHCL", "PHAL", 1); b.gj("PHCR", "PHAR", 1);
+    // PHC→ALN: tail-spike coordination (Emmons 2024 tailspike group)
+    b.syn("PHCL", "ALNL", 1); b.syn("PHCR", "ALNR", 1);
+
+    // Step 109: AVG — ventral cord pioneer (weak adult connectivity)
+    // AVG↔PVT: gap junction — both UNC-6/netrin guideposts (Emmons 2024)
+    b.gj("AVG", "PVT", 2);
+    // AVG→DVA: weak chemical output (scattered, body sensing network)
+    b.syn("AVG", "DVA", 1);
 }
 
 } // anonymous namespace
