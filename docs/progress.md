@@ -903,6 +903,15 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **四条交叉抑制通路全部完成**: VB→VD + DB→DD + VA→DD + DA→VD
 - **regtest**: 20/20 PASS (210/513/171)
 
+### Step 92: SimulationEngine 模块化拆分 ✅ (2026-02-12)
+> 详细文档: [steps/step92_engine_modularization.md](steps/step92_engine_modularization.md)
+
+- **simulation_engine.cpp 从 2012→693 行**: 拆出 3 个新编译单元
+- **apply_sensory_systems.cpp**: 感觉转导 5 函数 (化学/温度/触觉/O₂/CO₂/光/信息素/产卵/食物边缘)
+- **apply_motor_control.cpp**: 运动控制 6 函数 (weathervane/RIA-SMD/SMB/本体感觉/RIV omega/head tonic)
+- **setup_gpu_stp.cpp**: STP 参数 + GPU 后端 3 函数
+- 纯工程重构，零逻辑变更，编译零错误
+
 ---
 
 ## 当前系统状态
@@ -992,7 +1001,7 @@ P0/P1 违规全部修复:
   src/motor/        — 2 文件 (motor_controller .h/.cpp)
   src/environment/  — 5 文件 (environment/chemical_field/sensory_transducer .h/.cpp)
   src/pharynx/      — 1 文件 (pharyngeal_pump.h)
-  src/simulation/   — 5 文件 (simulation_engine .h/.cpp + main.cpp + diag_main.cpp + regression_test.cpp)
+  src/simulation/   — 12 文件 (simulation_engine .h/.cpp + 7 拆分cpp + main.cpp + diag_main.cpp + regression_test.cpp)
   src/visualization/ — 3 文件 (vis_app .h/.cpp + vis_main.cpp)
   docs/             — 2+ 文件 (blueprint.md + progress.md + steps/ + tools/)
   总计: 44 文件 (CMakeLists.txt + 42 源文件 + 文档)
