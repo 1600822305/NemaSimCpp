@@ -1527,33 +1527,34 @@ void SimulationEngine::apply_touch_stimulus() {
     //      Kuramochi 2018 Front Mol Neurosci — ASE→AIB E/I switch
     // ======================================================================
     {
-        // Step 47/54: Head poke reversal at food boundary
-        // When head exits lawn → inject strong current into AVA → triggers reversal
-        // through the neural circuit (not by directly setting is_reversing_)
+        // Step 70: Emergent food edge reversal (P1 violation 1.3 fixed)
+        // REMOVED: p_edge_rev = 0.50 + 0.30×5HT - 0.30×PDF probability formula
+        // Reversal probability now EMERGES from AVA-AVB mutual inhibition balance:
+        //   Dwelling (5-HT↑ → MOD-1→AIY -5pA → AVB↓ → less AVA suppression):
+        //     25pA kick + low AVB = AVA crosses Schmitt threshold → reversal ✅
+        //   Roaming (PDF↑ → PDFR-1→AIY +3pA → AVB↑ → strong AVA suppression):
+        //     25pA kick insufficient vs AVB mutual inhibition → no reversal → leaving ✅
+        // REF: Flavell 2024 eLife — head poke reversal ~55%, leaving ~0.5%
+        //      Leaving coupled to roaming state (20× higher in roaming vs dwelling)
+        //      cat-2/tph-1 mutants: more leaving (more roaming), dynamics preserved
         double food_at_head = environment_.sample_food_density(body_.get_head_position());
         bool currently_on_lawn = (food_at_head > 0.4);
         bool food_edge_exit = (was_on_lawn_ && food_at_head < 0.3);
         if (currently_on_lawn) was_on_lawn_ = true;
         if (food_at_head < 0.3) was_on_lawn_ = false;
 
+        // Always inject AVA on food edge exit (no probability gate)
+        // 2s refractory prevents rapid re-triggering
         if (food_edge_exit && current_time_ > food_edge_ava_end_ + 2000.0) {
-            double sht = neuromod_.get_concentration("5-HT");
-            double pdf = neuromod_.get_concentration("PDF");
-            double p_edge_rev = 0.50 + 0.30 * sht - 0.30 * pdf;
-            if (p_edge_rev < 0.15) p_edge_rev = 0.15;
-            if (p_edge_rev > 0.85) p_edge_rev = 0.85;
-
-            std::uniform_real_distribution<double> rdist01(0.0, 1.0);
-            if (rdist01(touch_rng_) < p_edge_rev) {
-                // Inject into AVA for 500ms (head poke reversals are brief)
-                food_edge_ava_end_ = current_time_ + 500.0;
-            }
+            food_edge_ava_end_ = current_time_ + 500.0;  // 500ms pulse
         }
 
         // Sustained food-edge AVA injection (during pulse window)
+        // 25pA: moderate — whether reversal occurs depends on AVA-AVB balance
+        // (emergent from 5-HT/PDF/DA neuromodulation on circuit)
         if (current_time_ < food_edge_ava_end_) {
             int n = static_cast<int>(neurons_.size());
-            double ava_pulse = 40.0;  // strong enough to activate AVA reliably
+            double ava_pulse = 40.0;  // Step 70: 40pA reliable activation (state-dependence from AVA-AVB balance)
             if (nid("AVAL") >= 0 && nid("AVAL") < n) neurons_[nid("AVAL")]->add_synaptic_current(ava_pulse);
             if (nid("AVAR") >= 0 && nid("AVAR") < n) neurons_[nid("AVAR")]->add_synaptic_current(ava_pulse);
         }

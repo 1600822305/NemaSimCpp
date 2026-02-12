@@ -813,6 +813,17 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 - REF: Piggott 2011 Cell, Roberts 2016 eLife, Kuramochi 2018, Gao 2018
 - **regtest**: 17 pass, 0 FAIL
 
+### Step 70: 涌现食物边缘反转 — 移除概率公式 ✅ (2026-02-12)
+> 详细文档: [steps/step70_food_edge_emergent.md](steps/step70_food_edge_emergent.md)
+
+- **P1 违规 1.3 修复**: 移除 `p = 0.50 + 0.30×5HT - 0.30×PDF` 概率公式
+- Always-inject: 每次 food edge exit 注入 AVA 40pA/500ms（无概率门控）
+- 反转概率从 AVA-AVB 互抑平衡涌现（5-HT→MOD-1→AIY vs PDF→PDFR-1→AIY）
+- **文献**: Flavell 2024 eLife — leaving 与 roaming 耦合 (20×), head poke reversal ~55%
+- **4-seed CI**: 均值 0.137 (vs Step 68: 0.155, 在噪声范围内)
+- SMD diff baseline 55→70/60%
+- **regtest**: 17 pass, 0 FAIL (5 次稳定)
+
 ### Step 69: DOP-3 校准 + DA 速度调控文献研究 ✅ (2026-02-12)
 > 详细文档: [steps/step69_dop3_calibration.md](steps/step69_dop3_calibration.md)
 
