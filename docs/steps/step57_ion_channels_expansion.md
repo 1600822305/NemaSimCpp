@@ -33,13 +33,14 @@
 - **表达**: 默认(0.08)、感觉(0.12)
 - REF: Salkoff 2001 ("49 K⁺ channels in C. elegans"), Bhatt 2014
 
-### 4. SLO-2 — Na⁺ 激活 K⁺ 通道
-- **功能**: 持续去极化时 Na⁺ 内流→SLO-2 开放→防止过度兴奋
-- **激活**: 双重门控：电压(V_half=+5mV) × Na⁺ 代理(V_half=-20mV)
-- **动力学**: tau_m = 10 ms
-- **对比 SLO-1**: Ca²⁺ 激活 vs Na⁺ 激活（互补机制）
+### 4. SLO-2 — Ca²⁺ 激活 K⁺ 通道 (Slo family)
+- **功能**: VA5/VB6 运动神经元的主要外向电流，防止过度兴奋
+- **⚠️ 关键**: C. elegans SLO-2 是 Ca²⁺ 激活的（哺乳动物 Slo2 是 Na⁺ 激活，独特！）
+- **激活**: Ca²⁺ 依赖 V_half 位移: low Ca → V_half=+30mV, high Ca → V_half≈-10mV
+- **对比 SLO-1**: 更低 Ca²⁺ 敏感性 (half=2.0 vs 1.0)，更慢 (tau=10ms vs 5ms)
+- **耦合**: SLO-2:EGL-19 功能耦合，EGL-19 Ca²⁺ 内流驱动 SLO-2 开放
 - **表达**: 中间(0.6)、运动(0.8)、B类运动(0.8)
-- REF: Yuan 2000 Neuron, Yuan 2003 JBC, Salkoff 2006
+- REF: Yuan 2013 JBC, Liu 2014 Nat Commun, Bhatt 2024 PLOS One
 
 ### 5. OSM-9 — TRPV 阳离子通道
 - **功能**: 多模态感觉转导（渗压、伤害、嗅觉）

@@ -414,14 +414,14 @@ private:
     double open_ = 1.0;  // baseline fully open, modulated externally
 };
 
-// SLO-2: Na⁺-activated potassium channel (Slo family member 2)
-// Activated by intracellular Na⁺ and Cl⁻, NOT by Ca²⁺ (contrast with SLO-1)
-// Contributes to resting potential in many C. elegans neurons
-// Prevents over-excitation during sustained depolarization (Na⁺ influx → K⁺ efflux)
-// Also has weak voltage-dependent activation
-// REF: Yuan 2000 Neuron — SLO-2 cloning
-//      Yuan 2003 JBC — Na⁺/Cl⁻ activation mechanism
-//      Salkoff 2006 — SLO family review
+// SLO-2: Ca²⁺-activated potassium channel (Slo family member 2)
+// ⚠️ IMPORTANT: C. elegans SLO-2 is Ca²⁺-activated (UNIQUE among Slo2 family!)
+// Mammalian Slo2 (Slack/Slick) is Na⁺-activated, but C. elegans SLO-2 is NOT.
+// Dominant outward current in VA5/VB6 motor neurons, coupled with EGL-19 Ca²⁺
+// Slower kinetics than SLO-1, lower Ca²⁺ sensitivity, more voltage-dependent
+// REF: Yuan 2013 JBC — SLO-2 isoforms with unique Ca²⁺- and voltage-dependence
+//      Liu 2014 Nat Commun — SLO-2 dominant K⁺ current in motor neurons
+//      Bhatt 2024 PLOS One — SLO-2:EGL-19 coupled conductance in VA5/VB6/VD5
 class SLO2Channel : public IonChannel {
 public:
     SLO2Channel(double g_max = 1.5, double E_K = -80.0) {
@@ -429,14 +429,14 @@ public:
         E_rev_ = E_K;
     }
 
-    void step(double V, double /*Ca*/, double dt) override {
-        // Dual activation: voltage + [Na⁺]i proxy
-        // During depolarization: NCA/leak Na⁺ influx raises local [Na⁺]i
-        // Approximate: use V as proxy for Na⁺ influx (more depolarized → more Na⁺)
-        // V_half = +5 mV (high threshold, only activates during strong depolarization)
-        double na_proxy = boltzmann(V, -20.0, 15.0); // Na⁺ accumulation proxy
-        double m_inf = boltzmann(V, 5.0, 15.0) * (0.3 + 0.7 * na_proxy);
-        double tau_m = 10.0;  // ms, moderate kinetics
+    void step(double V, double Ca, double dt) override {
+        // Ca²⁺-dependent activation (like SLO-1 but weaker Ca sensitivity)
+        // SLO-2 requires higher Ca²⁺ for activation than SLO-1
+        // At low Ca (<0.1μM): mostly voltage-dependent, V_half ≈ +30mV
+        // At high Ca (>1μM): V_half shifts to ≈ -10mV
+        double Ca_shift = 60.0 * Ca / (Ca + 2.0); // weaker shift than SLO-1 (120→60, half=2.0→less sensitive)
+        double m_inf = boltzmann(V, 30.0 - Ca_shift, 15.0);
+        double tau_m = 10.0;  // ms, slower than SLO-1 (5ms)
         m_ = relax(m_, m_inf, tau_m, dt);
     }
 
