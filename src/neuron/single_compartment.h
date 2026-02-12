@@ -41,10 +41,17 @@ public:
     int id() const { return info_.id; }
     const std::string& name() const { return info_.name; }
 
+    // Step 67: Laser ablation — silence neuron permanently
+    // Ablated neuron: V clamped to resting, zero transmitter release, ignores all input
+    // REF: Chalfie 1985, Bargmann & Horvitz 1991 — laser ablation phenotypes
+    void ablate() { ablated_ = true; }
+    bool is_ablated() const { return ablated_; }
+
 protected:
     NeuronInfo info_;
     double I_ext_ = 0.0;   // external input current (pA)
     double I_syn_ = 0.0;   // total synaptic current (pA)
+    bool ablated_ = false;  // Step 67: true if neuron has been laser-ablated
 };
 
 class SingleCompartmentNeuron : public Neuron {
@@ -53,9 +60,13 @@ public:
 
     void step(double dt) override;
 
-    double get_membrane_potential() const override { return V_; }
+    double get_membrane_potential() const override {
+        if (ablated_) return E_leak_;  // Step 67: clamped to resting
+        return V_;
+    }
 
     double get_transmitter_release_rate() const override {
+        if (ablated_) return 0.0;  // Step 67: no output from ablated neuron
         // Graded release: sigmoid(V) centered around threshold
         return 1.0 / (1.0 + fast_exp(-(V_ - release_threshold_) / release_slope_));
     }

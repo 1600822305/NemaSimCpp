@@ -16,6 +16,14 @@ void SingleCompartmentNeuron::set_leak(double g_leak, double E_leak) {
 }
 
 void SingleCompartmentNeuron::step(double dt) {
+    // Step 67: Ablated neurons skip all dynamics — dead cell
+    if (ablated_) {
+        V_ = E_leak_;
+        I_syn_ = 0.0;
+        I_ext_ = 0.0;
+        return;
+    }
+
     // 1. Compute leak current
     double I_leak = g_leak_ * (V_ - E_leak_);
 

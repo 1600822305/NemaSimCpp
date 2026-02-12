@@ -369,6 +369,24 @@ private:
 
 public:
     void set_rng_seed(unsigned int seed) { touch_rng_.seed(seed); }
+
+    // Step 67: Laser ablation — silence named neuron(s)
+    // REF: Chalfie 1985, Bargmann & Horvitz 1991
+    // Ablates both L/R if base name given (e.g. "AVA" → AVAL+AVAR)
+    void ablate_neuron(const std::string& name) {
+        int n = static_cast<int>(neurons_.size());
+        // Try exact name first
+        int id = nid(name.c_str());
+        if (id >= 0 && id < n) {
+            neurons_[id]->ablate();
+            return;
+        }
+        // Try L/R pair
+        int idL = nid((name + "L").c_str());
+        int idR = nid((name + "R").c_str());
+        if (idL >= 0 && idL < n) neurons_[idL]->ablate();
+        if (idR >= 0 && idR < n) neurons_[idR]->ablate();
+    }
 };
 
 } // namespace celegans

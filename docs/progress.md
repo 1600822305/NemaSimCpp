@@ -813,6 +813,17 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 - REF: Piggott 2011 Cell, Roberts 2016 eLife, Kuramochi 2018, Gao 2018
 - **regtest**: 17 pass, 0 FAIL
 
+### Step 67: 消融验证 — 证明 Reversal 从 AVA 涌现 ✅ (2026-02-12)
+> 详细文档: [steps/step67_ablation_verification.md](steps/step67_ablation_verification.md)
+
+- **消融功能**: `Neuron::ablate()` + `--ablate` CLI（自动 L/R 配对）
+- **AVA 消融**: 0 reversals (vs CTRL 53) — 完美匹配 Chalfie 1985 ✅✅
+- **ASE 消融**: CI 0.38→-0.20 (趋化性丧失) — 匹配 Miller 2005 ✅
+- **AIB 消融**: CI 0.38→0.09 (76%↓) — klinokinesis 受损 ✅
+- **RIM 消融**: reversals 53→68 (+28%) — 匹配 Sordillo 2021 ✅✅
+- **结论**: Step 66 涌现性确认 — reversal 完全依赖 AVA 回路
+- **regtest**: 17 pass, 0 FAIL
+
 ---
 
 ## 当前系统状态

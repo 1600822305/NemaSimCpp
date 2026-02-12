@@ -25,11 +25,17 @@ struct SimMetrics {
 
 // Run a single simulation and return key metrics
 SimMetrics run_eval(unsigned int seed, double duration_s, bool no_toxin, bool no_food,
-                    const SimulationEngine::TuningParams& params) {
+                    const SimulationEngine::TuningParams& params,
+                    const std::vector<std::string>& ablations = {}) {
     SimulationEngine sim;
     sim.initialize_default();
     sim.set_rng_seed(seed);
     sim.params = params;
+
+    // Step 67: Laser ablation
+    for (const auto& name : ablations) {
+        sim.ablate_neuron(name);
+    }
 
     // Setup environment (same as diag)
     sim.environment().chemical_field().clear();
@@ -144,6 +150,7 @@ int main(int argc, char* argv[]) {
     double cli_sleep_after_learn = 0.0;  // Step 62: forced sleep after learning (seconds)
     bool cli_pheromone = false;              // Step 64: enable pheromone source
     double cli_pheromone_x = 15.0, cli_pheromone_y = 25.0, cli_pheromone_intensity = 0.8;
+    std::vector<std::string> cli_ablations;   // Step 67: neurons to ablate
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
         if (arg == "--duration" && i+1 < argc) cli_duration = std::atof(argv[++i]) * 1000.0;
@@ -166,6 +173,7 @@ int main(int argc, char* argv[]) {
         else if (arg == "--pheromone_x" && i+1 < argc) { cli_pheromone = true; cli_pheromone_x = std::atof(argv[++i]); }
         else if (arg == "--pheromone_y" && i+1 < argc) { cli_pheromone = true; cli_pheromone_y = std::atof(argv[++i]); }
         else if (arg == "--pheromone_intensity" && i+1 < argc) { cli_pheromone = true; cli_pheromone_intensity = std::atof(argv[++i]); }
+        else if (arg == "--ablate" && i+1 < argc) { cli_ablations.push_back(argv[++i]); }
         else if (arg == "--help" || arg == "-h") {
             std::cout << "Usage: celegans_diag [options]\n"
                       << "  --duration <sec>      Simulation duration (default: 300)\n"
@@ -185,7 +193,8 @@ int main(int argc, char* argv[]) {
                       << "  --sleep-after-learning <sec>  Force sleep after toxin exposure (Step 62)\n"
                       << "  --pheromone           Enable pheromone source at (15,25) (Step 64)\n"
                       << "  --pheromone_x/y <f>   Pheromone source position\n"
-                      << "  --pheromone_intensity <f>  Pheromone intensity 0-1 (default: 0.8)\n";
+                      << "  --pheromone_intensity <f>  Pheromone intensity 0-1 (default: 0.8)\n"
+                      << "  --ablate <name>       Ablate neuron (e.g. AVA, ASE, AIB; repeatable)\n";
             return 0;
         }
     }
@@ -281,6 +290,11 @@ int main(int argc, char* argv[]) {
     SimulationEngine sim;
     sim.initialize_default();
     sim.set_rng_seed(cli_seed);
+    // Step 67: Apply laser ablations
+    for (const auto& name : cli_ablations) {
+        sim.ablate_neuron(name);
+        std::cout << "  [ABLATION] " << name << " silenced" << std::endl;
+    }
     // Apply CLI parameter overrides (only if explicitly set)
     if (cli_as_factor >= 0) sim.params.as_factor = cli_as_factor;
     if (cli_pulse_amp >= 0) sim.params.pulse_amp = cli_pulse_amp;
