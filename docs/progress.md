@@ -736,14 +736,25 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 - CI: 0.97→0.91（5-HT slowing 生效，更真实）
 - **regtest**: 17 pass, 0 FAIL
 
+### Step 60: 多巴胺系统闭环 + 触觉习惯化 ✅ (2026-02-12)
+> 详细文档: [steps/step60_dopamine_completion_tap_habituation.md](steps/step60_dopamine_completion_tap_habituation.md)
+
+- 新增 ADE L/R + PDE L/R 多巴胺神经元 (140→144 神经元)
+- DA 源: 4 CEP → **8** (CEP+ADE+PDE, 完整), DA 靶标: 1→**9** (DOP-1/DOP-2/DOP-3)
+- DOP-3→AVA/AVB 抑制 + DOP-1→RIA 兴奋 + DOP-2 自受体负反馈
+- ESR 增强减速: food_memory×DA×(1+5-HT)×on_lawn
+- Tap 习惯化: 10s ISI, 200ms pulse, STP 自然递减
+- **NLP-12: 0.032→0.105**, CI: 0.91→0.965, DA targets: 1→9
+- **regtest**: 17 pass, 0 FAIL
+
 ---
 
 ## 当前系统状态
 
 ```
 架构: 8 层 (环境/躯体/感知/神经元/连接组/神经调质/运动/行为)
-神经元: 140 个 MVP 子集 (302 全集待加载)
-  感觉: 38 (ASE/AWC/AWA/ASH/ALM/PLM/NSM/CEP/AFD/ADF/ASJ/ASK L/R + OLQ 4× + URX L/R + AQR + PQR + BAG L/R + PVD L/R)
+神经元: 144 个 MVP 子集 (302 全集待加载)
+  感觉: 42 (ASE/AWC/AWA/ASH/ALM/PLM/NSM/CEP/ADE/PDE/AFD/ADF/ASJ/ASK L/R + OLQ 4× + URX L/R + AQR + PQR + BAG L/R + PVD L/R)
   中间: 32 (AIA/AIB/AIY/AIZ/RIA/RIB/RIM/RIC/AVA/AVB/AVD/AVE/PVC/AUA/I1/RIP L/R + RIS + DVA)
   运动: 70 (SMD/RMD/SMB 4×2+4 + RIV L/R + RMED/RMEV + AS01-07 + DB01-07/VB01-07/DA01-05/VA01-05/DD01-05/VD01-05 + MC/M3 L/R + M4 + HSN L/R + VC4/VC5 + AVL + DVB)
 突触: ~197 化学 + ~36 间隙连接 (全部带 Tsodyks-Markram STP, 支持分数 sections)
@@ -751,6 +762,7 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 神经调质: 6 种 (5-HT, DA, OA, TA, NLP-12, PDF) — volume transmission + 饱食度(泵驱动)
   5-HT 源: NSM(食物) + HSN(产卵) — 4个源神经元 (Step 43: ADF 移除)
   5-HT 靶标 (20个, 5种受体): MOD-1→AIY/AIB/AIZ/PVC(抑制) + SER-4→RIC(抑制)+speed(-0.40)+reversal(-0.50) + SER-1→RIA/RIC(兴奋) + SER-5→ASH(增敏) + LGC-50→RIA(SYNAPSE_GAIN)
+  DA 源: CEP(4)+ADE(2)+PDE(2) = 8个 (完整), 9个靶标: DOP-1→DVA(+4)/RIA(+2) + DOP-3→AVA(-3)/AVB(-2) + DOP-2→CEP(-3, 自受体)
   TA 源: RIM (逃逸协调) — LGC-55→SMD/AVB/RIV抑制 + TYRA-3→ASH增敏 + SER-2→AIY抑制
   NLP-12 源: DVA (本体感觉) — CKR-1→SMD(+5pA, 头摆ARS) + CKR-2→AVA(+2pA) + DA→DOP-1→DVA(+4pA)
 离子通道: 14 种 (EGL-19/UNC-2/CCA-1/SHL-1/KQT-3/SLO-1/NCA/MEC + EGL-36/IRK/TWK/SLO-2/OSM-9/EXP-2)
@@ -766,8 +778,8 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 工具: CLI 运行时参数覆盖 (--as_factor/--pulse_amp/--duration/--seed/--light 等, 无需重编译调参)
       --fitness 模式: 4 seeds × 3 scenarios 自动评估, 输出标量 fitness score
 可视化: Dear ImGui + ImPlot + GLFW, 3列布局, 实时调参+信号链诊断
-状态: 趋化+触觉回避+化学回避+排斥weathervane+病原体学习(CI反向!)+多化学物种+RIM稳定+神经调质+ARS(双通路:DARPP-32+NLP-12)+觅食循环+STP+盐学习+温度趋性+咽部泵食+睡眠/静止(RIS/FLP-11)+RIV omega(TA门控)+后退运动+RIA↔RIV负反馈环路+PDF roaming+food-edge反转(latch检测)+5-HT受体多样性(MOD-1/SER-4/SER-1/SER-5)+光回避(ASJ/LITE-1)+排便DMP(AVL/DVB 45s), 纯涌现 (140神经元)
-行为指标: CI≈0.91 (300s), near_food≈40%, reversal_rate≈0.10/s, speed≈0.18mm/s, 5-HT≈0.14
+状态: 趋化+触觉回避+化学回避+排斥weathervane+病原体学习(CI反向!)+多化学物种+RIM稳定+神经调质+ARS(双通路:DARPP-32+NLP-12)+觅食循环+STP+盐学习+温度趋性+咽部泵食+睡眠/静止(RIS/FLP-11)+RIV omega(TA门控)+后退运动+RIA↔RIV负反馈环路+PDF roaming+food-edge反转(latch检测)+5-HT受体多样性(MOD-1/SER-4/SER-1/SER-5)+光回避(ASJ/LITE-1)+排便DMP(AVL/DVB 45s)+DA闭环(DOP-1/DOP-2/DOP-3, ESR)+tap习惯化(STP涌现), 纯涌现 (144神经元)
+行为指标: CI≈0.97 (300s), near_food≈40%, reversal_rate≈0.10/s, speed≈0.18mm/s, 5-HT≈0.16, DA≈0.12, NLP-12≈0.10
 工具: celegans_diag.exe (信号链诊断+fitness) + celegans_regtest.exe (回归检测+电流溯源)
 
 运动驱动 (Step 13 — 生物学机制):

@@ -190,6 +190,16 @@ private:
     double touch_current_ = 80.0;  // pA, strong pulse for touch stimulus
     double arena_margin_ = 2.0;    // mm, wall collision zone
     double nose_margin_ = 0.3;     // Step 33: nose touch zone (mm, closer than body touch)
+    // Step 60: Tap habituation — periodic mechanical taps (Rankin 1990)
+    // Tap activates ALM+PLM simultaneously (plate vibration, not directional)
+    // STP vesicle depletion at glutamatergic synapses → decreased reversal response
+    double tap_interval_ = 10000.0; // ms between taps (10s ISI, Rankin 1990)
+    double tap_timer_ = 0.0;        // time since last tap
+    double tap_duration_ = 200.0;   // ms, tap pulse duration (brief mechanical stimulus)
+    double tap_current_ = 60.0;     // pA, tap stimulus strength (weaker than wall collision)
+    int tap_count_ = 0;             // number of taps delivered
+    bool tap_active_ = false;       // is a tap pulse currently active?
+    double tap_pulse_end_ = 0.0;    // when current tap pulse ends
     // Pirouette model (Pierce-Shimomura 1999 biased random walk)
     // dC/dt modulates pirouette initiation rate: dC/dt<0 → more pirouettes
     // This bypasses the noisy klinokinesis neural pathway (ASE→AIB→AVA)

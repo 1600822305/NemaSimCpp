@@ -123,6 +123,18 @@ void build_neurons(CB& b) {
     b.neuron("CEPDR", NT::SENSORY, NTT::DOPAMINE);
     b.neuron("CEPVL", NT::SENSORY, NTT::DOPAMINE);
     b.neuron("CEPVR", NT::SENSORY, NTT::DOPAMINE);
+    // Step 60: ADE — anterior deirid mechanosensory, dopaminergic
+    // Ciliated endings in lateral body near pharynx; senses bacteria texture
+    // Together with CEP, drives basal slowing response on food
+    // REF: Sawin 2000 — cat-2 in ADE/PDE rescues BSR; Sulston 1977 — deirid anatomy
+    b.neuron("ADEL", NT::SENSORY, NTT::DOPAMINE);
+    b.neuron("ADER", NT::SENSORY, NTT::DOPAMINE);
+    // Step 60: PDE — posterior deirid mechanosensory, dopaminergic
+    // Located mid-body; senses bacteria along body wall
+    // Unique among DA neurons: projects posteriorly, gap junctions with PVD
+    // REF: Sawin 2000, Sulston 1977, Chase & Koelle 2007 review
+    b.neuron("PDEL", NT::SENSORY, NTT::DOPAMINE);
+    b.neuron("PDER", NT::SENSORY, NTT::DOPAMINE);
     // AFD: thermosensory neuron — senses temperature, drives thermotaxis
     // REF: Mori & Ohshima 1995, Luo 2014 PNAS — AFD→AIY core thermotaxis circuit
     b.neuron("AFDL", NT::SENSORY, NTT::GLUTAMATE);
@@ -559,6 +571,26 @@ void build_head_motor(CB& b) {
     // OLQ ↔ CEP: gap junction coupling with dopaminergic mechanosensory
     b.gj("OLQDL", "CEPDL", 1); b.gj("OLQDR", "CEPDR", 1);
     b.gj("OLQVL", "CEPVL", 1); b.gj("OLQVR", "CEPVR", 1);
+
+    // Step 60: Dopaminergic mechanosensory circuit (ADE + PDE)
+    // ADE → RIC: DA from head deirid → octopaminergic interneuron
+    // ADE senses bacteria alongside CEP; projects to nerve ring
+    // REF: Cook 2019, White 1986 — ADE synapses in nerve ring
+    b.syn("ADEL", "RICL", 1); b.syn("ADER", "RICR", 1);
+    // ADE L↔R: bilateral gap junction coupling (coordinate bilateral DA release)
+    b.gj("ADEL", "ADER", 1);
+    // PDE → DVA: posterior mechanosensory DA → proprioceptive interneuron
+    // Complements CEP→DOP-1→DVA pathway for NLP-12 priming
+    // REF: White 1986, Cook 2019 — PDE chemical synapses
+    b.syn("PDEL", "DVA", 1); b.syn("PDER", "DVA", 1);
+    // PDE → PVC: posterior DA → forward command (food-contact forward drive)
+    b.syn("PDEL", "PVCL", 1); b.syn("PDER", "PVCR", 1);
+    // PDE ↔ PVD: gap junction — mechanosensory DA + harsh touch proprioception
+    // PDE and PVD both innervate body wall; shared mechanosensory context
+    // REF: White 1986, Cook 2019 — PDE-PVD gap junctions
+    b.gj("PDEL", "PVDL", 2); b.gj("PDER", "PVDR", 2);
+    // PDE L↔R: bilateral coupling
+    b.gj("PDEL", "PDER", 1);
 }
 
 // ================================================================

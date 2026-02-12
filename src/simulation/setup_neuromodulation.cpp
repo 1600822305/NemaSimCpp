@@ -230,9 +230,12 @@ void SimulationEngine::setup_neuromodulation() {
         dopamine.tau_decay = 5000.0;    // 5s to clear
         dopamine.release_threshold = 0.3;
 
-        // Source neurons: CEP (4 neurons, head mechanosensory)
-        const char* cep_names[] = {"CEPDL", "CEPDR", "CEPVL", "CEPVR"};
-        for (auto name : cep_names) {
+        // Source neurons: CEP (4) + ADE (2) + PDE (2) = 8 DA neurons (complete)
+        // All 8 are mechanosensory, detect bacteria texture on food lawn
+        // REF: Sawin 2000 — cat-2 in CEP/ADE/PDE rescues BSR
+        const char* da_names[] = {"CEPDL", "CEPDR", "CEPVL", "CEPVR",
+                                   "ADEL", "ADER", "PDEL", "PDER"};
+        for (auto name : da_names) {
             int id = connectome_.get_neuron_id(name);
             if (id >= 0) dopamine.source_neuron_ids.push_back(id);
         }
@@ -249,10 +252,50 @@ void SimulationEngine::setup_neuromodulation() {
         // Off food: DA drops → DVA excitation from DA decreases (proprioception still drives DVA)
         // REF: Bhattacharya 2014 PLOS Genetics — DOP-1 in DVA regulates NLP-12 release
         //      dop-1 mutant: reduced NLP-12-Venus fluorescence change, impaired ARS
-        // Step 58 fix: nid() cache not populated yet, use connectome_ directly
         int dva_da = connectome_.get_neuron_id("DVA");
         if (dva_da >= 0) dopamine.targets.push_back(
-            {dva_da, "DOP-1", ModulationEffect::EXCITABILITY, 4.0}); // +4 pA excitatory (primes DVA, not enough alone for NLP-12 release)
+            {dva_da, "DOP-1", ModulationEffect::EXCITABILITY, 4.0}); // +4 pA excitatory
+
+        // Step 60: DOP-3 → AVA/AVB command interneurons (D2-like, inhibitory)
+        // DA → DOP-3 → AVA: raises reversal threshold (fewer spontaneous reversals on food)
+        // DA → DOP-3 → AVB: modulates forward drive (contributes to basal slowing)
+        // DOP-1 and DOP-3 are ANTAGONISTIC on command neurons (Chase 2004)
+        // REF: Chase 2004 Nat Neurosci — DOP-3 extrasynaptic, dop-3 KO → locomotion defects
+        //      dop-1 KO rescues dop-3 KO → antagonistic on same targets
+        int aval = connectome_.get_neuron_id("AVAL");
+        int avar = connectome_.get_neuron_id("AVAR");
+        int avbl = connectome_.get_neuron_id("AVBL");
+        int avbr = connectome_.get_neuron_id("AVBR");
+        if (aval >= 0) dopamine.targets.push_back(
+            {aval, "DOP-3", ModulationEffect::EXCITABILITY, -3.0}); // -3 pA inhibitory
+        if (avar >= 0) dopamine.targets.push_back(
+            {avar, "DOP-3", ModulationEffect::EXCITABILITY, -3.0});
+        if (avbl >= 0) dopamine.targets.push_back(
+            {avbl, "DOP-3", ModulationEffect::EXCITABILITY, -2.0}); // -2 pA (weaker, preserves forward)
+        if (avbr >= 0) dopamine.targets.push_back(
+            {avbr, "DOP-3", ModulationEffect::EXCITABILITY, -2.0});
+
+        // Step 60: DOP-1 → RIA (D1-like, excitatory GPCR)
+        // DA on food → DOP-1 → RIA → enhanced head oscillation → better local search
+        // REF: Chase & Koelle 2007 — DOP-1 excitatory, expressed in head neurons
+        int rial = connectome_.get_neuron_id("RIAL");
+        int riar = connectome_.get_neuron_id("RIAR");
+        if (rial >= 0) dopamine.targets.push_back(
+            {rial, "DOP-1", ModulationEffect::EXCITABILITY, 2.0}); // +2 pA
+        if (riar >= 0) dopamine.targets.push_back(
+            {riar, "DOP-1", ModulationEffect::EXCITABILITY, 2.0});
+
+        // Step 60: DOP-2 autoreceptor → CEP (D2-like, negative feedback)
+        // DOP-2 on DA neurons: high DA → DOP-2 activation → reduce DA release
+        // Prevents runaway DA accumulation on food
+        // Modeled as inhibition of CEP (primary DA source with highest activity)
+        // REF: Suo 2003 — DOP-2 expressed on DA neurons; Formisano 2020 — negative feedback
+        int cepdl = connectome_.get_neuron_id("CEPDL");
+        int cepdr = connectome_.get_neuron_id("CEPDR");
+        if (cepdl >= 0) dopamine.targets.push_back(
+            {cepdl, "DOP-2", ModulationEffect::EXCITABILITY, -3.0}); // -3 pA autoinhibition
+        if (cepdr >= 0) dopamine.targets.push_back(
+            {cepdr, "DOP-2", ModulationEffect::EXCITABILITY, -3.0});
 
         neuromod_.add_modulator(std::move(dopamine));
     }

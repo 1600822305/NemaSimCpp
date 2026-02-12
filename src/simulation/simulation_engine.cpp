@@ -106,6 +106,18 @@ void SimulationEngine::initialize_default() {
             // would cause OLQ→RMD/RIC cascade disrupting navigation).
             // REF: Chase 2004 Nature Neurosci — DOP-3 extrasynaptic on motor neurons
             chemo_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::TONIC, 20.0, 1.0, 500.0, 5000.0, 0.5), true});
+        } else if (starts_with(info.name, "ADE")) {
+            // Step 60: ADE — anterior deirid mechanosensory, dopaminergic
+            // Same modality as CEP: detects bacteria texture on food lawn
+            // Slightly lower gain than CEP (ADE has fewer synaptic outputs)
+            // REF: Sawin 2000 — ADE contributes to basal slowing; Sulston 1977
+            chemo_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::TONIC, 15.0, 1.0, 500.0, 5000.0, 0.5), true});
+        } else if (starts_with(info.name, "PDE")) {
+            // Step 60: PDE — posterior deirid mechanosensory, dopaminergic
+            // Mid-body position: senses bacteria along body wall
+            // Lower gain (12): posterior, fewer synaptic connections than CEP/ADE
+            // REF: Sawin 2000 — PDE contributes to basal slowing; Chase & Koelle 2007
+            chemo_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::TONIC, 12.0, 1.0, 500.0, 5000.0, 0.5), true});
         } else if (starts_with(info.name, "AFD")) {
             // AFD: thermosensory neuron — handled by thermo_mappings, not chemo
             // ThermoTransducer: gain=150, baseline=5pA, Tc_tau=3600s(1hr), fast_tau=200ms
@@ -520,6 +532,22 @@ void SimulationEngine::step() {
         double basal_slow = 1.0 - 0.25 * on_lawn;
         if (basal_slow < 0.65) basal_slow = 0.65;  // floor: max 35% reduction
         effective_speed *= basal_slow;
+
+        // Step 60: Enhanced Slowing Response (ESR)
+        // Food-deprived worms slow MORE when re-encountering food (Sawin 2000)
+        // BSR = well-fed on food → ~30% reduction (above, basal_slow)
+        // ESR = recently deprived, re-encounter food → additional ~20% reduction
+        // Requires: on food (on_lawn>0.5) AND high food_memory (recently left food)
+        // food_memory encodes "was on food but left" → searching/ARS state
+        // ESR decays as food_memory drops (animal acclimates to new food patch)
+        // REF: Sawin 2000 — ESR requires both DA (cat-2) and 5-HT (tph-1)
+        //      30min food deprivation → enhanced slowing (Fig 3)
+        double da_conc = neuromod_.get_concentration("DA");
+        double sht_conc = neuromod_.get_concentration("5-HT");
+        // ESR strength: food_memory × DA × (1 + 5-HT) → peaks when recently deprived + on food
+        double esr = food_memory_ * da_conc * (1.0 + sht_conc) * on_lawn;
+        double esr_factor = 1.0 - 0.20 * std::min(esr, 1.0);  // up to 20% additional slowing
+        effective_speed *= esr_factor;
     }
 
     // Step 56: DMP body contraction speed modulation
@@ -1164,6 +1192,34 @@ void SimulationEngine::apply_touch_stimulus() {
     // + OLQ→RIC (OA release) that destroys chemotaxis. CEP is now driven modestly
     // via chemo_mappings_ (gain=20, for DA→DVA/NLP-12 priming only).
     // Basal slowing uses on_lawn sigmoid directly (see effective_speed section).
+
+    // Step 60: Periodic tap habituation (Rankin 1990)
+    // Tap = plate vibration → activates ALM+PLM simultaneously (non-directional)
+    // Repeated taps → STP vesicle depletion at ALM→AVD, PLM→AVA synapses
+    // → decreased reversal response (= habituation, emergent from STP)
+    // REF: Rankin 1990 J Comp Physiol A — tap habituation protocol
+    //      Rankin & Broster 1992 — ISI determines habituation rate
+    //      Maricq 1995 Nature — GLR-1 mediates mechanosensory signaling
+    tap_timer_ += dt_;
+    if (tap_timer_ >= tap_interval_) {
+        tap_timer_ = 0.0;
+        tap_active_ = true;
+        tap_pulse_end_ = current_time_ + tap_duration_;
+        tap_count_++;
+    }
+    if (tap_active_) {
+        if (current_time_ < tap_pulse_end_) {
+            // Deliver tap pulse to ALL touch neurons simultaneously
+            for (int id : nids("ALM")) {
+                if (id >= 0 && id < n) neurons_[id]->set_external_current(tap_current_);
+            }
+            for (int id : nids("PLM")) {
+                if (id >= 0 && id < n) neurons_[id]->set_external_current(tap_current_);
+            }
+        } else {
+            tap_active_ = false;
+        }
+    }
 
     // ======================================================================
     // Step 34: O₂ sensing — URX/AQR/PQR transduction
