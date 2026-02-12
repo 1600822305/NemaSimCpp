@@ -1,298 +1,377 @@
-# C. elegans 仿真架构生物学合规审查
+# C. elegans 仿真项目 — 架构生物学审查报告
 
 > 审查日期: 2026-02-12
-> 审查范围: 全项目架构 (162 神经元, 63 Steps)
-> 对照标准: [`docs/00_design_principles.md`](00_design_principles.md) 第二节 "禁止硬编码的内容"
+> 审查范围: 全部源码 + 68 步开发进度
+> 审查标准: `docs/00_design_principles.md` 中定义的 P0/P1 规则
 
 ---
 
-## 评级体系
+## 〇、总体评价
 
-| 等级 | 含义 |
-|------|------|
-| 🔴 **违规** | 明确违反设计原则——行为逻辑硬编码，绕过神经回路 |
-| 🟡 **灰色地带** | 生物学占位符——有物理依据但跳过了中间环节 |
-| 🟢 **合规** | 因果链完整——从离子通道到行为全链条涌现 |
-| ⚪ **缺失** | 生物学上存在但尚未实现的组件 |
+本项目在 68 步迭代中从零构建了一个 162 神经元的秀丽隐杆线虫仿真系统，包含 14 种离子通道、分级突触、多隔室神经元、6 种神经调质、咽部 CPG、睡眠系统等。Step 65-68 显示了系统性的"去硬编码"清理工作（移除 Pirouette Poisson、curvature_bias 旁路、basal slowing 直接乘法），表明项目方向正确。
+
+但仍存在 **6 个 P0 级违规**（行为绕过神经回路）和 **12 个 P1 级违规**（生物学可疑的快捷方式），以及若干架构层面的关注点。
 
 ---
 
-## 一、🔴 严重违规：行为逻辑绕过神经回路
+## 一、P0 违规 — 行为绕过神经回路（必须修复）
 
-### 1.1 Pirouette 决策系统 — Poisson 过程替代神经回路
+### P0-1: Weathervane 使用"上帝视角"梯度计算
 
-**位置**: [`SimulationEngine::step()`](../src/simulation/simulation_engine.cpp:600) 的 pirouette 判断逻辑
+**位置**: [`apply_weathervane()`](src/simulation/simulation_engine.cpp:901)
 
-**问题**: Pirouette（转弯）的**启动时机**由 `dCdt_filtered_` → Poisson 随机过程决定，而非由 ASE→AIB→AVA 突触通路的动力学涌现。代码注释明确承认：
-> *"The pirouette Poisson process is a decision-layer shortcut (bypasses AVA circuit for WHEN to reverse)"*
+**问题**: 代码直接调用 `environment_.chemical_field().gradient(head_pos)` 计算数学梯度，然后将差异电流注入 SMD 神经元。
 
-**违反原则**: 
-- ❌ 设计原则 2.2: *"觅食行为 — 自发活动 + 感觉反馈 + 命令中间神经元噪声 → 运动轨迹涌现"*
-- ❌ 设计原则 2.2: *"前进/后退切换 — ALM→AVD→AVA 突触通路激活→A 类运动神经元接管"*
+```
+❌ 环境梯度 → [数学运算] → SMD 注入
+✅ 头部摆动采样 → ASE 浓度时间序列 → AIY/AIZ → SMB/SMD 突触传递
+```
 
-**影响**: 这是项目中最严重的作弊——趋化性的核心机制（pirouette 频率的梯度调制）不是从连接组中涌现的，而是由 `simulation_engine.cpp` 中的 if-else 逻辑直接控制。AVA 的膜电位动态被完全绕过。
+线虫**没有梯度传感器**。Weathervane 转向（Iino & Yoshida 2009）的真实机制是：头部左右摆动 → 感觉神经元交替采样不同位置 → 时间序列编码空间梯度 → 下游回路提取方向信息。
 
-**生物学正确做法**: 
-- ASE ON/OFF 信号 → AIA 抑制/释放 AIB → AIB 去极化 → AVA 突触激活 → AVA 膜电位超过阈值 → reversal 自然发生
-- dC/dt 信息通过 ASE 感觉转导的 fast/slow 双滤波器编码在 ASE 活性中，应通过突触传导到 AVA，而非在引擎层面做 Poisson 采样
+**严重性**: 高。这是趋化性的核心机制之一，直接使用全局梯度信息违反了"无上帝视角"原则（设计原则 §4.4）。虽然 Step 65 移除了 curvature_bias 旁路改为 SMD 注入，但信息来源仍然是全局梯度。
 
-**修复优先级**: **P0** — 阻断验证（消融测试结果将不准确）
+**修复方向**: 让 ASE/AWC 仅通过 `sample_pos`（已受头部曲率影响）采样浓度，下游的 RIA 多隔室 Ca²⁺ 差异（Step 28 已实现）+ SMD 占空比调制应自然涌现出 weathervane 行为。移除 `apply_weathervane()` 中的直接 SMD 注入。
 
 ---
 
-### 1.2 曲率偏置旁路 — 绕过 SMD 神经振荡器
+### P0-2: 温度 Weathervane 同样使用全局梯度
 
-**位置**: [`SimulationEngine::apply_weathervane()`](../src/simulation/simulation_engine.cpp:993-1023)
+**位置**: [`apply_weathervane()`](src/simulation/simulation_engine.cpp:963-974)
 
-**问题**: Weathervane（风向标趋化）通过 `body_.set_curvature_bias(curv_bias)` 直接操纵身体曲率，完全绕过 SMD 半中心振荡器。代码注释：
-> *"Direct curvature bias: bypass SMD oscillator bottleneck (110mV amplitude drowns ±24pA bias)"*
+**问题**: `environment_.temperature_gradient(head_pos)` + `temp_sign = (temp_at_head > tc) ? -1.0 : 1.0` → 直接计算转向方向。
 
-**违反原则**:
-- ❌ 设计原则 2.2: *"转向决策 — 头部感觉采样不对称 → RIA/SMD 差异激活 → 头部弯曲"*
-- ❌ 设计原则 2.3: *"❌ 错误: 直接操纵身体段曲率/角度来产生运动"*
+```
+❌ 全局温度梯度 + sign(T-Tc) → SMD 注入
+✅ AFD 对温度变化的响应 → AIY/AIZ → RIA → SMD 突触调制
+```
 
-**影响**: CI（趋化指数）的 ~80% 贡献来自这个旁路（Step 17 诊断: SMD 路径 CI=0.07, 加旁路 CI=0.76）。意味着趋化性本质上是 `simulation_engine.cpp` 计算梯度然后直接弯曲身体，不是神经回路控制的。
-
-**根因**: SMD 半中心振荡器振幅过大（110mV peak-to-peak），几 pA 的 weathervane 偏置无法改变占空比。这说明 SMD 神经元模型参数需要校准，而不是绕过它。
-
-**生物学正确做法**:
-- 校准 SMD 神经元的 CCA-1/SHL-1 通道参数，使振荡幅度降至 ~30-50mV（生物学合理范围）
-- 或改用多隔室 SMD 模型，让 weathervane 信号注入到 SMD 的不同隔室
-- 确保 ±5pA 的 weathervane 偏置能产生可测量的占空比变化
-
-**修复优先级**: **P0** — 这是 CI 的主要来源
+线虫的热趋性机制是 AFD 感觉神经元通过 dT/dt 响应结合培养温度记忆来编码方向（Mori 1995, Clark 2006），不是通过直接计算梯度法向分量。
 
 ---
 
-### 1.3 食物边缘反转 — 概率公式替代神经回路
+### P0-3: RIV Omega 转弯通过 curvature_bias 直接操控身体
 
-**位置**: [`SimulationEngine::step()`](../src/simulation/simulation_engine.cpp:600) 中的 head poke reversal 逻辑（Step 47/54）
+**位置**: [`apply_riv_omega()`](src/simulation/simulation_engine.cpp:1620-1631)
 
-**问题**: 当头部从食物区出来时，以概率 `p = 0.50 + 0.30×5HT - 0.30×PDF` 触发反转。这是一个行为规则，不是神经回路的涌现结果。
+**问题**: `body_.set_curvature_bias(bias)` 直接设置身体曲率偏置，绕过了 RIV→肌肉 的物理通路。代码注释（[motor_controller.cpp:91-95](src/motor/motor_controller.cpp:91)）明确承认 RIV 没有映射到运动控制器。
 
-**违反原则**:
-- ❌ 设计原则 2.2: *"前进/后退切换 — 突触通路激活→A类运动神经元接管"*
-- ❌ 设计原则 7.2: *"禁止: 使用 if-else 分支实现行为切换"*
+```
+❌ RIV 释放率 → [直接] → body.curvature_bias
+✅ RIV 释放率 → RIV→ventral head muscle → 肌肉差异激活 → 曲率
+```
 
-**生物学正确做法**: 
-- 头部离开食物 → NSM/CEP 驱动下降 → 5-HT/DA 浓度降低 → AIY 去抑制 → AVA 相对增强 → reversal 自然发生
-- 概率调制应通过 5-HT/PDF 对 AVA/AVB 的调质效应涌现
+RIV 是 GABA 能运动神经元，其生物学功能是投射到**腹侧头部肌肉**（Gray 2005 PNAS），抑制对侧同时激活同侧。应该像 SMD 一样通过 motor_controller 映射到肌肉段。
 
-**修复优先级**: **P1**
-
----
-
-### 1.4 Basal Slowing — 直接速度乘法替代 DA 神经回路
-
-**位置**: [`SimulationEngine::step()`](../src/simulation/simulation_engine.cpp:544-552)
-
-**问题**: 食物上减速通过 `effective_speed *= basal_slow` 直接乘法实现，绕过了多巴胺从 CEP→DOP-3→运动神经元的完整通路。代码承认：
-> *"NOT through CEP's synaptic circuit... on_lawn sigmoid directly modulates speed"*
-
-**违反原则**:
-- ❌ 设计原则 2.2: *"速度调节 — 感觉输入→中间神经元→AVB/AVA 活性变化→运动波能量变化"*
-- ❌ 设计原则 5.4: *"❌ 作弊: motor.output = desired_velocity"*
-
-**根因**: CEP 高电流（40pA）通过 CEP↔OLQ gap junction 导致级联效应。这说明 gap junction 电导或 CEP 增益需要校准。
-
-**修复优先级**: **P1**
+**修复方向**: 在 `MotorController` 中添加 RIV→ventral seg 0-4 映射，增大 muscle_gain 或为 omega 设置独立的增益参数。
 
 ---
 
-### 1.5 Reversal 运动执行 — 直接设置运动状态
+### P0-4: Food Edge Reversal 使用"上帝视角"食物检测
 
-**位置**: [`SimulationEngine::step()`](../src/simulation/simulation_engine.cpp:607)
-
-**问题**: `body_.set_locomotion_state(0.0, 1.0)` 强制后退，完全绕过 AVA/AVB 命令中间神经元的膜电位动态。
-
-**违反原则**:
-- ❌ 设计原则 2.2: *"前进/后退切换 — ALM→AVD→AVA 突触通路激活→A 类运动神经元接管"*
-- ❌ 设计原则 5.4: *"❌ 作弊: motor.output = desired_velocity"*
-
-**影响**: AVA/AVB 的突触输入和膜电位动力学在 reversal 期间被忽略。消融 AVA 不会真正消除后退能力（因为 pirouette 系统直接设置了运动状态）。
-
-**修复优先级**: **P0** — 导致消融测试不准确
-
----
-
-## 二、🟡 灰色地带：生物学占位符
-
-### 2.1 疲劳/睡眠状态变量
-
-**位置**: [`SimulationEngine::update_fatigue()`](../src/simulation/update_internal_states.cpp:104)
-
-**问题**: `fatigue_` 是一个基于运动速度累积的标量变量，然后作为外部电流注入 RIS。真实生物学中，睡眠压力通过腺苷累积、Ca²⁺ 稳态、neuropeptide 反馈等复杂机制实现。
-
-**评估**: 部分合理——RIS 确实是睡眠启动的关键神经元，但"疲劳度"不应从引擎层面计算并注入。
-
-**改进方向**: 让活动→神经肽/代谢物累积→通过受体调制 RIS 兴奋性
-
-### 2.2 饱食度效应的直接注入
-
-**位置**: [`SimulationEngine::update_satiety()`](../src/simulation/update_internal_states.cpp:20)
-
-**问题**: `satiety_` 对 RIC（+10pA）和 ASE/AWC（-5pA）的效应通过直接电流注入实现，而不是通过胰岛素/TGF-β 等内分泌信号通路。
-
-**评估**: 泵驱动的饱食度计算本身是好的（Step 24），但下游效应的实现方式跳过了 DAF-2、INS-1 等分子机制。Step 63 部分修复了 INS-1，但仍然是公式计算。
-
-### 2.3 Sickness → ADF 5-HT 直接注入
-
-**位置**: [`SimulationEngine::step()`](../src/simulation/simulation_engine.cpp:424-436)
-
-**问题**: `sickness_ × mod1_aiy_gain_` 直接注入 AIY/AIZ，而不是通过 ADF→5-HT 释放→MOD-1 Cl⁻ 通道的完整因果链。代码注释解释了为什么不用突触（ADF 基线释放会膨胀 off-food 5-HT），但正确做法应该是修复 ADF 的释放阈值参数，而非绕过突触通路。
-
-### 2.4 DMP 排便定时器
-
-**位置**: [`SimulationEngine::update_defecation()`](../src/simulation/update_internal_states.cpp:199)
-
-**问题**: 使用 `dmp_timer_` 软件定时器模拟 45s 肠道 Ca²⁺ 振荡器。这是非神经性定时器（IP3/ITR-1），不属于神经系统仿真范畴，但直接注入 AVL/DVB 70pA 的方式过于粗暴。
-
-### 2.5 O₂/CO₂ 从食物密度公式推导
-
-**位置**: [`SimulationEngine::apply_touch_stimulus()`](../src/simulation/simulation_engine.cpp:1280-1400)
-
-**问题**: O₂ = 21% - 13% × food_density, CO₂ = 0.04% + 3% × food_density。真实世界中 O₂/CO₂ 应该有独立的扩散场，受到细菌代谢和环境通风的动态影响。当前实现与食物场完全耦合，没有独立动力学。
-
-### 2.6 NPR-1 作为常数抑制
-
-**位置**: [`SimulationEngine::apply_touch_stimulus()`](../src/simulation/simulation_engine.cpp:1303)
-
-**问题**: `npr1_tonic_ = -28.0` 是一个常数，但 NPR-1 受体的激活应取决于其配体（FLP-18, FLP-21 神经肽）的浓度，而这些神经肽的释放又取决于社交/O₂ 状态。
-
-### 2.7 神经调质作为全局标量
-
-**位置**: [`NeuromodulationManager`](../src/neuromodulation/neuromodulation.h:53)
-
-**问题**: 每种神经调质是一个单一的 `double concentration`。真实的体积传递是空间依赖的——5-HT 从 NSM 释放后在局部浓度最高，远处浓度较低。当前实现中所有靶标神经元"看到"相同浓度，相当于假设瞬间完全混合。
-
----
-
-## 三、🔴 架构级问题
-
-### 3.1 SimulationEngine 上帝类
-
-**位置**: [`simulation_engine.h`](../src/simulation/simulation_engine.h:1-375)
-
-**问题**: SimulationEngine 有 **50+ 成员变量** 和 **30+ 方法**，混合了:
-- 神经回路更新逻辑
-- 行为状态机 (pirouette, omega, reversal, sleep, DMP, egg-laying)
-- 感觉转导
-- 内部状态计算 (satiety, sickness, food_memory, fatigue, INS-1)
-- 身体物理接口
-- 环境采样
-
-这使得区分"什么是生物物理仿真"和"什么是人工控制逻辑"变得极其困难。每次添加新功能都必须在这个巨大的类中添加新的状态变量和方法。
-
-**建议**: 将行为状态机（pirouette, omega 等）移除——如果神经回路正确，这些行为应该自然涌现，不需要在引擎中用状态变量跟踪。
-
-### 3.2 因果链断裂：外部电流注入泛滥
-
-全项目中有 **20+ 处** `set_external_current()` 和 `add_synaptic_current()` 调用不是来自突触或感觉转导，而是来自引擎层面的状态变量计算。这意味着信息**绕过了连接组**到达了神经元。
-
-按设计原则检验 4（无"上帝视角"）:
-> *"❌ 作弊: neuron.receive(global_food_position)"*
-
-当前代码中:
-- `satiety_` → RIC: 神经元收到了一个来自"全局饱食度"的电流
-- `sickness_` → AIY/AIZ: 神经元收到了一个来自"全局疾病状态"的电流
-- `food_memory_` → AVA: 神经元收到了一个来自"全局食物记忆"的电流
-- `fatigue_` → RIS: 神经元收到了一个来自"全局疲劳度"的电流
-- `ins1_conc_` → AWC/AIA/AIY: 神经元收到了来自公式计算的胰岛素信号
-
-这些都是"上帝视角"信息——真实神经元只能通过突触输入获知这些状态。
-
-### 3.3 身体模型缺乏力学闭环
-
-**位置**: [`BodyModel::update_positions()`](../src/body/body_model.cpp:78-155)
+**位置**: [`simulation_engine.cpp:1529-1560`](src/simulation/simulation_engine.cpp:1529)
 
 **问题**:
-1. **速度公式**: `forward_speed = v_max × muscle_work` 是一个经验公式，不是力学方程。真实线虫速度 = ΣF_推进 / 阻力系数，推进力来自曲率波与基底的各向异性摩擦交互。
-2. **运动学而非动力学**: 身体段的位置是从头部角度推导的（θ_i = θ_{i-1} - κ_i × ds），没有牛顿力学（F=ma）。肌肉产生力→身体形变→与环境交互产生推进力的完整链条被简化为 `curvature → speed`。
-3. **没有质量/惯性**: 虽然低雷诺数下惯性确实可忽略，但完整的阻力力理论（RFT）需要计算每个体段的切向/法向阻力分量。
+1. `food_at_head = environment_.sample_food_density(...)` — 直接检测食物密度
+2. `was_on_lawn_` latch 检测器 — 行为级逻辑
+3. `p_edge_rev = 0.50 + 0.30 * sht - 0.30 * pdf` — 概率公式（if-else 的连续版本）
+4. 40pA 直接注入 AVA
 
-**技术债务 TD-04** 已记录此问题但尚未解决。
+```
+❌ 食物密度 → [阈值比较] → [概率公式] → AVA 注入
+✅ CEP/ADE 机械感觉 → DA 释放 → DOP-3→AVA + DA 信号突然下降 → DA-dependent 回路
+```
 
----
-
-## 四、🟢 架构优点（符合生物学的部分）
-
-### 4.1 离子通道多样性 ✅
-14 种已知 C. elegans 离子通道，参数来自 Nicoletti 2019。Boltzmann 稳态 + 指数松弛框架正确。每种通道有独立的 `IonChannel` 子类。
-
-### 4.2 HH 型分级电位模型 ✅
-C_m·dV/dt = -(I_leak + ΣI_ion) + I_syn + I_ext。正确实现了 C. elegans 的分级电位（非脉冲）信号编码。
-
-### 4.3 连接组忠实性 ✅
-基于 Cook 2019 / Emmons 2024 EM 数据。突触权重 ∝ EM 切面数。Step 42 进行了校准。
-
-### 4.4 SMD 半中心振荡器 ✅
-CCA-1 T-type Ca²⁺ burst + SLO-1 BK 适应 + 背腹交叉抑制 → 自主头部振荡。这是正确的涌现机制。
-
-### 4.5 RIA 多隔室模型 ✅
-Step 28: 3 隔室（soma + nrV + nrD）实现亚细胞钙信号，符合 Hendricks 2012 实验数据。
-
-### 4.6 RIV-Driven Omega Turn ✅
-Step 31: 从 TA 门控涌现，替代了之前的硬编码。CCA-1 burst → omega。正确。
-
-### 4.7 Tsodyks-Markram 突触可塑性 ✅
-所有化学突触带 STD/STF，参数按回路分类。Tap 习惯化从 STP 涌现。
-
-### 4.8 咽部泵食系统 ✅
-MC/M3 驱动的咽部 AP → 真实进食 → satiety。替代了占位符。
-
-### 4.9 本体感觉波传播 ✅
-Step 29: B 类顺序感知前一单元领地（Wen 2012），D/V 交替接力产生 S 波。
+真实机制是：线虫离开食物 → CEP 不再检测到细菌纹理 → DA 释放骤降 → DOP-1/DOP-3 对 AVA/AVB 的调制改变 → 产生 reversal。
 
 ---
 
-## 五、⚪ 关键缺失组件
+### P0-5: DMP 通过 speed_factor 直接操控速度
 
-| 组件 | 生物学重要性 | 对行为影响 |
-|------|------------|----------|
-| **RMG Hub 神经元** | 社交/独居行为核心 | NPR-1 效应无法正确建模 |
-| **AIB→AVA 突触的正确权重** | Pirouette 频率调制 | 是修复 1.1 的前提 |
-| **完整 302 神经元** | 140 个缺失 | 中间神经元网络不完整 |
-| **突触外整流 gap junction** | 部分 gap junction 是电压依赖的 | 影响 AVA-AVE 等耦合 |
-| **神经肽 250+ 种** | 完整无线连接组 | 只实现了 NLP-12/PDF/FLP-11/INS-1 |
-| **肌肉作为计算节点** | Emmons 2024 发现 | 缺少肌肉→神经元反馈 |
-| **完整 RFT 身体物理** | 速度/波形精确性 | TD-04 |
+**位置**: [`update_defecation()`](src/simulation/update_internal_states.cpp:248-270)
 
----
+**问题**: `dmp_speed_factor_ = 0.6/0.7/0.5` 直接乘以 effective_speed。排便期间的运动减速应该从 AVL/DVB 对运动神经元的 GABA 抑制中涌现。
 
-## 六、修复路线图建议
+```
+❌ DMP 阶段 → speed_factor = 0.6
+✅ AVL/DVB GABA 释放 → 突触抑制 B/A-class MN → 肌肉工作减少 → 速度自然下降
+```
 
-### Phase 1: 消除红线违规 (P0)
-
-1. **修复 SMD 振幅**: 校准 CCA-1/SHL-1 参数使振幅降至 30-50mV，让 weathervane ±5pA 偏置能改变占空比。移除 `curvature_bias_` 旁路。
-2. **移除 Pirouette Poisson 过程**: 让 ASE→AIA⊣AIB→AVA 的突触通路自然产生 reversal。调整 AIB→AVA 突触权重使 reversal 频率匹配文献。
-3. **移除 `set_locomotion_state(0,1)` 强制后退**: 让 AVA 膜电位动态自然控制 A 类运动神经元。
-4. **消融测试验证**: AVA 消融 → 不能后退, ASE 消融 → CI 丧失。
-
-### Phase 2: 替换灰色地带 (P1)
-
-5. **Basal slowing**: 校准 CEP 增益和 CEP↔OLQ gap junction 电导，让 DA→DOP-3 通过神经调质层正确实现减速。
-6. **Food edge reversal**: 让头部离开食物 → NSM 活性下降 → 5-HT 浓度降低的动态过程自然驱动 reversal。
-7. **内部状态去中心化**: 将 satiety/sickness/fatigue 的效应通过神经肽/调质通路实现，而非直接电流注入。
-
-### Phase 3: 架构重构
-
-8. **SimulationEngine 瘦身**: 移除行为状态机（pirouette/omega/reversal），这些应从回路涌现。
-9. **空间化神经调质**: 给每种调质添加空间扩散模型，而非全局标量。
-10. **力学身体模型**: 实现完整 RFT 或升级到 SPH。
+AVL↔DD05 的 gap junction 已存在于连接组中，应该通过这个通路传递抑制。
 
 ---
 
-## 七、总结
+### P0-6: FLP-11 睡眠抑制通过直接电流注入而非神经调质框架
 
-| 类别 | 数量 | 占比 |
-|------|------|------|
-| 🔴 严重违规 | 5 | 行为的核心控制逻辑 |
-| 🟡 灰色地带 | 7 | 物理依据有但跳过中间环节 |
-| 🟢 合规 | 9 | 因果链完整的涌现机制 |
-| ⚪ 缺失 | 7+ | 已知但未实现的生物学组件 |
+**位置**: [`apply_sleep_effects()`](src/simulation/update_internal_states.cpp:142-186)
 
-**核心矛盾**: 项目的设计原则（`00_design_principles.md`）写得极好——明确禁止行为脚本和 if-else 切换。但实际实现中，趋化性（CI 的主要贡献）和运动方向切换（reversal）这两个最核心的行为都依赖于旁路/硬编码，而非从连接组涌现。
+**问题**: FLP-11 是神经肽，但其效应通过直接 `add_synaptic_current(-15/-12/-20/-30 pA)` 实现，绕过了项目已有的 NeuromodulationManager 框架。
 
-**根因分析**: 最可能的原因是 SMD 半中心振荡器的振幅过大（110mV），导致突触级别的调制信号被淹没。修复 SMD 振幅参数可能是解决多个下游问题的关键（修复 weathervane 旁路、使 RIA→SMD 调制有效、使 pirouette 的 AIB→AVA 通路能正确控制运动）。
+```
+❌ RIS V → sigmoid → 直接注入 AVA/AVB/MC/SMD/DA 等
+✅ RIS → FLP-11 释放 → NeuromodulationManager → 受体介导效应
+```
 
-> **一句话**: 项目的"骨骼"（连接组+离子通道+HH方程）是正确的，但"肌肉"（行为的实际产生）很大程度上仍由引擎层面的控制逻辑驱动，而非从神经回路动力学中涌现。
+项目已有 6 种神经调质的完整框架（5-HT/DA/OA/TA/NLP-12/PDF），FLP-11 应作为第 7 种加入，保持一致性。
+
+---
+
+## 二、P1 违规 — 生物学可疑的快捷方式（应改进）
+
+### P1-1: Satiety 直接调制化学感觉增益（双重作用）
+
+**位置**: [`apply_sensory_input()`](src/simulation/simulation_engine.cpp:663-664)
+
+```cpp
+double chemo_sat_gain = 1.0 - 0.85 * sat_switch;  // 直接乘到感觉电流上
+```
+
+饱食度(satiety_)是一个内部体液状态，感觉神经元无法直接"知道"它。真实机制是通过 INS-1/DAF-2 信号通路调制 AWC/AIA/AIY（Step 63 已实现）。当前存在**双重调制**：既有直接增益抑制，又有 INS-1 通路抑制。
+
+**修复**: 移除直接 `chemo_sat_gain` 乘法，仅保留 INS-1 → DAF-2 通路。
+
+---
+
+### P1-2: Sickness 直接抑制化学感觉（双重作用）
+
+**位置**: [`apply_sensory_input()`](src/simulation/simulation_engine.cpp:669)
+
+```cpp
+double sick_suppression = 1.0 - 0.85 * sickness_;
+```
+
+与 P1-1 类似，sickness_ 是内部状态，不应直接乘到感觉电流上。应通过 ADF 5-HT + INS-1 + AWC 突触翻转等已实现的神经通路传递。
+
+---
+
+### P1-3: ADF 由 sickness_ 内部变量直接驱动
+
+**位置**: [`apply_sensory_input()`](src/simulation/simulation_engine.cpp:715)
+
+```cpp
+double I_adf = 0.5 + 30.0 * sickness_;
+```
+
+ADF 是化学感觉神经元，应该通过化学检测来响应病原体信号。直接从 `sickness_` 注入电流相当于给 ADF "上帝视角"访问体内疾病状态。
+
+真实机制：ADF 通过 TPH-1 上调（需要数小时的转录调控）来增加 5-HT 释放能力（Zhang 2005 Nature）。这是一个基因表达层面的变化，时间尺度远慢于当前实现的即时响应。
+
+---
+
+### P1-4: RIC 由 satiety_ 直接驱动
+
+**位置**: [`update_satiety()`](src/simulation/update_internal_states.cpp:32-38)
+
+```cpp
+double ric_satiety = 10.0 * satiety_;
+neurons_[rid]->add_synaptic_current(ric_baseline + ric_satiety);
+```
+
+RIC 是中间神经元/运动神经元（章鱼胺能），不是感觉神经元。它无法直接感知饱食度。应通过 NSM 5-HT → RIC 的突触/调质通路传递进食状态信息。
+
+---
+
+### P1-5: food_memory_ (DARPP-32) → AVA 直接注入
+
+**位置**: [`update_food_memory()`](src/simulation/update_internal_states.cpp:75-78)
+
+```cpp
+double ars_current = 1.5 * food_memory_;
+neurons_[nid("AVAL")]->add_synaptic_current(ars_current);
+```
+
+DARPP-32 磷酸化在生物学上调制的是 GLR-1 受体的突触后增益（Hills 2004），不是给 AVA 添加持续电流。应实现为：food_memory_ → AVA 上的 GLR-1 突触增益增强 → ASE→AIB→AVA 通路的响应更强。
+
+---
+
+### P1-6: gradient klinokinesis 使用全局梯度信息
+
+**位置**: [`apply_gradient_klinokinesis()`](src/simulation/update_internal_states.cpp:88-99)
+
+```cpp
+Vector2d grad = environment_.chemical_field().gradient(head_pos);
+double no_signal_factor = fast_exp(-grad_mag / 0.002);
+```
+
+AVA 不可能"知道"化学梯度强度。无梯度→高 reversal 的行为应从感觉输入的统计特性中涌现（信号方差低 → 随机 AVA 激活更频繁）。
+
+---
+
+### P1-7: AWB 由 sickness_ × repellent 驱动
+
+**位置**: [`apply_sensory_input()`](src/simulation/simulation_engine.cpp:733)
+
+```cpp
+double I_awb = 2.0 + awb_pathogen_gain_ * sickness_ * repellent;
+```
+
+AWB 是嗅觉感觉神经元，它检测排斥性化学物质（如 serrawettin）。乘以 `sickness_` 给了 AWB 访问内部疾病状态的能力，这违反了"上帝视角"原则。
+
+真实机制：学习后 AWB 的敏感度变化是通过**突触权重改变**实现的（Ha 2010 Neuron），而不是通过改变感觉输入增益。
+
+---
+
+### P1-8: INS-1 作为"虚拟调质"无神经元来源
+
+**位置**: [`simulation_engine.h:282-289`](src/simulation/simulation_engine.h:282)
+
+```cpp
+double ins1_conc_ = 0.0;  // 直接从 satiety/sickness 计算
+```
+
+INS-1 应由 ASI/AIA 神经元释放（Lin 2010），但当前实现直接从 satiety_ 和 sickness_ 状态变量计算浓度，没有经过任何神经元。应将 INS-1 加入 NeuromodulationManager 框架，以 ASI 为源神经元。
+
+---
+
+### P1-9: head_tonic_ 固定 3pA 常量
+
+**位置**: [`apply_head_tonic()`](src/simulation/simulation_engine.cpp:849-870)
+
+```cpp
+double tonic = head_tonic_;  // = 3.0 pA
+```
+
+所有 SMD/RMD 头部运动神经元接收固定 3pA 驱动。这应来自上游中间神经元（RIA/RIB）的突触输入——这些突触已存在于连接组中。移除此常量后，头部振荡的启动应完全由连接组突触驱动。
+
+---
+
+### P1-10: 饱食度直接抑制 ASE/AWC 突触电流
+
+**位置**: [`update_satiety()`](src/simulation/update_internal_states.cpp:41-51)
+
+```cpp
+double suppress = -5.0 * (satiety_ - 0.3) / 0.7;
+neurons_[nid]->add_synaptic_current(suppress);
+```
+
+与 P1-1 构成第三重饱食度调制。化学感觉抑制应仅通过 INS-1/DAF-2 通路。
+
+---
+
+### P1-11: 产卵系统中 VC 电流直接注入
+
+**位置**: [`simulation_engine.cpp:1501-1506`](src/simulation/simulation_engine.cpp:1501)
+
+```cpp
+neurons_[id]->set_external_current(15.0);  // "5-HT potentiation"
+```
+
+注释称这是"5-HT potentiation"，但实现为直接电流注入。应通过 HSN→5-HT→SER-1/SER-7→VC 的神经调质通路实现。
+
+---
+
+### P1-12: ADF sickness → MOD-1 ⊣ AIY/AIZ 通过直接注入
+
+**位置**: [`simulation_engine.cpp:417-436`](src/simulation/simulation_engine.cpp:417)
+
+```cpp
+double I_mod1 = mod1_aiy_gain_ * sickness_;
+neurons_[aiy_id]->add_synaptic_current(I_mod1);
+```
+
+注释解释了不用突触的原因（ADF 基线释放干扰），但更好的方案是在 ADF 5-HT 释放加入学习依赖的门控：只有 sickness > 阈值时 ADF 才是有效的 5-HT 源。
+
+---
+
+## 三、架构层面关注点
+
+### A-1: SimulationEngine 仍是"上帝类"
+
+尽管 Step 50 做了拆分，`SimulationEngine` 仍然管理着：
+- 感觉转导（5 种模态 × 多种映射结构）
+- 运动状态检测（reversal/omega）
+- 6+ 种内部状态（satiety/sickness/food_memory/fatigue/egg_pressure/ins1）
+- 3 种学习系统（盐学习/病原体学习/STP 习惯化）
+- 所有直接注入（~20 处 `add_synaptic_current` 调用）
+
+**建议**: 将感觉转导、内部状态、学习系统分离为独立类，减少 SimulationEngine 职责。
+
+### A-2: 信号路由混乱 — 突触 vs 直接注入
+
+当前系统中，信号通过三种方式传递：
+1. **连接组突触** (`connectome_.compute_synaptic_currents`) — 正确方式
+2. **直接电流注入** (`add_synaptic_current`) — 约 20 处旁路
+3. **神经调质框架** (`NeuromodulationManager`) — 6 种调质
+
+问题是类型 2 和类型 1/3 共存，导致因果链断裂，难以追踪信号流。
+
+**建议**: 尽量将类型 2 转化为类型 1（连接组突触）或类型 3（神经调质靶标）。
+
+### A-3: 2D 身体模型中背腹/左右混淆
+
+2D 弹性杆模型中，"dorsal/ventral" 映射到 2D 平面的曲率方向。但真实线虫在二维平面上爬行时，dorsal 和 ventral **分别朝上和朝下**（贴地面），左右摆动实际上对应身体的左右侧肌肉交替收缩（**不是**背腹）。
+
+Step 65 发现的 SMD→肌肉→曲率符号反转问题可能部分源于此。这个映射假设需要明确文档化。
+
+### A-4: 162/302 神经元覆盖率
+
+当前 162 个神经元覆盖了 53.6% 的体细胞神经元。关键缺失：
+- **RMG**: hub-and-spoke 社交行为枢纽（NPR-1 通路核心）
+- **AVG/PVQ**: 长程腹索中间神经元
+- **FLP/PHA/PHB**: 后体感觉神经元
+- **SAA/SIA/SIB**: 头部中间神经元
+- **完整的 VB/VA/DB/DA 各 11-13 个**: 当前仅 5-7 个
+
+缺失神经元的功能可能被错误地归因到现有神经元上（如 RIV 的 omega 功能部分代偿了缺失的 SAA/SIA 头部回路）。
+
+### A-5: 感觉转导模型中的物种特异性
+
+CEP/ADE/PDE（多巴胺神经元）被实现为化学感觉转导器（TONIC 类型，采样 food_density），但它们实际上是**机械感觉神经元**——检测细菌的物理纹理而非化学信号。用 `ChemoTransducer` + `sample_food_density()` 模拟机械感觉在概念上是混淆的。
+
+---
+
+## 四、做得好的方面
+
+| 方面 | 评价 |
+|------|------|
+| **离子通道生物物理** | 14 种通道，Boltzmann 动力学，来源 Nicoletti 2019 ✅ |
+| **分级突触** | 正确反映 C. elegans 特性（非脉冲） ✅ |
+| **连接组数据** | Cook 2019 + Emmons 2024 校准 ✅ |
+| **STP per-circuit 调参** | CPG/touch/sensory 各有合适的时间常数 ✅ |
+| **神经调质框架** | 6 种调质、受体特异性效应、合理的时间尺度 ✅ |
+| **多隔室 RIA** | 亚细胞 Ca²⁺ 编码，匹配 Hendricks 2012 ✅ |
+| **消融验证** | AVA=0 reversals、ASE CI↓、RIM rev↑ 匹配文献 ✅✅ |
+| **系统性去硬编码** | Step 65-68 移除了 4 个旁路/直接乘法 ✅ |
+| **设计原则文档** | 明确的反作弊框架 + 占位符标注规范 ✅ |
+| **回归测试** | 17 指标自动检测 + 电流溯源 ✅ |
+
+---
+
+## 五、优先修复建议
+
+### 优先级排序
+
+| 优先级 | ID | 描述 | 难度 | 影响 |
+|--------|-----|------|------|------|
+| **P0 紧急** | P0-1 | Weathervane 去全局梯度 | 高 | 趋化性核心 |
+| **P0 紧急** | P0-3 | RIV→肌肉映射替代 curvature_bias | 中 | omega 转弯 |
+| **P0 重要** | P0-4 | Food edge reversal 去"上帝视角" | 中 | 觅食行为 |
+| **P0 重要** | P0-6 | FLP-11 加入 NeuromodulationManager | 低 | 一致性 |
+| **P0 中** | P0-5 | DMP speed_factor → 突触抑制 | 低 | 小行为 |
+| **P0 中** | P0-2 | 温度 weathervane 去全局梯度 | 高 | 热趋性 |
+| **P1 推荐** | P1-1/2/10 | 移除三重饱食度化学感觉调制 | 低 | 代码清洁 |
+| **P1 推荐** | P1-5 | food_memory→GLR-1 增益替代 AVA 注入 | 中 | ARS 机制 |
+| **P1 建议** | P1-8 | INS-1 加入 NeuromodulationManager | 中 | 一致性 |
+| **P1 建议** | P1-9 | 移除 head_tonic_ 常量 | 低 | 纯涌现 |
+
+### P0-1 修复路线图（最重要）
+
+Weathervane 去全局梯度的具体步骤：
+
+1. **确认 RIA Ca²⁺ klinotaxis 已工作** — Step 28 的 `apply_smb_neck_bias()` 已经从 RIA nrV/nrD 钙差异提取方向信息，不使用全局梯度
+2. **验证 SMD 占空比调制** — Step 65 校准了 SMD 振幅到 49mV，±5pA 偏置可产生 8% 占空比变化
+3. **移除 `apply_weathervane()` 中的 SMD 直接注入** — 化学/温度/排斥物三个通道全部移除
+4. **增强 RIA Ca²⁺ → curvature offset 增益** — 补偿 SMD 直接注入移除后的转向能力
+5. **验证**: CI 应保持 >0.2（纯涌现范围），8-seed 测试
+
+预期困难：移除直接注入后 CI 可能下降到 0.1 以下，需要调参 RIA Ca²⁺ 信号增益和 SMB→SMD/muscle 通路强度。
+
+---
+
+## 六、结论
+
+项目展现了扎实的生物物理仿真工程能力和系统性的去硬编码进步。Step 65-68 的"P0 违规修复"系列证明了团队对涌现性原则的重视。
+
+**核心矛盾**：项目在追求"行为涌现"（设计原则）和"行为表现"（CI 指标）之间存在张力。大多数 P0 违规都是为了维持趋化性能（CI>0.3）而引入的旁路。建议接受短期 CI 下降，优先修复 P0-1 和 P0-3，然后通过连接组突触权重校准恢复性能。
+
+**一句话总结**：离子通道和突触层面是真正的生物物理仿真，但行为层面仍有约 20 处"旁路注入"将全局信息直接注入神经元，这些是下一阶段需要系统性清理的主要目标。

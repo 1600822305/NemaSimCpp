@@ -251,7 +251,7 @@ void SimulationEngine::setup_neuromodulation() {
         for (auto mn_name : b_class_names) {
             int mn_id = connectome_.get_neuron_id(mn_name);
             if (mn_id >= 0) dopamine.targets.push_back(
-                {mn_id, "DOP-3", ModulationEffect::EXCITABILITY, -3.0}); // -3 pA inhibitory (Chase 2004)
+                {mn_id, "DOP-3", ModulationEffect::EXCITABILITY, -3.0}); // Step 68: -3pA (Chase 2004; higher disrupts proprioceptive wave)
         }
 
         // Step 45: Target: DVA via DOP-1 (D1-like excitatory GPCR)

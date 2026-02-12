@@ -813,6 +813,16 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 - REF: Piggott 2011 Cell, Roberts 2016 eLife, Kuramochi 2018, Gao 2018
 - **regtest**: 17 pass, 0 FAIL
 
+### Step 69: DOP-3 校准 + DA 速度调控文献研究 ✅ (2026-02-12)
+> 详细文档: [steps/step69_dop3_calibration.md](steps/step69_dop3_calibration.md)
+
+- **文献**: Chase 2004, Vidal-Gadea 2012, Wang 2014
+- **发现**: DOP-1 不参与速度调节（只参与食物依赖减速）; DOP-3+GOA-1 是速度精度关键
+- **实验**: release_threshold 0.3→0.1 + DOP-3 -3→-5pA → CI 崩溃至 ~0.00
+- **根因**: DOP-3 抑制 B-class 兴奋性 → MEC 本体感觉通道敏感度降低 → 波传播受损
+- **结论**: -3pA 是安全上限; 完整涌现减速需要 body model 升级（肌肉独立计算节点）
+- **regtest**: 17 pass, 0 FAIL
+
 ### Step 68: Basal Slowing — DA→DOP-3→Motor Neuron 涌现减速 ✅ (2026-02-12)
 > 详细文档: [steps/step68_basal_slowing_dop3.md](steps/step68_basal_slowing_dop3.md)
 
