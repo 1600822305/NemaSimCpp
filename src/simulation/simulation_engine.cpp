@@ -153,6 +153,11 @@ void SimulationEngine::initialize_default() {
             // Low baseline (5pA): avoid tonic over-activation of AIY that disrupts chemotaxis
             // gain=150: strong modulation when approaching/leaving Tc (ratio AFD/ASE~0.78)
             thermo_mappings_.push_back({info.id, ThermoTransducer(150.0, 5.0, 3600000.0, 200.0)});
+        } else if (starts_with(info.name, "PHB") || starts_with(info.name, "PHA")) {
+            // Step 81: PHB/PHA — phasmid tail chemosensory
+            // PHB: senses repellent at TAIL position (Hilliard 2002)
+            // PHA: senses food/pheromone at tail
+            // Handled separately in apply_tail_chemosensation() (tail position sampling)
         } else if (!starts_with(info.name, "ALM") && !starts_with(info.name, "PLM")
                    && !starts_with(info.name, "AVM")
                    && !starts_with(info.name, "ADF") && !starts_with(info.name, "AWB")
@@ -309,6 +314,7 @@ void SimulationEngine::cache_neuron_ids_and_synapses() {
         "AIB", "ADF", "AIY", "AWB", "AIZ",
         "ALM", "PLM", "OLQ", "CEP", "URX", "AUA", "BAG", "PVD",
         "HSN", "VC", "RIC", "MC", "M3", "I1", "PVC", "RMG", "ASH", "FLP",
+        "PHB", "PHA",
     };
     for (auto prefix : prefixes) {
         auto& group = nids_[prefix];
@@ -456,6 +462,9 @@ void SimulationEngine::step() {
     // 2b. Thermosensory input: AFD samples temperature field (Step 23)
     // Uses add_synaptic_current() → MUST be after reset
     apply_thermo_input();
+
+    // 2c. Step 81: Tail chemosensation — PHB/PHA sample at tail position
+    apply_tail_chemosensation();
 
     // 2d. Step 31: RIV-driven omega turn (emergent from TA gating)
     // RIV burst → curvature_bias + omega_mode (replaces hardcoded Step 18)
@@ -873,6 +882,38 @@ void SimulationEngine::apply_thermo_input() {
         if (thermo_learn_tick) {
             tm.transducer.adapt_tc(thermo_learn_signal, temperature, 100.0);
         }
+    }
+}
+
+// ================================================================
+// Step 81: Tail chemosensation — PHB/PHA phasmid neurons
+// PHB senses repellent at TAIL position → suppresses reversal (Hilliard 2002)
+// PHA senses food at TAIL position → weak modulation
+// Key function: directional escape via head-tail antagonism
+//   ASH (head) detects repellent → reversal
+//   PHB (tail) detects repellent → suppresses reversal → continue forward
+// REF: Hilliard 2002 Curr Biol, Zou 2017 Sci Rep
+// ================================================================
+void SimulationEngine::apply_tail_chemosensation() {
+    int n = static_cast<int>(neurons_.size());
+    Vector2d tail_pos = body_.get_tail_position();
+
+    // PHB: TONIC response to repellent at tail
+    // gain=40: weaker than ASH (80) — tail is secondary nociceptor
+    // half_max=0.3: more sensitive than ASH (0.5) — lower threshold
+    double rep_at_tail = environment_.sample_repellent(tail_pos);
+    double phb_drive = 40.0 * rep_at_tail / (rep_at_tail + 0.3) + 2.0;  // baseline 2pA
+    if (phb_drive > 60.0) phb_drive = 60.0;
+    for (int id : nids("PHB")) {
+        if (id >= 0 && id < n) neurons_[id]->set_external_current(phb_drive);
+    }
+
+    // PHA: TONIC response to food at tail (weak, neuroendocrine)
+    // Senses food quality / pheromone at tail position
+    double food_at_tail = environment_.sample_food_density(tail_pos);
+    double pha_drive = 10.0 * food_at_tail / (food_at_tail + 0.5) + 1.0;  // baseline 1pA
+    for (int id : nids("PHA")) {
+        if (id >= 0 && id < n) neurons_[id]->set_external_current(pha_drive);
     }
 }
 

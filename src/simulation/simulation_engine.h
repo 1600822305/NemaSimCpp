@@ -253,6 +253,7 @@ private:
     };
     std::vector<ThermoMapping> thermo_mappings_;
     void apply_thermo_input();              // AFD samples temperature field
+    void apply_tail_chemosensation();       // Step 81: PHB/PHA sample at tail
     double cultivation_temp_ = 20.0;        // °C, initial cultivation temperature
 
     // Step 24: Pharyngeal pumping system (replaces placeholder satiety)

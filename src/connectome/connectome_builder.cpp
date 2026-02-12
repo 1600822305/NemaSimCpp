@@ -228,6 +228,20 @@ void build_neurons(CB& b) {
     // REF: Kaplan & Horvitz 1993, Chatzigeorgiou & Schafer 2011 Neuron
     b.neuron("FLPL", NT::SENSORY, NTT::GLUTAMATE);
     b.neuron("FLPR", NT::SENSORY, NTT::GLUTAMATE);
+    // Step 81: PHB — phasmid tail chemosensory (repellent at tail)
+    // Polymodal: SDS, IAA, harsh touch, osmotic stimuli (Zou 2017 Sci Rep)
+    // Key function: NEGATIVELY modulates reversals to repellents (Hilliard 2002 Curr Biol)
+    // Head ASH detects repellent → reversal; tail PHB → suppresses reversal
+    // → directional escape: repellent ahead=reverse, repellent behind=continue forward
+    // REF: Hilliard 2002 Curr Biol, Zou 2017 Sci Rep, Cook 2019
+    b.neuron("PHBL", NT::SENSORY, NTT::GLUTAMATE);
+    b.neuron("PHBR", NT::SENSORY, NTT::GLUTAMATE);
+    // Step 81: PHA — phasmid tail chemosensory (dauer pheromone + food quality)
+    // Similar structure to PHB but different downstream connections
+    // Also polymodal (Zou 2017); senses ascarosides for dauer decision
+    // REF: Hilliard 2002, Zou 2017, Bargmann & Horvitz 1991
+    b.neuron("PHAL", NT::SENSORY, NTT::GLUTAMATE);
+    b.neuron("PHAR", NT::SENSORY, NTT::GLUTAMATE);
     // Step 73: IL1 — inner labial sensory neurons (4 quadrant)
     // Ciliated sensory endings at nose tip; sense directional nose touch
     // Mediate head withdrawal reflex with OLQ via RMD motor neurons
@@ -608,6 +622,35 @@ void build_touch_nociception(CB& b) {
     // Adding AUA→AVD completes the dual-pathway drive to backward command
     // REF: Filipowicz 2022, Cook 2019
     b.syn("AUAL", "AVDL", 0.5); b.syn("AUAR", "AVDR", 0.5);
+
+    // Step 81: PHB — tail repellent sensing → SUPPRESS reversal (directional escape)
+    // Hilliard 2002: PHB "negatively modulate reversals to repellents"
+    // Head ASH excites AVA → reversal; tail PHB INHIBITS AVA → suppresses reversal
+    // This creates directional escape: repellent ahead = reverse, behind = continue forward
+    // PHB glutamate → GLC-3 Cl⁻ channel on AVA (inhibitory, like ASEL→AIA)
+    // Cook 2019: PHBL→AVAL ~4 EM sections, PHBR→AVAR ~4 EM sections
+    // REF: Hilliard 2002 Curr Biol, Cook 2019
+    b.inh("PHBL", "AVAL", 3); b.inh("PHBR", "AVAR", 3);
+    // PHB → PVC: tail repellent promotes forward locomotion (escape forward)
+    // Cook 2019: PHB→PVC ~2 EM sections
+    b.syn("PHBL", "PVCL", 2); b.syn("PHBR", "PVCR", 2);
+    // PHB → AVD: weak modulation of backward command relay
+    b.syn("PHBL", "AVDL", 1); b.syn("PHBR", "AVDR", 1);
+    // PHB bilateral and PHB↔PHA gap junctions
+    b.gj("PHBL", "PHBR", 2);
+    b.gj("PHBL", "PHAL", 1); b.gj("PHBR", "PHAR", 1);
+    // PHB ↔ AVH: gap junction (Cook 2019, Emmons 2024 — sensory bridge)
+    b.gj("PHBL", "AVHL", 1); b.gj("PHBR", "AVHR", 1);
+
+    // Step 81: PHA — tail chemosensory (dauer pheromone + food quality)
+    // PHA has different downstream targets from PHB
+    // PHA → AVD: weak excitation of backward command
+    // Cook 2019: PHA→AVD ~1 EM section
+    b.syn("PHAL", "AVDL", 1); b.syn("PHAR", "AVDR", 1);
+    // PHA → AVH: pheromone → sensory bridge (Cook 2019)
+    b.syn("PHAL", "AVHL", 1); b.syn("PHAR", "AVHR", 1);
+    // PHA bilateral coupling
+    b.gj("PHAL", "PHAR", 2);
 }
 
 // ================================================================

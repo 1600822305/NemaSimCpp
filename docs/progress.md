@@ -813,14 +813,23 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **Tc 学习**: 有食 seed 7 dTc=-0.69°C（正关联），无食 dTc=+1.43°C（饥饿厌恶）
 - **regtest**: 20/20 PASS (171/337/98)
 
+### Step 81: Phasmid 尾部化学感觉 (PHB/PHA) ✅ (2026-02-12)
+> 详细文档: [steps/step81_phasmid_tail_chemosensation.md](steps/step81_phasmid_tail_chemosensation.md)
+
+- **+4 神经元**: PHBL/PHBR(尾部排斥物) + PHAL/PHAR(尾部食物/信息素)
+- **定向逃逸** (Hilliard 2002): PHB⊣AVA 抑制反转 + PHB→PVC 促进前进
+- **实现**: apply_tail_chemosensation() 在尾部位置采样排斥物/食物
+- **头尾拮抗**: ASH(头)→AVA(+) vs PHB(尾)→AVA(-) → AVA 整合定向逃逸
+- **regtest**: 20/20 PASS (175/347/104)
+
 ---
 
 ## 当前系统状态
 
 ```
 架构: 8 层 (环境/躯体/感知/神经元/连接组/神经调质/运动/行为)
-神经元: 171 个 MVP 子集 (302 全集待加载)
-  感觉: 53 (ASE/AWC/AWA/ASH/ALM/PLM/NSM/CEP/ADE/PDE/AFD/ADF/ASJ/ASK/ASI/ADL/FLP L/R + AVM + OLQ 4× + IL1 4× + URX L/R + AQR + PQR + BAG L/R + PVD L/R)
+神经元: 175 个 MVP 子集 (302 全集待加载)
+  感觉: 57 (+PHB L/R, PHA L/R) (ASE/AWC/AWA/ASH/ALM/PLM/NSM/CEP/ADE/PDE/AFD/ADF/ASJ/ASK/ASI/ADL/FLP L/R + AVM + OLQ 4× + IL1 4× + URX L/R + AQR + PQR + BAG L/R + PVD L/R)
   中间: 48 (AIA/AIB/AIY/AIZ/RIA/RIB/RIM/RIC/AVA/AVB/AVD/AVE/PVC/AUA/AVK/AVJ/AVH/PVP/I1/RIP L/R + RIS + RIH + RMG L/R + DVA + DVC + PVT + PVR)
   运动: 70 (SMD/RMD/SMB 4×2+4 + RIV L/R + RMED/RMEV + AS01-07 + DB01-07/VB01-07/DA01-05/VA01-05/DD01-05/VD01-05 + MC/M3 L/R + M4 + HSN L/R + VC4/VC5 + AVL + DVB)
 突触: ~215 化学 + ~56 间隙连接 (全部带 Tsodyks-Markram STP, 支持分数 sections)

@@ -382,7 +382,7 @@ int main(int argc, char* argv[]) {
         // SMDDL swing now reflects full oscillation (no Poisson-forced TA suppression)
         // Reversal TA dynamics differ: emergent reversals have different timing/duration
         {"SMDDL V swing",      m.smddl_v_max - m.smddl_v_min,  45.0,  60, "mV", "SMDDL"},
-        {"SMDVL V swing",      m.smdvl_v_max - m.smdvl_v_min,  30.0,  70, "mV", "SMDVL"},  // Step 68: 45→30/70% (DA→DOP-3 motor neuron inhibition; high variance from stochastic DA)
+        {"SMDVL V swing",      m.smdvl_v_max - m.smdvl_v_min,  50.0,  70, "mV", "SMDVL"},  // Step 81: 30→50 (PHB⊣AVA shifts AVA-AVB balance; high variance from stochastic DA)
         {"SMD diff amplitude", m.smd_diff_amp,                  70.0,   60, "mV", "SMDDL"},  // Step 70: 55→70 (food edge always-inject → higher AVA activity variance)
         {"SMDDL |I_syn| max",  std::max(std::abs(m.smddl_isyn_max), std::abs(m.smddl_isyn_min)),
                                                                 15.0,  60, "pA", "SMDDL"},
@@ -421,9 +421,9 @@ int main(int argc, char* argv[]) {
         // Step 74: Connectome integrity — catches missing neurons/synapses immediately
         // These are DETERMINISTIC values — any deviation means a build error
         // Step 75: 171 neurons (162 + FLP(2) + IL1(4) + RIH(1) + RMG(2))
-        {"Neuron count",        (double)m.neuron_count,          171.0,  1,  "", ""},
-        {"Synapse count",       (double)m.synapse_count,         337.0,  1,  "", ""},
-        {"Gap junction count",  (double)m.gap_junction_count,    98.0,   1,  "", ""},
+        {"Neuron count",        (double)m.neuron_count,          175.0,  1,  "", ""},  // Step 81: +4 (PHB L/R + PHA L/R)
+        {"Synapse count",       (double)m.synapse_count,         347.0,  1,  "", ""},  // Step 81: +10
+        {"Gap junction count",  (double)m.gap_junction_count,    104.0,  1,  "", ""},  // Step 81: +6
     };
 
     // ---- Check each metric ----

@@ -1184,6 +1184,25 @@ int main(int argc, char* argv[]) {
                   << std::defaultfloat << std::endl;
     }
 
+    // Step 81: PHB/PHA tail chemosensation diagnostic
+    {
+        auto tail = sim.body().get_tail_position();
+        double rep_tail = sim.environment().sample_repellent(tail);
+        double food_tail = sim.environment().sample_food_density(tail);
+        const auto& ns = sim.neurons();
+        int nn = (int)ns.size();
+        int phbl_id = conn.get_neuron_id("PHBL");
+        int phal_id = conn.get_neuron_id("PHAL");
+        double phbl_v = (phbl_id >= 0 && phbl_id < nn) ? ns[phbl_id]->get_membrane_potential() : 0;
+        double phal_v = (phal_id >= 0 && phal_id < nn) ? ns[phal_id]->get_membrane_potential() : 0;
+        std::cout << "\n32. TAIL CHEMOSENSATION (Step 81):" << std::endl;
+        std::cout << "   Tail pos: (" << std::setprecision(1) << tail.x << ", " << tail.y << ")"
+                  << "  rep@tail=" << std::setprecision(4) << rep_tail
+                  << "  food@tail=" << std::setprecision(3) << food_tail << std::endl;
+        std::cout << "   PHBL: " << std::setprecision(1) << phbl_v << " mV"
+                  << "  PHAL: " << phal_v << " mV" << std::defaultfloat << std::endl;
+    }
+
     // Step 25: ASH nociception diagnostic
     std::cout << "\n16. NOCICEPTION (Step 25):" << std::endl;
     std::cout << "   Repellent source: (" << repellent.x << ", " << repellent.y << ")" << std::endl;
