@@ -943,6 +943,17 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **REF**: Flavell 2013 Cell, Ben Arous 2009, Dag & Flavell 2023
 - **regtest**: 20/20 PASS
 
+### Step 96: 社交/独居进食行为 — NPR-1/RMG Hub ✅ (2026-02-13)
+> 详细文档: [steps/step96_social_solitary.md](steps/step96_social_solitary.md)
+
+- **RMG hub-and-spoke 网络**: +8 gap junctions (URX/ASK/ADL/ASH↔RMG)
+- **NPR-1 直接抑制 RMG**: -20pA (N2 独居), 0pA (Hawaiian 社交)
+- **Bug fix**: NPR-1 add_synaptic_current 在 I_syn_ reset 之前 → 被清零 → 移到 reset 后
+- **N2 vs Hawaiian**: RMG S = 0.005 vs 0.25 (56x 差异) ✅
+- **CLI**: --npr1 参数切换菌株表型
+- **REF**: Macosko 2009 Nature, de Bono 2002
+- **regtest**: 20/20 PASS
+
 ---
 
 ## 当前系统状态

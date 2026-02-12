@@ -701,6 +701,20 @@ void build_touch_nociception(CB& b) {
     // REF: Filipowicz 2022 BMC Biology, Macosko 2009 Nature
     b.gj("AWBL", "RMGL", 2); b.gj("AWBR", "RMGR", 2);
 
+    // Step 96: RMG hub-and-spoke gap junction network (Macosko 2009 Nature)
+    // RMG is a hub interneuron connected by gap junctions to multiple sensory neurons.
+    // These gap junctions amplify/propagate sensory signals when RMG is active (npr-1 lf).
+    // In N2 (npr-1 215V gof), NPR-1 tonically inhibits RMG → hub is dampened → solitary.
+    // URX↔RMG: O₂ sensing → aggregation at low O₂ (lawn border)
+    // ASK↔RMG: ascaroside pheromone → social attraction
+    // ADL↔RMG: nociceptive/pheromone → aversive social signal
+    // ASH↔RMG: polymodal nociception → aversive amplification
+    // REF: Macosko 2009 Nature, de Bono 2002, Busch 2012, Fenk & de Bono 2015
+    b.gj("URXL", "RMGL", 2); b.gj("URXR", "RMGR", 2);  // O₂→aggregation
+    b.gj("ASKL", "RMGL", 1); b.gj("ASKR", "RMGR", 1);  // pheromone→attraction
+    b.gj("ADLL", "RMGL", 1); b.gj("ADLR", "RMGR", 1);  // nociception→aversion
+    b.gj("ASHL", "RMGL", 1); b.gj("ASHR", "RMGR", 1);  // polymodal→amplification
+
     // Step 75: RMG → command interneurons — drives backward locomotion
     // Filipowicz 2022: "AUA and RMG synapse onto motor command interneurons
     //   to control backward locomotion motor neurons"

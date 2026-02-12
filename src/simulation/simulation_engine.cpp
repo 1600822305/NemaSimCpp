@@ -462,6 +462,24 @@ void SimulationEngine::step() {
 
     // === All add_synaptic_current() calls below — safe from I_syn_ reset ===
 
+    // Step 96: NPR-1 tonic inhibition on AUA and RMG (moved from apply_sensory_systems)
+    // MUST be after I_syn_ reset — add_synaptic_current before compute_synaptic_currents is lost!
+    {
+        int nn = static_cast<int>(neurons_.size());
+        // AUA: NPR-1 dampens O₂ relay (Laurent 2015 eLife)
+        for (int id : nids("AUA")) {
+            if (id >= 0 && id < nn)
+                neurons_[id]->add_synaptic_current(npr1_aua_);
+        }
+        // RMG: NPR-1 dampens social hub (Macosko 2009 Nature)
+        // N2 (npr1_rmg_=-20): RMG suppressed → solitary
+        // Hawaiian (npr1_rmg_=0): RMG active → social aggregation
+        for (int id : nids("RMG")) {
+            if (id >= 0 && id < nn)
+                neurons_[id]->add_synaptic_current(npr1_rmg_);
+        }
+    }
+
     // Step 43: ADF sickness 5-HT → MOD-1 ⊣ AIY/AIZ (direct current injection)
     // Biological mechanism: sickness → ADF TPH-1 upregulation → LOCAL 5-HT release
     // → MOD-1 (Cl⁻ channel) on AIY/AIZ → hyperpolarization → approach suppressed

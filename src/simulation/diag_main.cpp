@@ -141,6 +141,7 @@ int main(int argc, char* argv[]) {
     float cli_riv_tonic = -1.0f;
     bool cli_quiet = false;
     bool cli_no_toxin = false;
+    double cli_npr1 = -999.0;  // Step 96: NPR-1 override (-15=N2 default, 0=Hawaiian/social)
     bool cli_no_food = false;
     bool cli_light = false;
     double cli_light_x = 25.0, cli_light_y = 25.0, cli_light_intensity = 1.0;
@@ -161,6 +162,7 @@ int main(int argc, char* argv[]) {
         else if (arg == "--riv_tonic" && i+1 < argc) cli_riv_tonic = static_cast<float>(std::atof(argv[++i]));
         else if (arg == "--seed" && i+1 < argc) cli_seed = static_cast<unsigned int>(std::atoi(argv[++i]));
         else if (arg == "--no-toxin" || arg == "--no_toxin") cli_no_toxin = true;
+        else if (arg == "--npr1" && i+1 < argc) cli_npr1 = std::atof(argv[++i]);
         else if (arg == "--no-food" || arg == "--no_food") cli_no_food = true;
         else if (arg == "--light") cli_light = true;
         else if (arg == "--light_x" && i+1 < argc) { cli_light = true; cli_light_x = std::atof(argv[++i]); }
@@ -300,6 +302,7 @@ int main(int argc, char* argv[]) {
     if (cli_pulse_amp >= 0) sim.params.pulse_amp = cli_pulse_amp;
     if (cli_omega_threshold >= 0) sim.params.omega_threshold = cli_omega_threshold;
     if (cli_riv_tonic >= 0) sim.params.riv_tonic = cli_riv_tonic;
+    if (cli_npr1 > -900) { sim.set_npr1_rmg(cli_npr1); std::cout << "  [CLI] npr1_rmg=" << cli_npr1 << " pA" << std::endl; }
 
     // Step 26b: TOXIC FOOD test — multi-chemical-species
     // Food emits: food_odor (volatile, σ²=144) + soluble (salt, σ²=36)
@@ -1439,6 +1442,38 @@ int main(int argc, char* argv[]) {
         } else {
             std::cout << "   [!!] No clear state switching (roam=" << std::setprecision(0)
                       << roam_pct << "%, dwell=" << dwell_pct << "%)" << std::endl;
+        }
+    }
+
+    // Step 96: SOCIAL/SOLITARY BEHAVIOR (NPR-1/RMG hub)
+    // N2 (npr-1 gof): RMG suppressed → solitary (low RMG activity)
+    // Hawaiian (npr-1 lf): RMG active → social aggregation (high RMG activity)
+    // Diagnostic: report RMG voltage, hub connectivity effect, npr1 setting
+    {
+        auto& conn = sim.connectome();
+        int rmgl = conn.get_neuron_id("RMGL");
+        int rmgr = conn.get_neuron_id("RMGR");
+        int nn = static_cast<int>(sim.neurons().size());
+        std::cout << "\n34. SOCIAL/SOLITARY BEHAVIOR (Step 96, Macosko 2009):" << std::endl;
+        std::cout << "   NPR-1 on RMG: " << std::setprecision(1) << sim.npr1_rmg()
+                  << " pA (N2=-15, Hawaiian=0)" << std::endl;
+        if (rmgl >= 0 && rmgl < nn && rmgr >= 0 && rmgr < nn) {
+            double vl = sim.neurons()[rmgl]->get_membrane_potential();
+            double vr = sim.neurons()[rmgr]->get_membrane_potential();
+            double sl = 1.0 / (1.0 + std::exp(-(vl - (-35.0)) / 5.0));
+            double sr = 1.0 / (1.0 + std::exp(-(vr - (-35.0)) / 5.0));
+            std::cout << "   RMGL: V=" << std::setprecision(1) << vl << " mV, S="
+                      << std::setprecision(3) << sl << std::endl;
+            std::cout << "   RMGR: V=" << std::setprecision(1) << vr << " mV, S="
+                      << std::setprecision(3) << sr << std::endl;
+            double mean_s = (sl + sr) / 2.0;
+            if (mean_s < 0.05) {
+                std::cout << "   [OK] Solitary phenotype (RMG hub suppressed, N2-like)" << std::endl;
+            } else if (mean_s > 0.15) {
+                std::cout << "   [OK] Social phenotype (RMG hub active, Hawaiian-like)" << std::endl;
+            } else {
+                std::cout << "   [..] Intermediate RMG activity" << std::endl;
+            }
         }
     }
 

@@ -115,6 +115,9 @@ public:
     bool is_sleeping() const { return is_sleeping_; }
     // Step 62: Force sleep for consolidation experiments
     void force_sleep(double duration_ms) { forced_sleep_end_ = current_time_ + duration_ms; }
+    // Step 96: NPR-1 override for social/solitary strain simulation
+    void set_npr1_rmg(double pA) { npr1_rmg_ = pA; }
+    double npr1_rmg() const { return npr1_rmg_; }
     double learning_sleep_drive() const { return learning_sleep_drive_; }
     // Step 63: INS-1 insulin concentration
     double ins1_conc() const { return ins1_conc_; }
@@ -188,7 +191,8 @@ private:
 
     double o2_gain_ = 30.0;    // max pA for O₂ transduction
     double npr1_tonic_ = -28.0; // NPR-1 tonic inhibition on URX (N2 = constitutively active)
-    double npr1_aua_ = -12.0;  // NPR-1 inhibition on AUA (proxy for missing RMG suppression)
+    double npr1_aua_ = -12.0;  // NPR-1 inhibition on AUA (dampens O₂ relay)
+    double npr1_rmg_ = -20.0;  // Step 96: NPR-1 inhibition on RMG (N2 social hub dampening, Macosko 2009)
     double co2_gain_ = 40.0;   // max pA for CO₂ transduction
     double co2_threshold_ = 0.5; // % CO₂ activation threshold
     double prev_co2_head_ = 0.04; // previous CO₂ for phasic response

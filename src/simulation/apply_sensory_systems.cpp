@@ -496,16 +496,8 @@ void SimulationEngine::apply_touch_stimulus() {
             neurons_[nid("PQR")]->set_external_current(pqr_net);
         }
 
-        // AUA: NPR-1 tonic inhibition (proxy for missing RMG suppression)
-        // In N2, NPR-1 suppresses RMG hub → RMG→AUA gap junction weakened
-        // Without RMG neuron, we apply inhibitory current directly to AUA
-        // This prevents AUA from amplifying weak URX signals into strong AVA drive
-        // REF: Laurent 2015 eLife — NPR-1 inhibits RMG Ca2+ responses
-        for (int id : nids("AUA")) {
-            if (id >= 0 && id < n) {
-                neurons_[id]->add_synaptic_current(npr1_aua_);
-            }
-        }
+        // AUA + RMG NPR-1 inhibition: moved to step() AFTER I_syn_ reset
+        // (add_synaptic_current here would be cleared by compute_synaptic_currents)
     }
 
     // ======================================================================
