@@ -380,6 +380,11 @@ int main(int argc, char* argv[]) {
     int vc4_id = conn.get_neuron_id("VC4");
     int avl_id = conn.get_neuron_id("AVL");       // Step 56: defecation
     int dvb_id = conn.get_neuron_id("DVB");
+    int flpl_id = conn.get_neuron_id("FLPL");     // Step 74: nose touch circuit
+    int flpr_id = conn.get_neuron_id("FLPR");
+    int il1dl_id = conn.get_neuron_id("IL1DL");
+    int rih_id = conn.get_neuron_id("RIH");
+    int rmddl_id = conn.get_neuron_id("RMDDL");
 
     // Accumulators
     std::vector<double> grad_mags, grad_normals, biases;
@@ -415,6 +420,9 @@ int main(int argc, char* argv[]) {
     std::vector<double> hsnl_v_vs, vc4_v_vs, egg_pressure_vs;
     double omega_total_duration = 0.0;  // sum of omega durations (ms)
     double omega_start_time = -1.0;     // track current omega start
+    // Step 74: Nose touch circuit diagnostics
+    std::vector<double> flpl_v_vs, rih_v_vs, il1dl_v_vs, rmddl_v_vs;
+    int nose_touch_samples = 0;  // count of samples where nose touch was active
     // Step 29: Wave propagation diagnostics
     std::vector<double> curv_seg2_vs, curv_seg7_vs, curv_seg15_vs, muscle_work_vs;
     int curv7_sign_changes = 0;
@@ -628,6 +636,15 @@ int main(int argc, char* argv[]) {
             pump_rate_vs.push_back(sim.pump_rate_hz());
             pharynx_v_vs.push_back(sim.pharynx_V());
 
+            // Step 74: Nose touch circuit tracking
+            flpl_v_vs.push_back(getV(flpl_id));
+            rih_v_vs.push_back(getV(rih_id));
+            il1dl_v_vs.push_back(getV(il1dl_id));
+            rmddl_v_vs.push_back(getV(rmddl_id));
+            // Detect nose touch activation: FLP I_ext > 5pA means wall proximity
+            if (flpl_id >= 0 && flpl_id < n && neurons[flpl_id]->get_I_ext() > 5.0)
+                nose_touch_samples++;
+
             // Store
             grad_mags.push_back(grad_mag);
             grad_normals.push_back(grad_normal);
@@ -832,6 +849,23 @@ int main(int argc, char* argv[]) {
         std::cout << "   DVB:  V=" << std::setprecision(1) << dvb_v
                   << " mV  S(release)=" << std::setprecision(3) << release(dvb_v) << std::endl;
     }
+
+    // Step 74: Nose touch circuit diagnostics
+    std::cout << "\n27. NOSE TOUCH CIRCUIT (Step 73/74):" << std::endl;
+    std::cout << "   FLPL:  V mean=" << std::setprecision(1) << mean(flpl_v_vs)
+              << " mV  S(release)=" << std::setprecision(3) << release(mean(flpl_v_vs)) << std::endl;
+    std::cout << "   RIH:   V mean=" << std::setprecision(1) << mean(rih_v_vs)
+              << " mV  S(release)=" << std::setprecision(3) << release(mean(rih_v_vs)) << std::endl;
+    std::cout << "   IL1DL: V mean=" << std::setprecision(1) << mean(il1dl_v_vs)
+              << " mV  S(release)=" << std::setprecision(3) << release(mean(il1dl_v_vs)) << std::endl;
+    std::cout << "   RMDDL: V mean=" << std::setprecision(1) << mean(rmddl_v_vs)
+              << " mV  S(release)=" << std::setprecision(3) << release(mean(rmddl_v_vs)) << std::endl;
+    double nose_touch_pct = (total_samples > 0) ? 100.0 * nose_touch_samples / total_samples : 0;
+    std::cout << "   nose_touch_active: " << std::setprecision(1) << nose_touch_pct
+              << "% (" << nose_touch_samples << "/" << total_samples << " samples)" << std::endl;
+    std::cout << "   connectome: " << conn.num_neurons() << " neurons, "
+              << conn.num_synapses() << " synapses, "
+              << conn.num_gap_junctions() << " gap junctions" << std::endl;
 
     std::cout << "\n9. DISTANCE TO FOOD:" << std::endl;
     std::cout << "   initial=" << std::setprecision(2) << dists.front()

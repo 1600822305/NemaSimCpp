@@ -27,9 +27,20 @@ Step 73 新增 7 个神经元（162→169）和大量连接后，regtest 仍只�
 - **FLP/IL1/RIH 电压不加入 regtest**: 这些神经元在 30s 无壁面接触时基本
   处于静息态，检测意义不大。它们的功能通过连接组计数间接保证。
 
+## diag 工具升级
+
+在 `diag_main.cpp` 新增 Section 27: NOSE TOUCH CIRCUIT 诊断输出：
+- **FLPL/RIH/IL1DL/RMDDL** 平均电压 + 递质释放率
+- **nose_touch_active** — FLP I_ext > 5pA 的采样比例（壁面碰触时间）
+- **connectome 计数** — 神经元/突触/缝隙连接数量
+
+30s 短仿真中蠕虫未碰壁，鼻触回路静息（nose_touch=0%），RIH 因 hub-spoke
+漏电流略高于纯静息（V=-41.4mV vs -45mV），符合预期。
+
 ## 修改文件列表
 
 - `src/simulation/regression_test.cpp` — 新增 3 个连接组完整性指标
+- `src/simulation/diag_main.cpp` — 新增 Section 27 鼻触回路诊断
 
 ## 验证结果
 
