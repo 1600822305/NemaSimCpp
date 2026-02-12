@@ -568,17 +568,17 @@ void SimulationEngine::setup_neuromodulation() {
         // NSM on-food drive ≈ 21pA; at PDF=0.4: inhibition = -8pA → net 13pA (moderate)
         // The bistable positive feedback amplifies small PDF changes to flip the switch.
         // Step 58 fix: nid() cache not populated yet, use connectome_ directly
-        // Step 59: reduced -25→-15 pA. The -25pA was calibrated when PDF→NSM was
-        // broken (Step 58 cache bug). With the connection working, -25pA crushes
-        // NSM to S=0.22 → 5-HT=0.076 even on food (should be ~0.2-0.4).
-        // At -15pA: PDF=0.2 → -3pA on NSM (vs -5pA). NSM net drive ~13pA → S≈0.35.
+        // Step 59: reduced -25→-15 pA. Step 85: reduced -15→-10 pA.
+        // With NSM gain=50 (Step 85), -15pA at PDF=0.34 gives -5.1pA → still crushes
+        // NSM to barely above threshold. At -10pA: PDF=0.34 → -3.4pA on NSM.
+        // NSM net drive (pump=2Hz): 26 - 3.4 = 22.6pA → S≈0.6 → real 5-HT release.
         // Roaming/dwelling switch preserved: high PDF (roaming) still suppresses NSM.
         int nsml_pdf = connectome_.get_neuron_id("NSML");
         int nsmr_pdf = connectome_.get_neuron_id("NSMR");
         if (nsml_pdf >= 0) pdf.targets.push_back(
-            {nsml_pdf, "PDFR-1", ModulationEffect::EXCITABILITY, -15.0}); // -15 pA at peak PDF
+            {nsml_pdf, "PDFR-1", ModulationEffect::EXCITABILITY, -10.0}); // Step 85: -15→-10 pA
         if (nsmr_pdf >= 0) pdf.targets.push_back(
-            {nsmr_pdf, "PDFR-1", ModulationEffect::EXCITABILITY, -15.0});
+            {nsmr_pdf, "PDFR-1", ModulationEffect::EXCITABILITY, -10.0}); // Step 85: -15→-10 pA
 
         neuromod_.add_modulator(std::move(pdf));
     }

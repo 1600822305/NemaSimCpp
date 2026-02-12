@@ -847,6 +847,15 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **A-class 内源振荡器** (Gao 2018 eLife): AVA 双重调控 (gj+化学突触)
 - **regtest**: 20/20 PASS (193/412/111)
 
+### Step 85: 神经调质再校准 (NSM/DA/PDF/bias_clamp) ✅ (2026-02-12)
+> 详细文档: [steps/step85_neuromodulation_recalibration.md](steps/step85_neuromodulation_recalibration.md)
+
+- **NSM drive** 30→50pA: 5-HT 从 0.09→0.53 (Step 57 离子通道漂移补偿)
+- **CEP/ADE gain** 20→35/15→25: DA 从 0.003→0.23, DOP-3 减速恢复
+- **PDF→NSM** -15→-10pA: 5-HT 可与 PDF 竞争，双稳态保留
+- **bias_clamp** 5→12pA: weathervane 不再饱和，CI 0.25→0.58
+- **regtest**: 20/20 PASS (无基线变更)
+
 ---
 
 ## 当前系统状态

@@ -122,13 +122,16 @@ void SimulationEngine::initialize_default() {
             // transmission, NOT through CEP's synaptic circuit (CEP↔OLQ gap junctions
             // would cause OLQ→RMD/RIC cascade disrupting navigation).
             // REF: Chase 2004 Nature Neurosci — DOP-3 extrasynaptic on motor neurons
-            chemo_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::TONIC, 20.0, 1.0, 500.0, 5000.0, 0.5), true});
+            // Step 85: gain 20→35. DA conc=0.003 (dead) because CEP barely fired.
+            // Step 57 ion channel changes + modest gain → insufficient DA for DOP-3 slowing.
+            chemo_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::TONIC, 35.0, 1.0, 500.0, 5000.0, 0.5), true});
         } else if (starts_with(info.name, "ADE")) {
             // Step 60: ADE — anterior deirid mechanosensory, dopaminergic
             // Same modality as CEP: detects bacteria texture on food lawn
             // Slightly lower gain than CEP (ADE has fewer synaptic outputs)
             // REF: Sawin 2000 — ADE contributes to basal slowing; Sulston 1977
-            chemo_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::TONIC, 15.0, 1.0, 500.0, 5000.0, 0.5), true});
+            // Step 85: gain 15→25 (same scaling as CEP)
+            chemo_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::TONIC, 25.0, 1.0, 500.0, 5000.0, 0.5), true});
         } else if (starts_with(info.name, "PDE")) {
             // Step 60: PDE — posterior deirid mechanosensory, dopaminergic
             // Mid-body position: senses bacteria along body wall
@@ -491,11 +494,12 @@ void SimulationEngine::step() {
     {
         double pr = pharynx_.pump_rate_hz();
         // I = gain × (rate / (rate + half_max)) + baseline
-        // gain=30pA, half_max=2.0Hz, baseline=1.0pA
-        // At 4Hz (on food): I = 30×(4/6)+1 = 21 pA → S(V)≈0.8 → strong 5-HT
-        // At 2Hz (edge):    I = 30×(2/4)+1 = 16 pA → S(V)≈0.7 → moderate
+        // Step 85: gain 30→50pA. Step 57 ion channel changes pushed NSM resting
+        // more negative → S(release) barely above threshold → 5-HT≈0. Need stronger drive.
+        // At 4Hz (on food): I = 50×(4/6)+1 = 34 pA → S(V)≈0.9 → strong 5-HT
+        // At 2Hz (edge):    I = 50×(2/4)+1 = 26 pA → S(V)≈0.7 → moderate
         // At 0Hz (off food): I = 1 pA → S(V)≈0.1 → no 5-HT release
-        double nsm_drive = 30.0 * (pr / (pr + 2.0)) + 1.0;
+        double nsm_drive = 50.0 * (pr / (pr + 2.0)) + 1.0;
         int n = static_cast<int>(neurons_.size());
         if (nid("NSML") >= 0 && nid("NSML") < n) neurons_[nid("NSML")]->set_external_current(nsm_drive);
         if (nid("NSMR") >= 0 && nid("NSMR") < n) neurons_[nid("NSMR")]->set_external_current(nsm_drive);
