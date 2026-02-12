@@ -490,6 +490,7 @@ void SimulationEngine::step() {
     // 5b5. Step 26: Pathogen avoidance learning (Zhang 2005 Nature)
     update_sickness();           // accumulate sickness from toxic food
     update_pathogen_learning();  // AWC synapse plasticity flip
+    apply_synaptic_forgetting(); // Step 62: slow w_mod→1.0 drift (sleep suppresses)
 
     // 5b6. Step 27: Sleep / Quiescence (Lethargus)
     update_fatigue();            // fatigue accumulation → RIS activation

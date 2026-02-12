@@ -106,14 +106,22 @@ void SimulationEngine::update_fatigue() {
     double activity = std::min(speed / 0.2, 1.0);
 
     if (!is_sleeping_) {
-        fatigue_ += activity * dt_ / fatigue_tau_rise_;
+        // Step 62: Learning-induced sleep pressure (Chouhan 2023 Cell)
+        // Aversive experience (toxin ingestion) → ALA-dependent sleep induction
+        // learning_sleep_drive_ accumulates during toxin exposure → adds to fatigue
+        double learn_drive = learning_sleep_drive_ * 2.0; // scale: 0.5 max → +1.0 rate
+        fatigue_ += (activity + learn_drive) * dt_ / fatigue_tau_rise_;
     } else {
         fatigue_ -= fatigue_ * dt_ / fatigue_tau_decay_;
     }
     if (fatigue_ < 0.0) fatigue_ = 0.0;
     if (fatigue_ > 1.0) fatigue_ = 1.0;
 
-    if (!is_sleeping_ && fatigue_ > fatigue_threshold_) {
+    // Step 62: Forced sleep override (--sleep-after-learning experiment)
+    if (forced_sleep_end_ > current_time_) {
+        is_sleeping_ = true;
+        fatigue_ = std::max(fatigue_, fatigue_threshold_); // keep fatigue high
+    } else if (!is_sleeping_ && fatigue_ > fatigue_threshold_) {
         is_sleeping_ = true;
     } else if (is_sleeping_ && fatigue_ < 0.15) {
         is_sleeping_ = false;

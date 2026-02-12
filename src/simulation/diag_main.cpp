@@ -141,6 +141,7 @@ int main(int argc, char* argv[]) {
     bool cli_fitness = false;
     int cli_nseeds = 4;
     unsigned int cli_seed = 123;
+    double cli_sleep_after_learn = 0.0;  // Step 62: forced sleep after learning (seconds)
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
         if (arg == "--duration" && i+1 < argc) cli_duration = std::atof(argv[++i]) * 1000.0;
@@ -158,6 +159,7 @@ int main(int argc, char* argv[]) {
         else if (arg == "--quiet" || arg == "-q") cli_quiet = true;
         else if (arg == "--fitness") cli_fitness = true;
         else if (arg == "--seeds" && i+1 < argc) cli_nseeds = std::atoi(argv[++i]);
+        else if (arg == "--sleep-after-learning" && i+1 < argc) cli_sleep_after_learn = std::atof(argv[++i]);
         else if (arg == "--help" || arg == "-h") {
             std::cout << "Usage: celegans_diag [options]\n"
                       << "  --duration <sec>      Simulation duration (default: 300)\n"
@@ -173,7 +175,8 @@ int main(int argc, char* argv[]) {
                       << "  --light_intensity <f>  Light intensity 0-1 (default: 1.0)\n"
                       << "  --quiet / -q          Only show key metrics\n"
                       << "  --fitness             Multi-seed fitness evaluation mode\n"
-                      << "  --seeds <n>           Number of seeds for fitness mode (default: 4)\n";
+                      << "  --seeds <n>           Number of seeds for fitness mode (default: 4)\n"
+                      << "  --sleep-after-learning <sec>  Force sleep after toxin exposure (Step 62)\n";
             return 0;
         }
     }
@@ -406,8 +409,26 @@ int main(int argc, char* argv[]) {
     int total_steps = (int)(duration / sim.dt());
     int sample_interval = (int)(100.0 / sim.dt()); // every 100ms
 
+    // Step 62: Sleep-after-learning experiment tracking
+    bool sleep_consolidation_triggered = false;
+
     for (int s = 0; s < total_steps; ++s) {
         sim.step();
+
+        // Step 62: --sleep-after-learning protocol (Chouhan 2023 Cell)
+        // When sickness exceeds 0.3 (worm has learned), force sleep for N seconds
+        // This models: train → sleep → test (memory consolidation experiment)
+        if (cli_sleep_after_learn > 0 && !sleep_consolidation_triggered
+            && sim.sickness() > 0.3) {
+            sim.force_sleep(cli_sleep_after_learn * 1000.0); // convert s → ms
+            sleep_consolidation_triggered = true;
+            if (!cli_quiet) {
+                std::cout << "  [Step 62] Forced sleep triggered at t="
+                          << std::setprecision(1) << sim.current_time() / 1000.0
+                          << "s (sickness=" << std::setprecision(3) << sim.sickness()
+                          << "), duration=" << cli_sleep_after_learn << "s" << std::endl;
+            }
+        }
 
         if ((s + 1) % sample_interval == 0) {
             auto head = sim.body().get_head_position();

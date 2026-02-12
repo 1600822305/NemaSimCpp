@@ -103,6 +103,9 @@ public:
     // Sleep / fatigue (Step 27)
     double fatigue() const { return fatigue_; }
     bool is_sleeping() const { return is_sleeping_; }
+    // Step 62: Force sleep for consolidation experiments
+    void force_sleep(double duration_ms) { forced_sleep_end_ = current_time_ + duration_ms; }
+    double learning_sleep_drive() const { return learning_sleep_drive_; }
 
     // Callback for each step (for logging/visualization)
     using StepCallback = std::function<void(const SimulationEngine&, int step_num)>;
@@ -267,6 +270,20 @@ private:
     double mod1_aiz_gain_ = -6.0;        // pA, ADF sickness 5-HT → MOD-1 ⊣ AIZ (half of AIY)
     void update_sickness();              // accumulate sickness from toxic food intake
     void update_pathogen_learning();     // AWC→AIY w_mod↓, AWC→AIB w_mod↑
+
+    // Step 62: Sleep-dependent memory consolidation (Chouhan 2023 Cell)
+    // "Sleep is required to consolidate odor memory and remodel olfactory synapses"
+    // Weight_mod slowly forgets (drifts back to 1.0). Sleep suppresses forgetting
+    // and boosts learning rate → memory encoded during wake is consolidated in sleep.
+    // REF: Chouhan 2023 Cell, Zhang 2005 Nature, Iannacone 2017 JNeurosci
+    double w_mod_forget_rate_ = 0.000002;  // per ms (~0.002/s): w_mod → 1.0 drift (forgetting)
+    double sleep_learn_boost_ = 2.0;       // learning rate ×2 during sleep (Chouhan 2023)
+    double sleep_forget_suppress_ = 0.3;   // forgetting ×0.3 during sleep (consolidation)
+    double sleep_sickness_protect_ = 0.2;  // sickness decay ×0.2 during sleep (memory protection)
+    double learning_sleep_drive_ = 0.0;    // [0,1] learning-induced sleep pressure
+    double learning_sleep_tau_ = 120000.0; // ms, 120s decay for learning-induced sleep drive
+    double forced_sleep_end_ = 0.0;        // ms, if > current_time_ → force is_sleeping_=true
+    void apply_synaptic_forgetting();      // slow drift of w_mod toward 1.0
 
     // Step 27: Sleep / Quiescence (Lethargus)
     // REF: Turek 2016 eLife — RIS releases FLP-11 to systemically induce sleep
