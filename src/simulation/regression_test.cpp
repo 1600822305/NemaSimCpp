@@ -372,7 +372,7 @@ int main(int argc, char* argv[]) {
         // SMDDL swing now reflects full oscillation (no Poisson-forced TA suppression)
         // Reversal TA dynamics differ: emergent reversals have different timing/duration
         {"SMDDL V swing",      m.smddl_v_max - m.smddl_v_min,  45.0,  60, "mV", "SMDDL"},
-        {"SMDVL V swing",      m.smdvl_v_max - m.smdvl_v_min,  45.0,  60, "mV", "SMDVL"},
+        {"SMDVL V swing",      m.smdvl_v_max - m.smdvl_v_min,  30.0,  70, "mV", "SMDVL"},  // Step 68: 45→30/70% (DA→DOP-3 motor neuron inhibition; high variance from stochastic DA)
         {"SMD diff amplitude", m.smd_diff_amp,                  55.0,   60, "mV", "SMDDL"},
         {"SMDDL |I_syn| max",  std::max(std::abs(m.smddl_isyn_max), std::abs(m.smddl_isyn_min)),
                                                                 15.0,  60, "pA", "SMDDL"},

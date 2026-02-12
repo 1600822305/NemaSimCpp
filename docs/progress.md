@@ -813,6 +813,17 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 - REF: Piggott 2011 Cell, Roberts 2016 eLife, Kuramochi 2018, Gao 2018
 - **regtest**: 17 pass, 0 FAIL
 
+### Step 68: Basal Slowing — DA→DOP-3→Motor Neuron 涌现减速 ✅ (2026-02-12)
+> 详细文档: [steps/step68_basal_slowing_dop3.md](steps/step68_basal_slowing_dop3.md)
+
+- **P1 违规 1.4 修复**: 移除 `effective_speed *= basal_slow` 直接速度乘法
+- DA tau_decay 5s→2s（DAT-1 快速回收）
+- DOP-3(-3pA) 添加到 14 个 B-class 运动神经元（DB01-07, VB01-07）
+- 减速通过 CEP→DA→DOP-3→motor neuron→muscle_work 链涌现
+- **4-seed CI**: 均值 0.155 (3/4正, ↓from 0.45 — DA τ动态 vs 即时开关)
+- REF: Chase 2004 Nat Neurosci, Sawin 2000 Neuron
+- **regtest**: 17 pass, 0 FAIL
+
 ### Step 67: 消融验证 — 证明 Reversal 从 AVA 涌现 ✅ (2026-02-12)
 > 详细文档: [steps/step67_ablation_verification.md](steps/step67_ablation_verification.md)
 

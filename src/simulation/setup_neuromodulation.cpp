@@ -227,7 +227,7 @@ void SimulationEngine::setup_neuromodulation() {
         Neuromodulator dopamine;
         dopamine.name = "DA";
         dopamine.tau_rise = 2000.0;     // 2s to build up
-        dopamine.tau_decay = 5000.0;    // 5s to clear
+        dopamine.tau_decay = 2000.0;    // Step 68: 5s→2s (DAT-1 fast reuptake, Chase 2004)
         dopamine.release_threshold = 0.3;
 
         // Source neurons: CEP (4) + ADE (2) + PDE (2) = 8 DA neurons (complete)
@@ -240,11 +240,19 @@ void SimulationEngine::setup_neuromodulation() {
             if (id >= 0) dopamine.source_neuron_ids.push_back(id);
         }
 
-        // Step 47b: DA SPEED_SCALE removed — replaced by instant basal_slow mechanism
-        // Old: DOP-3 SPEED_SCALE -0.30 via neuromod (tau_decay=5s → persists off-food → tanks CI)
-        // New: basal_slow = 1.0 - 0.35 * da_gate * on_lawn (instant, position-dependent)
-        // on_lawn sigmoid drops to 0 immediately when leaving food → no off-food penalty
-        // REF: Sawin 2000 — cat-2 mutants fail to slow; DOP-3 inhibitory on motor neurons
+        // Step 68: DOP-3 on B-class motor neurons — emergent basal slowing
+        // CEP on food → DA↑ → DOP-3 on DB/VB → Gαo → reduced ACh release → less muscle → slower
+        // Replaces direct effective_speed *= basal_slow (P1 violation 1.4)
+        // REF: Chase 2004 Nat Neurosci — DOP-3/DOP-1 antagonistic on cholinergic motor neurons
+        //      Sawin 2000 — cat-2 mutants fail to slow on food (~30% reduction in WT)
+        //      "DOP-3 and DOP-1 act in the same motor neurons, not postsynaptic to DA neurons"
+        const char* b_class_names[] = {"DB01", "DB02", "DB03", "DB04", "DB05", "DB06", "DB07",
+                                        "VB01", "VB02", "VB03", "VB04", "VB05", "VB06", "VB07"};
+        for (auto mn_name : b_class_names) {
+            int mn_id = connectome_.get_neuron_id(mn_name);
+            if (mn_id >= 0) dopamine.targets.push_back(
+                {mn_id, "DOP-3", ModulationEffect::EXCITABILITY, -3.0}); // -3 pA inhibitory (Chase 2004)
+        }
 
         // Step 45: Target: DVA via DOP-1 (D1-like excitatory GPCR)
         // DA from CEP (food detection) → DOP-1 on DVA → stimulates NLP-12 release

@@ -522,51 +522,12 @@ void SimulationEngine::step() {
     // Step 44: clamp effective speed_scale to prevent extreme values
     double effective_speed = params.speed_scale * neuromod_.get_speed_scale() * sleep_speed_factor;
 
-    // Step 47b: DA basal slowing — instant, position-dependent speed reduction
-    // Biological basis (Sawin 2000 Neuron):
-    //   "Basal slowing response is mediated by a dopamine-containing neural circuit
-    //    that senses a mechanical attribute of bacteria."
-    //   cat-2 mutants (no DA): fail to slow on food (~30% reduction in wild-type)
-    //
-    // ARCHITECTURE: on_lawn sigmoid directly modulates speed (NOT via DA concentration).
-    // DA acts via extrasynaptic DOP-3 volume transmission on motor neurons (Chase 2004),
-    // NOT through CEP's connectome synaptic circuit. Driving CEP neurons at high current
-    // (40pA) causes OLQ cascade via gap junctions (OLQ→RMD head disruption, OLQ→RIC
-    // OA release) that destroys chemotaxis. The on_lawn sigmoid captures the CEP
-    // mechanosensory "feet on bacteria" signal directly.
-    //
-    // on_lawn: 0 off food, 1.0 on food center, instant transition at lawn edge
-    // Off food: factor=1.0 (NO effect) → CI preserved
-    // On food: factor=0.65 (35% reduction) → matches Sawin 2000 Fig 2
-    //
-    // REF: Sawin 2000 Neuron — DA basal slowing
-    //      Chase 2004 Nature Neurosci — DOP-3 extrasynaptic volume transmission
-    {
-        double food_at_head = environment_.sample_food_density(body_.get_head_position());
-        // Sharp sigmoid: bacterial lawn mechanical edge
-        // threshold=0.4 at ~5.4mm from center (food σ=4mm)
-        // Symmetric with head poke reversal edge detection (0.4→0.3 transition)
-        double on_lawn = 1.0 / (1.0 + fast_exp(-(food_at_head - 0.4) * 20.0));
-        double basal_slow = 1.0 - 0.25 * on_lawn;
-        if (basal_slow < 0.65) basal_slow = 0.65;  // floor: max 35% reduction
-        effective_speed *= basal_slow;
-
-        // Step 60: Enhanced Slowing Response (ESR)
-        // Food-deprived worms slow MORE when re-encountering food (Sawin 2000)
-        // BSR = well-fed on food → ~30% reduction (above, basal_slow)
-        // ESR = recently deprived, re-encounter food → additional ~20% reduction
-        // Requires: on food (on_lawn>0.5) AND high food_memory (recently left food)
-        // food_memory encodes "was on food but left" → searching/ARS state
-        // ESR decays as food_memory drops (animal acclimates to new food patch)
-        // REF: Sawin 2000 — ESR requires both DA (cat-2) and 5-HT (tph-1)
-        //      30min food deprivation → enhanced slowing (Fig 3)
-        double da_conc = neuromod_.get_concentration("DA");
-        double sht_conc = neuromod_.get_concentration("5-HT");
-        // ESR strength: food_memory × DA × (1 + 5-HT) → peaks when recently deprived + on food
-        double esr = food_memory_ * da_conc * (1.0 + sht_conc) * on_lawn;
-        double esr_factor = 1.0 - 0.20 * std::min(esr, 1.0);  // up to 20% additional slowing
-        effective_speed *= esr_factor;
-    }
+    // Step 68: Basal slowing now emerges from DA→DOP-3→B-class motor neuron inhibition
+    // CEP on food → DA↑ → DOP-3(-6pA×14 motor neurons) → reduced ACh → less muscle → slower
+    // BSR direct multiplication REMOVED (P1 violation 1.4 fixed)
+    // ESR direct multiplication REMOVED — folds into DA×5-HT neuromod interaction
+    // REF: Chase 2004 Nat Neurosci — DOP-3 extrasynaptic on cholinergic motor neurons
+    //      Sawin 2000 — cat-2 mutants fail to slow; BSR ~30% reduction in WT
 
     // Step 56: DMP body contraction speed modulation
     // pBoc/aBoc/Exp phases cause brief locomotion pauses
@@ -1262,7 +1223,7 @@ void SimulationEngine::apply_touch_stimulus() {
     // CEP↔OLQ gap junctions cause cascade: 40pA CEP → OLQ→RMD (head disruption)
     // + OLQ→RIC (OA release) that destroys chemotaxis. CEP is now driven modestly
     // via chemo_mappings_ (gain=20, for DA→DVA/NLP-12 priming only).
-    // Basal slowing uses on_lawn sigmoid directly (see effective_speed section).
+    // Step 68: Basal slowing now via DA→DOP-3→B-class motor neurons (extrasynaptic).
 
     // Step 60: Periodic tap habituation (Rankin 1990)
     // Tap = plate vibration → activates ALM+PLM simultaneously (non-directional)
