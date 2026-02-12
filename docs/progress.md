@@ -896,6 +896,13 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **VA→DD 交叉抑制**: 12条化学突触
 - **regtest**: 20/20 PASS (210/486/171)
 
+### Step 91: B-class + DA 交叉抑制通路补全 ✅ (2026-02-12)
+> 详细文档: [steps/step91_cross_inhibition.md](steps/step91_cross_inhibition.md)
+
+- **VB→VD + DB→DD + DA→VD**: 27条化学突触 (White 1986)
+- **四条交叉抑制通路全部完成**: VB→VD + DB→DD + VA→DD + DA→VD
+- **regtest**: 20/20 PASS (210/513/171)
+
 ---
 
 ## 当前系统状态

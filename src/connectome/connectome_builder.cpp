@@ -1066,10 +1066,9 @@ void build_command_ventral(CB& b) {
     b.syn("AS10", "VD12", 1);
     b.syn("AS11", "VD13", 1);
 
-    // Step 90: VA → DD chemical synapses — A-class cross-inhibition input
-    // White 1986: VA excites DD → DD inhibits dorsal BWM → dorsal relaxation
-    // During backward movement, VA contracts ventral + inhibits dorsal via DD
-    // Segment-based mapping: each VA excites overlapping DD(s)
+    // Step 90: VA → DD chemical synapses — backward ventral wave propagation
+    // White 1986: VA excites DD → DD inhibits ventral BWM in next segment
+    // Creates traveling wave: ventral contraction → DD → ventral relaxation ahead
     b.syn("VA01", "DD01", 1);
     b.syn("VA02", "DD01", 1); b.syn("VA03", "DD02", 1);
     b.syn("VA04", "DD02", 1); b.syn("VA05", "DD03", 1);
@@ -1077,6 +1076,35 @@ void build_command_ventral(CB& b) {
     b.syn("VA08", "DD04", 1); b.syn("VA09", "DD05", 1);
     b.syn("VA10", "DD05", 1); b.syn("VA11", "DD06", 1);
     b.syn("VA12", "DD06", 1);
+
+    // Step 91: Complete excitatory→inhibitory MN cross-inhibition pathways
+    // White 1986: Each excitatory MN class synapses onto D-class inhibitory MNs
+    // This creates contralateral muscle relaxation for coordinated undulation
+    // Four pathways total: VB→VD, DB→DD (forward) + VA→DD, DA→VD (backward)
+
+    // VB → VD: forward ventral phase → dorsal relaxation (primary overlap only)
+    // VB contracts ventral BWM + excites VD → VD inhibits dorsal BWM
+    b.syn("VB01", "VD01", 1); b.syn("VB02", "VD02", 1);
+    b.syn("VB03", "VD03", 1); b.syn("VB04", "VD04", 1);
+    b.syn("VB05", "VD06", 1); b.syn("VB06", "VD07", 1);
+    b.syn("VB07", "VD08", 1); b.syn("VB08", "VD09", 1);
+    b.syn("VB09", "VD10", 1); b.syn("VB10", "VD12", 1);
+    b.syn("VB11", "VD13", 1);
+
+    // DB → DD: forward dorsal phase → ventral relaxation (primary overlap only)
+    // DB contracts dorsal BWM + excites DD → DD inhibits ventral BWM
+    b.syn("DB01", "DD01", 1); b.syn("DB02", "DD02", 1);
+    b.syn("DB03", "DD02", 1); b.syn("DB04", "DD03", 1);
+    b.syn("DB05", "DD04", 1); b.syn("DB06", "DD05", 1);
+    b.syn("DB07", "DD06", 1);
+
+    // DA → VD: backward dorsal phase → wave propagation (primary overlap only)
+    // DA contracts dorsal BWM + excites VD → VD inhibits dorsal BWM ahead
+    b.syn("DA01", "VD01", 1); b.syn("DA02", "VD02", 1);
+    b.syn("DA03", "VD04", 1); b.syn("DA04", "VD05", 1);
+    b.syn("DA05", "VD06", 1); b.syn("DA06", "VD07", 1);
+    b.syn("DA07", "VD09", 1); b.syn("DA08", "VD11", 1);
+    b.syn("DA09", "VD13", 1);
 
     // Step 89: AS ↔ AVA gap junctions — electrical feedback to backward PIN
     // Tolstenkov 2018 eLife: UNC-7 innexin mediates AS→AVA retrograde signaling
