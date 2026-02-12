@@ -946,13 +946,14 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 ### Step 96: 社交/独居进食行为 — NPR-1/RMG Hub ✅ (2026-02-13)
 > 详细文档: [steps/step96_social_solitary.md](steps/step96_social_solitary.md)
 
-- **RMG hub-and-spoke 网络**: +8 gap junctions (URX/ASK/ADL/ASH↔RMG)
+- **RMG hub-and-spoke 网络**: 完整 7 类 spoke (+14 gj, +4 IL2 neurons)
+  - URX/ASK/ADL/ASH/AWB/IL2/AUA ↔ RMG (Macosko 2009 Fig 3a)
 - **NPR-1 直接抑制 RMG**: -20pA (N2 独居), 0pA (Hawaiian 社交)
 - **Bug fix**: NPR-1 add_synaptic_current 在 I_syn_ reset 之前 → 被清零 → 移到 reset 后
-- **N2 vs Hawaiian**: RMG S = 0.005 vs 0.25 (56x 差异) ✅
+- **N2 vs Hawaiian**: RMG S = 0.007 vs 0.23 (33x 差异) ✅
 - **CLI**: --npr1 参数切换菌株表型
-- **REF**: Macosko 2009 Nature, de Bono 2002
-- **regtest**: 20/20 PASS
+- **REF**: Macosko 2009 Nature, de Bono 2002, Hall & Bhatt 2017 Dev Neurobiol
+- **regtest**: 20/20 PASS (214 neurons, 185 gj)
 
 ---
 
@@ -960,8 +961,8 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 
 ```
 架构: 8 层 (环境/躯体/感知/神经元/连接组/神经调质/运动/行为)
-神经元: 210 个 MVP 子集 (302 全集待加载)
-  感觉: 57 (ASE/AWC/AWA/ASH/ALM/PLM/NSM/CEP/ADE/PDE/AFD/ADF/ASJ/ASK/ASI/ADL/FLP/PHB/PHA L/R + AVM + OLQ 4× + IL1 4× + URX L/R + AQR + PQR + BAG L/R + PVD L/R)
+神经元: 214 个 MVP 子集 (302 全集待加载)
+  感觉: 61 (ASE/AWC/AWA/ASH/ALM/PLM/NSM/CEP/ADE/PDE/AFD/ADF/ASJ/ASK/ASI/ADL/FLP/PHB/PHA L/R + AVM + OLQ 4× + IL1 4× + IL2 4× + URX L/R + AQR + PQR + BAG L/R + PVD L/R)
   中间: 55 (+AVF L/R, LUA L/R) (AIA/AIB/AIY/AIZ/RIA/RIB/RIM/RIC/AVA/AVB/AVD/AVE/PVC/AVF/AUA/AVK/AVJ/AVH/PVP/AIN/LUA/I1/RIP L/R + RIS + RIH + RMG L/R + DVA + DVC + PVT + PVR + RIG)
   运动: 98 (+AS08-11) (SMD/RMD/SMB 4×2+4 + RIV L/R + RMED/RMEV + AS01-11 + DB01-07/VB01-11/DA01-09/VA01-12/DD01-06/VD01-13 + MC/M3 L/R + M4 + HSN L/R + VC4/VC5 + AVL + DVB)
 突触: ~215 化学 + ~56 间隙连接 (全部带 Tsodyks-Markram STP, 支持分数 sections)

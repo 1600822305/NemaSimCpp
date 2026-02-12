@@ -27,12 +27,16 @@ RMG hub 神经元已在 Step 75 添加，但缺少：
 
 ## 实现细节
 
-### 修改 1: RMG hub-and-spoke gap junctions (connectome_builder.cpp)
+### 修改 1: RMG hub-and-spoke gap junctions — 完整 7 类 spoke (connectome_builder.cpp)
 - URX↔RMG: 2 sections (O₂→聚集)
 - ASK↔RMG: 1 section (pheromone→吸引)
 - ADL↔RMG: 1 section (伤害→回避)
 - ASH↔RMG: 1 section (多模态→放大)
-- 共 8 个新 gap junctions
+- IL2↔RMG: 1 section ×4 (环境感知→聚集, DL/DR/VL/VR)
+- AUA↔RMG: 1 section ×2 (O₂ relay 中间神经元→hub)
+- AWB↔RMG: 已存在 (Step 75, 病原回避)
+- 共 14 个新 gap junctions (+4 IL2 neurons)
+- REF: Macosko 2009 Fig 3a, Hall & Bhatt 2017 Dev Neurobiol (innexin gj review)
 
 ### 修改 2: NPR-1 对 RMG 直接抑制 (simulation_engine.h/cpp)
 - npr1_rmg_ = -20 pA (N2 默认)
@@ -53,21 +57,22 @@ RMG hub 神经元已在 Step 75 添加，但缺少：
 
 | 菌株 | NPR-1 | RMG V | RMG S(release) | 表型 |
 |------|-------|-------|----------------|------|
-| N2 | -20 pA | -61 mV | 0.005 | ✅ Solitary |
-| Hawaiian | 0 pA | -40 mV | 0.25 | ✅ Social |
+| N2 | -20 pA | -60 mV | 0.007 | ✅ Solitary |
+| Hawaiian | 0 pA | -41 mV | 0.23 | ✅ Social |
 
-- RMG 活性差异: **56x** (0.005 vs 0.28)
-- reversal rate: N2=0.15/s, Hawaiian=0.17/s (+13%)
+- RMG 活性差异: **33x** (0.007 vs 0.23)
+- 完整 7 类 spoke: URX, ASH, ADL, ASK, AWB, IL2, AUA
 - regtest: 20/20 PASS
-- Gap junctions: 171 → 179 (+8)
+- Neurons: 210 → 214 (+4 IL2)
+- Gap junctions: 171 → 185 (+14)
 
 ## 修改文件列表
 
 | 文件 | 修改内容 |
 |------|----------|
-| `src/connectome/connectome_builder.cpp` | RMG hub gap junctions (+8) |
+| `src/connectome/connectome_builder.cpp` | IL2 neurons (+4) + RMG 7-spoke hub gap junctions (+14) |
 | `src/simulation/simulation_engine.h` | npr1_rmg_ 参数 + set/get 方法 |
 | `src/simulation/simulation_engine.cpp` | NPR-1 移到 reset 后 (bug fix) |
 | `src/simulation/apply_sensory_systems.cpp` | 移除旧 NPR-1 位置 |
 | `src/simulation/diag_main.cpp` | 社交行为检测 + --npr1 CLI |
-| `src/simulation/regression_test.cpp` | gap junction 基线 171→179 |
+| `src/simulation/regression_test.cpp` | neuron 基线 210→214, gap junction 基线 171→185 |
