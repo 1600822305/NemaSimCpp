@@ -219,6 +219,25 @@ void build_neurons(CB& b) {
     // REF: Troemel 1997 Cell, Jang 2012, Serrano-Saiz 2013
     b.neuron("ADLL", NT::SENSORY, NTT::GLUTAMATE);
     b.neuron("ADLR", NT::SENSORY, NTT::GLUTAMATE);
+    // Step 73: FLP — multidendritic head nociceptor
+    // Dendrites cover entire head skin; polymodal: harsh touch + thermal nociception
+    // 29% of nose touch avoidance (ASH=45%, OLQ=5%)
+    // MEC-10 (DEG/ENaC) for cell-autonomous harsh touch response
+    // Gentle nose touch requires facilitation from OLQ/CEP via RIH gap junction hub
+    // Presynaptic to AVA, AVD, AVE, AIB (reversal-promoting interneurons)
+    // REF: Kaplan & Horvitz 1993, Chatzigeorgiou & Schafer 2011 Neuron
+    b.neuron("FLPL", NT::SENSORY, NTT::GLUTAMATE);
+    b.neuron("FLPR", NT::SENSORY, NTT::GLUTAMATE);
+    // Step 73: IL1 — inner labial sensory neurons (4 quadrant)
+    // Ciliated sensory endings at nose tip; sense directional nose touch
+    // Mediate head withdrawal reflex with OLQ via RMD motor neurons
+    // Ablation of OLQ+IL1 → abnormally slow foraging + exaggerated nose turns
+    // Community 2 (Emmons 2024): foraging/nose positioning
+    // REF: Hart et al. 1995, White 1986, Emmons 2024 PLOS Biology
+    b.neuron("IL1DL", NT::SENSORY, NTT::GLUTAMATE);
+    b.neuron("IL1DR", NT::SENSORY, NTT::GLUTAMATE);
+    b.neuron("IL1VL", NT::SENSORY, NTT::GLUTAMATE);
+    b.neuron("IL1VR", NT::SENSORY, NTT::GLUTAMATE);
 
     // --- Interneurons ---
     b.neuron("AIAL", NT::INTER, NTT::ACETYLCHOLINE);
@@ -260,6 +279,12 @@ void build_neurons(CB& b) {
     // REF: Chalfie 1985, White 1986, Kawano 2011, Zheng 1999
     b.neuron("PVCL", NT::INTER, NTT::GLUTAMATE);
     b.neuron("PVCR", NT::INTER, NTT::GLUTAMATE);
+    // Step 73: RIH — hub interneuron for nose touch coincidence detection
+    // Single unpaired neuron in nerve ring
+    // Hub of hub-and-spoke gap junction network: FLP, OLQ, CEP, ADF all connect
+    // Function: coincidence detector — active spokes amplify, inactive suppress via shunting
+    // REF: Chatzigeorgiou & Schafer 2011 Neuron, Rabinowitch et al. 2013 Curr Biol
+    b.neuron("RIH",  NT::INTER, NTT::GLUTAMATE);
     // RIM: reversal-active interneuron, stabilizes forward/reverse states
     // REF: Ouellette 2022 eLife — RIM gap junctions create behavioral inertia
     b.neuron("RIML", NT::INTER, NTT::GLUTAMATE);
@@ -537,6 +562,17 @@ void build_touch_nociception(CB& b) {
     // ASH→RIM: nociceptive activation of RIM (promotes omega turns)
     b.syn("ASHL", "RIML", 1); b.syn("ASHR", "RIMR", 1);
 
+    // Step 73: FLP nose touch avoidance (29% of response, Kaplan 1993)
+    // FLP is presynaptic to AVA, AVD, AVE, AIB (reversal-promoting interneurons)
+    // Optogenetic activation of FLP is sufficient to trigger reversals
+    // MEC-10 (DEG/ENaC) for harsh touch; gentle nose touch via RIH facilitation
+    // FLP→AVA: 2 sections (scaled from ASH 3 sections × 29/45 ≈ 2)
+    // REF: Kaplan 1993, Chatzigeorgiou 2011, PMC8601619
+    b.syn("FLPL", "AVAL", 2); b.syn("FLPR", "AVAR", 2);
+    b.syn("FLPL", "AVDL", 2); b.syn("FLPR", "AVDR", 2);
+    b.syn("FLPL", "AVEL", 1); b.syn("FLPR", "AVER", 1);
+    b.syn("FLPL", "AIBL", 1); b.syn("FLPR", "AIBR", 1);
+
     // Step 43: AWB repulsive olfactory circuit (learned reflexive aversion)
     // AWB↔AUA: ELECTRICAL synapse (gap junction), not chemical
     // REF: Filipowicz 2022 BMC Biology — "AWB electrically synapses onto AUA and RMG"
@@ -661,6 +697,31 @@ void build_head_motor(CB& b) {
     // OLQ ↔ CEP: gap junction coupling with dopaminergic mechanosensory
     b.gj("OLQDL", "CEPDL", 1); b.gj("OLQDR", "CEPDR", 1);
     b.gj("OLQVL", "CEPVL", 1); b.gj("OLQVR", "CEPVR", 1);
+
+    // Step 73: Hub-and-spoke gap junction network for nose touch coincidence detection
+    // Hub: RIH (single unpaired interneuron)
+    // Spokes: FLP, OLQ, CEP — all connected to RIH via gap junctions
+    // Function: active spokes facilitate FLP nose touch response;
+    //   inactive spokes suppress via shunting (Rabinowitch 2013 Curr Biol)
+    // FLP harsh touch is cell-autonomous (MEC-10); gentle nose touch needs facilitation
+    // REF: Chatzigeorgiou & Schafer 2011 Neuron, Rabinowitch 2013 Curr Biol
+    b.gj("FLPL", "RIH", 2); b.gj("FLPR", "RIH", 2);
+    b.gj("OLQDL", "RIH", 1); b.gj("OLQDR", "RIH", 1);
+    b.gj("OLQVL", "RIH", 1); b.gj("OLQVR", "RIH", 1);
+    b.gj("CEPDL", "RIH", 1); b.gj("CEPDR", "RIH", 1);
+    b.gj("CEPVL", "RIH", 1); b.gj("CEPVR", "RIH", 1);
+
+    // Step 73: IL1 → RMD — head withdrawal reflex (ipsilateral)
+    // IL1 + OLQ together mediate head withdrawal (Hart 1995)
+    // OLQ ablation: majority of response lost; IL1: remainder
+    // Ablation of OLQ+IL1 → abnormally slow foraging + exaggerated nose turns
+    // IL1→RMD: glutamatergic via GLR-1 (glr-1 mutants defective for head withdrawal)
+    // REF: Hart et al. 1995, White 1986, Emmons 2024 PLOS Biology
+    b.syn("IL1DL", "RMDDL", 2); b.syn("IL1DR", "RMDDR", 2);
+    b.syn("IL1VL", "RMDVL", 2); b.syn("IL1VR", "RMDVR", 2);
+    // IL1 ↔ RIH: gap junction integration for foraging regulation
+    b.gj("IL1DL", "RIH", 1); b.gj("IL1DR", "RIH", 1);
+    b.gj("IL1VL", "RIH", 1); b.gj("IL1VR", "RIH", 1);
 
     // Step 60: Dopaminergic mechanosensory circuit (ADE + PDE)
     // ADE → RIC: DA from head deirid → octopaminergic interneuron

@@ -736,17 +736,30 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **4-seed CI**: 均值 0.284 (全4种子全正), **near_food**: 35.1% (+46% 提升)
 - **regtest**: 17/17 PASS
 
+### Step 73: 鼻触反射回路 — FLP/IL1/RIH 完整闭环 ✅ (2026-02-12)
+> 详细文档: [steps/step73_nose_touch_reflex.md](steps/step73_nose_touch_reflex.md)
+
+- **新增 7 个神经元** (162→169): FLP(2) + IL1(4) + RIH(1)
+  - FLP: 多树突头部伤害感受器，29% 鼻触回避 (Kaplan 1993)
+  - IL1: 内唇感觉神经元，头部缩回 + 觅食 (Hart 1995)
+  - RIH: Hub-and-spoke 巧合检测中枢 (Chatzigeorgiou 2011)
+- **鼻触回避**: FLP→AVA(2)/AVD(2)/AVE(1)/AIB(1) — 直接反转驱动
+- **Hub-spoke 网络**: FLP/OLQ/CEP↔RIH gj — 轻触鼻巧合检测，粗触细胞自主
+- **头部缩回**: IL1→RMD syn(2) 同侧 + IL1↔RIH gj 觅食整合
+- **4-seed CI**: 均值 **0.464** (+63% vs Step 72), seed=7 达 0.905
+- **regtest**: 17/17 PASS
+
 ---
 
 ## 当前系统状态
 
 ```
 架构: 8 层 (环境/躯体/感知/神经元/连接组/神经调质/运动/行为)
-神经元: 162 个 MVP 子集 (302 全集待加载)
-  感觉: 47 (ASE/AWC/AWA/ASH/ALM/PLM/NSM/CEP/ADE/PDE/AFD/ADF/ASJ/ASK/ASI/ADL L/R + AVM + OLQ 4× + URX L/R + AQR + PQR + BAG L/R + PVD L/R)
-  中间: 45 (AIA/AIB/AIY/AIZ/RIA/RIB/RIM/RIC/AVA/AVB/AVD/AVE/PVC/AUA/AVK/AVJ/AVH/PVP/I1/RIP L/R + RIS + DVA + DVC + PVT + PVR)
+神经元: 169 个 MVP 子集 (302 全集待加载)
+  感觉: 53 (ASE/AWC/AWA/ASH/ALM/PLM/NSM/CEP/ADE/PDE/AFD/ADF/ASJ/ASK/ASI/ADL/FLP L/R + AVM + OLQ 4× + IL1 4× + URX L/R + AQR + PQR + BAG L/R + PVD L/R)
+  中间: 46 (AIA/AIB/AIY/AIZ/RIA/RIB/RIM/RIC/AVA/AVB/AVD/AVE/PVC/AUA/AVK/AVJ/AVH/PVP/I1/RIP L/R + RIS + RIH + DVA + DVC + PVT + PVR)
   运动: 70 (SMD/RMD/SMB 4×2+4 + RIV L/R + RMED/RMEV + AS01-07 + DB01-07/VB01-07/DA01-05/VA01-05/DD01-05/VD01-05 + MC/M3 L/R + M4 + HSN L/R + VC4/VC5 + AVL + DVB)
-突触: ~197 化学 + ~36 间隙连接 (全部带 Tsodyks-Markram STP, 支持分数 sections)
+突触: ~215 化学 + ~56 间隙连接 (全部带 Tsodyks-Markram STP, 支持分数 sections)
   Step 42: Cook 2019 校准 (+8 RIA↔RIV, -2 AVE→RIV) + RIV↔RIV gap
 神经调质: 7 种 (5-HT, DA, OA, TA, NLP-12, PDF, FLP-11) — volume transmission + 饱食度(泵驱动)
   5-HT 源: NSM(食物) + HSN(产卵) — 4个源神经元 (Step 43: ADF 移除)
@@ -775,7 +788,7 @@ P0/P1 违规全部修复:
   P1-1.5: set_locomotion_state 覆盖移除 → 完全神经回路驱动 (Step 66)
   P0-5: DMP speed_factor 移除 → AVL/DVB GABA→B-class MN 涌现减速 (Step 71)
   P0-6: FLP-11 直接注入移除 → NeuromodulationManager DMSR-1 框架 (Step 71)
-行为指标 (4-seed, 300s): CI≈0.28 (全4种子正), near_food≈35%, reversal_rate≈0.16/s, speed≈0.21mm/s
+行为指标 (4-seed, 300s): CI≈0.46 (全4种子正), near_food≈10%, reversal_rate≈0.16/s, speed≈0.21mm/s
 工具: celegans_diag.exe (信号链诊断+fitness) + celegans_regtest.exe (回归检测+电流溯源)
 
 运动驱动 (Step 13 — 生物学机制):

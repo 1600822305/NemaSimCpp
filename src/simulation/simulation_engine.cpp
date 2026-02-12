@@ -1198,6 +1198,27 @@ void SimulationEngine::apply_touch_stimulus() {
                 neurons_[id]->set_external_current(olq_drive);
             }
         }
+        // Step 73: IL1 — directional nose touch for head withdrawal (Hart 1995)
+        // IL1 has similar sensitivity range as OLQ; both drive RMD
+        // IL1 current slightly weaker than OLQ (OLQ is "majority" of response)
+        double il1_drive = nose_current * 0.7 * prox;
+        for (int id : nids("IL1")) {
+            if (id >= 0 && id < n) {
+                neurons_[id]->set_external_current(il1_drive);
+            }
+        }
+        // Step 73: FLP — gentle nose touch (facilitated by OLQ/CEP via RIH)
+        // FLP gentle touch: weak intrinsic drive, amplified by hub-spoke network
+        // Only responds to nose-range touch, NOT body-range (different from harsh)
+        // 15pA × prox: weaker than OLQ (30pA); facilitation from RIH gap junctions
+        //   provides the additional current to reach threshold
+        // REF: Chatzigeorgiou 2011 — FLP nose touch requires OLQ facilitation
+        double flp_gentle = 15.0 * prox;
+        for (int id : nids("FLP")) {
+            if (id >= 0 && id < n) {
+                neurons_[id]->set_external_current(flp_gentle);
+            }
+        }
         nose_touch = true;
     }
 
@@ -1215,6 +1236,23 @@ void SimulationEngine::apply_touch_stimulus() {
         for (int id : nids("OLQ")) {
             if (id >= 0 && id < n) {
                 neurons_[id]->set_external_current(nose_current);
+            }
+        }
+        // Step 73: FLP harsh touch — cell-autonomous via MEC-10 (DEG/ENaC)
+        // Harsh touch (body collision): FLP responds strongly without facilitation
+        // FLP accounts for 29% of nose touch avoidance (Kaplan 1993)
+        // At body collision range: strong current drives AVA/AVD reversal directly
+        // REF: Chatzigeorgiou 2011 — FLP harsh touch is MEC-10 dependent, cell-autonomous
+        double flp_harsh = 50.0;  // pA, strong cell-autonomous response
+        for (int id : nids("FLP")) {
+            if (id >= 0 && id < n) {
+                neurons_[id]->set_external_current(flp_harsh);
+            }
+        }
+        // IL1 also activated at full strength during body touch
+        for (int id : nids("IL1")) {
+            if (id >= 0 && id < n) {
+                neurons_[id]->set_external_current(nose_current * 0.7);
             }
         }
     }
