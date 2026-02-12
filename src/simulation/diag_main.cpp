@@ -1115,6 +1115,28 @@ int main(int argc, char* argv[]) {
         }
     }
 
+    // Step 77: Salt chemotaxis learning diagnostic (ASER w_mod)
+    std::cout << "\n30. SALT CHEMOTAXIS LEARNING (Step 21c/77):" << std::endl;
+    {
+        const auto& syns = sim.connectome().synapses();
+        const auto& ni = sim.connectome().neuron_infos();
+        int nn = (int)sim.neurons().size();
+        for (size_t i = 0; i < syns.size(); ++i) {
+            int pre = syns[i].pre_id(), post = syns[i].post_id();
+            if (pre < 0 || pre >= nn || post < 0 || post >= nn) continue;
+            const std::string& pn = ni[pre].name;
+            const std::string& qn = ni[post].name;
+            if (pn == "ASER" && (qn == "AIBL" || qn == "AIBR" || qn == "AIAL" || qn == "AIAR")) {
+                std::cout << "   " << pn << "->" << qn << ": w_mod="
+                          << std::setprecision(4) << syns[i].weight_mod()
+                          << " (weight=" << std::setprecision(2) << syns[i].weight() << ")"
+                          << std::endl;
+            }
+        }
+        std::cout << "   satiety=" << std::setprecision(3) << sim.satiety()
+                  << "  learn_signal=" << std::setprecision(3) << (sim.satiety() - 0.5) << std::endl;
+    }
+
     // Step 27: Sleep / Quiescence diagnostic
     std::cout << "\n18. SLEEP / QUIESCENCE (Step 27):" << std::endl;
     std::cout << "   fatigue=" << std::setprecision(4) << sim.fatigue()

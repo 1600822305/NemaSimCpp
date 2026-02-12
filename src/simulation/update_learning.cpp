@@ -12,7 +12,27 @@
 namespace celegans {
 
 // ================================================================
-// Salt Chemotaxis Learning (Step 21c)
+// Salt Chemotaxis Learning (Step 21c → Step 77 fix)
+//
+// Biology: Starvation + NaCl pairing → ASER output weakens → salt aversion
+// Mechanism: INS-1 from AIA → DAF-2 in ASER → PI3K/AKT pathway
+//   → modifies ASER synaptic output (cell-autonomous, NOT Hebbian)
+//
+// Step 77 fix: removed S_post from learning rule.
+// OLD: dw = lr × learn_signal × S_pre × S_post (Hebbian, too slow)
+// NEW: dw = lr × learn_signal × S_pre (ASER-autonomous, PI3K pathway)
+// Biological justification:
+//   - DAF-2 acts directly IN ASER (Tomioka 2006 Neuron)
+//   - PI3K cascade modifies ASER output independent of post-synaptic activity
+//   - INS-1 release is driven by starvation state (learn_signal), not post activity
+//
+// Step 77: lr increased 0.0001→0.001 for simulation timescale
+// Biology: salt learning takes 15-60min; simulation runs 300s
+// Timescale compression: ~20× (60min/300s ≈ 12×, conservatively 10×)
+//
+// REF: Tomioka 2006 Neuron — DAF-2/AGE-1/AKT-1 in ASER for salt learning
+//      Oda 2011 J Neurophysiol — ASER calcium response plasticity
+//      Ikeda 2008 Genetics — PI3K + Gq/PKC dual pathway
 // ================================================================
 void SimulationEngine::update_salt_learning() {
     // Only update every 100ms (not every 0.5ms step)
@@ -20,24 +40,29 @@ void SimulationEngine::update_salt_learning() {
 
     int n = static_cast<int>(neurons_.size());
     auto& synapses = connectome_.synapses_mut();
-    const auto& ninfos = connectome_.neuron_infos();
 
+    // learn_signal: negative when hungry (starvation → salt aversion)
+    //               positive when well-fed (reinforces salt attraction)
     double learn_signal = satiety_ - 0.5;
     // Step 62: Sleep boosts learning rate (Chouhan 2023 Cell)
     double sleep_factor = is_sleeping_ ? sleep_learn_boost_ : 1.0;
-    double lr = 0.0001 * sleep_factor;
+    // Step 77: lr 0.0001→0.001 (10× for simulation timescale compression)
+    double lr = 0.001 * sleep_factor;
 
     for (size_t idx : aser_syn_indices_) {
         auto& syn = synapses[idx];
         int pre = syn.pre_id();
-        int post = syn.post_id();
 
         double V_pre = neurons_[pre]->get_membrane_potential();
-        double V_post = neurons_[post]->get_membrane_potential();
+        // S_pre: ASER activity — gated by salt sensation
+        // When ASER active (salt present) AND hungry → w_mod decreases
+        // When ASER active (salt present) AND well-fed → w_mod increases
         double S_pre = 1.0 / (1.0 + fast_exp(-(V_pre - (-35.0)) / 5.0));
-        double S_post = 1.0 / (1.0 + fast_exp(-(V_post - (-35.0)) / 5.0));
 
-        double dw = lr * learn_signal * S_pre * S_post;
+        // Step 77: ASER-autonomous rule (no S_post)
+        // PI3K pathway: DAF-2 in ASER modifies output gain
+        // dw sign: hungry(sat<0.5) → negative → weaken ASER synapses → reduce salt attraction
+        double dw = lr * learn_signal * S_pre;
         syn.adjust_weight_mod(dw);
     }
 }

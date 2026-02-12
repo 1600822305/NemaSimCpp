@@ -776,6 +776,15 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - BSR (DA, Step 68) vs ESR (5-HT, 此步骤): 两条独立通路，匹配 Sawin 2000 cat-2/tph-1 解离
 - **regtest**: 20/20 PASS (30s 内受体上调不充分，不影响基线)
 
+### Step 77: 盐学习规则修复 + 涌现验证 ✅ (2026-02-12)
+> 详细文档: [steps/step77_salt_learning_fix.md](steps/step77_salt_learning_fix.md)
+
+- **Bug**: 旧 Hebbian 规则 (S_pre×S_post) 300s 仅产生 0.6% w_mod 变化
+- **修复**: 移除 S_post (PI3K 细胞自主, Tomioka 2006) + lr 10× (时间尺度压缩)
+- **结果**: w_mod 降至 0.73-0.86 (-14~27%)，seed=7 **CI 翻转为负 (-0.142)** — 盐厌恶涌现
+- **涌现链**: 饥饿 → learn_signal<0 → ASER w_mod↓ → ASER→AIB 减弱 → 趋化↓ → CI↓
+- **regtest**: 20/20 PASS (171/337/98)
+
 ---
 
 ## 当前系统状态
