@@ -99,6 +99,15 @@ void MotorController::initialize(const std::unordered_map<std::string, int>& nam
     add_mapping(name_to_id, "SMDVL", 0, 4, false);
     add_mapping(name_to_id, "SMDVR", 0, 4, false);
 
+    // Step 103: SAA — sublateral interneurons with NMJs (motor-like)
+    // SAA makes neuromuscular junctions similar to sublateral motor neurons
+    // "SAA, SMB, and SMD express genes for known stretch receptors" (Emmons 2024)
+    // Segments 0-5: head/nose region, quadrant innervation
+    // REF: White 1986, Emmons 2024
+    add_mapping(name_to_id, "SAADL", 0, 5, true);
+    add_mapping(name_to_id, "SAADR", 0, 5, true);
+    add_mapping(name_to_id, "SAAVL", 0, 5, false);
+    add_mapping(name_to_id, "SAAVR", 0, 5, false);
     // Step 102: SIA — head motor neurons (sublateral, parallel to SMD)
     // SIA innervates head/neck muscles in quadrant pattern
     // Segments 0-5: overlaps with SMD but weaker (sublateral vs primary)

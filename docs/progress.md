@@ -723,17 +723,25 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **RMG 功能完善**: hub 输出到 AVB/AIY(前进驱动+反转抑制) + SIA(头部调制) — Laurent 2015 eLife
 - **bordering 涌现基础**: `--npr1 0` 激活 RMG → 社会速度爆发
 
+### Step 103: SAA 亚侧索中间神经元 — 转弯回路 + AVA 后退指令 ✅ (2026-02-13)
+> 详细文档: [steps/step103_saa_turn_circuit.md](steps/step103_saa_turn_circuit.md)
+
+- **+4 神经元**: SAA(4) 亚侧索中间神经元 (222→226)，完成 6/6 头部运动类别
+- **+16 突触 +4 间隙连接**: AIB/RIB→SAA→AVA/RMD + SAA↔SMB(转弯回路)
+- **独特 SAA→AVA**: “SAA is a major source of input to AVA” — 化学感觉→转弯→后退通路
+- **转弯回路**: RIV-SAA-SMB 抑制反转 (Emmons 2024)
+
 ---
 
 ## 当前系统状态
 
 ```
 架构: 8 层 (环境/躯体/感知/神经元/连接组/神经调质/运动/行为)
-神经元: 222 个 MVP 子集 (302 全集待扩展)
+神经元: 226 个 MVP 子集 (302 全集待扩展)
   感觉: 63 (ASE/AWC/AWA/ASH/ALM/PLM/NSM/ADE/PDE/AFD/ADF/ASJ/ASK/ASI/ADL/FLP/PHB/PHA/URX/BAG/PVD L/R + CEP 4×(DL/DR/VL/VR) + OLQ 4× + IL1 4× + IL2 4× + AVM + AQR + PQR)
-  中间: 55 (AIA/AIB/AIY/AIZ/RIA/RIB/RIM/RIC/AVA/AVB/AVD/AVE/PVC/AVF/AUA/AVK/AVJ/AVH/PVP/AIN/LUA/I1/RIP L/R + RIS + RIH + RMG L/R + DVA + DVC + PVT + PVR + RIG)
+  中间: 59 (AIA/AIB/AIY/AIZ/RIA/RIB/RIM/RIC/AVA/AVB/AVD/AVE/PVC/AVF/AUA/AVK/AVJ/AVH/PVP/AIN/LUA/I1/RIP L/R + SAA 4× + RIS + RIH + RMG L/R + DVA + DVC + PVT + PVR + RIG)
   运动: 104 (SMD 4 + RMD 4 + SIA 4 + SIB 4 + SMB 4 + RIV 2 + RMED/RMEV 2 + AS01-11(11) + DA01-09(9) + DB01-07(7) + VA01-12(12) + VB01-11(11) + DD01-06(6) + VD01-13(13) + MC 2 + M3 2 + M4 + HSN 2 + VC4/VC5 + AVL + DVB)
-突触: 541 化学 + 189 间隙连接 (全部带 Tsodyks-Markram STP, 支持分数 sections)
+突触: 557 化学 + 193 间隙连接 (全部带 Tsodyks-Markram STP, 支持分数 sections)
   Step 42: Cook 2019 校准 (+8 RIA↔RIV, -2 AVE→RIV) + RIV↔RIV gap
   Step 84-91: VNC MN 完整互连 (交叉抑制/本体感觉波/后退波 全部完成)
 神经调质: 7 种 (5-HT, DA, OA, TA, NLP-12, PDF, FLP-11) — volume transmission + 饱食度(泵驱动)
@@ -745,7 +753,7 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
   FLP-11 源: RIS (睡眠) — DMSR-1→AVA/AVB(-20)/MC(-18)/head_MN(-28)/body_MN(-42, 胆碱能only)/SPEED(-0.95) + FRPR-8→RIS(-8, 自抑制)
 离子通道: 14 种 (EGL-19/UNC-2/CCA-1/SHL-1/KQT-3/SLO-1/NCA/MEC + EGL-36/IRK/TWK/SLO-2/OSM-9/EXP-2)
 神经元模型: 单隔室 HH 分级电位 (L2) + 多隔室 (RIA) + 钙动力学
-身体: 2D 弹性杆 48 段, 83 个运动神经元-肌肉映射, 体节间曲率扩散(弹性耦合)
+身体: 2D 弹性杆 48 段, 87 个运动神经元-肌肉映射, 体节间曲率扩散(弹性耦合)
 环境: 50×50 mm, 4化学场(food_odor+soluble+repellent+pheromone) + 线性温度梯度 (0.5°C/mm) + O₂场(food派生) + 光场(高斯σ=8mm)
 内部状态: satiety_(泵驱动), sickness_(有毒食物), food_memory_(双通路ARS), fatigue_(睡眠驱动)
 学习: 盐学习(ASER w_mod) + 病原体学习(AWC翻转+WV反向+厌食) + 温度学习(Tc适应+AWC饥饿中断) + STP习惯化 + 睡眠巩固(Step 62) + INS-1厌食(Step 63)

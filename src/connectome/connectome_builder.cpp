@@ -339,6 +339,18 @@ void build_neurons(CB& b) {
     // REF: de Bono 2002 Nature, Macosko 2009 Nature, Filipowicz 2022 BMC Biology
     b.neuron("RMGL", NT::INTER, NTT::GLUTAMATE);
     b.neuron("RMGR", NT::INTER, NTT::GLUTAMATE);
+    // Step 103: SAA — sublateral interneurons with motor-like properties (4 quadrant)
+    // Classified as interneuron (White 1986) but makes NMJs like sublateral motor neurons
+    // Expresses stretch receptor genes → nose proprioceptive function
+    // "RIV, SAA, and SMB are part of a turn circuit that inhibits reversals" (Emmons 2024)
+    // "SAA neurons are a major source of input to AVA" — unique among sublateral MNs
+    // Community 3 (chemosensation/navigation): alongside AIA/AIB/AIY/AIZ/RIM
+    // Cholinergic; ALN/PLN contribute 20% of chemical input
+    // REF: White 1986, Cook 2019, Emmons 2024 PLOS Biology (PMC10983851)
+    b.neuron("SAADL", NT::INTER, NTT::ACETYLCHOLINE);
+    b.neuron("SAADR", NT::INTER, NTT::ACETYLCHOLINE);
+    b.neuron("SAAVL", NT::INTER, NTT::ACETYLCHOLINE);
+    b.neuron("SAAVR", NT::INTER, NTT::ACETYLCHOLINE);
     // Step 73: RIH — hub interneuron for nose touch coincidence detection
     // Single unpaired neuron in nerve ring
     // Hub of hub-and-spoke gap junction network: FLP, OLQ, CEP, ADF all connect
@@ -783,6 +795,27 @@ void build_touch_nociception(CB& b) {
     // SIB→RMD: head muscle modulation (weaker than SIA→RMD)
     b.syn("SIBDL", "RMDDL", 1); b.syn("SIBVL", "RMDVL", 1);
     b.syn("SIBDR", "RMDDR", 1); b.syn("SIBVR", "RMDVR", 1);
+
+    // Step 103: SAA circuit connections (Emmons 2024, Cook 2019)
+    // AIB→SAA: turn decision input (AIB pirouette circuit → SAA sublateral)
+    // Community 3 internal: AIB evaluates chemosensory, SAA executes head turn
+    b.syn("AIBL", "SAADL", 2); b.syn("AIBL", "SAAVL", 2);
+    b.syn("AIBR", "SAADR", 2); b.syn("AIBR", "SAAVR", 2);
+    // RIB→SAA: sublateral locomotion input (major sublateral pathway)
+    b.syn("RIBL", "SAADL", 2); b.syn("RIBL", "SAAVL", 2);
+    b.syn("RIBR", "SAADR", 2); b.syn("RIBR", "SAAVR", 2);
+    // SAA→AVA: backward command input — UNIQUE among sublateral motor neurons
+    // "SAA neurons are a major source of input to AVA" (Emmons 2024)
+    // This creates turn→reversal pathway: AIB→SAA→AVA
+    b.syn("SAADL", "AVAL", 2); b.syn("SAAVL", "AVAL", 2);
+    b.syn("SAADR", "AVAR", 2); b.syn("SAAVR", "AVAR", 2);
+    // SAA→RMD: head positioning (ipsilateral quadrant, like SIA→RMD)
+    b.syn("SAADL", "RMDDL", 1); b.syn("SAAVL", "RMDVL", 1);
+    b.syn("SAADR", "RMDDR", 1); b.syn("SAAVR", "RMDVR", 1);
+    // SAA↔SMB: gap junctions — turn circuit coordination
+    // "RIV, SAA, and SMB are part of a turn circuit that inhibits reversals" (Emmons 2024)
+    b.gj("SAADL", "SMBDL", 1); b.gj("SAADR", "SMBDR", 1);
+    b.gj("SAAVL", "SMBVL", 1); b.gj("SAAVR", "SMBVR", 1);
 
     // Step 75: RMG → command interneurons — drives backward locomotion
     // Filipowicz 2022: "AUA and RMG synapse onto motor command interneurons
