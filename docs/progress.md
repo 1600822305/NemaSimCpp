@@ -731,6 +731,14 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **独特 SAA→AVA**: “SAA is a major source of input to AVA” — 化学感觉→转弯→后退通路
 - **转弯回路**: RIV-SAA-SMB 抑制反转 (Emmons 2024)
 
+### Step 104: 修复 food_memory 病态衰减过快 🐛 (2026-02-13)
+> 详细文档: [steps/step104_food_memory_decay_fix.md](steps/step104_food_memory_decay_fix.md)
+
+- **Bug**: sickness>0.3 时 ARS decay tau 5s→food_memory 在 300s 内到 1e-24
+- **修复**: decay tau 5000ms→60000ms (60s)，~2min 内 ARS 被合理抑制
+- **依据**: Hills 2004 ARS 转换需 5-15min; Zhang 2005 学习厌恶需分钟级
+- **附加**: bottleneck curvature 阈值 0.1→0.04; cli_nseeds 默认 4→1
+
 ---
 
 ## 当前系统状态

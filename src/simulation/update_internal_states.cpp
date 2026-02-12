@@ -129,8 +129,12 @@ void SimulationEngine::update_food_memory() {
     double on_food = food_conc / (food_conc + 0.1);
 
     double effective_decay_tau = food_memory_tau_decay_;
+    // Step 104: sickness → suppress ARS (don't linger near toxic food)
+    // Was 5000ms (5s) — too aggressive, food_memory dropped to 1e-24 in 300s
+    // 60s gives ~2 time constants in 2min: fmem → ~13% of peak, then near-zero by 5min
+    // REF: Zhang 2005 Nature — learned aversion develops over minutes, not seconds
     if (sickness_ > 0.3) {
-        effective_decay_tau = 5000.0;
+        effective_decay_tau = 60000.0;
     }
 
     if (on_food > food_memory_ && sickness_ < 0.3) {
