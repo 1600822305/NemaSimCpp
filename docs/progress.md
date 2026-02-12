@@ -108,39 +108,16 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **RIM 稳定**: RIM↔AVA gj 阻止自发 reversal, 迟滞 0.65/0.35
 - 结果: CI=0.564, reversals 115→8/min, 神经元 62→64
 
-### Step 20: 神经调质层 (Layer 6) — 行为状态切换 ✅ (2026-02-10)
-> 详细文档: [steps/step20_neuromodulation.md](steps/step20_neuromodulation.md)
+### Group 01: 神经调质与突触可塑性 (Step 20-22) ✅ (2026-02-10)
+> 中文档: [groups/group01_neuromodulation_plasticity.md](groups/group01_neuromodulation_plasticity.md) | 子文档: [step20](steps/step20_neuromodulation.md) / [step21](steps/step21_synaptic_plasticity.md)
 
-- **框架**: NeuromodulationManager — 源→浓度(τ_rise/τ_decay)→受体效应(EXCITABILITY/SPEED_SCALE/REVERSAL_RATE)
-- **4 种调质**: 5-HT(NSM→dwelling) + DA(CEP→basal slowing) + OA(RIC→roaming) + food_memory(DARPP-32→ARS)
-- **觅食循环**: roam→dwell(5-HT)→satiety↑→leave→hungry→roam, 神经元 64→72
-- **300s结果**: time_near_food=51.6%, CI=0.520
-- **REF**: Flavell 2013, Sawin 2000, Alkema 2005, Hills 2004
+| Step | 核心内容 | 关键指标 |
+|------|---------|---------|
+| **20** | NeuromodulationManager + 4调质(5-HT/DA/OA/food_memory) + 觅食循环涌现 | 神经元 64→**72**, CI=0.520 |
+| **21** | Tsodyks-Markram STP(STD/STF) + 盐学习 + Omega偏置 + Klinokinesis | 10-seed CI=0.43, good=8/10 |
+| **22** | OpenCL GPU 后端, >500突触自动启用 (AMD RX 6950 XT) | CPU/GPU 自动切换 |
 
-### Step 21: 突触可塑性 (Layer 5) — STD/STF + 盐学习 ✅ (2026-02-10)
-> 详细文档: [steps/step21_synaptic_plasticity.md](steps/step21_synaptic_plasticity.md)
-
-为所有 ~110 个化学突触添加 Tsodyks-Markram 短时可塑性:
-- **STD (囊泡耗竭)**: n(t) ∈ [0,1], dn/dt = (1-n)/τ - α_d·S·n
-- **STF (释放概率易化)**: p(t), dp/dt = (p0-p)/τ_f + α_f·S·(1-p)
-- **分回路 τ**: CPG快(400ms/0.0003), 触觉慢(4000ms/0.0005), 感觉中(1500ms/0.0003)
-- **⚠️ 分级突触适配**: α_d 比脉冲突触小 ~1000× (S 始终>0)
-- **盐学习 (Step 21c)**: satiety→ASER突触权重调制, Δw∝(sat-0.5)×S_pre×S_post
-- **Omega偏置 (Step 21b)**: reversal后70%概率偏向梯度方向 (Pierce-Shimomura 1999)
-- **Gradient klinokinesis (Step 21d)**: 无梯度→+1pA AVA (θ=0.002, >15mm才生效)
-- **OpenMP**: 10种子并行鲁棒性测试 (16线程)
-- **10种子结果**: AVG CI=0.43, near=40.5%, rev=0.12/s, **good=8/10**
-- **REF**: Liu 2009, Tsodyks 1997, Rankin 1990, Tomioka 2006, Pierce-Shimomura 1999, Calhoun 2014
-
-### Step 22: GPU 计算后端 (OpenCL) ✅ (2026-02-10)
-
-为未来 302 神经元扩展准备 GPU 加速基础设施:
-- **OpenCL SDK**: vcpkg 安装, AMD RX 6950 XT (gfx1030, 40 CUs, 16GB) 检测成功
-- **ComputeBackend 抽象**: CPU 参考实现 + OpenCL GPU 实现
-- **GPU kernel**: 突触电流 + Tsodyks-Markram STP 动力学 (原子浮点加)
-- **自动阈值**: >500 突触启用 GPU, 当前 ~110 用 CPU (内核启动开销 > 计算)
-- **SimulationEngine 集成**: GPU/CPU 路径自动切换, gap junction 仍 CPU
-- **文件**: `src/compute/` (compute_backend.h, cpu_backend.h, opencl_backend.h/.cpp, kernels.cl)
+- **本组关键**: Layer 5-6 建立 — 觅食循环(roam↔dwell) + 突触状态(n/p/w_mod) + ARS局部搜索 + GPU基础设施
 
 ### Step 23: 温度趋性 (Thermotaxis) ✅ (2026-02-10)
 > 详细文档: [steps/step23_thermotaxis.md](steps/step23_thermotaxis.md)
