@@ -42,48 +42,18 @@
 
 ## Phase 1: 基础骨架 (MVP)
 
-### Step 1: C++ 工程骨架 + CMake 构建系统 ✅ (2026-02-10)
-> 详细文档: [steps/step01_project_skeleton.md](steps/step01_project_skeleton.md)
+### Step 1-2: C++ 工程骨架 + 核心类型 ✅ (2026-02-10)
+> 详细文档: [steps/step01_project_skeleton.md](steps/step01_project_skeleton.md) / [step02_core_types.md](steps/step02_core_types.md)
 
-项目目录结构 + CMakeLists.txt (7 个静态库 + 1 个可执行文件)。
-MSVC 19.44 / CMake 4.2 / Visual Studio 17 2022。编译零错误。
+CMakeLists.txt (7 静态库 + 1 exe), MSVC 19.44 / C++20。
+Vector2d + NeuronInfo/SynapseInfo 数据结构 + Config (INI) + Logger。
 
-### Step 2: 核心类型与基础设施 ✅ (2026-02-10)
-> 详细文档: [steps/step02_core_types.md](steps/step02_core_types.md)
+### Step 3-5: 离子通道 + HH 神经元 + 突触模型 ✅ (2026-02-10)
+> 详细文档: [steps/step03_ion_channels.md](steps/step03_ion_channels.md) / [step04_neuron_model.md](steps/step04_neuron_model.md) / [step05_synapses.md](steps/step05_synapses.md)
 
-Vector2d (向量运算全套) + NeuronInfo/SynapseInfo/GapJunctionInfo 数据结构 +
-NeuronType/NeurotransmitterType/SensoryModality 枚举 + Config (INI解析) + Logger (带时间戳多级日志)。
-
-### Step 3: 离子通道库 (7 种) ✅ (2026-02-10)
-> 详细文档: [steps/step03_ion_channels.md](steps/step03_ion_channels.md)
-
-基于 Nicoletti et al. 2019 实现 7 种 C. elegans 离子通道:
-- **EGL-19** (L-type Ca²⁺): m²h 门控, τ_m=2.5ms, τ_h=50ms
-- **UNC-2** (N/P/Q-type Ca²⁺): 突触传递相关钙流入
-- **CCA-1** (T-type Ca²⁺): 低阈值, RMD 振荡关键
-- **SHL-1** (Shaker K⁺): A-type 快失活, m³h 门控
-- **KQT-3** (KCNQ K⁺): M 电流, 电压依赖 τ_m
-- **SLO-1** (BK K⁺): Ca²⁺ 激活, [Ca] 依赖电压位移
-- **NCA** (NALCN Na⁺): 漏钠通道, 维持兴奋性
-
-所有通道使用 Boltzmann 稳态 + 指数松弛。IonChannel 基类支持 `step(V, Ca, dt)` + `get_current(V)`。
-
-### Step 4: 单隔室 HH 神经元模型 ✅ (2026-02-10)
-> 详细文档: [steps/step04_neuron_model.md](steps/step04_neuron_model.md)
-
-Neuron 虚基类 (step/get_membrane_potential/get_transmitter_release_rate 接口) +
-SingleCompartmentNeuron (C_m·dV/dt = -(I_leak + ΣI_ion) + I_syn + I_ext)。
-分级递质释放: sigmoid(V, threshold=-35mV, slope=5mV)。
-CalciumDynamics 模块: dCa/dt = -α·I_Ca - (Ca-Ca_baseline)/τ。
-NeuronFactory: 按 NeuronType (感觉/中间/运动) 配置不同通道组合和参数。
-
-### Step 5: 突触模型 ✅ (2026-02-10)
-> 详细文档: [steps/step05_synapses.md](steps/step05_synapses.md)
-
-**分级化学突触** (ChemicalSynapse): g_max·S(V_pre)·(V_post - E_syn)。
-S(V) = sigmoid, E_syn 由神经递质类型决定 (ACh/Glu: -10mV, GABA: -70mV)。
-**间隙连接** (GapJunction): I = g·(V_a - V_b), 双向欧姆耦合。
-权重 = EM 切面数 × 缩放系数 (synapse: 0.1 nS/section, gap: 0.05 nS/section)。
+- **7 种离子通道** (Nicoletti 2019): EGL-19/UNC-2/CCA-1/SHL-1/KQT-3/SLO-1/NCA, Boltzmann 门控
+- **单隔室 HH**: C_m·dV/dt = -(I_leak + ΣI_ion) + I_syn + I_ext, 分级递质释放 sigmoid
+- **突触**: 分级化学突触 g_max·S(V_pre)·(V-E_syn) + 间隙连接 I=g·(V_a-V_b), EM 切面数权重
 
 ### Step 6: 连接组数据系统 ✅ (2026-02-10)
 > 详细文档: [steps/step06_connectome.md](steps/step06_connectome.md)
@@ -98,151 +68,54 @@ ConnectomeLoader: CSV 解析器 (neurons/synapses/gap_junctions) + 默认连接�
 
 Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间隙连接全调度)。
 
-### Step 7: 2D 弹性杆身体模型 ✅ (2026-02-10)
+### Step 7-8: 2D 弹性杆身体 + 运动控制器 ✅ (2026-02-10)
 > 详细文档: [steps/step07_11_body_motor_sim.md](steps/step07_11_body_motor_sim.md)
 
-48 段弹性杆, 体长 1mm, 体半径 40μm。
-肌肉激活 → 目标曲率 (差异激活: dorsal - ventral) → 弹性弹簧驱动。
-各向异性阻力 (法向阻力 10× 切向, 低雷诺数)。
-正弦波推进: 波能量 → 前进速度 (简化阻力力理论)。
+- **身体**: 48 段弹性杆 (1mm), 各向异性阻力 (法向 10× 切向), 波能量→速度
+- **运动映射**: 22 MN→肌肉段: B类(前进) + A类(后退) + D类(交叉抑制) + SMD(头部)
 
-### Step 8: 运动控制器 ✅ (2026-02-10)
+### Step 9-11: 环境 + 仿真引擎 + 首次运行 ✅ (2026-02-10)
 
-22 个运动神经元→肌肉段映射:
-- B 类 (DB/VB 1-3): 前进驱动, 覆盖体段 4-30 背/腹侧
-- A 类 (DA/VA 1-3): 后退驱动
-- D 类 (DD/VD 1-3): 背腹交叉抑制
-- SMD (DL/DR/VL/VR): 头部运动, 覆盖体段 0-4
+- **环境**: 50×50mm 竞技场, 高斯点源 + 有限差分扩散, 双线性插值
+- **引擎**: 8 步主循环 (环境→感知→突触→神经元→运动→身体→记录), dt=0.5ms
+- **验证**: 58 神经元, 54 突触, 6 gj, 膜电位收敛静息态, 数值稳定
 
-### Step 9: 环境与化学梯度场 ✅ (2026-02-10)
+### Step 12-13: 运动驱动 + 生物学机制替换 ✅ (2026-02-10)
+> 详细文档: [steps/step12_locomotion_drive.md](steps/step12_locomotion_drive.md) / [step13_tech_debt_clearing.md](steps/step13_tech_debt_clearing.md)
 
-50×50 mm 竞技场, 100×100 网格。
-ChemicalField: 高斯点源 + 显式有限差分扩散 (D=0.001 mm²/s)。
-双线性插值采样。稳定性检查 (rx+ry < 0.5)。
+- 占位符(tonic/正弦/直注)→生物学机制: 感觉基线 + CCA-1 振荡 + MEC 本体感觉 + 肌肉功率
+- 速度 0.05-0.24 mm/s, 头部背腹交替 ~2Hz, 全部神经回路涌现驱动
 
-### Step 10: 仿真引擎 + 入口程序 ✅ (2026-02-10)
+### Step 14-15: 化学感觉 + 双趋化策略 ✅ (2026-02-10)
+> 详细文档: [steps/step14_sensory_chemotaxis.md](steps/step14_sensory_chemotaxis.md) / [step15_speed_weathervane.md](steps/step15_speed_weathervane.md)
 
-SimulationEngine 8 步主循环:
-环境更新 → 感知采样(占位) → 突触电流计算 → 神经元更新 → 运动输出 → 身体物理 → 行为记录。
-main.cpp: 5 秒仿真, trajectory.csv 输出 (位置/角度/速度 + 12 个关键神经元膜电位), 每 500ms 控制台报告。
+- **Klinokinesis**: Weber-Fechner 双滤波 ON/OFF + pirouette 概率模型 (Pierce-Shimomura 1999)
+- **Weathervane**: ∇C_⊥ → SMD 差异驱动 (Iino 2009), 连接组修复 AIA⊣AIB
+- **结果**: CI 0.21→**0.31**, 速度 0.09-0.16 mm/s
 
-### Step 11: 首次编译运行验证 ✅ (2026-02-10)
-> 详细文档: [steps/step07_11_body_motor_sim.md](steps/step07_11_body_motor_sim.md)
+### Step 16-17: 实时可视化 + 信号链诊断 ✅ (2026-02-10)
+> 详细文档: [steps/step16_realtime_visualization.md](steps/step16_realtime_visualization.md) / [step17_tuning_diagnosis.md](steps/step17_tuning_diagnosis.md)
 
-MSVC Release 编译零错误 (2 个无关紧要的 Unicode 警告)。
-5 秒仿真 (10000 步, dt=0.5ms) 成功完成:
-- 58 个神经元, 54 个化学突触, 6 个间隙连接
-- 所有神经元膜电位收敛到合理静息态 (AVAL=-51.7mV, AVBL=-52.8mV)
-- 数值稳定, 无发散/NaN
-- **线虫尚未运动** — 预期行为: 无外部输入时网络达静息平衡, 运动神经元背腹对称输出
+- **可视化**: Dear ImGui + ImPlot + GLFW, 4面板布局, 实时调参 + 信号链诊断
+- **诊断工具**: celegans_diag.exe (9级信号链 + 瓶颈分析)
+- 发现 weathervane ±0.5pA 被 SMD 99mV 淹没 → 曲率偏置修复 → CI **0.31→0.76**
 
-### Step 12: 运动驱动 — 线虫蠕动前进 ✅ (2026-02-10)
-> 详细文档: [steps/step12_locomotion_drive.md](steps/step12_locomotion_drive.md)
+### Step 18-19: 触觉回避 + 神经通路修复 ✅ (2026-02-10)
+> 详细文档: [steps/step18_touch_avoidance.md](steps/step18_touch_avoidance.md) / [step19_neural_pathway_fix.md](steps/step19_neural_pathway_fix.md)
 
-AVB tonic 驱动 (20pA) + 头部 SMD 正弦振荡 (0.8Hz, 15pA) + 本体感觉反馈 (曲率→B类运动神经元, 40pA/曲率)。
-线虫首次自主前进: 速度 0.01-0.06 mm/s (0.8Hz 周期振荡), 5秒前进 0.2mm。
-AVB 从 -52.8mV 去极化至 **-36.9mV** (释放率 ~70%), 头部驱动→运动波传播→前进推进闭环打通。
-
-### Step 13: 技术债务清理 — 生物学机制替换占位符 ✅ (2026-02-10)
-> 详细文档: [steps/step13_tech_debt_clearing.md](steps/step13_tech_debt_clearing.md)
-
-移除 Step 12 的 3 个硬编码占位符(tonic/正弦/直注)，替换为生物学合理机制:
-- **TD-01**: AVB tonic 20pA → 感觉基线 15pA + AIY/RIB→AVB 突触通路
-- **TD-02**: SMD 正弦注入 → CCA-1 T-type Ca²⁺ 通道 + 背腹交叉抑制 + Ca²⁺→SLO-1 适应振荡
-- **TD-03**: 本体感觉直注 → MEC 膜通道(stretch-activated cation channel)
-- **TD-04**: 简化速度公式 → 肌肉功率模型(做功 × 波形效率 × 时间活动)
-
-额外修复: set_muscle_activation 覆盖 bug、DD/VD 抑制逻辑、曲率时间步、离子通道噪声。
-神经元兴奋性调优: NCA 电导增大(0.03→0.10~0.15)、突触权重缩放(0.1→0.3)。
-**结果**: 速度 0.05-0.24 mm/s, 头部背腹交替振荡 ~2Hz, 全部由神经回路涌现驱动。
-
-### Step 14: 感觉转导层 — 趋化性涌现 ✅ (2026-02-10)
-> 详细文档: [steps/step14_sensory_chemotaxis.md](steps/step14_sensory_chemotaxis.md)
-
-基于 Pierce-Shimomura 1999 / Padmanabhan 2012 / Chalasani 2007 实现化学感觉转导 + 趋化性涌现:
-- **化学感觉转导**: Weber-Fechner 双滤波器 (fast 500ms / slow 5s), ON/OFF 分类 (ASEL/AWA vs ASER/AWC)
-- **运动学**: dθ/dt = v × κ_head (clamp 50°/s) + pirouette 概率模型 (rate = 0.05Hz × exp(8×AVA_dev))
-- **连接组修复**: AIA ⊣ AIB 改为抑制性 (Chalasani 2007), 新增 AIY→AVB (Gray 2005)
-- **结果**: 趋化指数 CI = **+0.213**, 距食物 14.1→11.1mm (60s), 速度 0.06-0.09 mm/s
-
-### Step 15: 速度调优 + Weathervane 趋化策略 ✅ (2026-02-10)
-> 详细文档: [steps/step15_speed_weathervane.md](steps/step15_speed_weathervane.md)
-
-基于 Iino & Yoshida 2009 实现第二种趋化策略 Weathervane，与 pirouette 并行工作:
-- **Weathervane**: ∇C_⊥ → SMD 差异驱动 (gain=50pA), run 期间渐进弯曲朝向高浓度
-- **速度调优**: v_max 0.4→0.6, 实际速度 0.09-0.16 mm/s (文献 ~0.15)
-- **梯度计算**: ChemicalField.gradient() 中心差分 (eps=0.05mm)
-- **结果**: CI **+0.213→+0.312** (+46%), 距食物 14.1→**9.7mm** (60s)
-
-### Step 16: 实时可视化仪表盘 ✅ (2026-02-10)
-> 详细文档: [steps/step16_realtime_visualization.md](steps/step16_realtime_visualization.md)
-
-Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
-- **依赖管理**: vcpkg (C:\vcpkg) 自动安装 imgui/implot/glfw3
-- **4面板布局**: 轨迹图 + 神经元膜电位曲线 + 距离/CI指标 + 控制面板
-- **实时仿真**: 每帧 N 步 (可调 1-200), 暂停/继续/重置
-- **双目标**: celegans_sim.exe (headless) + celegans_vis.exe (GUI) 并行构建
-
-### Step 17: 实时调参 + 信号链诊断 + 转弯修复 ✅ (2026-02-10)
-> 详细文档: [steps/step17_tuning_diagnosis.md](steps/step17_tuning_diagnosis.md)
-
-利用 ImGui 实时调参工具定位并修复趋化转弯瓶颈:
-- **调参面板**: 5 个滑条 (梯度增益/突触倍率/速度倍率/感觉增益/偏置限幅)
-- **信号链诊断**: 7 级实时数值 (梯度→偏置→SMD差异→曲率→速度→转弯率→CI)
-- **新增波形**: ASEL/ASER 感觉 L/R 不对称 + heading 方向角曲线 + 幅度标注
-- **瓶颈发现**: weathervane ±0.5pA 偏置被 SMD 99mV 振荡完全淹没
-- **修复**: 直接曲率偏置 (curv_gain=45, 基于 Iino 2009 标定) 绕过神经网络瓶颈
-- **结果**: CI **+0.312→+0.760**, 距食物 14.1→**3.4mm** (60s), 速度 0.21mm/s
-- **诊断工具**: celegans_diag.exe (自动采集 9 级信号链 + 瓶颈分析)
-
-### Step 18: 触觉回避 — 第2个涌现行为 ✅ (2026-02-10)
-> 详细文档: [steps/step18_touch_avoidance.md](steps/step18_touch_avoidance.md)
-
-基于 Chalfie 1985 push-pull 架构实现触觉回避，与趋化性自然竞争/切换:
-- **连接组修复**: ALM→AVD gap junction, PLM→AVA 抑制性, ALM→AVB 抑制, AVD→AVA 中继
-- **壁碰撞检测**: 头部近壁→ALM 80pA→后退, 尾部近壁→PLM 80pA→加速
-- **Omega 转弯**: P(ω)=1-exp(-dur/1s), 500ms 深弯折, 300°/s max_dtheta
-- **行为状态**: 可视化显示 前进/后退/omega 指示器
-- **结果**: CI=0.736 (触觉回路未破坏趋化), 突触 72→82, gap 6→8
-
-### Step 19: 修复神经通路瓶颈 — 去掉直接曲率偏置旁路 ✅ (2026-02-10)
-> 详细文档: [steps/step19_neural_pathway_fix.md](steps/step19_neural_pathway_fix.md)
-
-移除直接曲率偏置旁路，实现双机制趋化 (klinokinesis + klinotaxis):
-- **Phase 1 (Klinokinesis)**: ASER→AIA 改抑制性 (eLife 2024 GLC-3), 修复 pirouette 方向
-- **Phase 2 (Klinotaxis)**: 添加 SMB 颈部运动神经元 + AIZ→SMB 通路
-  - RIA gate-and-switch: sensory_AC × head_curvature = 垂直梯度方向信号
-  - AC/DC 分离: 去除 DC 噪声，提取纯相位锁定振荡信号
-  - 乘法门控 (Ouellette 2018): <sin(ωt) × sin(ωt)> = DC ≠ 0
-- **头部摆动采样**: sweep_radius=1.5mm, fast_tau=100ms
-- **Phase 3 (RIM稳定)**: 添加 RIM 神经元 + RIM↔AVA gap junction (Ouellette 2022 eLife)
-  - RIM 超极化时 gap junction 传播超极化到 AVA → 阻止自发 reversal
-  - 降低 ASH→AVA 4→2 sections (痛觉不应持续驱动 reversal)
-  - Reversal 检测迟滞: 0.65 入/0.35 出 (行为惯性)
-- **结果**: CI=0.564, reversals 115→8/min, 神经元 62→64
+- **触觉**: Chalfie 1985 push-pull, ALM→AVD/PLM→AVA, omega 转弯, CI=0.74 (不破坏趋化)
+- **Klinotaxis**: SMB 颈部MN + RIA gate-and-switch 乘法门控 (Ouellette 2018)
+- **RIM 稳定**: RIM↔AVA gj 阻止自发 reversal, 迟滞 0.65/0.35
+- 结果: CI=0.564, reversals 115→8/min, 神经元 62→64
 
 ### Step 20: 神经调质层 (Layer 6) — 行为状态切换 ✅ (2026-02-10)
 > 详细文档: [steps/step20_neuromodulation.md](steps/step20_neuromodulation.md)
 
-实现“无线连接组”——神经调质体积传递 (volume transmission):
-- **5-HT (血清素)**: NSM 咽部神经元检测食物(TONIC) → MOD-1 抑制 AIY → 减少前进 → dwelling
-- **DA (多巴胺)**: CEP(4) 头部机械感觉检测细菌(TONIC) → DOP-3 → basal slowing
-- **框架**: NeuromodulationManager (neuromodulation.h/.cpp)
-  - 源神经元 release → 浓度累积 (tau_rise 2-3s) → 降解 (tau_decay 5-8s)
-  - 受体介导效应: EXCITABILITY(tonic电流), SPEED_SCALE, REVERSAL_RATE
-- **TONIC 感觉转导**: 新增 ChemoTransducer::TONIC 类型，响应绝对浓度
-- **结果**: 5-HT=0.84, DA=0.51, speed_scale=0.76 (-24%), CI=0.579, 神经元 64→70
-- **Step 20c (OA+饱食度)**: 完整 roaming↔dwelling 循环
-  - OA (章鱼胺): RIC(2) → SER-3(+30%速度) + SER-6(AIY+4pA) + 5-HT交叉抑制
-  - 饱食度: on-food累积(tau=20s), NSM抑制+RIC激励+ASE/AWC趋化抑制
-  - 循环: roam→dwell(5-HT峰)→satiety↑→leave food→hungry→roam
-  - 神经元 70→72 (RIC L/R)
-- **Step 20d (ARS 局部搜索)**: 防止觅食逃逸
-  - food_memory_ (DARPP-32磷酸化): tau_rise=5s, tau_decay=90s
-  - 效应: food_memory→AVA +2.5pA → 刚离开食物时高频reversal → 留在附近
-  - 局部搜索(90s)→全局搜索(food_memory衰减后长距离跑)
-  - **300s结果**: time_near_food=51.6%, CI=0.520, reversal=0.21/s
-- **REF**: Flavell 2013, Sawin 2000, Alkema 2005, You 2008, **Hills 2004**, Calhoun 2014
+- **框架**: NeuromodulationManager — 源→浓度(τ_rise/τ_decay)→受体效应(EXCITABILITY/SPEED_SCALE/REVERSAL_RATE)
+- **4 种调质**: 5-HT(NSM→dwelling) + DA(CEP→basal slowing) + OA(RIC→roaming) + food_memory(DARPP-32→ARS)
+- **觅食循环**: roam→dwell(5-HT)→satiety↑→leave→hungry→roam, 神经元 64→72
+- **300s结果**: time_near_food=51.6%, CI=0.520
+- **REF**: Flavell 2013, Sawin 2000, Alkema 2005, Hills 2004
 
 ### Step 21: 突触可塑性 (Layer 5) — STD/STF + 盐学习 ✅ (2026-02-10)
 > 详细文档: [steps/step21_synaptic_plasticity.md](steps/step21_synaptic_plasticity.md)
@@ -295,30 +168,11 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 - **结果**: CI≈0.4-0.5, satiety振荡0.4-0.55, FOOD↔TEMP切换正常
 - **REF**: Avery (WormBook 2012), Raizen & Avery 1994, Song & Avery 2012 eLife
 
-### Chemotaxis & Reversal 修复 (post-Step 24)
+### Post-24 修复: Pirouette 调制 + SMD 修复 + 回归测试工具
 
-- **pirouette系统**: dC/dt sigmoid 调制 pirouette rate (Pierce-Shimomura 1999)
-  - 饥饿时 dC/dt 调制, 饱食时 d|T-Tc|/dt 调制, satiety sigmoid 混合
-  - r_min=0.01/s, r_max=0.16/s, refractory=2s
-- **导航梯度 vs 食物密度分离**: σ²=144mm²(宽,导航) vs σ²=16mm²(窄,食物检测)
-- **omega atan2方向**: 用完整梯度角度替代仅垂直分量
-- **omega持续时间**: 与angle_to_target成正比 (300-2000ms, Gray 2005)
-- **curvature_bias保护**: omega期间跳过weathervane和SMB的set_curvature_bias
-- **结果**: CI=0.746, time_near_food=51.3%, reversal_rate=0.05/s
-
-### SMD 振荡器修复 (post-Step 24)
-
-- **根因**: omega转弯向SMD注入±200pA, C_m=1.8pF → dV/dt=111mV/ms, 破坏半中心振荡
-- **修复**: 移除omega SMD电流注入, 只保留curvature_bias=±8.0 bypass
-- **结果**: SMD振幅 222→115mV, curvature 0.57→0.19, CI 0.498→0.746
-
-### 回归测试工具 (celegans_regtest.exe)
-
-- **基线对比**: 30s仿真, 12个指标自动检测偏差
-- **电流溯源**: Connectome::trace_inputs() 分解I_syn到每个突触来源
-- **注入检测**: 区分连接组突触 vs 代码注入 (weathervane/omega/neuromod)
-- **自动跟踪**: 指标异常时自动触发电流预算分析
-- **文档**: docs/tools/regression_test.md
+- Pirouette dC/dt sigmoid + 梯度/食物密度分离 + omega 方向/持续时间修复 → CI=0.746
+- SMD 振荡器修复 (移除 ±200pA omega 注入) → SMD 振幅 222→115mV
+- **regtest 工具**: 30s 基线对比 + 电流溯源 + 注入检测
 
 ### Step 25: 化学回避 + ASH 伤害感觉 + 排斥 Weathervane
 
@@ -887,8 +741,13 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 工具: CLI 运行时参数覆盖 (--as_factor/--pulse_amp/--duration/--seed/--light 等, 无需重编译调参)
       --fitness 模式: 4 seeds × 3 scenarios 自动评估, 输出标量 fitness score
 可视化: Dear ImGui + ImPlot + GLFW, 3列布局, 实时调参+信号链诊断
-状态: 趋化+触觉回避+化学回避+排斥weathervane+病原体学习(CI反向!)+多化学物种+RIM稳定+神经调质+ARS(双通路:DARPP-32+NLP-12)+觅食循环+STP+盐学习+温度趋性+咽部泵食+睡眠/静止(RIS/FLP-11)+RIV omega(TA门控)+后退运动+RIA↔RIV负反馈环路+PDF roaming+food-edge反转(latch检测)+5-HT受体多样性(MOD-1/SER-4/SER-1/SER-5)+光回避(ASJ/LITE-1)+排便DMP(AVL/DVB 45s)+DA闭环(DOP-1/DOP-2/DOP-3, ESR)+tap习惯化(STP涌现)+腹索整合中枢(Emmons 2024)+睡眠巩固记忆(Chouhan 2023)+INS-1胰岛素厌食(Lin 2010)+信息素回避(ADL/ascr#3)+SMD振幅校准(Nicoletti 2019)+curvature_bias旁路移除(P0修复), 纯涌现 (162神经元)
-行为指标: CI≈0.24 (300s, 8-seed mean, 纯SMD涌现), near_food≈43%, reversal_rate≈0.13/s, speed≈0.20mm/s
+P0/P1 违规全部修复:
+  P0-1.1: Pirouette Poisson 移除 → reversal 从 AVA 涌现 (Step 66)
+  P0-1.2: curvature_bias 旁路移除 → weathervane 从 SMD 涌现 (Step 65)
+  P1-1.3: food edge 概率公式移除 → 从 AVA-AVB 平衡涌现 (Step 70)
+  P1-1.4: basal_slow 直接乘法移除 → DA→DOP-3→B-class MN 涌现 (Step 68)
+  P1-1.5: set_locomotion_state 覆盖移除 → 完全神经回路驱动 (Step 66)
+行为指标 (4-seed, 300s): CI≈0.14, near_food≈21%, reversal_rate≈0.18/s, speed≈0.20mm/s
 工具: celegans_diag.exe (信号链诊断+fitness) + celegans_regtest.exe (回归检测+电流溯源)
 
 运动驱动 (Step 13 — 生物学机制):
@@ -922,13 +781,11 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
   化学感觉: Weber-Fechner 双滤波器, ON/OFF 分类, 8 个化学感觉神经元
   运动学: dθ/dt = v × κ_head, pirouette 概率模型 (AVA 调制)
   Weathervane: ∇C_⊥ → SMD 占空比调制 (Step 65: curvature_bias旁路已移除, 纯神经回路涌现)
-  SMD校准: CCA-1 1.8nS + SLO-1 2.5nS + leak 1.2/-65 → 49mV振荡 (Nicoletti 2019 RMD: 23-50mV)
-  趋化指数: CI ≈ 0.24 (8-seed mean, 纯SMD涌现, Iino 2009 WV-only ≈ 0.3-0.4)
-  time_near_food ≈ 43% (8-seed mean, 文献60-80%)
-  Pirouette: off-food 0.10/s (6/min), on-food ~0.06/s (5-HT REVERSAL_RATE -0.50 suppression)
-  Food-edge: head poke reversal p=0.50+0.30×5HT-0.30×PDF (eLife 2024)
-  Basal slowing: on_lawn sigmoid × 0.25 → 25% on-food 速度下降 (instant, DOP-3 volume transmission)
-  速度: 0.15-0.16 mm/s (speed_scale=2.0 × basal_slow, 文献值 ~0.15-0.2 mm/s)
+  SMD校准: CCA-1 1.8nS + SLO-1 2.5nS + leak 1.2/-65 → 49mV振荡 (Nicoletti 2019)
+  Reversal: 完全从 AVA 神经回路涌现 (Step 66: Schmitt 0.35/0.15 + 离子通道噪声)
+  Food-edge: always-inject AVA 40pA/500ms, 反转概率从 AVA-AVB 平衡涌现 (Step 70)
+  Basal slowing: DA→DOP-3(-3pA)→14 B-class MN 涌现减速 (Step 68, 移除直接乘法)
+  速度: ~0.20 mm/s (文献值 ~0.15-0.2 mm/s)
 
 文件结构:
   src/core/         — 4 文件 (types/config/logger .h/.cpp)
