@@ -975,6 +975,15 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **REF**: Hills 2004 J Neurosci, López-Cruz 2019 Neuron, Margolis 2023 eLife
 - **regtest**: 20/20 PASS
 
+### Step 99: 多种子并行运行能力 ✅ (2026-02-13)
+> 详细文档: [steps/step99_parallel_multiseed.md](steps/step99_parallel_multiseed.md)
+
+- **`--seeds N -j M`**: N 个种子 M 线程并行，自动聚合 mean±std
+- **两种模式**: `--fitness --seeds N` (3 scenarios/seed) 或 `--seeds N` (单 scenario 聚合)
+- **性能**: 8 seeds/8 jobs/300s → 74.2s wall time (~8x 加速)
+- **默认并行上限**: min(8, hardware_concurrency)
+- **regtest**: 20/20 PASS
+
 ---
 
 ## 当前系统状态

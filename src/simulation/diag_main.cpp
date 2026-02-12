@@ -6,6 +6,11 @@
 #include <cmath>
 #include <vector>
 #include <numeric>
+#include <thread>
+#include <future>
+#include <mutex>
+#include <algorithm>
+#include <chrono>
 #ifdef _OPENMP
 #include <omp.h>
 #endif
@@ -147,6 +152,7 @@ int main(int argc, char* argv[]) {
     double cli_light_x = 25.0, cli_light_y = 25.0, cli_light_intensity = 1.0;
     bool cli_fitness = false;
     int cli_nseeds = 4;
+    int cli_jobs = std::min(8, (int)std::thread::hardware_concurrency());
     unsigned int cli_seed = 123;
     double cli_sleep_after_learn = 0.0;  // Step 62: forced sleep after learning (seconds)
     bool cli_pheromone = false;              // Step 64: enable pheromone source
@@ -172,6 +178,8 @@ int main(int argc, char* argv[]) {
         else if (arg == "--quiet" || arg == "-q") cli_quiet = true;
         else if (arg == "--fitness") cli_fitness = true;
         else if (arg == "--seeds" && i+1 < argc) cli_nseeds = std::atoi(argv[++i]);
+        else if (arg == "--jobs" && i+1 < argc) cli_jobs = std::atoi(argv[++i]);
+        else if (arg == "-j" && i+1 < argc) cli_jobs = std::atoi(argv[++i]);
         else if (arg == "--sleep-after-learning" && i+1 < argc) cli_sleep_after_learn = std::atof(argv[++i]);
         else if (arg == "--pheromone") cli_pheromone = true;
         else if (arg == "--food-removal" && i+1 < argc) cli_food_removal = std::atof(argv[++i]);
@@ -195,7 +203,8 @@ int main(int argc, char* argv[]) {
                       << "  --light_intensity <f>  Light intensity 0-1 (default: 1.0)\n"
                       << "  --quiet / -q          Only show key metrics\n"
                       << "  --fitness             Multi-seed fitness evaluation mode\n"
-                      << "  --seeds <n>           Number of seeds for fitness mode (default: 4)\n"
+                      << "  --seeds <n>           Number of seeds (default: 4, also works without --fitness)\n"
+                      << "  --jobs <n> / -j <n>   Parallel threads (default: " << std::thread::hardware_concurrency() << ")\n"
                       << "  --sleep-after-learning <sec>  Force sleep after toxin exposure (Step 62)\n"
                       << "  --pheromone           Enable pheromone source at (15,25) (Step 64)\n"
                       << "  --pheromone_x/y <f>   Pheromone source position\n"
@@ -214,19 +223,35 @@ int main(int argc, char* argv[]) {
         if (cli_riv_tonic > 0) p.riv_tonic = cli_riv_tonic;
         double dur_s = cli_duration / 1000.0;
 
-        std::vector<SimMetrics> res_notox, res_toxic, res_nofood;
+        std::vector<SimMetrics> res_notox(cli_nseeds), res_toxic(cli_nseeds), res_nofood(cli_nseeds);
         unsigned int base_seed = cli_seed;
+        int jobs = std::max(1, std::min(cli_jobs, cli_nseeds * 3));
 
         std::cerr << "FITNESS: " << cli_nseeds << " seeds x 3 scenarios, "
-                  << dur_s << "s each (pa=" << p.pulse_amp
+                  << dur_s << "s each, " << jobs << " parallel jobs (pa=" << p.pulse_amp
                   << " af=" << p.as_factor << ")" << std::endl;
 
-        for (int i = 0; i < cli_nseeds; ++i) {
+        // Step 99: parallel multi-seed execution
+        std::mutex mtx;
+        int done_count = 0;
+        auto run_seed = [&](int i) {
             unsigned int s = base_seed + i;
-            res_notox.push_back(run_eval(s, dur_s, true,  false, p));
-            res_toxic.push_back(run_eval(s, dur_s, false, false, p));
-            res_nofood.push_back(run_eval(s, dur_s, true,  true,  p));
-            std::cerr << "  seed " << s << " done" << std::endl;
+            auto r1 = run_eval(s, dur_s, true,  false, p);
+            auto r2 = run_eval(s, dur_s, false, false, p);
+            auto r3 = run_eval(s, dur_s, true,  true,  p);
+            std::lock_guard<std::mutex> lk(mtx);
+            res_notox[i] = r1; res_toxic[i] = r2; res_nofood[i] = r3;
+            std::cerr << "  seed " << s << " done (" << ++done_count << "/" << cli_nseeds << ")" << std::endl;
+        };
+
+        // Throttled parallel: launch in batches of 'jobs'
+        for (int batch_start = 0; batch_start < cli_nseeds; batch_start += jobs) {
+            int batch_end = std::min(batch_start + jobs, cli_nseeds);
+            std::vector<std::future<void>> futures;
+            for (int i = batch_start; i < batch_end; ++i) {
+                futures.push_back(std::async(std::launch::async, run_seed, i));
+            }
+            for (auto& f : futures) f.get();
         }
 
         // Compute averages
@@ -265,6 +290,93 @@ int main(int argc, char* argv[]) {
                   << " OR_NT=" << or_nt << " OR_NF=" << or_nf
                   << " SPD=" << sp_nt << " DV=" << dv_nt
                   << " NF=" << nf_nt << std::endl;
+        return 0;
+    }
+
+    // === MULTI-SEED AGGREGATE MODE (Step 99) ===
+    // --seeds N without --fitness: run N seeds in parallel, report aggregate stats
+    if (cli_nseeds > 1 && !cli_fitness) {
+        SimulationEngine::TuningParams p;
+        if (cli_as_factor > 0) p.as_factor = cli_as_factor;
+        if (cli_pulse_amp > 0) p.pulse_amp = cli_pulse_amp;
+        if (cli_omega_threshold > 0) p.omega_threshold = cli_omega_threshold;
+        if (cli_riv_tonic > 0) p.riv_tonic = cli_riv_tonic;
+        double dur_s = cli_duration / 1000.0;
+        int jobs = std::max(1, std::min(cli_jobs, cli_nseeds));
+        unsigned int base_seed = cli_seed;
+
+        std::cerr << "MULTI-SEED: " << cli_nseeds << " seeds, "
+                  << dur_s << "s each, " << jobs << " parallel jobs"
+                  << (cli_no_toxin ? " (no-toxin)" : "")
+                  << (cli_no_food ? " (no-food)" : "") << std::endl;
+
+        std::vector<SimMetrics> results(cli_nseeds);
+        std::mutex mtx;
+        int done_count = 0;
+
+        auto run_one = [&](int i) {
+            unsigned int s = base_seed + i;
+            auto r = run_eval(s, dur_s, cli_no_toxin, cli_no_food, p, cli_ablations);
+            std::lock_guard<std::mutex> lk(mtx);
+            results[i] = r;
+            std::cerr << "  seed " << s << " done (" << ++done_count << "/" << cli_nseeds << ")" << std::endl;
+        };
+
+        auto t_start = std::chrono::high_resolution_clock::now();
+        for (int batch_start = 0; batch_start < cli_nseeds; batch_start += jobs) {
+            int batch_end = std::min(batch_start + jobs, cli_nseeds);
+            std::vector<std::future<void>> futures;
+            for (int i = batch_start; i < batch_end; ++i) {
+                futures.push_back(std::async(std::launch::async, run_one, i));
+            }
+            for (auto& f : futures) f.get();
+        }
+        auto t_end = std::chrono::high_resolution_clock::now();
+        double elapsed = std::chrono::duration<double>(t_end - t_start).count();
+        std::cerr.flush();
+
+        // Compute mean and stddev
+        auto stat = [&](auto fn) -> std::pair<double,double> {
+            double sum = 0, sum2 = 0;
+            for (auto& m : results) { double v = fn(m); sum += v; sum2 += v*v; }
+            double mean = sum / results.size();
+            double var = sum2 / results.size() - mean * mean;
+            return {mean, std::sqrt(std::max(0.0, var))};
+        };
+
+        auto [ci_m, ci_s]   = stat([](auto& m){ return m.ci; });
+        auto [sp_m, sp_s]   = stat([](auto& m){ return m.speed; });
+        auto [or_m, or_s]   = stat([](auto& m){ return m.omega_ratio; });
+        auto [nf_m, nf_s]   = stat([](auto& m){ return m.near_food_pct; });
+        auto [rv_m, rv_s]   = stat([](auto& m){ return (double)m.reversals; });
+        auto [om_m, om_s]   = stat([](auto& m){ return (double)m.omegas; });
+        auto [dv_m, dv_s]   = stat([](auto& m){ return m.dv_ratio; });
+
+        std::cout << "\n========================================" << std::endl;
+        std::cout << "  MULTI-SEED RESULTS (" << cli_nseeds << " seeds, "
+                  << std::fixed << std::setprecision(1) << elapsed << "s wall time)" << std::endl;
+        std::cout << "========================================" << std::endl;
+        std::cout << std::fixed << std::setprecision(3);
+        std::cout << "  CI:           " << ci_m << " ± " << ci_s << std::endl;
+        std::cout << "  Speed:        " << sp_m << " ± " << sp_s << " mm/s" << std::endl;
+        std::cout << "  Reversals:    " << std::setprecision(1) << rv_m << " ± " << rv_s << std::endl;
+        std::cout << "  Omegas:       " << om_m << " ± " << om_s << std::endl;
+        std::cout << "  Omega/Rev:    " << std::setprecision(3) << or_m << " ± " << or_s << std::endl;
+        std::cout << "  Near food:    " << std::setprecision(1) << nf_m << " ± " << nf_s << "%" << std::endl;
+        std::cout << "  D/V ratio:    " << std::setprecision(2) << dv_m << " ± " << dv_s << std::endl;
+
+        // Per-seed detail
+        std::cout << "\n  Per-seed:" << std::endl;
+        std::cout << "  seed    CI     speed  rev  omega  near%" << std::endl;
+        for (int i = 0; i < cli_nseeds; ++i) {
+            auto& m = results[i];
+            std::cout << "  " << std::setw(4) << (base_seed + i)
+                      << "  " << std::setprecision(3) << std::setw(6) << m.ci
+                      << "  " << std::setprecision(3) << std::setw(5) << m.speed
+                      << "  " << std::setw(3) << m.reversals
+                      << "  " << std::setw(5) << m.omegas
+                      << "  " << std::setprecision(1) << std::setw(5) << m.near_food_pct << std::endl;
+        }
         return 0;
     }
 
