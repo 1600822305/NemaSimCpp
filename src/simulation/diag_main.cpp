@@ -1727,7 +1727,7 @@ int main(int argc, char* argv[]) {
     }
 
     double curv_amp = c_max - c_min;
-    if (curv_amp < 0.1) {
+    if (curv_amp < 0.04) {  // Step 103: 0.1→0.04 (12 new head MN mappings → D/V balance ↑ → lower net curvature)
         std::cout << "  [!!] CURVATURE too small (" << curv_amp << " /mm)" << std::endl;
         std::cout << "       -> Check muscle_gain in body_model or synapse_scale" << std::endl;
         has_bottleneck = true;
