@@ -35,17 +35,30 @@ void MotorController::initialize(const std::unordered_map<std::string, int>& nam
     add_mapping(name_to_id, "VB07", 35, 42, false);
 
     // A-class (reverse): dorsal DA, ventral VA
-    // Step 39: expanded to 5 units
-    add_mapping(name_to_id, "DA01", 4, 12, true);
-    add_mapping(name_to_id, "DA02", 12, 20, true);
-    add_mapping(name_to_id, "DA03", 20, 28, true);
-    add_mapping(name_to_id, "DA04", 28, 35, true);
-    add_mapping(name_to_id, "DA05", 35, 42, true);
-    add_mapping(name_to_id, "VA01", 4, 12, false);
-    add_mapping(name_to_id, "VA02", 12, 20, false);
-    add_mapping(name_to_id, "VA03", 20, 28, false);
-    add_mapping(name_to_id, "VA04", 28, 35, false);
-    add_mapping(name_to_id, "VA05", 35, 42, false);
+    // Step 84: expanded DA 5→9, VA 5→12 (Haspel 2011, Gao 2018 eLife)
+    // DA: 9 dorsal A-class, each ~4 segments
+    add_mapping(name_to_id, "DA01", 4, 8, true);
+    add_mapping(name_to_id, "DA02", 8, 12, true);
+    add_mapping(name_to_id, "DA03", 12, 16, true);
+    add_mapping(name_to_id, "DA04", 16, 20, true);
+    add_mapping(name_to_id, "DA05", 20, 25, true);
+    add_mapping(name_to_id, "DA06", 25, 29, true);
+    add_mapping(name_to_id, "DA07", 29, 33, true);
+    add_mapping(name_to_id, "DA08", 33, 38, true);
+    add_mapping(name_to_id, "DA09", 38, 42, true);
+    // VA: 12 ventral A-class, each ~3 segments
+    add_mapping(name_to_id, "VA01", 4, 7, false);
+    add_mapping(name_to_id, "VA02", 7, 10, false);
+    add_mapping(name_to_id, "VA03", 10, 13, false);
+    add_mapping(name_to_id, "VA04", 13, 16, false);
+    add_mapping(name_to_id, "VA05", 16, 19, false);
+    add_mapping(name_to_id, "VA06", 19, 22, false);
+    add_mapping(name_to_id, "VA07", 22, 25, false);
+    add_mapping(name_to_id, "VA08", 25, 29, false);
+    add_mapping(name_to_id, "VA09", 29, 32, false);
+    add_mapping(name_to_id, "VA10", 32, 35, false);
+    add_mapping(name_to_id, "VA11", 35, 39, false);
+    add_mapping(name_to_id, "VA12", 39, 42, false);
 
     // D-class (cross-inhibition): GABAergic, inhibit contralateral muscles
     // DD: receives dorsal input, inhibits VENTRAL muscles

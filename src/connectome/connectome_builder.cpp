@@ -406,12 +406,19 @@ void build_neurons(CB& b) {
     b.neuron("SMBVR", NT::MOTOR, NTT::ACETYLCHOLINE);
     // Ventral cord motor neurons (Step 39: expanded from 3→5-7 per class)
     // REF: White 1986, Haspel 2010 (body segment mapping)
-    // DA: dorsal A-class, backward locomotion (real: DA1-9, we use DA1-5)
+    // DA: dorsal A-class, backward locomotion (DA1-9, all 9)
+    // Step 84: expanded from 5→9 (Haspel 2011, Gao 2018 eLife)
+    // A-class motor neurons are intrinsic oscillators for backward movement
+    // AVA provides descending input via mixed gap junction + chemical synapse
     b.neuron("DA01", NT::MOTOR, NTT::ACETYLCHOLINE);
     b.neuron("DA02", NT::MOTOR, NTT::ACETYLCHOLINE);
     b.neuron("DA03", NT::MOTOR, NTT::ACETYLCHOLINE);
     b.neuron("DA04", NT::MOTOR, NTT::ACETYLCHOLINE);
     b.neuron("DA05", NT::MOTOR, NTT::ACETYLCHOLINE);
+    b.neuron("DA06", NT::MOTOR, NTT::ACETYLCHOLINE);
+    b.neuron("DA07", NT::MOTOR, NTT::ACETYLCHOLINE);
+    b.neuron("DA08", NT::MOTOR, NTT::ACETYLCHOLINE);
+    b.neuron("DA09", NT::MOTOR, NTT::ACETYLCHOLINE);
     // DB: dorsal B-class, forward locomotion (real: DB1-7, all 7)
     b.neuron("DB01", NT::MOTOR, NTT::ACETYLCHOLINE);
     b.neuron("DB02", NT::MOTOR, NTT::ACETYLCHOLINE);
@@ -420,12 +427,20 @@ void build_neurons(CB& b) {
     b.neuron("DB05", NT::MOTOR, NTT::ACETYLCHOLINE);
     b.neuron("DB06", NT::MOTOR, NTT::ACETYLCHOLINE);
     b.neuron("DB07", NT::MOTOR, NTT::ACETYLCHOLINE);
-    // VA: ventral A-class, backward locomotion (real: VA1-12, we use VA1-5)
+    // VA: ventral A-class, backward locomotion (VA1-12, all 12)
+    // Step 84: expanded from 5→12 (Haspel 2011, Gao 2018 eLife)
     b.neuron("VA01", NT::MOTOR, NTT::ACETYLCHOLINE);
     b.neuron("VA02", NT::MOTOR, NTT::ACETYLCHOLINE);
     b.neuron("VA03", NT::MOTOR, NTT::ACETYLCHOLINE);
     b.neuron("VA04", NT::MOTOR, NTT::ACETYLCHOLINE);
     b.neuron("VA05", NT::MOTOR, NTT::ACETYLCHOLINE);
+    b.neuron("VA06", NT::MOTOR, NTT::ACETYLCHOLINE);
+    b.neuron("VA07", NT::MOTOR, NTT::ACETYLCHOLINE);
+    b.neuron("VA08", NT::MOTOR, NTT::ACETYLCHOLINE);
+    b.neuron("VA09", NT::MOTOR, NTT::ACETYLCHOLINE);
+    b.neuron("VA10", NT::MOTOR, NTT::ACETYLCHOLINE);
+    b.neuron("VA11", NT::MOTOR, NTT::ACETYLCHOLINE);
+    b.neuron("VA12", NT::MOTOR, NTT::ACETYLCHOLINE);
     // VB: ventral B-class, forward locomotion (real: VB1-11, we use VB1-7)
     b.neuron("VB01", NT::MOTOR, NTT::ACETYLCHOLINE);
     b.neuron("VB02", NT::MOTOR, NTT::ACETYLCHOLINE);
@@ -900,20 +915,36 @@ void build_command_ventral(CB& b) {
     b.syn("AIBL", "AVEL", 1); b.syn("AIBR", "AVER", 1);
     // ASH → AVE: nociception direct → committed reversal
     b.syn("ASHL", "AVEL", 2); b.syn("ASHR", "AVER", 2);
-    // AVE → DA: backward motor neuron drive (Step 39: expanded to all 5 DA neurons)
+    // AVE → DA: backward motor neuron drive (Step 84: expanded to all 9 DA neurons)
     b.syn("AVEL", "DA01", 1); b.syn("AVER", "DA02", 1); b.syn("AVEL", "DA03", 1);
     b.syn("AVER", "DA04", 1); b.syn("AVEL", "DA05", 1);
+    b.syn("AVER", "DA06", 1); b.syn("AVEL", "DA07", 1);
+    b.syn("AVER", "DA08", 1); b.syn("AVEL", "DA09", 1);
     // AVE → RIM: additional reversal input
     b.syn("AVEL", "RIML", 2); b.syn("AVER", "RIMR", 2);
 
-    // Command → Motor (Step 39: expanded to full complement)
+    // Command → Motor (Step 84: expanded to full A-class complement)
     // AVA → A-class (backward): anterior stronger, posterior weaker (gradient)
+    // Gao 2018 eLife: AVA provides descending input via mixed gj + chemical synapse
+    // Haspel 2011: DA innervated by AVA, AVD, AVE; activated during backward
     b.syn("AVAL", "DA01", 5); b.syn("AVAL", "DA02", 4); b.syn("AVAL", "DA03", 3);
     b.syn("AVAL", "DA04", 2); b.syn("AVAL", "DA05", 2);
+    b.syn("AVAL", "DA06", 2); b.syn("AVAL", "DA07", 1);
+    b.syn("AVAL", "DA08", 1); b.syn("AVAL", "DA09", 1);
     b.syn("AVAL", "VA01", 4); b.syn("AVAL", "VA02", 3); b.syn("AVAL", "VA03", 3);
     b.syn("AVAL", "VA04", 2); b.syn("AVAL", "VA05", 2);
+    b.syn("AVAL", "VA06", 2); b.syn("AVAL", "VA07", 1); b.syn("AVAL", "VA08", 1);
+    b.syn("AVAL", "VA09", 1); b.syn("AVAL", "VA10", 1);
+    b.syn("AVAL", "VA11", 1); b.syn("AVAL", "VA12", 1);
     b.syn("AVAR", "DA01", 5); b.syn("AVAR", "DA02", 4); b.syn("AVAR", "DA03", 3);
     b.syn("AVAR", "DA04", 2); b.syn("AVAR", "DA05", 2);
+    b.syn("AVAR", "DA06", 2); b.syn("AVAR", "DA07", 1);
+    b.syn("AVAR", "DA08", 1); b.syn("AVAR", "DA09", 1);
+    b.syn("AVAR", "VA01", 4); b.syn("AVAR", "VA02", 3); b.syn("AVAR", "VA03", 3);
+    b.syn("AVAR", "VA04", 2); b.syn("AVAR", "VA05", 2);
+    b.syn("AVAR", "VA06", 2); b.syn("AVAR", "VA07", 1); b.syn("AVAR", "VA08", 1);
+    b.syn("AVAR", "VA09", 1); b.syn("AVAR", "VA10", 1);
+    b.syn("AVAR", "VA11", 1); b.syn("AVAR", "VA12", 1);
     // AVB → B-class (forward): anterior stronger, posterior weaker
     b.syn("AVBL", "DB01", 5); b.syn("AVBL", "DB02", 4); b.syn("AVBL", "DB03", 3);
     b.syn("AVBL", "DB04", 3); b.syn("AVBL", "DB05", 2); b.syn("AVBL", "DB06", 2);

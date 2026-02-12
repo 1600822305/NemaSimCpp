@@ -839,16 +839,24 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **LUA**: PHB/PLM→LUA→AVD/PVC 尾部感觉中继，闭合 Step 81 PHB/PHA 下游回路
 - **regtest**: 20/20 PASS (182/381/111)
 
+### Step 84: 腹索运动神经元扩展 (DA5→9, VA5→12) ✅ (2026-02-12)
+> 详细文档: [steps/step84_ventral_cord_expansion.md](steps/step84_ventral_cord_expansion.md)
+
+- **+11 神经元**: DA06-09(4) + VA06-12(7) — A-class 反向运动神经元完整补全
+- **体节精化**: DA ~8→~4 段/神经元，VA ~8→~3 段/神经元 (Haspel 2011)
+- **A-class 内源振荡器** (Gao 2018 eLife): AVA 双重调控 (gj+化学突触)
+- **regtest**: 20/20 PASS (193/412/111)
+
 ---
 
 ## 当前系统状态
 
 ```
 架构: 8 层 (环境/躯体/感知/神经元/连接组/神经调质/运动/行为)
-神经元: 182 个 MVP 子集 (302 全集待加载)
+神经元: 193 个 MVP 子集 (302 全集待加载)
   感觉: 57 (ASE/AWC/AWA/ASH/ALM/PLM/NSM/CEP/ADE/PDE/AFD/ADF/ASJ/ASK/ASI/ADL/FLP/PHB/PHA L/R + AVM + OLQ 4× + IL1 4× + URX L/R + AQR + PQR + BAG L/R + PVD L/R)
   中间: 55 (+AVF L/R, LUA L/R) (AIA/AIB/AIY/AIZ/RIA/RIB/RIM/RIC/AVA/AVB/AVD/AVE/PVC/AVF/AUA/AVK/AVJ/AVH/PVP/AIN/LUA/I1/RIP L/R + RIS + RIH + RMG L/R + DVA + DVC + PVT + PVR + RIG)
-  运动: 70 (SMD/RMD/SMB 4×2+4 + RIV L/R + RMED/RMEV + AS01-07 + DB01-07/VB01-07/DA01-05/VA01-05/DD01-05/VD01-05 + MC/M3 L/R + M4 + HSN L/R + VC4/VC5 + AVL + DVB)
+  运动: 81 (+DA06-09, VA06-12) (SMD/RMD/SMB 4×2+4 + RIV L/R + RMED/RMEV + AS01-07 + DB01-07/VB01-07/DA01-05/VA01-05/DD01-05/VD01-05 + MC/M3 L/R + M4 + HSN L/R + VC4/VC5 + AVL + DVB)
 突触: ~215 化学 + ~56 间隙连接 (全部带 Tsodyks-Markram STP, 支持分数 sections)
   Step 42: Cook 2019 校准 (+8 RIA↔RIV, -2 AVE→RIV) + RIV↔RIV gap
 神经调质: 7 种 (5-HT, DA, OA, TA, NLP-12, PDF, FLP-11) — volume transmission + 饱食度(泵驱动)
