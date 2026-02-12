@@ -116,25 +116,33 @@ std::unique_ptr<SingleCompartmentNeuron> NeuronFactory::create_motor_head(const 
     neuron->info() = info;
 
     neuron->set_capacitance(1.8);
-    neuron->set_leak(1.0, -60.0);  // strong leak → CCA-1 must overcome it for burst
-    neuron->set_resting_potential(-60.0);
+    neuron->set_leak(1.2, -65.0);  // Step 65: increased leak + lower E_leak → stabilize resting
+    neuron->set_resting_potential(-65.0);
 
     // Head motor neurons (RMD/SMD): CCA-1 intrinsic bursting oscillator
     // Oscillation mechanism: CCA-1 burst → Ca²⁺ rise → SLO-1 adaptation → repolarize → Ca decay → repeat
     // REF: Hendricks 2012, Nicoletti 2019 - CCA-1 critical for head oscillation
+    //
+    // Step 65: Amplitude calibration (Nicoletti 2019 PLOS One)
+    // Problem: CCA-1=5.0 + SLO-1=5.0 → 110mV oscillation (-90 to +3 mV)
+    // Biology: RMD oscillates ~23-50mV (resting -70mV, plateau -47mV, peak ~-20mV)
+    // Fix: reduce CCA-1 to 1.8nS (above bistability threshold 1.14nS, Nicoletti Fig 10)
+    //      reduce SLO-1 to 2.5nS (less aggressive repolarization)
+    //      raise leak to 1.2nS with E_leak=-65mV (prevents hyperpolarization overshoot)
+    // Target: oscillation amplitude 30-50mV → weathervane ±5pA bias can shift duty cycle
     neuron->add_channel(std::make_unique<EGL19Channel>(0.3));
-    neuron->add_channel(std::make_unique<CCA1Channel>(5.0));   // dominant inward for burst
-    neuron->add_channel(std::make_unique<SHL1Channel>(1.5));
+    neuron->add_channel(std::make_unique<CCA1Channel>(1.8));   // Step 65: 5.0→1.8 (reduced burst)
+    neuron->add_channel(std::make_unique<SHL1Channel>(1.0));   // Step 65: 1.5→1.0 (softer repolarization)
     neuron->add_channel(std::make_unique<KQT3Channel>(0.3));
-    neuron->add_channel(std::make_unique<SLO1Channel>(5.0));   // strong BK for Ca-dependent adaptation
-    neuron->add_channel(std::make_unique<NCAChannel>(0.02));   // minimal persistent inward
+    neuron->add_channel(std::make_unique<SLO1Channel>(2.5));   // Step 65: 5.0→2.5 (less aggressive BK)
+    neuron->add_channel(std::make_unique<NCAChannel>(0.05));   // Step 65: 0.02→0.05 (slightly more persistent inward)
     // Step 57: EGL-36 (repolarization backup) — low g_max, CCA-1/SLO-1 dominate
-    neuron->add_channel(std::make_unique<EGL36Channel>(0.3));
+    neuron->add_channel(std::make_unique<EGL36Channel>(0.2));  // Step 65: 0.3→0.2
 
     // Fast calcium dynamics for bursting: 10x sensitivity, 100ms decay
     // Standard neurons: buffer_ratio=0.01, tau=200ms → too slow for oscillation
     // Head motor: buffer_ratio=0.1, tau=100ms → Ca rises fast during burst, decays in ~300ms
-    neuron->set_calcium_params(0.05, 100.0, 0.1);
+    neuron->set_calcium_params(0.05, 120.0, 0.08);  // Step 65: tau 100→120ms, sens 0.1→0.08
 
     return neuron;
 }

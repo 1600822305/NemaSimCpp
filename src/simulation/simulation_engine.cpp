@@ -974,52 +974,34 @@ void SimulationEngine::apply_weathervane() {
 
     int n = static_cast<int>(neurons_.size());
 
-    // Step 19: Apply bias to shift half-center duty cycle
-    // Sign: positive grad_normal → dorsal bias → positive curvature → heading increases
-    // Step 33: Reduce SMD fraction to prevent multi-channel weathervane
-    // from overwhelming SMD oscillator. Curvature_bias bypass is the main
-    // turning mechanism; SMD just needs gentle duty-cycle modulation.
-    // Step 41: Modulate by 5-HT — off-food (5-HT≈0) → full weathervane (1.0)
-    //          on-food (5-HT≈0.7) → reduced (0.4) to prevent SMD saturation
-    // REF: Iino 2009 — both pirouette + weathervane needed for efficient chemotaxis
-    double sht_conc_wv = neuromod_.get_concentration("5-HT");
-    double smd_wv_frac = 0.4 + 0.6 * std::max(0.0, 1.0 - sht_conc_wv / 0.7);
-    if (smd_wv_frac > 1.0) smd_wv_frac = 1.0;
-    if (nid("SMDDL") >= 0 && nid("SMDDL") < n) neurons_[nid("SMDDL")]->add_synaptic_current( bias_current * smd_wv_frac);
-    if (nid("SMDDR") >= 0 && nid("SMDDR") < n) neurons_[nid("SMDDR")]->add_synaptic_current( bias_current * smd_wv_frac);
-    if (nid("SMDVL") >= 0 && nid("SMDVL") < n) neurons_[nid("SMDVL")]->add_synaptic_current(-bias_current * smd_wv_frac);
-    if (nid("SMDVR") >= 0 && nid("SMDVR") < n) neurons_[nid("SMDVR")]->add_synaptic_current(-bias_current * smd_wv_frac);
+    // Step 65: SMD is now the PRIMARY turning mechanism (curvature_bias bypass REMOVED)
+    // With SMD amplitude calibrated to ~49mV (Nicoletti 2019), ±5pA bias shifts
+    // duty cycle by ~8%, sufficient for weathervane steering.
+    // Previous: SMD=110mV → bias drowned → needed curvature_bias bypass → CI=0.76
+    // Now: SMD=49mV → bias effective → CI from neural circuit → emergent!
+    //
+    // Skip during reversal/omega (Iino 2009: klinotaxis = run-phase behavior)
+    // 5-HT modulation: on-food → slightly reduced weathervane (dwelling = less exploration)
+    if (!is_reversing_ && !riv_omega_active_) {
+        double sht_conc_wv = neuromod_.get_concentration("5-HT");
+        double smd_wv_scale = 0.7 + 0.3 * std::max(0.0, 1.0 - sht_conc_wv / 0.7);
+        if (smd_wv_scale > 1.0) smd_wv_scale = 1.0;
+        double smd_drive = bias_current * smd_wv_scale;
+        // Sign: positive grad_normal (food to left) → positive smd_drive
+        // SMDD gets -drive: suppress dorsal → extend ventral phase → curve LEFT toward food
+        // SMDV gets +drive: enhance ventral → same effect
+        // (Inverted vs naive expectation because SMD→muscle→curvature chain has sign inversion)
+        if (nid("SMDDL") >= 0 && nid("SMDDL") < n) neurons_[nid("SMDDL")]->add_synaptic_current(-smd_drive);
+        if (nid("SMDDR") >= 0 && nid("SMDDR") < n) neurons_[nid("SMDDR")]->add_synaptic_current(-smd_drive);
+        if (nid("SMDVL") >= 0 && nid("SMDVL") < n) neurons_[nid("SMDVL")]->add_synaptic_current( smd_drive);
+        if (nid("SMDVR") >= 0 && nid("SMDVR") < n) neurons_[nid("SMDVR")]->add_synaptic_current( smd_drive);
+    }
 
-    // Direct curvature bias: bypass SMD oscillator bottleneck (110mV amplitude drowns ±24pA bias)
-    // REF: diagnosed in Step 15 — SMD bias alone gives CI=0.07, with curv_bias CI=0.76
-    // Recalibrated for σ²=144 gradient (4.5x stronger than old σ²=25):
-    //   0.15 → 0.035 to maintain same turning radius (~2mm at 14mm from food)
-    double curv_gain = weathervane_gain * 0.06;
-    // Step 26b: dual-channel curvature bias (mirrors SMD dual-channel)
-    double curv_bias = curv_gain * grad_normal * chemo_wv_gain * awc_pref;  // food odor (learnable)
-    curv_bias += curv_gain * sol_grad_normal * chemo_wv_gain * sol_wv_scale; // soluble (fixed, 0.3×)
-    // Step 25: Repellent curvature bias (same bypass, opposite sign)
-    double rep_curv_bias = -curv_gain * rep_grad_normal;
-    curv_bias += rep_curv_bias;
-    // Add temperature curvature bias (same bypass for temp weathervane)
-    double temp_curv_bias = 30.0 * 0.15 * temp_sign * temp_grad_normal * thermo_wv_gain;
-    curv_bias += temp_curv_bias;
-    // Clamp curvature bias
-    double curv_clamp = clamp * 0.15;
-    if (curv_bias > curv_clamp) curv_bias = curv_clamp;
-    if (curv_bias < -curv_clamp) curv_bias = -curv_clamp;
-    // Step 41: Curvature bias only during forward locomotion (run phase)
-    // - Omega: RIV-driven deep bend (set by apply_riv_omega), don't override
-    // - Reversal: no sensory steering — worm just backs up
-    //   REF: Iino & Yoshida 2009 — klinotaxis (weathervane) is a run-phase behavior
-    //   Without this: direction=-1 reverses dθ sign → worm steers AWAY during reversal
-    // - Forward: weathervane actively steers toward attractant gradient
-    if (riv_omega_active_) {
-        // omega curvature set by apply_riv_omega()
-    } else if (is_reversing_) {
-        body_.set_curvature_bias(0.0);  // no sensory steering during reversal
-    } else {
-        body_.set_curvature_bias(curv_bias);
+    // Step 65: Zero curvature_bias during non-omega forward locomotion
+    // Only RIV omega turn sets curvature_bias now (apply_riv_omega)
+    // SMB neck bias (apply_smb_neck_bias) adds small offsets afterward
+    if (!riv_omega_active_) {
+        body_.set_curvature_bias(0.0);
     }
 }
 

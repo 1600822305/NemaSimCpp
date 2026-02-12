@@ -41,7 +41,7 @@ public:
         float synapse_scale   = 1.0f;    // global synapse weight multiplier
         float speed_scale     = 2.0f;    // Keep at 2.0 for off-food chemotaxis; 5-HT=-0.80 handles on-food slowing
         float sensory_gain    = 1.0f;    // chemosensory transducer gain multiplier
-        float bias_clamp      = 50.0f;   // max weathervane bias current (pA)
+        float bias_clamp      = 5.0f;    // Step 65: 50→5 pA (SMD 49mV: 5pA→4mV→8% duty shift, preserves burst)
         // Step 32: Runtime-tunable parameters (avoid recompile for parameter sweeps)
         float as_factor       = 1.7f;    // AS dorsal resistance factor (Step 42C: 2.0→1.7, RIA↔RIV feedback loop)
         float pulse_amp       = 50.0f;   // RIV post-reversal pulse amplitude (Step 42C: 80→50, RIA↔RIV provides base drive)

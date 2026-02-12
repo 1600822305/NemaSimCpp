@@ -368,12 +368,15 @@ int main(int argc, char* argv[]) {
         // IMPORTANT: I_syn > ±50pA almost certainly means rogue current injection
         // Step 33: RME dampens head oscillation (Huang 2016 eLife)
         // Step 34: baselines raised 45→55 — observed range 55-70 mV across 105-neuron runs
-        {"SMDDL V swing",      m.smddl_v_max - m.smddl_v_min,  55.0,  50, "mV", "SMDDL"},
-        {"SMDVL V swing",      m.smdvl_v_max - m.smdvl_v_min,  75.0,  65, "mV", "SMDVL"},
-        {"SMD diff amplitude", m.smd_diff_amp,                  125.0,  50, "mV", "SMDDL"},  // Step 47b: 90→125 (CEP gain↑ → DA neuromod → SMD tonic shift)
-        // Step 46: I_syn baseline raised — PDF→AIY→RIA→SMD + NLP-12→CKR-1→SMD add current
+        // Step 65: SMD baselines recalibrated for curvature_bias bypass removal
+        // SMDDL swing asymmetric: weathervane -drive suppresses dorsal during food approach
+        // SMDVL swing enhanced: +drive from weathervane
+        // Actual steering now emerges from SMD duty cycle modulation (Nicoletti 2019)
+        {"SMDDL V swing",      m.smddl_v_max - m.smddl_v_min,  15.0,  80, "mV", "SMDDL"},
+        {"SMDVL V swing",      m.smdvl_v_max - m.smdvl_v_min,  45.0,  60, "mV", "SMDVL"},
+        {"SMD diff amplitude", m.smd_diff_amp,                  55.0,   60, "mV", "SMDDL"},
         {"SMDDL |I_syn| max",  std::max(std::abs(m.smddl_isyn_max), std::abs(m.smddl_isyn_min)),
-                                                                32.0,  50, "pA", "SMDDL"},
+                                                                15.0,  60, "pA", "SMDDL"},
         {"SMDDL I_ext",        m.smddl_iext_max,                3.0,   10, "pA", "SMDDL"},
 
         // Body mechanics
@@ -389,7 +392,7 @@ int main(int argc, char* argv[]) {
 
         // Behavioral (wider tolerance — stochastic)
         {"Reversal count",      (double)m.reversal_count,        5.0,   150, "", ""},
-        {"Omega count",         (double)m.omega_count,           1.0,   200, "", ""},
+        {"Omega count",         (double)m.omega_count,           4.0,   200, "", ""},  // Step 65: 1→4 (SMD recalibration → more omega turns)
 
         // Step 27: Sleep system sanity (30s test should NOT trigger sleep)
         // fatigue should be ~0.1-0.3 at 30s (accumulating but below 0.7 threshold)

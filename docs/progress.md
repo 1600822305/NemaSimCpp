@@ -789,6 +789,18 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 - REF: Jang 2012, Srinivasan 2008
 - **regtest**: 17 pass, 0 FAIL
 
+### Step 65: SMD 振幅校准 + Curvature Bias 旁路移除 ✅ (2026-02-12)
+> 详细文档: [steps/step65_smd_amplitude_calibration.md](steps/step65_smd_amplitude_calibration.md)
+
+- **P0 违规 1.2 修复**: 移除 `body_.set_curvature_bias()` weathervane 旁路
+- SMD 振幅校准: CCA-1 5.0→1.8nS, SLO-1 5.0→2.5nS → 振荡 110mV→49mV
+- Weathervane 完全通过 SMD 半中心振荡器占空比调制涌现
+- 发现并修复 SMD→肌肉→曲率链符号反转 (被旁路掩盖多年)
+- bias_clamp: 50→5pA (防止压制振荡器)
+- **涌现 CI**: 8-seed 均值 0.24, near_food 43% (7/8 正 CI)
+- REF: Nicoletti 2019 PLOS One, Dobosiewicz 2019 eLife, Iino 2009 JNeurosci
+- **regtest**: 17 pass, 0 FAIL
+
 ---
 
 ## 当前系统状态
@@ -820,8 +832,8 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 工具: CLI 运行时参数覆盖 (--as_factor/--pulse_amp/--duration/--seed/--light 等, 无需重编译调参)
       --fitness 模式: 4 seeds × 3 scenarios 自动评估, 输出标量 fitness score
 可视化: Dear ImGui + ImPlot + GLFW, 3列布局, 实时调参+信号链诊断
-状态: 趋化+触觉回避+化学回避+排斥weathervane+病原体学习(CI反向!)+多化学物种+RIM稳定+神经调质+ARS(双通路:DARPP-32+NLP-12)+觅食循环+STP+盐学习+温度趋性+咽部泵食+睡眠/静止(RIS/FLP-11)+RIV omega(TA门控)+后退运动+RIA↔RIV负反馈环路+PDF roaming+food-edge反转(latch检测)+5-HT受体多样性(MOD-1/SER-4/SER-1/SER-5)+光回避(ASJ/LITE-1)+排便DMP(AVL/DVB 45s)+DA闭环(DOP-1/DOP-2/DOP-3, ESR)+tap习惯化(STP涌现)+腹索整合中枢(Emmons 2024)+睡眠巩固记忆(Chouhan 2023)+INS-1胰岛素厌食(Lin 2010)+信息素回避(ADL/ascr#3), 纯涌现 (162神经元)
-行为指标: CI≈0.75 (300s), near_food≈42%, reversal_rate≈0.11/s, speed≈0.19mm/s, 5-HT≈0.13, DA≈0.11, OA≈0.42
+状态: 趋化+触觉回避+化学回避+排斥weathervane+病原体学习(CI反向!)+多化学物种+RIM稳定+神经调质+ARS(双通路:DARPP-32+NLP-12)+觅食循环+STP+盐学习+温度趋性+咽部泵食+睡眠/静止(RIS/FLP-11)+RIV omega(TA门控)+后退运动+RIA↔RIV负反馈环路+PDF roaming+food-edge反转(latch检测)+5-HT受体多样性(MOD-1/SER-4/SER-1/SER-5)+光回避(ASJ/LITE-1)+排便DMP(AVL/DVB 45s)+DA闭环(DOP-1/DOP-2/DOP-3, ESR)+tap习惯化(STP涌现)+腹索整合中枢(Emmons 2024)+睡眠巩固记忆(Chouhan 2023)+INS-1胰岛素厌食(Lin 2010)+信息素回避(ADL/ascr#3)+SMD振幅校准(Nicoletti 2019)+curvature_bias旁路移除(P0修复), 纯涌现 (162神经元)
+行为指标: CI≈0.24 (300s, 8-seed mean, 纯SMD涌现), near_food≈43%, reversal_rate≈0.13/s, speed≈0.20mm/s
 工具: celegans_diag.exe (信号链诊断+fitness) + celegans_regtest.exe (回归检测+电流溯源)
 
 运动驱动 (Step 13 — 生物学机制):
@@ -830,7 +842,7 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
   本体感觉: MEC stretch-activated 通道 (body curvature → B类 MN)
   波传播: B类顺序感知前一单元领地 (Wen 2012) + 体节间曲率扩散 0.5 (Boyle 2012)
   通道噪声: 3pA 高斯噪声 (White 1998, 热涨落)
-  头部振荡: CCA-1 burst → Ca²⁺ → SLO-1(BK) 适应 → 复极化 → 周期 ~500ms
+  头部振荡: CCA-1 burst → Ca²⁺ → SLO-1(BK) 适应 → 复极化 → 周期 ~500ms (Step 65: 振幅 110→49mV)
   半中心CPG: SMD dorsal↔ventral 交叉抑制(3 sections) → 背腹交替 burst (~2Hz)
   Klinotaxis: sensory_AC × curvature → RIA乘法门控 → SMB颈部偏置 (Ouellette 2018)
   Pirouette: ASEL→AIA⊣AIB→AVA(抑C↑), ASER⊣AIA→AIB→AVA(促C↓)
@@ -854,9 +866,10 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 感觉转导 + 趋化 (Step 14-15):
   化学感觉: Weber-Fechner 双滤波器, ON/OFF 分类, 8 个化学感觉神经元
   运动学: dθ/dt = v × κ_head, pirouette 概率模型 (AVA 调制)
-  Weathervane: ∇C_⊥ → SMD 差异驱动 + 直接曲率偏置 (Iino & Yoshida 2009)
-  曲率偏置: curv_gain=45, 梯度法向→头部曲率偏移 (绕过SMD振荡瓶颈)
-  趋化指数: CI ≈ 0.50-0.75 (no_toxin, mean 0.58), time_near_food ≈ 34% (300s, 文献60-80%)
+  Weathervane: ∇C_⊥ → SMD 占空比调制 (Step 65: curvature_bias旁路已移除, 纯神经回路涌现)
+  SMD校准: CCA-1 1.8nS + SLO-1 2.5nS + leak 1.2/-65 → 49mV振荡 (Nicoletti 2019 RMD: 23-50mV)
+  趋化指数: CI ≈ 0.24 (8-seed mean, 纯SMD涌现, Iino 2009 WV-only ≈ 0.3-0.4)
+  time_near_food ≈ 43% (8-seed mean, 文献60-80%)
   Pirouette: off-food 0.10/s (6/min), on-food ~0.06/s (5-HT REVERSAL_RATE -0.50 suppression)
   Food-edge: head poke reversal p=0.50+0.30×5HT-0.30×PDF (eLife 2024)
   Basal slowing: on_lawn sigmoid × 0.25 → 25% on-food 速度下降 (instant, DOP-3 volume transmission)
