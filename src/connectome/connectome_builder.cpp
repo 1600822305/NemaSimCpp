@@ -408,6 +408,23 @@ void build_neurons(CB& b) {
     b.neuron("RMDVR", NT::MOTOR, NTT::ACETYLCHOLINE);
     b.neuron("RMDDL", NT::MOTOR, NTT::ACETYLCHOLINE);
     b.neuron("RMDDR", NT::MOTOR, NTT::ACETYLCHOLINE);
+    // Step 102: SIA — head motor neurons (4 quadrant, sublateral)
+    // Receive RIB sublateral input + RMG social hub gap junctions
+    // RMG↔SIA gap junctions: social feeding modulation (Macosko 2009)
+    // Cholinergic; innervate head/neck muscles similar to SMD
+    // REF: White 1986, Cook 2019, Gray 2005 J Neurosci (navigation circuit)
+    b.neuron("SIADL", NT::MOTOR, NTT::ACETYLCHOLINE);
+    b.neuron("SIADR", NT::MOTOR, NTT::ACETYLCHOLINE);
+    b.neuron("SIAVL", NT::MOTOR, NTT::ACETYLCHOLINE);
+    b.neuron("SIAVR", NT::MOTOR, NTT::ACETYLCHOLINE);
+    // Step 102: SIB — head motor neurons (4 quadrant, sublateral)
+    // Receive RIB + AIZ input; modulate head oscillation amplitude
+    // Cholinergic; parallel to SMB for neck/head movement
+    // REF: White 1986, Cook 2019, Gray 2005 J Neurosci
+    b.neuron("SIBDL", NT::MOTOR, NTT::ACETYLCHOLINE);
+    b.neuron("SIBDR", NT::MOTOR, NTT::ACETYLCHOLINE);
+    b.neuron("SIBVL", NT::MOTOR, NTT::ACETYLCHOLINE);
+    b.neuron("SIBVR", NT::MOTOR, NTT::ACETYLCHOLINE);
     // Neck motor neurons — klinotaxis effectors (Izquierdo 2015, Yamazaki 2022)
     // SMB controls neck curvature DC bias, independent of SMD head oscillation
     b.neuron("SMBDL", NT::MOTOR, NTT::ACETYLCHOLINE);
@@ -726,6 +743,46 @@ void build_touch_nociception(CB& b) {
     b.gj("IL2DL", "RMGL", 1); b.gj("IL2DR", "RMGR", 1);  // environmental→nictation/aggregation
     b.gj("IL2VL", "RMGL", 1); b.gj("IL2VR", "RMGR", 1);  // IL2 4 quadrant positions
     b.gj("AUAL", "RMGL", 1); b.gj("AUAR", "RMGR", 1);    // O₂ relay interneuron→hub
+
+    // Step 102: RMG↔SIA gap junctions — social hub → head motor output
+    // SIA receives RMG activity via gap junctions → modulates head movement
+    // When RMG is active (npr-1 lf, high O₂): SIA receives depolarizing current
+    // REF: White 1986 (Table 2), Cook 2019, Macosko 2009
+    b.gj("RMGL", "SIADL", 1); b.gj("RMGL", "SIAVL", 1);
+    b.gj("RMGR", "SIADR", 1); b.gj("RMGR", "SIAVR", 1);
+
+    // Step 102: RMG peptidergic output → AVB/AIY (forward drive + reversal suppression)
+    // Laurent 2015 eLife: "stimulating RMG inhibits reversals and induces rapid forward movement"
+    // "peptidergic release from RMG is a major output of the URX and RMG couple"
+    // "information about O₂ could flow from URX-RMG to AVB and AIY via neuropeptide secretion"
+    // Modeled as weak excitatory synapses (approximation of FLP-21 peptidergic volume transmission)
+    // In N2: NPR-1 suppresses RMG → these synapses are negligible
+    // In npr-1(lf): RMG active at high O₂ → strong forward drive → social speed burst
+    // REF: Laurent 2015 eLife, Macosko 2009 Nature
+    b.syn("RMGL", "AVBL", 1); b.syn("RMGR", "AVBR", 1);
+    b.syn("RMGL", "AIYL", 1); b.syn("RMGR", "AIYR", 1);
+
+    // Step 102: SIA input circuits (White 1986, Cook 2019)
+    // RIB→SIA: major sublateral input, locomotion modulation
+    b.syn("RIBL", "SIADL", 2); b.syn("RIBL", "SIAVL", 2);
+    b.syn("RIBR", "SIADR", 2); b.syn("RIBR", "SIAVR", 2);
+    // RIA→SIA: head turn coordination (thermotaxis/chemotaxis output)
+    b.syn("RIAL", "SIADL", 1); b.syn("RIAL", "SIAVL", 1);
+    b.syn("RIAR", "SIADR", 1); b.syn("RIAR", "SIAVR", 1);
+    // SIA→RMD: head muscle modulation (SIA drives RMD for head positioning)
+    b.syn("SIADL", "RMDDL", 1); b.syn("SIAVL", "RMDVL", 1);
+    b.syn("SIADR", "RMDDR", 1); b.syn("SIAVR", "RMDVR", 1);
+
+    // Step 102: SIB input circuits (White 1986, Cook 2019)
+    // RIB→SIB: major sublateral input (parallel to RIB→SIA)
+    b.syn("RIBL", "SIBDL", 2); b.syn("RIBL", "SIBVL", 2);
+    b.syn("RIBR", "SIBDR", 2); b.syn("RIBR", "SIBVR", 2);
+    // AIZ→SIB: turn promotion → head oscillation amplitude modulation
+    b.syn("AIZL", "SIBDL", 1); b.syn("AIZL", "SIBVL", 1);
+    b.syn("AIZR", "SIBDR", 1); b.syn("AIZR", "SIBVR", 1);
+    // SIB→RMD: head muscle modulation (weaker than SIA→RMD)
+    b.syn("SIBDL", "RMDDL", 1); b.syn("SIBVL", "RMDVL", 1);
+    b.syn("SIBDR", "RMDDR", 1); b.syn("SIBVR", "RMDVR", 1);
 
     // Step 75: RMG → command interneurons — drives backward locomotion
     // Filipowicz 2022: "AUA and RMG synapse onto motor command interneurons

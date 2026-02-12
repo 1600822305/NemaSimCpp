@@ -99,6 +99,22 @@ void MotorController::initialize(const std::unordered_map<std::string, int>& nam
     add_mapping(name_to_id, "SMDVL", 0, 4, false);
     add_mapping(name_to_id, "SMDVR", 0, 4, false);
 
+    // Step 102: SIA — head motor neurons (sublateral, parallel to SMD)
+    // SIA innervates head/neck muscles in quadrant pattern
+    // Segments 0-5: overlaps with SMD but weaker (sublateral vs primary)
+    // REF: White 1986 (head muscle innervation), Gray 2005
+    add_mapping(name_to_id, "SIADL", 0, 5, true);
+    add_mapping(name_to_id, "SIADR", 0, 5, true);
+    add_mapping(name_to_id, "SIAVL", 0, 5, false);
+    add_mapping(name_to_id, "SIAVR", 0, 5, false);
+    // Step 102: SIB — head motor neurons (sublateral, parallel to SMB)
+    // SIB innervates head/neck muscles; modulates oscillation amplitude
+    // REF: White 1986, Gray 2005
+    add_mapping(name_to_id, "SIBDL", 0, 5, true);
+    add_mapping(name_to_id, "SIBDR", 0, 5, true);
+    add_mapping(name_to_id, "SIBVL", 0, 5, false);
+    add_mapping(name_to_id, "SIBVR", 0, 5, false);
+
     // Step 88: AS motor neurons expanded 7→11 (complete complement)
     // AS provides tonic dorsal bias; active during both fwd and bwd locomotion
     // ~3-4 segments each for finer dorsal control
