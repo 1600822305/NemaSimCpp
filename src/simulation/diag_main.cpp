@@ -152,6 +152,7 @@ int main(int argc, char* argv[]) {
     bool cli_pheromone = false;              // Step 64: enable pheromone source
     double cli_pheromone_x = 15.0, cli_pheromone_y = 25.0, cli_pheromone_intensity = 0.8;
     double cli_dishabit_at = -1.0;              // Step 79: dishabituation stimulus time (seconds)
+    double cli_food_removal = -1.0;              // Step 98: food removal time (seconds) for ARS test
     std::vector<std::string> cli_ablations;   // Step 67: neurons to ablate
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
@@ -173,6 +174,7 @@ int main(int argc, char* argv[]) {
         else if (arg == "--seeds" && i+1 < argc) cli_nseeds = std::atoi(argv[++i]);
         else if (arg == "--sleep-after-learning" && i+1 < argc) cli_sleep_after_learn = std::atof(argv[++i]);
         else if (arg == "--pheromone") cli_pheromone = true;
+        else if (arg == "--food-removal" && i+1 < argc) cli_food_removal = std::atof(argv[++i]);
         else if (arg == "--pheromone_x" && i+1 < argc) { cli_pheromone = true; cli_pheromone_x = std::atof(argv[++i]); }
         else if (arg == "--pheromone_y" && i+1 < argc) { cli_pheromone = true; cli_pheromone_y = std::atof(argv[++i]); }
         else if (arg == "--pheromone_intensity" && i+1 < argc) { cli_pheromone = true; cli_pheromone_intensity = std::atof(argv[++i]); }
@@ -454,6 +456,7 @@ int main(int argc, char* argv[]) {
     int omega_count = 0;
     bool prev_reversing = false;
     bool prev_omega = false;
+    std::vector<double> reversal_times;  // Step 98: timestamps for ARS analysis
     int wall_touch_count = 0;
     int near_food_samples = 0;   // dist < 5mm
     int total_samples = 0;
@@ -467,9 +470,27 @@ int main(int argc, char* argv[]) {
 
     // Step 62: Sleep-after-learning experiment tracking
     bool sleep_consolidation_triggered = false;
+    bool food_removed = false;  // Step 98: flag to prevent double food removal
 
     for (int s = 0; s < total_steps; ++s) {
         sim.step();
+
+        // Step 98: --food-removal protocol (Hills 2004, López-Cruz 2019)
+        // Remove food at specified time to test ARS local→global search transition
+        if (cli_food_removal > 0 && !food_removed
+            && sim.current_time() >= cli_food_removal * 1000.0) {
+            food_removed = true;
+            sim.environment().chemical_field().clear();
+            sim.environment().soluble_field().clear();
+            sim.environment().repellent_field().clear();
+            sim.reset_transducers();
+            if (!cli_quiet) {
+                std::cout << "  [Step 98] Food removed at t="
+                          << std::setprecision(1) << sim.current_time() / 1000.0
+                          << "s (food_memory=" << std::setprecision(3) << sim.food_memory()
+                          << ")" << std::endl;
+            }
+        }
 
         // Step 62: --sleep-after-learning protocol (Chouhan 2023 Cell)
         // When sickness exceeds 0.3 (worm has learned), force sleep for N seconds
@@ -578,7 +599,7 @@ int main(int argc, char* argv[]) {
             // Track touch/reversal/omega events
             bool cur_rev = sim.is_reversing();
             bool cur_omega = sim.is_omega_turning();
-            if (cur_rev && !prev_reversing) reversal_count++;
+            if (cur_rev && !prev_reversing) { reversal_count++; reversal_times.push_back(sim.current_time()); }
             if (cur_omega && !prev_omega) {
                 omega_count++;
                 omega_start_time = sim.current_time();
@@ -1057,6 +1078,58 @@ int main(int argc, char* argv[]) {
         std::cout << "   Open field (>" << border_r << "mm): "
                   << std::setprecision(1) << open_pct << "%" << std::endl;
         std::cout << "   (Compare --npr1 0 for Hawaiian: expect more open-field time)" << std::endl;
+    }
+
+    // Step 98: AREA-RESTRICTED SEARCH (Hills 2004, López-Cruz 2019)
+    // After food removal, reversal rate should decay: local search → global search
+    // food_memory_ tau_decay=90s drives the transition
+    // Use --food-removal <sec> to test
+    if (cli_food_removal > 0) {
+        double removal_ms = cli_food_removal * 1000.0;
+        double bin_s = 30.0;  // 30-second bins
+        std::cout << "\n36. AREA-RESTRICTED SEARCH (Step 98, Hills 2004):" << std::endl;
+        std::cout << "   Food removed at t=" << std::setprecision(0) << cli_food_removal << ", food_memory tau_decay=" << 300 << "s" << std::endl;
+        // Count reversals in time bins after food removal
+        int n_bins = std::min(6, (int)((duration - removal_ms) / (bin_s * 1000.0)));
+        int prev_count = 0;
+        for (double t_ms = 0; t_ms < removal_ms; ++t_ms) {}
+        // Count reversals BEFORE food removal
+        int pre_rev = 0;
+        double pre_window = std::min(removal_ms, 60000.0);  // last 60s before removal
+        for (double rt : reversal_times) {
+            if (rt >= removal_ms - pre_window && rt < removal_ms) pre_rev++;
+        }
+        double pre_rate = pre_rev / (pre_window / 1000.0);
+        std::cout << "   Pre-removal (last 60s): " << std::setprecision(2) << pre_rate
+                  << " rev/s (" << pre_rev << " reversals)" << std::endl;
+        // Count reversals in post-removal bins
+        double first_bin_rate = 0, last_bin_rate = 0;
+        for (int b = 0; b < n_bins; ++b) {
+            double bin_start = removal_ms + b * bin_s * 1000.0;
+            double bin_end = bin_start + bin_s * 1000.0;
+            int bin_rev = 0;
+            for (double rt : reversal_times) {
+                if (rt >= bin_start && rt < bin_end) bin_rev++;
+            }
+            double bin_rate = bin_rev / bin_s;
+            if (b == 0) first_bin_rate = bin_rate;
+            if (b == n_bins - 1) last_bin_rate = bin_rate;
+            std::cout << "   t+" << std::setprecision(0) << b * bin_s << "-"
+                      << (b + 1) * bin_s << "s: " << std::setprecision(2) << bin_rate
+                      << " rev/s (" << bin_rev << ")" << std::endl;
+        }
+        // ARS assessment
+        if (n_bins >= 2) {
+            double ratio = (first_bin_rate > 0.01) ? last_bin_rate / first_bin_rate : 1.0;
+            if (ratio < 0.6) {
+                std::cout << "   [OK] Local→Global transition detected (rate decay "
+                          << std::setprecision(0) << (1.0 - ratio) * 100 << "%)" << std::endl;
+            } else if (first_bin_rate > pre_rate * 0.8) {
+                std::cout << "   [..] Reversal rate elevated but no clear decay" << std::endl;
+            } else {
+                std::cout << "   [..] No clear ARS pattern" << std::endl;
+            }
+        }
     }
 
     // Step 19b: Intermediate neuron diagnostic — pirouette pathway

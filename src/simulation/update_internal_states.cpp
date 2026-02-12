@@ -143,7 +143,7 @@ void SimulationEngine::update_food_memory() {
 
     int n = static_cast<int>(neurons_.size());
     if (nid("AVAL") >= 0 && nid("AVAL") < n) {
-        double ars_current = 1.5 * food_memory_;
+        double ars_current = 4.0 * food_memory_;
         neurons_[nid("AVAL")]->add_synaptic_current(ars_current);
     }
     if (nid("DVA") >= 0 && nid("DVA") < n) {

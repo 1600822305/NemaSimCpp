@@ -965,6 +965,16 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **REF**: Chang 2006 PLoS Biology, Gray 2004 Nature, Cheung 2005
 - **regtest**: 20/20 PASS
 
+### Step 98: 觅食策略 — Area-Restricted Search (ARS) ✅ (2026-02-13)
+> 详细文档: [steps/step98_ars_foraging.md](steps/step98_ars_foraging.md)
+
+- **food_memory tau_decay**: 90s → 300s (匹配 Hills 2004 生物学 5min 时间尺度)
+- **food_memory→AVA**: 1.5 → 4.0 pA (增强 local search reversal 驱动)
+- **--food-removal CLI**: 指定时间清除食物，测试 ARS 过渡
+- **5-seed 群体验证**: t+90s 后 reversal rate 0.19/s (无食物基线 0.11/s, +73%)
+- **REF**: Hills 2004 J Neurosci, López-Cruz 2019 Neuron, Margolis 2023 eLife
+- **regtest**: 20/20 PASS
+
 ---
 
 ## 当前系统状态

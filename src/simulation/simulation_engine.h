@@ -294,7 +294,7 @@ private:
     // REF: Hills 2004 J Neurosci, Wakabayashi 2004, Calhoun 2014 eLife
     double food_memory_ = 0.0;          // [0,1] DARPP-32 phosphorylation level
     double food_memory_tau_rise_ = 5000.0;   // ms, fast rise on food (5s)
-    double food_memory_tau_decay_ = 90000.0; // ms, slow decay off food (90s, minutes-scale)
+    double food_memory_tau_decay_ = 300000.0; // ms, slow decay off food (300s=5min, Hills 2004)
     void update_food_memory();          // called each step
     void apply_gradient_klinokinesis();  // no-gradient → high pirouette (Step 21d)
 
