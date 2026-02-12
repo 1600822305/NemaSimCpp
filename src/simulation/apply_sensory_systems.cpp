@@ -232,6 +232,31 @@ void SimulationEngine::apply_thermo_input() {
             tm.transducer.adapt_tc(thermo_learn_signal, temperature, 100.0);
         }
     }
+
+    // Step 101: AWC starvation-dependent temperature response (Hawk 2021 eLife)
+    // Fed: AWC temperature response negligible → AIA tonic → AFD-driven thermotaxis
+    // Starved: INS-1 from gut → DAF-16 in AWC → enhanced AWC temperature responses
+    //   → AWC⊣AIA (glutamatergic inhibition, Kakaria 2019) → thermotaxis disrupted
+    // "prolonged food deprivation potentiates temperature responses in AWC"
+    // AWC fires on |T - Tc| deviation (warming preferentially), scaled by starvation
+    // This uses EXISTING AWC→AIA inhibitory synapses — no new wiring needed
+    // REF: Hawk 2021 eLife — feeding state reconfigures sensory circuit
+    //      Chalasani 2010 — INS-1 from AIA modulates AWC via DAF-2
+    double tc = learned_tc();
+    double temp_deviation = std::abs(temperature - tc);
+    // Starvation factor: high when hungry (satiety < 0.3), zero when fed
+    double starve_factor = 1.0 / (1.0 + fast_exp(12.0 * (satiety_ - 0.3)));
+    // AWC temperature current: deviation × starvation × gain
+    // At |T-Tc|=2°C, starved: 8×2×1.0 = 16pA → strong AWC activation → AIA inhibited
+    // At |T-Tc|=2°C, fed: 8×2×0.0 = 0pA → no effect → AFD-driven thermotaxis intact
+    double awc_temp_gain = 8.0;  // pA per °C deviation (when fully starved)
+    double I_awc_temp = awc_temp_gain * temp_deviation * starve_factor;
+    if (I_awc_temp > 25.0) I_awc_temp = 25.0;  // cap to avoid overdriving
+    for (int id : nids("AWC")) {
+        if (id >= 0 && id < n) {
+            neurons_[id]->add_synaptic_current(I_awc_temp);
+        }
+    }
 }
 
 // ================================================================

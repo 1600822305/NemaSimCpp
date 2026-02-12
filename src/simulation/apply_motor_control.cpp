@@ -121,13 +121,15 @@ void SimulationEngine::apply_weathervane() {
     double rep_bias = -weathervane_gain * rep_grad_normal;
     bias_current += rep_bias;
 
-    // Step 23c: Temperature weathervane — turn toward Tc when fed
+    // Step 23c: Temperature weathervane — turn toward learned Tc when fed
     // Navigate to minimize |T - Tc|: bias = -sign(T-Tc) × grad_T_normal
     // This steers toward Tc regardless of which side the worm is on
+    // Step 101: use learned Tc (adapt_tc) instead of fixed cultivation_temp_
+    // Hedgecock & Russell 1975: Tc is updated by food-temperature pairing
     Vector2d tgrad = environment_.temperature_gradient(head_pos);
     double temp_grad_normal = -sin_h * tgrad.x + cos_h * tgrad.y;
     double temp_at_head = environment_.sample_temperature(head_pos);
-    double tc = cultivation_temp_;  // 22.5°C
+    double tc = learned_tc();
     double temp_sign = (temp_at_head > tc) ? -1.0 : 1.0;  // toward Tc
     double thermo_wv_gain = 0.0 + 2.0 * sat_switch_wv;    // hungry: 0, fed: 2.0
     // Temperature weathervane gain: 30 pA per °C/mm

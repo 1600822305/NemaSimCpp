@@ -707,6 +707,14 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **注释**: 6→7 neuromodulators
 - **文档**: 「当前系统状态」全面刷新 (突触 215→513, 映射 29→75, 文件 44→62, 感觉 61→63, 运动 98→96 等)
 
+### Step 101: 温度趋性学习 — 食物-温度联合记忆 ✅ (2026-02-13)
+> 详细文档: [steps/step101_thermotactic_learning.md](steps/step101_thermotactic_learning.md)
+
+- **Bug fix**: 温度 weathervane 使用 learned_tc() 替代固定 cultivation_temp_ — Tc 学习终于影响导航方向
+- **AWC 饥饿温度响应**: 饥饿时 AWC 对 |T-Tc| 敏感 → AWC⊣AIA → 温度趋性中断 (Hawk 2021 eLife)
+- **零新增神经元/突触**: 纯行为涌现，利用已有 AWC→AIA 抑制连接
+- **行为**: 喂食时趋向学习后 Tc；饥饿时温度趋性中断（AWC-AIA 功能重配置）
+
 ---
 
 ## 当前系统状态
@@ -732,7 +740,7 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 身体: 2D 弹性杆 48 段, 75 个运动神经元-肌肉映射, 体节间曲率扩散(弹性耦合)
 环境: 50×50 mm, 4化学场(food_odor+soluble+repellent+pheromone) + 线性温度梯度 (0.5°C/mm) + O₂场(food派生) + 光场(高斯σ=8mm)
 内部状态: satiety_(泵驱动), sickness_(有毒食物), food_memory_(双通路ARS), fatigue_(睡眠驱动)
-学习: 盐学习(ASER w_mod) + 病原体学习(AWC翻转+WV反向+厌食) + STP习惯化 + 睡眠巩固(Step 62) + INS-1厌食(Step 63)
+学习: 盐学习(ASER w_mod) + 病原体学习(AWC翻转+WV反向+厌食) + 温度学习(Tc适应+AWC饥饿中断) + STP习惯化 + 睡眠巩固(Step 62) + INS-1厌食(Step 63)
 仿真: dt=0.5ms, CPU 实时 (10000步 < 1s)
 性能: cache_neuron_ids_and_synapses() 一次性缓存 10 ID + 6 typed 指针 + 3 组突触索引
 计算: CPU (默认) + OpenCL GPU 后端 (>500突触自动启用, AMD RX 6950 XT 就绪)
