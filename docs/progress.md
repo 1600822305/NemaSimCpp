@@ -667,25 +667,15 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - REF: Piggott 2011 Cell, Roberts 2016 eLife, Kuramochi 2018, Gao 2018
 - **regtest**: 17 pass, 0 FAIL
 
-### Step 70: 涌现食物边缘反转 — 移除概率公式 ✅ (2026-02-12)
-> 详细文档: [steps/step70_food_edge_emergent.md](steps/step70_food_edge_emergent.md)
+### Step 67: 消融验证 — 证明 Reversal 从 AVA 涌现 ✅ (2026-02-12)
+> 详细文档: [steps/step67_ablation_verification.md](steps/step67_ablation_verification.md)
 
-- **P1 违规 1.3 修复**: 移除 `p = 0.50 + 0.30×5HT - 0.30×PDF` 概率公式
-- Always-inject: 每次 food edge exit 注入 AVA 40pA/500ms（无概率门控）
-- 反转概率从 AVA-AVB 互抑平衡涌现（5-HT→MOD-1→AIY vs PDF→PDFR-1→AIY）
-- **文献**: Flavell 2024 eLife — leaving 与 roaming 耦合 (20×), head poke reversal ~55%
-- **4-seed CI**: 均值 0.137 (vs Step 68: 0.155, 在噪声范围内)
-- SMD diff baseline 55→70/60%
-- **regtest**: 17 pass, 0 FAIL (5 次稳定)
-
-### Step 69: DOP-3 校准 + DA 速度调控文献研究 ✅ (2026-02-12)
-> 详细文档: [steps/step69_dop3_calibration.md](steps/step69_dop3_calibration.md)
-
-- **文献**: Chase 2004, Vidal-Gadea 2012, Wang 2014
-- **发现**: DOP-1 不参与速度调节（只参与食物依赖减速）; DOP-3+GOA-1 是速度精度关键
-- **实验**: release_threshold 0.3→0.1 + DOP-3 -3→-5pA → CI 崩溃至 ~0.00
-- **根因**: DOP-3 抑制 B-class 兴奋性 → MEC 本体感觉通道敏感度降低 → 波传播受损
-- **结论**: -3pA 是安全上限; 完整涌现减速需要 body model 升级（肌肉独立计算节点）
+- **消融功能**: `Neuron::ablate()` + `--ablate` CLI（自动 L/R 配对）
+- **AVA 消融**: 0 reversals (vs CTRL 53) — 完美匹配 Chalfie 1985 ✅✅
+- **ASE 消融**: CI 0.38→-0.20 (趋化性丧失) — 匹配 Miller 2005 ✅
+- **AIB 消融**: CI 0.38→0.09 (76%↓) — klinokinesis 受损 ✅
+- **RIM 消融**: reversals 53→68 (+28%) — 匹配 Sordillo 2021 ✅✅
+- **结论**: Step 66 涌现性确认 — reversal 完全依赖 AVA 回路
 - **regtest**: 17 pass, 0 FAIL
 
 ### Step 68: Basal Slowing — DA→DOP-3→Motor Neuron 涌现减速 ✅ (2026-02-12)
@@ -699,16 +689,26 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - REF: Chase 2004 Nat Neurosci, Sawin 2000 Neuron
 - **regtest**: 17 pass, 0 FAIL
 
-### Step 67: 消融验证 — 证明 Reversal 从 AVA 涌现 ✅ (2026-02-12)
-> 详细文档: [steps/step67_ablation_verification.md](steps/step67_ablation_verification.md)
+### Step 69: DOP-3 校准 + DA 速度调控文献研究 ✅ (2026-02-12)
+> 详细文档: [steps/step69_dop3_calibration.md](steps/step69_dop3_calibration.md)
 
-- **消融功能**: `Neuron::ablate()` + `--ablate` CLI（自动 L/R 配对）
-- **AVA 消融**: 0 reversals (vs CTRL 53) — 完美匹配 Chalfie 1985 ✅✅
-- **ASE 消融**: CI 0.38→-0.20 (趋化性丧失) — 匹配 Miller 2005 ✅
-- **AIB 消融**: CI 0.38→0.09 (76%↓) — klinokinesis 受损 ✅
-- **RIM 消融**: reversals 53→68 (+28%) — 匹配 Sordillo 2021 ✅✅
-- **结论**: Step 66 涌现性确认 — reversal 完全依赖 AVA 回路
+- **文献**: Chase 2004, Vidal-Gadea 2012, Wang 2014
+- **发现**: DOP-1 不参与速度调节（只参与食物依赖减速）; DOP-3+GOA-1 是速度精度关键
+- **实验**: release_threshold 0.3→0.1 + DOP-3 -3→-5pA → CI 崩溃至 ~0.00
+- **根因**: DOP-3 抑制 B-class 兴奋性 → MEC 本体感觉通道敏感度降低 → 波传播受损
+- **结论**: -3pA 是安全上限; 完整涌现减速需要 body model 升级（肌肉独立计算节点）
 - **regtest**: 17 pass, 0 FAIL
+
+### Step 70: 涌现食物边缘反转 — 移除概率公式 ✅ (2026-02-12)
+> 详细文档: [steps/step70_food_edge_emergent.md](steps/step70_food_edge_emergent.md)
+
+- **P1 违规 1.3 修复**: 移除 `p = 0.50 + 0.30×5HT - 0.30×PDF` 概率公式
+- Always-inject: 每次 food edge exit 注入 AVA 40pA/500ms（无概率门控）
+- 反转概率从 AVA-AVB 互抑平衡涌现（5-HT→MOD-1→AIY vs PDF→PDFR-1→AIY）
+- **文献**: Flavell 2024 eLife — leaving 与 roaming 耦合 (20×), head poke reversal ~55%
+- **4-seed CI**: 均值 0.137 (vs Step 68: 0.155, 在噪声范围内)
+- SMD diff baseline 55→70/60%
+- **regtest**: 17 pass, 0 FAIL (5 次稳定)
 
 ### Step 71: P0-5 DMP 涌现减速 + P0-6 FLP-11 神经调质化 ✅ (2026-02-12)
 > 详细文档: [steps/step71_p0_dmp_flp11_fix.md](steps/step71_p0_dmp_flp11_fix.md)
