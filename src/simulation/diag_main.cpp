@@ -284,8 +284,6 @@ int main(int argc, char* argv[]) {
         }
         bool has_gpu = ComputeBackend::opencl_available();
         std::cout << "\n  GPU available: " << (has_gpu ? "YES" : "NO")
-                  << "  |  Simulation uses: CPU"
-                  << "\n  (GPU auto-enables at >500 synapses; current ~110)"
                   << "\n" << std::endl;
     }
 

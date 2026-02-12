@@ -97,7 +97,10 @@ void SimulationEngine::setup_gpu_backend() {
     // At 72 neurons / ~110 synapses, kernel launch overhead dominates.
     // Auto-enable when synapse count exceeds threshold.
     size_t num_syn = connectome_.num_synapses();
-    bool should_use_gpu = (num_syn >= 500);
+    // 500→2000: at 513 synapses, PCIe transfer overhead dominates GPU compute.
+    // GPU only beneficial at ~2000+ synapses (full 302-neuron connectome).
+    // Step 92: 513 syn GPU path caused 3-4× slowdown vs CPU.
+    bool should_use_gpu = (num_syn >= 2000);
 
     if (should_use_gpu && ComputeBackend::opencl_available()) {
         gpu_backend_ = ComputeBackend::create_opencl();
