@@ -293,6 +293,19 @@ void build_neurons(CB& b) {
     // REF: Chalfie 1985, White 1986, Kawano 2011, Zheng 1999
     b.neuron("PVCL", NT::INTER, NTT::GLUTAMATE);
     b.neuron("PVCR", NT::INTER, NTT::GLUTAMATE);
+    // Step 82: AIN — ring interneuron, parallel chemotaxis relay
+    // Receives ASE/AWC chemosensory input, outputs to AIY/RIA
+    // Creates parallel pathway ASE→AIN→AIY alongside direct ASE→AIY
+    // Glutamatergic; loss reduces chemotaxis efficiency
+    // REF: White 1986, Cook 2019, Emmons 2024 PLOS Biology
+    b.neuron("AINL", NT::INTER, NTT::GLUTAMATE);
+    b.neuron("AINR", NT::INTER, NTT::GLUTAMATE);
+    // Step 82: RIG — single unpaired ring interneuron, ventral cord→navigation relay
+    // Receives DVC/PVT (ventral cord integrators) → outputs to AIY/AIZ/RIA/AVK
+    // Community 4 (Emmons 2024): navigation/head motor
+    // Bridges ventral cord information processing to head navigation circuit
+    // REF: Emmons 2024 PLOS Biology, Cook 2019
+    b.neuron("RIG",  NT::INTER, NTT::GLUTAMATE);
     // Step 75: RMG — social/pathogen hub interneuron (reclassified from motor, Cook 2019)
     // Hub of hub-and-spoke gap junction network for aggregation (NPR-1 modulated)
     // Pathogen aversion: AWB→RMG→AVA/AVD drives reflexive backward locomotion
@@ -543,6 +556,22 @@ void build_chemotaxis(CB& b) {
     // Removing glutamate from AWC+ASE (eat-4 excision) → AIA responds like unc-18 mutants
     // REF: Kakaria 2019 eLife Figure 4F-G
     b.inh("AWCL", "AIAL", 2); b.inh("AWCR", "AIAR", 2);
+    // Step 82: AIN — parallel chemotaxis relay (White 1986, Cook 2019)
+    // Creates ASE→AIN→AIY pathway parallel to direct ASE→AIY
+    // Strengthens chemotaxis signal; AIN loss reduces CI efficiency
+    // ASE→AIN: chemosensory input (excitatory, glutamatergic)
+    b.syn("ASEL", "AINL", 2); b.syn("ASER", "AINR", 2);
+    // AWC→AIN: olfactory input (excitatory)
+    b.syn("AWCL", "AINL", 1); b.syn("AWCR", "AINR", 1);
+    // AIN→AIY: forward drive relay (excitatory)
+    b.syn("AINL", "AIYL", 2); b.syn("AINR", "AIYR", 2);
+    // AIN→RIA: head motor relay (excitatory)
+    b.syn("AINL", "RIAL", 1); b.syn("AINR", "RIAR", 1);
+    // AIN L↔R: bilateral coupling
+    b.gj("AINL", "AINR", 2);
+    // ASE↔AIN: electrical coupling (Cook 2019)
+    b.gj("ASEL", "AINL", 1); b.gj("ASER", "AINR", 1);
+
     // Step 23: Thermotaxis circuit — AFD→AIY (Mori & Ohshima 1995)
     // AFD is the primary thermosensory neuron, AIY is the shared integration node
     // AFD→AIY: excitatory, 5 sections (strengthened to compete with chemotaxis)
@@ -1157,6 +1186,25 @@ void build_ventral_cord_integrators(CB& b) {
     b.gj("PVR", "DVA", 2);
     b.syn("PVR", "AVJL", 1); b.syn("PVR", "AVJR", 1);
     b.syn("PVR", "RIPL", 1); b.syn("PVR", "RIPR", 1);
+
+    // Step 82: RIG — ventral cord → navigation relay (single unpaired neuron)
+    // Emmons 2024: "DVC and PVT share chemical output to... RIG"
+    // RIG bridges ventral cord information processing to head navigation circuit
+    // DVC→RIG: stretch receptor/proprioceptive integrator (Emmons 2024)
+    b.syn("DVC", "RIG", 2);
+    // PVT→RIG: neuropeptide hub integrator (Emmons 2024)
+    b.syn("PVT", "RIG", 2);
+    // RIG→AIY: modulates forward drive (navigation relay)
+    b.syn("RIG", "AIYL", 1); b.syn("RIG", "AIYR", 1);
+    // RIG→AIZ: modulates turning behavior
+    b.syn("RIG", "AIZL", 1); b.syn("RIG", "AIZR", 1);
+    // RIG→RIA: head motor modulation
+    b.syn("RIG", "RIAL", 1); b.syn("RIG", "RIAR", 1);
+    // RIG→AVK: turn circuit integrator (Emmons 2024: "AVK receives... from RIG")
+    b.syn("RIG", "AVKL", 1); b.syn("RIG", "AVKR", 1);
+    // AVH→RIG: sensory bridge pathway (Emmons 2024 community analysis)
+    // Creates ASK→AVH→RIG→AIZ/RIA pathway
+    b.syn("AVHL", "RIG", 1); b.syn("AVHR", "RIG", 1);
 }
 
 } // anonymous namespace

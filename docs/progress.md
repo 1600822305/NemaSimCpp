@@ -822,15 +822,24 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **头尾拮抗**: ASH(头)→AVA(+) vs PHB(尾)→AVA(-) → AVA 整合定向逃逸
 - **regtest**: 20/20 PASS (175/347/104)
 
+### Step 82: AIN/RIG 中继中间神经元 ✅ (2026-02-12)
+> 详细文档: [steps/step82_ain_rig_interneurons.md](steps/step82_ain_rig_interneurons.md)
+
+- **+3 神经元**: AINL/AINR(化学趋化中继) + RIG(腹索→导航中继)
+- **AIN**: ASE→AIN→AIY/RIA 并行化学趋化通路，增强趋化信号鲁棒性
+- **RIG**: DVC/PVT→RIG→AIY/AIZ/RIA/AVK 腹索→头部导航桥接 (Emmons 2024)
+- **新闭合回路**: ASK→AVH→RIG→AIZ/RIA 信息素→感觉桥→导航
+- **regtest**: 20/20 PASS (178/367/107)
+
 ---
 
 ## 当前系统状态
 
 ```
 架构: 8 层 (环境/躯体/感知/神经元/连接组/神经调质/运动/行为)
-神经元: 175 个 MVP 子集 (302 全集待加载)
-  感觉: 57 (+PHB L/R, PHA L/R) (ASE/AWC/AWA/ASH/ALM/PLM/NSM/CEP/ADE/PDE/AFD/ADF/ASJ/ASK/ASI/ADL/FLP L/R + AVM + OLQ 4× + IL1 4× + URX L/R + AQR + PQR + BAG L/R + PVD L/R)
-  中间: 48 (AIA/AIB/AIY/AIZ/RIA/RIB/RIM/RIC/AVA/AVB/AVD/AVE/PVC/AUA/AVK/AVJ/AVH/PVP/I1/RIP L/R + RIS + RIH + RMG L/R + DVA + DVC + PVT + PVR)
+神经元: 178 个 MVP 子集 (302 全集待加载)
+  感觉: 57 (ASE/AWC/AWA/ASH/ALM/PLM/NSM/CEP/ADE/PDE/AFD/ADF/ASJ/ASK/ASI/ADL/FLP/PHB/PHA L/R + AVM + OLQ 4× + IL1 4× + URX L/R + AQR + PQR + BAG L/R + PVD L/R)
+  中间: 51 (+AIN L/R, RIG) (AIA/AIB/AIY/AIZ/RIA/RIB/RIM/RIC/AVA/AVB/AVD/AVE/PVC/AUA/AVK/AVJ/AVH/PVP/AIN/I1/RIP L/R + RIS + RIH + RMG L/R + DVA + DVC + PVT + PVR + RIG)
   运动: 70 (SMD/RMD/SMB 4×2+4 + RIV L/R + RMED/RMEV + AS01-07 + DB01-07/VB01-07/DA01-05/VA01-05/DD01-05/VD01-05 + MC/M3 L/R + M4 + HSN L/R + VC4/VC5 + AVL + DVB)
 突触: ~215 化学 + ~56 间隙连接 (全部带 Tsodyks-Markram STP, 支持分数 sections)
   Step 42: Cook 2019 校准 (+8 RIA↔RIV, -2 AVE→RIV) + RIV↔RIV gap
