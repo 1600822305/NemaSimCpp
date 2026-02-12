@@ -422,8 +422,8 @@ int main(int argc, char* argv[]) {
         // These are DETERMINISTIC values — any deviation means a build error
         // Step 75: 171 neurons (162 + FLP(2) + IL1(4) + RIH(1) + RMG(2))
         {"Neuron count",        (double)m.neuron_count,          210.0,  1,  "", ""},  // Step 88: +4 (AS08-11)
-        {"Synapse count",       (double)m.synapse_count,         474.0,  1,  "", ""},  // Step 89: +19 (AS→VD dorsal bias)
-        {"Gap junction count",  (double)m.gap_junction_count,    143.0,  1,  "", ""},  // Step 89: +17 (AS↔AVA + DB↔DB)
+        {"Synapse count",       (double)m.synapse_count,         486.0,  1,  "", ""},  // Step 90: +12 (VA→DD cross-inh)
+        {"Gap junction count",  (double)m.gap_junction_count,    171.0,  1,  "", ""},  // Step 90: +28 (VA↔VA + DA↔DA + DA↔AS)
     };
 
     // ---- Check each metric ----

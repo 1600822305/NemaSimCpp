@@ -1066,6 +1066,18 @@ void build_command_ventral(CB& b) {
     b.syn("AS10", "VD12", 1);
     b.syn("AS11", "VD13", 1);
 
+    // Step 90: VA → DD chemical synapses — A-class cross-inhibition input
+    // White 1986: VA excites DD → DD inhibits dorsal BWM → dorsal relaxation
+    // During backward movement, VA contracts ventral + inhibits dorsal via DD
+    // Segment-based mapping: each VA excites overlapping DD(s)
+    b.syn("VA01", "DD01", 1);
+    b.syn("VA02", "DD01", 1); b.syn("VA03", "DD02", 1);
+    b.syn("VA04", "DD02", 1); b.syn("VA05", "DD03", 1);
+    b.syn("VA06", "DD03", 1); b.syn("VA07", "DD04", 1);
+    b.syn("VA08", "DD04", 1); b.syn("VA09", "DD05", 1);
+    b.syn("VA10", "DD05", 1); b.syn("VA11", "DD06", 1);
+    b.syn("VA12", "DD06", 1);
+
     // Step 89: AS ↔ AVA gap junctions — electrical feedback to backward PIN
     // Tolstenkov 2018 eLife: UNC-7 innexin mediates AS→AVA retrograde signaling
     // AS photostimulation → 18% ΔR/R Ca²⁺ in AVA, abolished in unc-7(e5)
@@ -1247,6 +1259,36 @@ void build_sleep_and_gaps(CB& b) {
     b.gj("DB01", "DB02", 2); b.gj("DB02", "DB03", 2);
     b.gj("DB03", "DB04", 2); b.gj("DB04", "DB05", 2);
     b.gj("DB05", "DB06", 2); b.gj("DB06", "DB07", 2);
+
+    // Step 90: A-class backward proprioceptive wave + motor interconnect
+    // Gao 2018 eLife: A-class MNs are intrinsic oscillators, proprioception
+    // entrains their activities and phase-couples adjacent members
+    // Liu 2017 Nat Commun: AVA↔A-type gap junctions are antidromic-rectifying
+
+    // VA↔VA adjacent gap junctions — ventral backward wave propagation
+    // Symmetric to VB↔VB: proprioceptive coupling for backward undulation
+    b.gj("VA01", "VA02", 2); b.gj("VA02", "VA03", 2);
+    b.gj("VA03", "VA04", 2); b.gj("VA04", "VA05", 2);
+    b.gj("VA05", "VA06", 2); b.gj("VA06", "VA07", 2);
+    b.gj("VA07", "VA08", 2); b.gj("VA08", "VA09", 2);
+    b.gj("VA09", "VA10", 2); b.gj("VA10", "VA11", 2);
+    b.gj("VA11", "VA12", 2);
+
+    // DA↔DA adjacent gap junctions — dorsal backward wave propagation
+    // Symmetric to DB↔DB: dorsal A-class proprioceptive coupling
+    b.gj("DA01", "DA02", 2); b.gj("DA02", "DA03", 2);
+    b.gj("DA03", "DA04", 2); b.gj("DA04", "DA05", 2);
+    b.gj("DA05", "DA06", 2); b.gj("DA06", "DA07", 2);
+    b.gj("DA07", "DA08", 2); b.gj("DA08", "DA09", 2);
+
+    // DA↔AS gap junctions — synchronize dorsal activation during backward movement
+    // White 1986, Cook 2019: DA and AS share gap junctions in overlapping segments
+    // Both innervate dorsal muscles; coupling ensures coordinated dorsal contraction
+    b.gj("DA01", "AS01", 1); b.gj("DA02", "AS02", 1);
+    b.gj("DA03", "AS03", 1); b.gj("DA04", "AS04", 1);
+    b.gj("DA05", "AS05", 1); b.gj("DA06", "AS06", 1);
+    b.gj("DA07", "AS07", 1); b.gj("DA08", "AS08", 1);
+    b.gj("DA09", "AS09", 1);
 }
 
 // ================================================================

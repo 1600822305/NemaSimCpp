@@ -888,6 +888,14 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **DB↔DB 本体感觉波**: 6条相邻间隙连接 (对称 VB↔VB, Wen 2012)
 - **regtest**: 20/20 PASS (210/474/143)
 
+### Step 90: A-class 后退运动回路互连完善 ✅ (2026-02-12)
+> 详细文档: [steps/step90_aclass_interconnect.md](steps/step90_aclass_interconnect.md)
+
+- **VA↔VA + DA↔DA 后退波**: 19对相邻间隙连接 (Gao 2018 eLife)
+- **DA↔AS 背侧同步**: 9条间隙连接 (White 1986)
+- **VA→DD 交叉抑制**: 12条化学突触
+- **regtest**: 20/20 PASS (210/486/171)
+
 ---
 
 ## 当前系统状态
