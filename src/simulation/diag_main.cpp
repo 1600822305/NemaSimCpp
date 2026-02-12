@@ -385,6 +385,7 @@ int main(int argc, char* argv[]) {
     int il1dl_id = conn.get_neuron_id("IL1DL");
     int rih_id = conn.get_neuron_id("RIH");
     int rmddl_id = conn.get_neuron_id("RMDDL");
+    int rmgl_id = conn.get_neuron_id("RMGL");     // Step 75: pathogen aversion hub
 
     // Accumulators
     std::vector<double> grad_mags, grad_normals, biases;
@@ -423,6 +424,8 @@ int main(int argc, char* argv[]) {
     // Step 74: Nose touch circuit diagnostics
     std::vector<double> flpl_v_vs, rih_v_vs, il1dl_v_vs, rmddl_v_vs;
     int nose_touch_samples = 0;  // count of samples where nose touch was active
+    // Step 75: Pathogen aversion diagnostics
+    std::vector<double> rmgl_v_vs;
     // Step 29: Wave propagation diagnostics
     std::vector<double> curv_seg2_vs, curv_seg7_vs, curv_seg15_vs, muscle_work_vs;
     int curv7_sign_changes = 0;
@@ -645,6 +648,9 @@ int main(int argc, char* argv[]) {
             if (flpl_id >= 0 && flpl_id < n && neurons[flpl_id]->get_I_ext() > 5.0)
                 nose_touch_samples++;
 
+            // Step 75: RMG pathogen aversion hub tracking
+            rmgl_v_vs.push_back(getV(rmgl_id));
+
             // Store
             grad_mags.push_back(grad_mag);
             grad_normals.push_back(grad_normal);
@@ -866,6 +872,25 @@ int main(int argc, char* argv[]) {
     std::cout << "   connectome: " << conn.num_neurons() << " neurons, "
               << conn.num_synapses() << " synapses, "
               << conn.num_gap_junctions() << " gap junctions" << std::endl;
+
+    // Step 75: Pathogen aversion hub diagnostics
+    std::cout << "\n28. PATHOGEN AVERSION (Step 75, AWB→AUA/RMG→AVA):" << std::endl;
+    std::cout << "   RMGL:  V mean=" << std::setprecision(1) << mean(rmgl_v_vs)
+              << " mV  S(release)=" << std::setprecision(3) << release(mean(rmgl_v_vs)) << std::endl;
+    // AWB voltage from existing accumulator (via getV in loop)
+    {
+        const auto& ns = sim.neurons();
+        int nn = (int)ns.size();
+        int awbl = conn.get_neuron_id("AWBL");
+        int aual = conn.get_neuron_id("AUAL");
+        double awb_v = (awbl >= 0 && awbl < nn) ? ns[awbl]->get_membrane_potential() : -65.0;
+        double aua_v = (aual >= 0 && aual < nn) ? ns[aual]->get_membrane_potential() : -65.0;
+        std::cout << "   AWBL:  V final=" << std::setprecision(1) << awb_v
+                  << " mV  S(release)=" << std::setprecision(3) << release(awb_v) << std::endl;
+        std::cout << "   AUAL:  V final=" << std::setprecision(1) << aua_v
+                  << " mV  S(release)=" << std::setprecision(3) << release(aua_v) << std::endl;
+    }
+    std::cout << "   sickness: " << std::setprecision(3) << sim.sickness() << std::endl;
 
     std::cout << "\n9. DISTANCE TO FOOD:" << std::endl;
     std::cout << "   initial=" << std::setprecision(2) << dists.front()

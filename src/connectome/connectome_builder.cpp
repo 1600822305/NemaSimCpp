@@ -279,6 +279,13 @@ void build_neurons(CB& b) {
     // REF: Chalfie 1985, White 1986, Kawano 2011, Zheng 1999
     b.neuron("PVCL", NT::INTER, NTT::GLUTAMATE);
     b.neuron("PVCR", NT::INTER, NTT::GLUTAMATE);
+    // Step 75: RMG — social/pathogen hub interneuron (reclassified from motor, Cook 2019)
+    // Hub of hub-and-spoke gap junction network for aggregation (NPR-1 modulated)
+    // Pathogen aversion: AWB→RMG→AVA/AVD drives reflexive backward locomotion
+    // eat-4+ (glutamatergic), also expresses FLP-21 neuropeptide (NPR-1 ligand)
+    // REF: de Bono 2002 Nature, Macosko 2009 Nature, Filipowicz 2022 BMC Biology
+    b.neuron("RMGL", NT::INTER, NTT::GLUTAMATE);
+    b.neuron("RMGR", NT::INTER, NTT::GLUTAMATE);
     // Step 73: RIH — hub interneuron for nose touch coincidence detection
     // Single unpaired neuron in nerve ring
     // Hub of hub-and-spoke gap junction network: FLP, OLQ, CEP, ADF all connect
@@ -577,6 +584,30 @@ void build_touch_nociception(CB& b) {
     // AWB↔AUA: ELECTRICAL synapse (gap junction), not chemical
     // REF: Filipowicz 2022 BMC Biology — "AWB electrically synapses onto AUA and RMG"
     b.gj("AWBL", "AUAL", 2); b.gj("AWBR", "AUAR", 2);
+
+    // Step 75: AWB↔RMG gap junctions — parallel pathogen aversion pathway
+    // Filipowicz 2022: "AWB electrically synapses onto AUA AND RMG interneurons"
+    // Ablation of RMG eliminates motor neuron oscillations → both AUA+RMG required
+    // RMG is also the social feeding hub (NPR-1 modulated, de Bono 2002)
+    // In N2 (npr-1 215V), RMG hub is suppressed for aggregation but still functional
+    //   for pathogen aversion — different activation threshold
+    // REF: Filipowicz 2022 BMC Biology, Macosko 2009 Nature
+    b.gj("AWBL", "RMGL", 2); b.gj("AWBR", "RMGR", 2);
+
+    // Step 75: RMG → command interneurons — drives backward locomotion
+    // Filipowicz 2022: "AUA and RMG synapse onto motor command interneurons
+    //   to control backward locomotion motor neurons"
+    // RMG→AVA: primary backward command (reversal initiation)
+    // RMG→AVD: secondary backward command (reversal support)
+    // REF: Filipowicz 2022 BMC Biology, Cook 2019 (WormWiring)
+    b.syn("RMGL", "AVAL", 1); b.syn("RMGR", "AVAR", 1);
+    b.syn("RMGL", "AVDL", 1); b.syn("RMGR", "AVDR", 1);
+
+    // Step 75: AUA → AVD — parallel backward command for pathogen aversion
+    // AUA→AVA already exists (0.3 sections, Step 34 O₂ relay)
+    // Adding AUA→AVD completes the dual-pathway drive to backward command
+    // REF: Filipowicz 2022, Cook 2019
+    b.syn("AUAL", "AVDL", 0.5); b.syn("AUAR", "AVDR", 0.5);
 }
 
 // ================================================================

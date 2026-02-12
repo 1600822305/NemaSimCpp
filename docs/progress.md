@@ -757,15 +757,25 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - tolerance=1%: 任何连接组构建错误都会立即被捕获
 - **regtest**: 20/20 PASS
 
+### Step 75: AWB→RMG 病原体嗅觉回避完整回路 ✅ (2026-02-12)
+> 详细文档: [steps/step75_awb_rmg_pathogen_aversion.md](steps/step75_awb_rmg_pathogen_aversion.md)
+
+- **新增 2 个神经元** (169→171): RMG L/R — 病原体回避 hub (Cook 2019 重分类为中间神经元)
+- **AWB↔RMG** 缝隙连接 (2 sec) — Filipowicz 2022: AWB 电耦合到 AUA **和** RMG
+- **RMG→AVA/AVD** 化学突触 — 驱动习得性反射后退运动
+- **AUA→AVD** 化学突触 (0.5 sec) — 完善 AUA 平行后退通路
+- 4 层回路完成: AWB → AUA/RMG → AVA/AVD → 运动神经元
+- **regtest**: 20/20 PASS (171/337/98)
+
 ---
 
 ## 当前系统状态
 
 ```
 架构: 8 层 (环境/躯体/感知/神经元/连接组/神经调质/运动/行为)
-神经元: 169 个 MVP 子集 (302 全集待加载)
+神经元: 171 个 MVP 子集 (302 全集待加载)
   感觉: 53 (ASE/AWC/AWA/ASH/ALM/PLM/NSM/CEP/ADE/PDE/AFD/ADF/ASJ/ASK/ASI/ADL/FLP L/R + AVM + OLQ 4× + IL1 4× + URX L/R + AQR + PQR + BAG L/R + PVD L/R)
-  中间: 46 (AIA/AIB/AIY/AIZ/RIA/RIB/RIM/RIC/AVA/AVB/AVD/AVE/PVC/AUA/AVK/AVJ/AVH/PVP/I1/RIP L/R + RIS + RIH + DVA + DVC + PVT + PVR)
+  中间: 48 (AIA/AIB/AIY/AIZ/RIA/RIB/RIM/RIC/AVA/AVB/AVD/AVE/PVC/AUA/AVK/AVJ/AVH/PVP/I1/RIP L/R + RIS + RIH + RMG L/R + DVA + DVC + PVT + PVR)
   运动: 70 (SMD/RMD/SMB 4×2+4 + RIV L/R + RMED/RMEV + AS01-07 + DB01-07/VB01-07/DA01-05/VA01-05/DD01-05/VD01-05 + MC/M3 L/R + M4 + HSN L/R + VC4/VC5 + AVL + DVB)
 突触: ~215 化学 + ~56 间隙连接 (全部带 Tsodyks-Markram STP, 支持分数 sections)
   Step 42: Cook 2019 校准 (+8 RIA↔RIV, -2 AVE→RIV) + RIV↔RIV gap
