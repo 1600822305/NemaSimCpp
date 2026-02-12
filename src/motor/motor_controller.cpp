@@ -88,11 +88,11 @@ void MotorController::initialize(const std::unordered_map<std::string, int>& nam
     add_mapping(name_to_id, "RMED", 0, 4, false, true);  // RMED ⊣ ventral seg 0-4
     add_mapping(name_to_id, "RMEV", 0, 4, true, true);   // RMEV ⊣ dorsal seg 0-4
 
-    // Step 31: RIV — omega turn driven via curvature_bias bypass (apply_riv_omega)
+    // Step 31: RIV — omega turn driven via curvature_bias (apply_riv_omega)
     // NOT mapped to motor controller: muscle_gain (0.3) too weak for omega curvature,
     // and even low RIV tonic activity (release ~0.1) creates persistent ventral bias
-    // that disrupts SMD head oscillation. RIV drives omega through curvature_bias
-    // (same bypass pattern as weathervane and klinotaxis).
+    // that disrupts SMD head oscillation. RIV drives omega through curvature_bias.
+    // Step 65: weathervane curvature_bias bypass removed; only RIV omega uses it now.
 
     LOG_INFO("Motor controller initialized with ", mappings_.size(), " mappings");
 }

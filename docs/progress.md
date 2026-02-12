@@ -801,6 +801,18 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 - REF: Nicoletti 2019 PLOS One, Dobosiewicz 2019 eLife, Iino 2009 JNeurosci
 - **regtest**: 17 pass, 0 FAIL
 
+### Step 66: Pirouette Poisson 移除 — Reversal 从 AVA 涌现 ✅ (2026-02-12)
+> 详细文档: [steps/step66_pirouette_poisson_removal.md](steps/step66_pirouette_poisson_removal.md)
+
+- **P0 违规 1.1+1.5 修复**: 移除 Pirouette Poisson + `set_locomotion_state(0,1)` 覆盖
+- Reversal 完全从 AVA 神经回路涌现 (ASE→AIB→AVA + 离子通道噪声)
+- AVA Schmitt 触发器: 迟滞 0.35/0.15 + 300ms 最小持续 + 2s 不应期
+- Food edge reversal: 40pA AVA 注入替代直接 is_reversing_
+- **涌现 CI**: 8-seed 均值 **0.45** (↑ from 0.24), 8/8 正 CI
+- Reversal rate: 0.17/s (完全涌现, 文献 ~0.10/s)
+- REF: Piggott 2011 Cell, Roberts 2016 eLife, Kuramochi 2018, Gao 2018
+- **regtest**: 17 pass, 0 FAIL
+
 ---
 
 ## 当前系统状态

@@ -584,8 +584,15 @@ void SimulationEngine::step() {
     // 7. Motor output: motor neurons → muscle activations
     motor_controller_.update(neurons_, body_);
 
-    // 8. Command neuron balance → locomotion direction
+    // 8. Command neuron balance → locomotion direction (Step 66: SOLE mechanism)
     // AVA dominant → reverse, AVB dominant → forward
+    // Step 66: Removed set_locomotion_state(0,1) override — AVA/AVB balance is now
+    // the ONLY source of locomotion direction. Reversals emerge from:
+    //   - Spontaneous: ion channel noise (3pA) → stochastic AVA activation (Roberts 2016)
+    //   - Sensory: ASE→AIB→AVA pathway (dC/dt modulation, Piggott 2011)
+    //   - Nociceptive: ASH→AVA direct (GLR-1, Piggott 2011)
+    //   - Food edge: AVA current injection (CEP→DA→AIB→AVA, eLife 2024)
+    // REF: Roberts 2016 eLife — neuronal flip-flop with reciprocal inhibition
     {
         double ava_rel = 0.0, avb_rel = 0.0;
         int n = static_cast<int>(neurons_.size());
@@ -595,16 +602,54 @@ void SimulationEngine::step() {
         if (nid("AVBR") >= 0 && nid("AVBR") < n) avb_rel += neurons_[nid("AVBR")]->get_transmitter_release_rate();
         ava_rel *= 0.5; avb_rel *= 0.5; // average L/R
         body_.set_locomotion_state(avb_rel, ava_rel);
-    }
 
-    // Step 41: Pirouette reversal overrides locomotion direction
-    // The pirouette Poisson process is a decision-layer shortcut (bypasses AVA circuit
-    // for WHEN to reverse). Consistently, execution also bypasses command neuron balance
-    // to specify backward movement. This avoids AVA injection side effects (AVE→RIV
-    // excitation would prevent omega turn CCA-1 h deinactivation).
-    // REF: Fang-Yen 2010 — reverse speed ~60% of forward
-    if (is_reversing_) {
-        body_.set_locomotion_state(0.0, 1.0);  // force backward: fwd=0, rev=1
+        // Step 66: Detect reversal state from AVA activity (for RIV omega tracking)
+        // Schmitt trigger with hysteresis (Roberts 2016: AVA bistable -17/-32 mV)
+        // Enter reversal: ava_rel > 0.35 AND ava_rel > avb_rel AND not in refractory
+        // Exit reversal: ava_rel < 0.15 AND min duration 300ms elapsed
+        // Refractory: 2000ms after reversal end (prevents rapid re-triggering)
+        bool was_reversing = is_reversing_;
+        if (!is_reversing_) {
+            bool past_refractory = (current_time_ > reversal_refractory_end_);
+            is_reversing_ = past_refractory && (ava_rel > 0.35) && (ava_rel > avb_rel);
+        } else {
+            double rev_elapsed = current_time_ - reversal_start_time_;
+            // Exit: AVA drops below low threshold after minimum duration
+            // Also force-exit after 3000ms (max reversal, prevents stuck state)
+            if ((rev_elapsed > 300.0 && ava_rel < 0.15) || rev_elapsed > 3000.0) {
+                is_reversing_ = false;
+            }
+        }
+
+        // Reversal state transitions → RIV omega pulse machinery
+        if (is_reversing_ && !was_reversing) {
+            reversal_start_time_ = current_time_;
+            double dt_snap = 0.0;
+            for (int i = 0; i < 6; ++i) {
+                dt_snap += body_.segments()[i].dorsal_activation;
+            }
+            pre_rev_dorsal_tone_ = dt_snap / 6.0;
+        }
+        if (!is_reversing_ && was_reversing) {
+            reversal_duration_ = current_time_ - reversal_start_time_;
+            reversal_refractory_end_ = current_time_ + 2000.0;  // 2s refractory
+            // Only fire RIV pulse if reversal was at least 200ms (filter out transients)
+            if (reversal_duration_ > 200.0) {
+                riv_post_rev_time_ = current_time_;
+                double ta_conc = neuromod_.get_concentration("TA");
+                double base_amp = static_cast<double>(params.pulse_amp) * ta_conc;
+                double heading = body_.get_head_angle();
+                Vector2d grad = environment_.chemical_field().gradient(body_.get_head_position());
+                double grad_perp = -std::sin(heading) * grad.x + std::cos(heading) * grad.y;
+                double grad_lr = std::tanh(grad_perp * 50.0);
+                double posture_lr = -(pre_rev_dorsal_tone_ - 0.5) * 4.0;
+                posture_lr = std::tanh(posture_lr);
+                double lr_grad = 0.3 * grad_lr;
+                double lr_posture = 0.3 * posture_lr;
+                riv_post_rev_amp_l_ = base_amp * (1.0 + lr_grad + lr_posture);
+                riv_post_rev_amp_r_ = base_amp * (1.0 - lr_grad - lr_posture);
+            }
+        }
     }
 
     // 9. Body physics update
@@ -1064,10 +1109,10 @@ void SimulationEngine::apply_smb_neck_bias() {
     if (curvature_offset < -max_bias) curvature_offset = -max_bias;
 
     // Don't override RIV-driven omega curvature_bias (Step 31)
-    // ADD to existing curvature_bias (set by apply_weathervane), don't replace!
-    // Bug fix: apply_smb_neck_bias() was overwriting weathervane's gradient-proportional
-    // curvature_bias (up to ±7.5) with RIA Ca²⁺ signal (±0.5 max), destroying chemotaxis.
-    // Both should co-exist: weathervane provides gradient steering, RIA provides neural modulation.
+    // ADD to base curvature_bias (0.0 during forward, set by apply_weathervane Step 65)
+    // Step 65: weathervane no longer uses curvature_bias (SMD duty cycle instead),
+    // so SMB adds to the zero base. Small RIA Ca²⁺ signal (±0.5 max) provides
+    // neural klinotaxis modulation on top of SMD weathervane steering.
     if (!riv_omega_active_) {
         body_.set_curvature_bias(body_.get_curvature_bias() + curvature_offset);
     }
@@ -1507,199 +1552,50 @@ void SimulationEngine::apply_touch_stimulus() {
     }
 
     // ======================================================================
-    // Pirouette model (Pierce-Shimomura et al. 1999, J Neurosci 19:9557)
+    // Step 66: Food edge reversal (via AVA current injection)
     // ======================================================================
-    // Biased random walk: pirouette initiation rate r is a sigmoid of dC/dt.
-    // dC/dt < 0 (heading down gradient) → elevated r → more pirouettes
-    // dC/dt > 0 (heading up gradient)   → suppressed r → fewer pirouettes
-    // dC/dt = 0 (flat field)            → spontaneous rate ~0.025/s
+    // Pirouette Poisson process REMOVED — reversals now emerge from:
+    //   1. ASE→AIB→AVA neural pathway (sensory-driven klinokinesis)
+    //   2. Ion channel noise (3pA) → stochastic AVA switching (Roberts 2016)
+    //   3. Food edge: transient AVA injection (below)
+    // Reversal state detection moved to step() L606 (AVA release rate threshold)
+    // RIV omega pulse also moved to step() L621
     //
-    // This bypasses the noisy klinokinesis neural pathway (ASE→AIB→AVA),
-    // same principle as the curvature_bias_ bypass for weathervane (Iino 2009).
-    // Both mechanisms operate in parallel for efficient chemotaxis (Iino 2009 Fig 3).
-    //
-    // Post-pirouette bearing is biased toward gradient (course correction,
-    // not random reorientation) — implemented via gradient-biased omega turns.
+    // REF: Piggott 2011 Cell — stimulatory + disinhibitory circuits
+    //      Roberts 2016 eLife — stochastic switch model (bistable AVA)
+    //      Kuramochi 2018 Front Mol Neurosci — ASE→AIB E/I switch
     // ======================================================================
-
-    // 1. Compute sensory derivatives and low-pass filter (tau=4s)
-    //    Chemical: dC/dt (Pierce-Shimomura 1999 Fig 7)
-    //    Thermal: d|T-Tc|/dt (Ryu & Samuel 2002, Luo 2014)
-    Vector2d head_pos = body_.get_head_position();
-
-    // 1a. Chemical derivative
-    double conc_now = environment_.sample_chemical(head_pos);
-    double raw_dCdt = (conc_now - prev_concentration_) / (dt_ / 1000.0);
-    prev_concentration_ = conc_now;
-    double alpha_filt = dt_ / 4000.0;  // tau=4s
-    dCdt_filtered_ += (raw_dCdt - dCdt_filtered_) * alpha_filt;
-
-    // 1b. Thermal deviation derivative: d|T - Tc|/dt
-    //     |T-Tc| increasing → moving AWAY from Tc → more pirouettes
-    //     |T-Tc| decreasing → moving TOWARD Tc → fewer pirouettes
-    //     REF: Ryu & Samuel 2002 — pirouette rate rises when warming above Tc
-    double temp_now = environment_.sample_temperature(head_pos);
-    double temp_dev = std::abs(temp_now - cultivation_temp_);
-    double raw_dTdev = (temp_dev - prev_temp_dev_) / (dt_ / 1000.0);
-    prev_temp_dev_ = temp_dev;
-    dTdev_filtered_ += (raw_dTdev - dTdev_filtered_) * alpha_filt;
-
-    // 2. Combined pirouette signal: satiety-weighted blend of chemical and thermal
-    //    Hungry → chemical klinokinesis: dC/dt < 0 triggers pirouettes
-    //    Fed    → thermal klinokinesis: d|T-Tc|/dt > 0 triggers pirouettes
-    //    Both use the same biased random walk strategy (Pierce-Shimomura 1999)
-    double sat_switch = 1.0 / (1.0 + fast_exp(-10.0 * (satiety_ - 0.5)));
-    // Normalize signals to comparable scales:
-    //   dCdt_filtered_: typical range ±0.005 → k_chem=1500 → sigmoid range 0.01-0.06
-    //   dTdev_filtered_: typical range ±0.1°C/s → k_therm=30 → similar sigmoid range
-    // Combined: negative = "bad direction" → more pirouettes
-    double combined = (1.0 - sat_switch) * (-dCdt_filtered_ * 1500.0)  // chemical: dC/dt<0 → positive
-                    + sat_switch * (dTdev_filtered_ * 30.0);            // thermal: d|T-Tc|/dt>0 → positive
-
-    // 3. Pirouette initiation rate: sigmoid of combined signal
-    //    r(x) = r_min + (r_max - r_min) / (1 + exp(-x))
-    //    x > 0 (bad direction) → r → r_max (more pirouettes)
-    //    x < 0 (good direction) → r → r_min (fewer pirouettes)
-    //    x = 0 (flat field) → r = r_mid ≈ 0.14/s (Step 44: raised for off-food search)
-    bool was_reversing = is_reversing_;
-    if (!is_reversing_) {
-        double r_min = 0.03;   // /s, suppressed when heading up gradient
-        double r_max = 0.25;   // /s, elevated rate when heading down gradient
-        // Step 44: raised from 0.01/0.16 to 0.03/0.25
-        // Off-food r_mid=0.14 → effective ~0.10/s (target 6/min, Campbell 2016)
-        // On-food with 5-HT: 0.14×0.65=0.09 → effective ~0.06/s (target 3/min)
-        // REF: Pierce-Shimomura 1999 — pirouette rate heavily suppressed during approach
-        //      Gray 2005 PNAS — off-food reversal rate 6/min
-        double pir_rate = r_min + (r_max - r_min) /
-                          (1.0 + fast_exp(-combined));
-
-        // Step 44: Apply neuromodulatory reversal rate scaling
-        // 5-HT on food → scale=0.65 (50% suppression at [5-HT]=0.73)
-        // Off food → scale=1.0 (no suppression → full exploration)
-        // REF: Flavell 2013 Cell — 5-HT promotes dwelling (low reversal state)
-        pir_rate *= neuromod_.get_reversal_rate_scale();
-
-        // Step 44→45: ARS food_memory → pirouette rate bonus (reversal-coupled ARS)
-        // After leaving food: food_memory high → more reversals → stay near patch
-        // As food_memory decays (90s tau): rate drops → transition to dispersal
-        // Step 45: reduced 0.08→0.04 — NLP-12→CKR-1→SMD now handles forward
-        // reorientations (head swing amplitude); this bonus covers reversal-coupled
-        // omega turns only. NLP-12→CKR-2→AVA (+2pA) also contributes to reversal bias.
-        // REF: Hills 2004 J Neurosci — DA→DARPP-32→GLR-1 increases turn frequency
-        //      Bhattacharya 2014 — nlp-12(lf) reduces forward reorientations, NOT omega turns
-        pir_rate += 0.08 * food_memory_;
-
-        // Step 47: Head poke reversal at food boundary (eLife 2024, Flavell lab)
-        // When head exits food patch → reversal with state-dependent probability
-        // Data: head poke reversal 1.1/min, lawn leaving only 1/95min
-        //   → ~98% of food-edge encounters result in staying on food
-        // Mechanism: CEP stops detecting bacteria → DA signal drops → AIB→AVA reversal
-        // Probability modulated by behavioral state:
-        //   Dwelling (high 5-HT, low PDF): ~80% reversal → worm stays on food
-        //   Roaming (low 5-HT, high PDF):  ~20% reversal → worm can leave to explore
-        //   Matches: "leaving rates 20-fold higher in roaming" (eLife 2024)
-        // REF: Flavell 2024 eLife — foraging decisions at food boundary
-        //      Gray 2005 PNAS — AIB promotes reversals
-        //      Sawin 2000 — CEP mechanosensory detection of bacteria
-        // Step 54 BUG FIX: prev_food > 0.4 && current_food < 0.3 in a single step
-        // was IMPOSSIBLE with smooth Gaussian gradient (change ~0.00001/step).
-        // Fix: latch-based crossing detector — track was_on_lawn_ flag.
+    {
+        // Step 47/54: Head poke reversal at food boundary
+        // When head exits lawn → inject strong current into AVA → triggers reversal
+        // through the neural circuit (not by directly setting is_reversing_)
         double food_at_head = environment_.sample_food_density(body_.get_head_position());
         bool currently_on_lawn = (food_at_head > 0.4);
         bool food_edge_exit = (was_on_lawn_ && food_at_head < 0.3);
         if (currently_on_lawn) was_on_lawn_ = true;
         if (food_at_head < 0.3) was_on_lawn_ = false;
 
-        if (food_edge_exit && current_time_ > reversal_refractory_end_) {
-            // State-dependent reversal probability at food edge
+        if (food_edge_exit && current_time_ > food_edge_ava_end_ + 2000.0) {
             double sht = neuromod_.get_concentration("5-HT");
             double pdf = neuromod_.get_concentration("PDF");
-            // Dwelling: 5-HT high → p=0.80, Roaming: PDF high → p→0.20
             double p_edge_rev = 0.50 + 0.30 * sht - 0.30 * pdf;
             if (p_edge_rev < 0.15) p_edge_rev = 0.15;
             if (p_edge_rev > 0.85) p_edge_rev = 0.85;
 
             std::uniform_real_distribution<double> rdist01(0.0, 1.0);
             if (rdist01(touch_rng_) < p_edge_rev) {
-                is_reversing_ = true;
-                // Short reversal: head poke reversals are brief (~500ms)
-                planned_reversal_end_ = current_time_ + 500.0;
+                // Inject into AVA for 500ms (head poke reversals are brief)
+                food_edge_ava_end_ = current_time_ + 500.0;
             }
         }
 
-        // Standard gradient-dependent pirouette (unchanged)
-        double p_pir = pir_rate * (dt_ / 1000.0);
-        std::uniform_real_distribution<double> rdist(0.0, 1.0);
-        if (!is_reversing_ && current_time_ > reversal_refractory_end_ && rdist(touch_rng_) < p_pir) {
-            is_reversing_ = true;
-            // Draw reversal duration: exponential with mean 1000ms
-            // REF: Gray 2005 — mean reversal ~1s; Luo 2014 — τ_run=6.2s, τ_pir=7.4s
-            std::exponential_distribution<double> dur_dist(1.0 / 1000.0);
-            double rev_dur = dur_dist(touch_rng_);
-            if (rev_dur < 300.0) rev_dur = 300.0;
-            if (rev_dur > 3000.0) rev_dur = 3000.0;
-            planned_reversal_end_ = current_time_ + rev_dur;
+        // Sustained food-edge AVA injection (during pulse window)
+        if (current_time_ < food_edge_ava_end_) {
+            int n = static_cast<int>(neurons_.size());
+            double ava_pulse = 40.0;  // strong enough to activate AVA reliably
+            if (nid("AVAL") >= 0 && nid("AVAL") < n) neurons_[nid("AVAL")]->add_synaptic_current(ava_pulse);
+            if (nid("AVAR") >= 0 && nid("AVAR") < n) neurons_[nid("AVAR")]->add_synaptic_current(ava_pulse);
         }
-    } else {
-        if (current_time_ >= planned_reversal_end_) {
-            is_reversing_ = false;
-            reversal_refractory_end_ = current_time_ + 2000.0;  // 2s (adjusted: bio tcrit=6s includes 7.4s pirouette)
-        }
-    }
-
-    if (is_reversing_ && !was_reversing) {
-        // Reversal just started
-        reversal_start_time_ = current_time_;
-        // Step 32: Snapshot dorsal tone at reversal start (before TA suppresses SMD)
-        // This captures random SMD phase → basis for AS resistance evaluation
-        double dt_snap = 0.0;
-        for (int i = 0; i < 6; ++i) {
-            dt_snap += body_.segments()[i].dorsal_activation;
-        }
-        pre_rev_dorsal_tone_ = dt_snap / 6.0;
-    }
-    if (!is_reversing_ && was_reversing) {
-        // Reversal just ended — record duration for diagnostics
-        reversal_duration_ = current_time_ - reversal_start_time_;
-
-        // Step 31: RIV post-reversal pulse — models reversal→forward transition signal
-        // Biological basis (Donnelly 2013): "The omega turn is initiated by a steep
-        // ventral bend of the head when the animal REINITIATES FORWARD LOCOMOTION"
-        // Pulse amplitude ∝ [TA]: longer reversals accumulate more TA → stronger pulse
-        // → higher RIV burst probability → more omega turns (emergent correlation)
-        riv_post_rev_time_ = current_time_;
-        double ta_conc = neuromod_.get_concentration("TA");
-        // Scale: 50 pA at [TA]=1.0 → must overcome concurrent TA tonic (-20×[TA])
-        // Net at [TA]=0.5: tonic(2) + pulse(25) - TA_tonic(10) = 17 pA → CCA-1 burst
-        // Net at [TA]=0.1: tonic(2) + pulse(5) - TA_tonic(2) = 5 pA → no burst
-        double base_amp = static_cast<double>(params.pulse_amp) * ta_conc;
-
-        // L/R asymmetry for omega direction: TWO mechanisms
-        //
-        // 1. GRADIENT signal (ASE→AIA→AIB→RIV sensory relay)
-        //    grad_perp > 0 → food to LEFT → bias RIVL → turn LEFT toward food
-        double heading = body_.get_head_angle();
-        Vector2d grad = environment_.chemical_field().gradient(body_.get_head_position());
-        double grad_perp = -std::sin(heading) * grad.x + std::cos(heading) * grad.y;
-        double grad_lr = std::tanh(grad_perp * 50.0);  // saturating [-1, 1]
-        //
-        // 2. BODY POSTURE signal (Step 41: previously computed but never used)
-        //    Head SMD oscillation phase at reversal onset determines which side
-        //    the head is bent toward → that side initiates the omega turn
-        //    REF: Gray 2005 — omega direction correlates with body posture
-        //    REF: Donnelly 2013 — "steep ventral bend of the head" initiates omega
-        //    pre_rev_dorsal_tone_ > 0.5 → head bent dorsally → omega ventral (RIVR)
-        //    pre_rev_dorsal_tone_ < 0.5 → head bent ventrally → omega dorsal (RIVL)
-        //    Since reversal timing is stochastic, SMD phase is ~uniform → random omega dir
-        double posture_lr = -(pre_rev_dorsal_tone_ - 0.5) * 4.0;  // [-2, 2] range
-        posture_lr = std::tanh(posture_lr);  // saturate to [-1, 1]
-        //
-        // Combined: gradient dominates when present (×0.3), posture fills in (×0.3)
-        // Total asymmetry up to ±60% when both agree
-        double lr_grad   = 0.3 * grad_lr;
-        double lr_posture = 0.3 * posture_lr;
-        riv_post_rev_amp_l_ = base_amp * (1.0 + lr_grad + lr_posture);
-        riv_post_rev_amp_r_ = base_amp * (1.0 - lr_grad - lr_posture);
     }
 }
 

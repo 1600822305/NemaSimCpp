@@ -368,11 +368,10 @@ int main(int argc, char* argv[]) {
         // IMPORTANT: I_syn > ±50pA almost certainly means rogue current injection
         // Step 33: RME dampens head oscillation (Huang 2016 eLife)
         // Step 34: baselines raised 45→55 — observed range 55-70 mV across 105-neuron runs
-        // Step 65: SMD baselines recalibrated for curvature_bias bypass removal
-        // SMDDL swing asymmetric: weathervane -drive suppresses dorsal during food approach
-        // SMDVL swing enhanced: +drive from weathervane
-        // Actual steering now emerges from SMD duty cycle modulation (Nicoletti 2019)
-        {"SMDDL V swing",      m.smddl_v_max - m.smddl_v_min,  15.0,  80, "mV", "SMDDL"},
+        // Step 66: SMD baselines recalibrated for Pirouette Poisson removal
+        // SMDDL swing now reflects full oscillation (no Poisson-forced TA suppression)
+        // Reversal TA dynamics differ: emergent reversals have different timing/duration
+        {"SMDDL V swing",      m.smddl_v_max - m.smddl_v_min,  45.0,  60, "mV", "SMDDL"},
         {"SMDVL V swing",      m.smdvl_v_max - m.smdvl_v_min,  45.0,  60, "mV", "SMDVL"},
         {"SMD diff amplitude", m.smd_diff_amp,                  55.0,   60, "mV", "SMDDL"},
         {"SMDDL |I_syn| max",  std::max(std::abs(m.smddl_isyn_max), std::abs(m.smddl_isyn_min)),
@@ -384,7 +383,7 @@ int main(int argc, char* argv[]) {
         {"Curvature amplitude", m.curv_amp,                      0.14,  60, "/mm", ""},
         {"Speed mean",          m.speed_mean,                    0.30,  30, "mm/s", ""},  // Step 48: 0.20→0.30 (actual measured; basal slowing active but OA/PDF dynamics raise baseline)
         // Step 34: heading rate baseline lowered 15→10 — 105-neuron system turns less aggressively
-        {"Heading rate",        m.heading_rate,                  5.0,   60, "deg/s", ""},
+        {"Heading rate",        m.heading_rate,                  8.0,   60, "deg/s", ""},  // Step 66: 5→8 (emergent reversals + omega turns increase turning)
 
         // Sensory
         {"ASEL mean V",         m.asel_mean,                    -40.0,  20, "mV", "ASEL"},

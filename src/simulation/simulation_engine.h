@@ -205,16 +205,15 @@ private:
     int tap_count_ = 0;             // number of taps delivered
     bool tap_active_ = false;       // is a tap pulse currently active?
     double tap_pulse_end_ = 0.0;    // when current tap pulse ends
-    // Pirouette model (Pierce-Shimomura 1999 biased random walk)
-    // dC/dt modulates pirouette initiation rate: dC/dt<0 → more pirouettes
-    // This bypasses the noisy klinokinesis neural pathway (ASE→AIB→AVA)
-    // same principle as the curvature_bias_ bypass for weathervane
-    double planned_reversal_end_ = 0.0;    // when current reversal should end (ms)
-    double reversal_refractory_end_ = 0.0; // no new pirouette until this time (tcrit ≈ 5s)
-    double prev_concentration_ = 0.0;      // previous head concentration for dC/dt
-    double dCdt_filtered_ = 0.0;           // filtered concentration derivative (tau=4s)
-    double prev_temp_dev_ = 0.0;           // previous |T-Tc| for thermal klinokinesis
-    double dTdev_filtered_ = 0.0;          // filtered d|T-Tc|/dt (tau=4s, Ryu & Samuel 2002)
+    // Step 66: Pirouette Poisson REMOVED — reversals emerge from AVA neural circuit
+    // REF: Roberts 2016 eLife — stochastic switch, Piggott 2011 Cell — dual circuits
+    // Food edge reversal preserved: inject AVA current instead of setting is_reversing_
+    double food_edge_ava_end_ = 0.0;       // end time for food-edge AVA injection pulse (ms)
+    double reversal_refractory_end_ = 0.0; // no new reversal until this time (Schmitt trigger)
+    double prev_concentration_ = 0.0;      // previous head concentration (kept for diagnostics)
+    double dCdt_filtered_ = 0.0;           // filtered dC/dt (kept for diagnostics)
+    double prev_temp_dev_ = 0.0;           // previous |T-Tc| (kept for diagnostics)
+    double dTdev_filtered_ = 0.0;          // filtered d|T-Tc|/dt (kept for diagnostics)
     double riv_omega_threshold_ = 0.5;     // RIV release rate threshold for omega mode
 
     // Klinotaxis: Step 28 — RIA multi-compartment Ca²⁺ gate-and-switch
