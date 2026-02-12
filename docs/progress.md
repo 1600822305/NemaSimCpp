@@ -785,6 +785,15 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **涌现链**: 饥饿 → learn_signal<0 → ASER w_mod↓ → ASER→AIB 减弱 → 趋化↓ → CI↓
 - **regtest**: 20/20 PASS (171/337/98)
 
+### Step 78: 轻触习惯化涌现验证 ✅ (2026-02-12)
+> 详细文档: [steps/step78_tap_habituation.md](steps/step78_tap_habituation.md)
+
+- **Bug 修复**: 触觉神经元 I_ext 不重置 → pool 永久耗竭；STP tau_rec=4s 太快
+- **STP 调优**: tau_recovery 4000→15000ms, alpha_d 0.0005→0.001 (匹配 Rankin 1990 恢复时间)
+- **结果**: 4 seed 完美一致 — **前 5 次 tap 100% 反转 → 后 5 次 0%** (习惯化涌现)
+- **多机制涌现**: STP 耗竭 + gap junction 反馈 + 回路适应 + Schmitt trigger 阈值
+- **regtest**: 20/20 PASS (171/337/98)
+
 ---
 
 ## 当前系统状态

@@ -97,6 +97,9 @@ public:
     // Defecation (Step 56)
     int dmp_count() const { return dmp_count_; }
     bool dmp_active() const { return dmp_active_; }
+    // Tap habituation (Step 60/78)
+    int tap_count() const { return tap_count_; }
+    bool tap_active() const { return tap_active_; }
     // Pharyngeal pump (Step 24)
     double pump_rate_hz() const { return pharynx_.pump_rate_hz(); }
     int total_pumps() const { return pharynx_.total_pumps(); }

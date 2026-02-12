@@ -426,6 +426,13 @@ int main(int argc, char* argv[]) {
     int nose_touch_samples = 0;  // count of samples where nose touch was active
     // Step 75: Pathogen aversion diagnostics
     std::vector<double> rmgl_v_vs;
+    // Step 78: Tap habituation tracking
+    int prev_tap_count = 0;          // track tap count changes
+    double tap_onset_time = -1.0;    // when current tap started
+    std::vector<double> tap_pool_at_onset;   // vesicle pool at each tap onset
+    std::vector<bool> tap_got_reversal;      // did reversal occur within 2s of tap?
+    double tap_reversal_window = 2000.0;     // ms, window to detect tap-induced reversal
+    bool tap_reversal_detected = false;      // flag for current tap window
     // Step 29: Wave propagation diagnostics
     std::vector<double> curv_seg2_vs, curv_seg7_vs, curv_seg15_vs, muscle_work_vs;
     int curv7_sign_changes = 0;
@@ -574,6 +581,43 @@ int main(int argc, char* argv[]) {
             // Wall proximity check
             if (head.x < 2.0 || head.x > 48.0 || head.y < 2.0 || head.y > 48.0)
                 wall_touch_count++;
+
+            // Step 78: Per-tap habituation tracking
+            int cur_tap = sim.tap_count();
+            if (cur_tap > prev_tap_count) {
+                // New tap just started — record vesicle pool of first ALM→AVD synapse
+                double pool = 1.0;
+                const auto& syns = sim.connectome().synapses();
+                const auto& ni = sim.connectome().neuron_infos();
+                int nn = (int)sim.neurons().size();
+                for (size_t si = 0; si < syns.size(); ++si) {
+                    int pre = syns[si].pre_id(), post = syns[si].post_id();
+                    if (pre < 0 || pre >= nn || post < 0 || post >= nn) continue;
+                    if (ni[pre].name == "ALML" && ni[post].name == "AVBL") {
+                        pool = syns[si].vesicle_pool();
+                        break;
+                    }
+                }
+                // Close previous tap window
+                if (tap_onset_time > 0 && !tap_got_reversal.empty()) {
+                    // Already tracked
+                }
+                tap_pool_at_onset.push_back(pool);
+                tap_got_reversal.push_back(false);
+                tap_reversal_detected = false;
+                tap_onset_time = sim.current_time();
+                prev_tap_count = cur_tap;
+            }
+            // Check for reversal within window after tap
+            if (tap_onset_time > 0 && !tap_reversal_detected &&
+                sim.current_time() < tap_onset_time + tap_reversal_window) {
+                if (cur_rev && !prev_reversing) {
+                    tap_reversal_detected = true;
+                    if (!tap_got_reversal.empty())
+                        tap_got_reversal.back() = true;
+                }
+            }
+
             prev_reversing = cur_rev;
             prev_omega = cur_omega;
 
@@ -902,6 +946,40 @@ int main(int argc, char* argv[]) {
               << "  esr_current: " << std::setprecision(2)
               << (-8.0 * sim.esr_receptor_level() * sht_conc) << " pA" << std::endl;
     std::cout << "   speed_scale: " << std::setprecision(3) << sim.neuromodulation().get_speed_scale() << std::endl;
+
+    // Step 78: Tap habituation diagnostic
+    std::cout << "\n31. TAP HABITUATION (Step 78, Rankin 1990):" << std::endl;
+    std::cout << "   taps delivered: " << tap_pool_at_onset.size() << std::endl;
+    if (!tap_pool_at_onset.empty()) {
+        // Print per-tap data
+        std::cout << "   tap#  pool    reversal" << std::endl;
+        for (size_t i = 0; i < tap_pool_at_onset.size(); ++i) {
+            std::cout << "   " << std::setw(3) << (i+1)
+                      << "   " << std::setprecision(3) << std::fixed << tap_pool_at_onset[i]
+                      << "   " << (tap_got_reversal[i] ? "YES" : "no") << std::endl;
+        }
+        // Summary: first 5 vs last 5 reversal rate
+        int n_taps = (int)tap_pool_at_onset.size();
+        int first_n = std::min(5, n_taps);
+        int last_n = std::min(5, n_taps);
+        int first_rev = 0, last_rev = 0;
+        for (int i = 0; i < first_n; ++i)
+            if (tap_got_reversal[i]) first_rev++;
+        for (int i = n_taps - last_n; i < n_taps; ++i)
+            if (tap_got_reversal[i]) last_rev++;
+        double first_pct = 100.0 * first_rev / first_n;
+        double last_pct = 100.0 * last_rev / last_n;
+        std::cout << std::defaultfloat;
+        std::cout << "   first " << first_n << " taps: " << first_rev << "/" << first_n
+                  << " reversals (" << std::setprecision(0) << first_pct << "%)" << std::endl;
+        std::cout << "   last  " << last_n << " taps: " << last_rev << "/" << last_n
+                  << " reversals (" << std::setprecision(0) << last_pct << "%)" << std::endl;
+        std::cout << "   pool first=" << std::setprecision(3) << tap_pool_at_onset.front()
+                  << " last=" << tap_pool_at_onset.back()
+                  << " (Δ=" << std::setprecision(1)
+                  << (100.0*(tap_pool_at_onset.back() - tap_pool_at_onset.front())/tap_pool_at_onset.front())
+                  << "%)" << std::endl;
+    }
 
     std::cout << "\n9. DISTANCE TO FOOD:" << std::endl;
     std::cout << "   initial=" << std::setprecision(2) << dists.front()

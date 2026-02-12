@@ -1164,6 +1164,17 @@ void SimulationEngine::apply_touch_stimulus() {
     auto tail = body_.get_tail_position();
     double arena_w = 50.0, arena_h = 50.0;
 
+    // Step 78: Reset all touch neuron I_ext to 0 at start of each step.
+    // BUG FIX: set_external_current persists until changed. Without reset,
+    // tap current (60pA) persists between taps → permanent vesicle depletion
+    // → prevents STP-based habituation from emerging.
+    for (int id : nids("ALM")) { if (id >= 0 && id < n) neurons_[id]->set_external_current(0.0); }
+    for (int id : nids("PLM")) { if (id >= 0 && id < n) neurons_[id]->set_external_current(0.0); }
+    { int avm = nid("AVM"); if (avm >= 0 && avm < n) neurons_[avm]->set_external_current(0.0); }
+    for (int id : nids("OLQ")) { if (id >= 0 && id < n) neurons_[id]->set_external_current(0.0); }
+    for (int id : nids("FLP")) { if (id >= 0 && id < n) neurons_[id]->set_external_current(0.0); }
+    for (int id : nids("IL1")) { if (id >= 0 && id < n) neurons_[id]->set_external_current(0.0); }
+
     // Anterior touch: head near wall
     bool front_touch = (head.x < arena_margin_ || head.x > arena_w - arena_margin_ ||
                         head.y < arena_margin_ || head.y > arena_h - arena_margin_);
@@ -1742,12 +1753,17 @@ void SimulationEngine::setup_stp_params() {
             syn.set_stp_params(   400.0,   0.0003,   100.0,  0.001,   0.6);
             cpg_count++;
         }
-        // Touch circuit: slow recovery for habituation
+        // Touch circuit: slow recovery for habituation (Step 78 fix)
+        // OLD: tau_rec=4000ms → 91% recovery in 10s ISI → no habituation
+        // NEW: tau_rec=15000ms → 52% recovery in 10s ISI → observable depletion
+        // Biology: Rankin 1990 — tap habituation recovery ~30-60s
+        //          Wicks & Rankin 1997 — ISI determines habituation rate
         // ALM/PLM at rest: S≈0.003 → n≈1.0 (full pool)
-        // During touch: S≈0.8 → n_ss=1/(1+0.0005*0.8*4000)=0.38 (strong habituation)
+        // During tap (200ms, S≈0.8): n drops ~15-20% per tap
+        // Across 30 taps at 10s ISI: n converges to ~0.55 (45% reduction)
         else if (starts_with_any(pre_name, {"ALM", "PLM", "ASH"}) &&
                  starts_with_any(post_name, {"AVD", "AVA", "AVB", "PVC", "AIB", "RIM"})) {
-            syn.set_stp_params(  4000.0,   0.0005,   300.0,  0.003,   0.5);
+            syn.set_stp_params( 15000.0,   0.001,    300.0,  0.003,   0.5);
             touch_count++;
         }
         // Sensory → interneuron: medium recovery for adaptation
