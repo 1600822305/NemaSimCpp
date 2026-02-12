@@ -207,6 +207,19 @@ void build_neurons(CB& b) {
     // AVM born post-embryonically (L1), migrates to mid-body ventral
     // REF: Chalfie 1985, Way & Chalfie 1989 — AVM gentle touch
     b.neuron("AVM",  NT::SENSORY, NTT::ACETYLCHOLINE);
+    // Step 106: PVM — posterior ventral gentle touch neuron (single, unpaired)
+    // Complement to AVM: PVM detects posterior body touch
+    // Born post-embryonically (L1), expresses mec-4/mec-10 DEG/ENaC channels
+    // Posterior touch → promotes forward locomotion (escape from posterior stimulus)
+    // Community 9 (body mechanosensation, Emmons 2024)
+    // REF: Chalfie 1985, White 1986, Way & Chalfie 1989
+    b.neuron("PVM",  NT::SENSORY, NTT::GLUTAMATE);
+    // Step 106: SDQR — body-side sensory neuron (single, right side)
+    // Community 2 (Foraging): with IL1/IL2, targets RMH head motor neurons
+    // Participates in oxygen sensation alongside URX/AQR/PQR
+    // Process runs laterally along body; possible stretch/O2 dual function
+    // REF: White 1986, Emmons 2024 (PMC10983851)
+    b.neuron("SDQR", NT::SENSORY, NTT::GLUTAMATE);
     // Step 61: ASI — amphid sensory, insulin/dauer pathway
     // Secretes DAF-7 (TGF-β) and INS-1 (insulin-like) → food quality signaling
     // Key node for developmental decision (dauer vs reproductive)
@@ -300,6 +313,12 @@ void build_neurons(CB& b) {
     // trp-4 mutant: abnormal body bending (Li 2006 Nature)
     // REF: Li 2006 Nature, Hu 2011, Yeon 2018 PLoS Biology
     b.neuron("DVA",  NT::INTER, NTT::GLUTAMATE);
+    // Step 106: ALA — stress-induced quiescence interneuron (single, unpaired)
+    // Activated by harsh mechanical stimulation → calcium plateau potential
+    // Releases neuropeptides FLP-13 + NLP-8 → suppress locomotion (sleep-like state)
+    // Works with RIS for sleep regulation; distinct mechanism (stress vs fatigue)
+    // REF: Van Buskirk & Bhatt 2007, Hill 2014 Curr Biol, Nath 2016 J Neurosci
+    b.neuron("ALA",  NT::INTER, NTT::UNKNOWN);
     // Command interneurons
     b.neuron("AVAL", NT::INTER, NTT::ACETYLCHOLINE);
     b.neuron("AVAR", NT::INTER, NTT::ACETYLCHOLINE);
@@ -1609,6 +1628,36 @@ void build_ventral_cord_integrators(CB& b) {
     // AVH→RIG: sensory bridge pathway (Emmons 2024 community analysis)
     // Creates ASK→AVH→RIG→AIZ/RIA pathway
     b.syn("AVHL", "RIG", 1); b.syn("AVHR", "RIG", 1);
+
+    // Step 106: PVM — posterior ventral gentle touch
+    // PVM→PVC: posterior touch → promote forward (escape from posterior stimulus)
+    // PVM is posterior counterpart of AVM; PLM→PVC pathway already exists
+    // REF: Chalfie 1985, White 1986
+    b.syn("PVM", "PVCL", 1); b.syn("PVM", "PVCR", 1);
+    // PVM→AVA: weak backward input (posterior touch occasionally triggers reversal)
+    b.syn("PVM", "AVAL", 1); b.syn("PVM", "AVAR", 1);
+    // PVM↔AVM: gap junction coupling (coordinate body touch response)
+    b.gj("PVM", "AVM", 2);
+
+    // Step 106: SDQR — body-side O₂/foraging sensor
+    // SDQR→RIG: O₂ information → navigation relay (Community 2→4 bridge)
+    // "SDQR targets the RMH head motor neurons" (Emmons 2024) — but RMH not yet added
+    // Use RIG as intermediate target (RIG→RMD/RIA pathways exist)
+    // REF: Emmons 2024 community analysis
+    b.syn("SDQR", "RIG", 2);
+    // SDQR→AVB: O₂ sensing → forward drive modulation
+    b.syn("SDQR", "AVBL", 1); b.syn("SDQR", "AVBR", 1);
+
+    // Step 106: ALA — stress-induced quiescence
+    // ALA receives harsh touch → generates calcium plateau → neuropeptide release
+    // ALA acts through FLP-13/NLP-8 peptides (volume transmission, not wired synapses)
+    // Wired connections: ALA→RID (not in model), ALA→AVA (suppress reversal during sleep)
+    // REF: Van Buskirk & Bhatt 2007, Hill 2014 Curr Biol
+    b.inh("ALA", "AVAL", 1); b.inh("ALA", "AVAR", 1);
+    // FLP→ALA: harsh touch input → quiescence trigger
+    b.syn("FLPL", "ALA", 1); b.syn("FLPR", "ALA", 1);
+    // ALA↔RIS: gap junction — coordinate sleep/quiescence systems
+    b.gj("ALA", "RIS", 2);
 }
 
 } // anonymous namespace
