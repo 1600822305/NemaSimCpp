@@ -63,17 +63,28 @@ void MotorController::initialize(const std::unordered_map<std::string, int>& nam
     // D-class (cross-inhibition): GABAergic, inhibit contralateral muscles
     // DD: receives dorsal input, inhibits VENTRAL muscles
     // VD: receives ventral input, inhibits DORSAL muscles
-    // Step 39: expanded to 5 units
-    add_mapping(name_to_id, "DD01", 4, 12, false, true);  // DD inhibits ventral
-    add_mapping(name_to_id, "DD02", 12, 20, false, true);
-    add_mapping(name_to_id, "DD03", 20, 28, false, true);
-    add_mapping(name_to_id, "DD04", 28, 35, false, true);
-    add_mapping(name_to_id, "DD05", 35, 42, false, true);
-    add_mapping(name_to_id, "VD01", 4, 12, true, true);   // VD inhibits dorsal
-    add_mapping(name_to_id, "VD02", 12, 20, true, true);
-    add_mapping(name_to_id, "VD03", 20, 28, true, true);
-    add_mapping(name_to_id, "VD04", 28, 35, true, true);
-    add_mapping(name_to_id, "VD05", 35, 42, true, true);
+    // Step 86: expanded DD 5→6, VD 5→13 (complete complement)
+    // DD: 6 units, each ~6-7 segments
+    add_mapping(name_to_id, "DD01", 4, 11, false, true);  // DD inhibits ventral
+    add_mapping(name_to_id, "DD02", 11, 17, false, true);
+    add_mapping(name_to_id, "DD03", 17, 24, false, true);
+    add_mapping(name_to_id, "DD04", 24, 30, false, true);
+    add_mapping(name_to_id, "DD05", 30, 36, false, true);
+    add_mapping(name_to_id, "DD06", 36, 42, false, true);
+    // VD: 13 units, each ~3 segments
+    add_mapping(name_to_id, "VD01", 4, 7, true, true);    // VD inhibits dorsal
+    add_mapping(name_to_id, "VD02", 7, 10, true, true);
+    add_mapping(name_to_id, "VD03", 10, 13, true, true);
+    add_mapping(name_to_id, "VD04", 13, 16, true, true);
+    add_mapping(name_to_id, "VD05", 16, 19, true, true);
+    add_mapping(name_to_id, "VD06", 19, 22, true, true);
+    add_mapping(name_to_id, "VD07", 22, 25, true, true);
+    add_mapping(name_to_id, "VD08", 25, 28, true, true);
+    add_mapping(name_to_id, "VD09", 28, 31, true, true);
+    add_mapping(name_to_id, "VD10", 31, 34, true, true);
+    add_mapping(name_to_id, "VD11", 34, 37, true, true);
+    add_mapping(name_to_id, "VD12", 37, 40, true, true);
+    add_mapping(name_to_id, "VD13", 40, 42, true, true);
 
     // Head motor neurons: SMD controls head segments
     add_mapping(name_to_id, "SMDDL", 0, 4, true);

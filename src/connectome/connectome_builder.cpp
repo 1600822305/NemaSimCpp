@@ -449,18 +449,34 @@ void build_neurons(CB& b) {
     b.neuron("VB05", NT::MOTOR, NTT::ACETYLCHOLINE);
     b.neuron("VB06", NT::MOTOR, NTT::ACETYLCHOLINE);
     b.neuron("VB07", NT::MOTOR, NTT::ACETYLCHOLINE);
-    // DD: dorsal D-class, GABAergic cross-inhibition (real: DD1-6, we use DD1-5)
+    // DD: dorsal D-class, GABAergic cross-inhibition (DD1-6, all 6)
+    // Step 86: expanded from 5→6 (complete complement)
+    // DD receives cholinergic input via LGC-46, inhibits ventral muscles
+    // REF: Shan 2005, White 1986
     b.neuron("DD01", NT::MOTOR, NTT::GABA);
     b.neuron("DD02", NT::MOTOR, NTT::GABA);
     b.neuron("DD03", NT::MOTOR, NTT::GABA);
     b.neuron("DD04", NT::MOTOR, NTT::GABA);
     b.neuron("DD05", NT::MOTOR, NTT::GABA);
-    // VD: ventral D-class, GABAergic cross-inhibition (real: VD1-13, we use VD1-5)
+    b.neuron("DD06", NT::MOTOR, NTT::GABA);
+    // VD: ventral D-class, GABAergic cross-inhibition (VD1-13, all 13)
+    // Step 86: expanded from 5→13 (complete complement)
+    // VD receives cholinergic input via LGC-46, inhibits dorsal muscles
+    // VD→AVA retrograde inhibition via UNC-49 biases toward reward
+    // REF: Gao 2015 Nat Commun, White 1986
     b.neuron("VD01", NT::MOTOR, NTT::GABA);
     b.neuron("VD02", NT::MOTOR, NTT::GABA);
     b.neuron("VD03", NT::MOTOR, NTT::GABA);
     b.neuron("VD04", NT::MOTOR, NTT::GABA);
     b.neuron("VD05", NT::MOTOR, NTT::GABA);
+    b.neuron("VD06", NT::MOTOR, NTT::GABA);
+    b.neuron("VD07", NT::MOTOR, NTT::GABA);
+    b.neuron("VD08", NT::MOTOR, NTT::GABA);
+    b.neuron("VD09", NT::MOTOR, NTT::GABA);
+    b.neuron("VD10", NT::MOTOR, NTT::GABA);
+    b.neuron("VD11", NT::MOTOR, NTT::GABA);
+    b.neuron("VD12", NT::MOTOR, NTT::GABA);
+    b.neuron("VD13", NT::MOTOR, NTT::GABA);
     // Step 31: RIV — omega turn motor neurons (GABAergic, ventral head bend)
     // RIV innervates ventral neck muscles; specifies ventral bias of omega turns
     // REF: Gray 2005 PNAS — RIV ablation reduces omega frequency
@@ -955,11 +971,27 @@ void build_command_ventral(CB& b) {
     b.syn("AVBR", "DB01", 5); b.syn("AVBR", "DB02", 4); b.syn("AVBR", "DB03", 3);
     b.syn("AVBR", "DB04", 3); b.syn("AVBR", "DB05", 2); b.syn("AVBR", "DB06", 2);
     b.syn("AVBR", "DB07", 1);
-    // D-type cross inhibition (Step 39: expanded to 5 pairs)
-    b.syn("DD01", "VD01", 3); b.syn("DD02", "VD02", 3); b.syn("DD03", "VD03", 3);
-    b.syn("DD04", "VD04", 3); b.syn("DD05", "VD05", 3);
-    b.syn("VD01", "DD01", 3); b.syn("VD02", "DD02", 3); b.syn("VD03", "DD03", 3);
-    b.syn("VD04", "DD04", 3); b.syn("VD05", "DD05", 3);
+    // D-type cross inhibition (Step 86: expanded to full DD6 ↔ VD13)
+    // DD and VD form reciprocal inhibitory pairs based on segment overlap
+    // Each DD overlaps ~2 VDs; cross-inhibition preserves D/V phase
+    // REF: White 1986, Shan 2005 Dev Biol
+    b.syn("DD01", "VD01", 3); b.syn("DD01", "VD02", 2);
+    b.syn("DD02", "VD03", 3); b.syn("DD02", "VD04", 2);
+    b.syn("DD03", "VD05", 3); b.syn("DD03", "VD06", 2);
+    b.syn("DD04", "VD07", 3); b.syn("DD04", "VD08", 2);
+    b.syn("DD05", "VD09", 3); b.syn("DD05", "VD10", 2);
+    b.syn("DD06", "VD11", 3); b.syn("DD06", "VD12", 2); b.syn("DD06", "VD13", 2);
+    b.syn("VD01", "DD01", 3); b.syn("VD02", "DD01", 2);
+    b.syn("VD03", "DD02", 3); b.syn("VD04", "DD02", 2);
+    b.syn("VD05", "DD03", 3); b.syn("VD06", "DD03", 2);
+    b.syn("VD07", "DD04", 3); b.syn("VD08", "DD04", 2);
+    b.syn("VD09", "DD05", 3); b.syn("VD10", "DD05", 2);
+    b.syn("VD11", "DD06", 3); b.syn("VD12", "DD06", 2); b.syn("VD13", "DD06", 2);
+    // Step 86: VD → AVA retrograde inhibition via UNC-49 GABA receptor
+    // D-MNs bias threat-reward decision toward reward by inhibiting AVA
+    // REF: Gao 2015 Nat Commun — VD5/6→AVAL(1), VD5/11/13→AVAR
+    b.inh("VD05", "AVAL", 1); b.inh("VD06", "AVAL", 1);
+    b.inh("VD05", "AVAR", 1); b.inh("VD11", "AVAR", 2); b.inh("VD13", "AVAR", 2);
 
     // Step 32: AS motor neuron circuit (White 1986, Haspel 2010, Chen 2006)
     // AVA → AS
@@ -976,6 +1008,7 @@ void build_command_ventral(CB& b) {
     b.inh("DD03", "AS04", 1); b.inh("DD03", "AS05", 1);
     b.inh("DD04", "AS05", 1); b.inh("DD04", "AS06", 1);
     b.inh("DD05", "AS06", 1); b.inh("DD05", "AS07", 1);
+    b.inh("DD06", "AS07", 1); // Step 86: DD06 posterior overlap
     // DB ↔ AS: gap junction coupling (synchronize dorsal activation)
     b.gj("DB01", "AS01", 1); b.gj("DB01", "AS02", 1);
     b.gj("DB02", "AS03", 1); b.gj("DB02", "AS04", 1);
@@ -1146,6 +1179,7 @@ void build_defecation(CB& b) {
     // During DMP, may coordinate body wall relaxation for posterior contraction
     // REF: White 1986 — AVL gap junctions to D-type neurons
     b.gj("AVL", "DD05", 2);
+    b.gj("AVL", "DD06", 1); // Step 86: AVL also contacts DD06 (posterior)
     // Step 71: AVL/DVB GABA → B-class motor neuron inhibition during DMP
     // AVL axon runs full ventral cord → GABA release contacts posterior MNs
     // During DMP (50-70pA drive): AVL fires → GABA inhibits VB/DB → speed reduction
