@@ -665,9 +665,9 @@ void build_neurons(CB& b) {
     b.neuron("M3L",  NT::MOTOR, NTT::GLUTAMATE);
     b.neuron("M3R",  NT::MOTOR, NTT::GLUTAMATE);
     // M4: motor neuron, controls isthmus peristalsis (food transport)
-    // REF: Avery & Horvitz 1987 — M4 essential for growth
+    // REF: Avery & Horvitz 1987 — M4 required for isthmus peristalsis
     b.neuron("M4",   NT::MOTOR, NTT::ACETYLCHOLINE);
-    // I1: pharyngeal interneuron, receives RIP gap junction (somatic↔pharyngeal bridge)
+    // I1: pharyngeal interneuron, receives RIP gap junction (somatic→pharyngeal bridge)
     // REF: Albertson & Thomson 1976 — I1 connects via RIP to extrapharyngeal NS
     b.neuron("I1L",  NT::INTER, NTT::ACETYLCHOLINE);
     b.neuron("I1R",  NT::INTER, NTT::ACETYLCHOLINE);
@@ -680,7 +680,27 @@ void build_neurons(CB& b) {
     //      Konietzka 2020 Nat Commun — RIS also functions as locomotion stop neuron
     //      Maluck 2023 PLOS Genetics — RIS promotes survival independently of sleep
     b.neuron("RIS",  NT::INTER, NTT::GABA);
-    // Step 56: AVL — enteric motor neuron, GABAergic (single, unpaired)
+
+    // Step 110: RMH — head motor neurons (L/R pair)
+    // Community 2 (Foraging): "SDQR targets the RMH head motor neurons" (Emmons 2024)
+    // Also receives RIC input; NMJs to head body wall muscles
+    // REF: White 1986, Emmons 2024
+    b.neuron("RMHL", NT::MOTOR, NTT::ACETYLCHOLINE);
+    b.neuron("RMHR", NT::MOTOR, NTT::ACETYLCHOLINE);
+    // Step 110: RMF — head motor neurons (L/R pair)
+    // Receives AVK/RIS input → head motor modulation
+    // Small head motor class; NMJs to head body wall muscles
+    // REF: White 1986
+    b.neuron("RMFL", NT::MOTOR, NTT::ACETYLCHOLINE);
+    b.neuron("RMFR", NT::MOTOR, NTT::ACETYLCHOLINE);
+    // Step 110: RID — single dorsal motor neuron (unpaired)
+    // Peptidergic: releases FLP-14 neuropeptide
+    // Dual role: promotes AND suppresses forward locomotion (Bhardwaj 2023)
+    // Receives ALA input (stress sleep → dorsal motor modulation)
+    // UNC-39 governs lineage; neuroendocrine modulation of motor circuit
+    // REF: White 1986, Bhardwaj 2018 eLife, Bhardwaj 2023 Front Mol Neurosci
+    b.neuron("RID",  NT::MOTOR, NTT::UNKNOWN);
+    // AVL — enteric motor neuron, GABAergic (single, unpaired)
     // Cell body in head, axon runs full ventral cord to tail
     // Fires compound action potentials: UNC-2 (CaV2) Ca²⁺ spike + EXP-2 K⁺ repolarization
     // Drives aBoc (non-GABA) + Exp/EMC (GABA → EXP-1 excitatory receptor on enteric muscles)
@@ -1793,6 +1813,28 @@ void build_ventral_cord_integrators(CB& b) {
     b.gj("AVG", "PVT", 2);
     // AVG→DVA: weak chemical output (scattered, body sensing network)
     b.syn("AVG", "DVA", 1);
+
+    // Step 110: RMH — head motor (Community 2, Foraging)
+    // SDQR→RMH: "SDQR targets the RMH head motor neurons" (Emmons 2024)
+    // This replaces the SDQR→RIG workaround (Step 106) with direct pathway
+    b.syn("SDQR", "RMHL", 2); b.syn("SDQR", "RMHR", 2);
+    // RIC→RMH: octopaminergic hub → head motor
+    b.syn("RICL", "RMHL", 1); b.syn("RICR", "RMHR", 1);
+    // RMH→head muscles: motor mapping handles NMJ (segments 0-3)
+
+    // Step 110: RMF — head motor modulation
+    // AVK→RMF: locomotion modulation → head motor
+    b.syn("AVKL", "RMFL", 1); b.syn("AVKR", "RMFR", 1);
+    // RIS→RMF: sleep → head motor suppression
+    b.syn("RIS", "RMFL", 1); b.syn("RIS", "RMFR", 1);
+
+    // Step 110: RID — dorsal motor neuroendocrine
+    // ALA→RID: stress sleep → dorsal modulation (completing Step 106 pathway)
+    b.syn("ALA", "RID", 2);
+    // RID→DD: modulate dorsal inhibition (neuroendocrine)
+    b.syn("RID", "DD01", 1); b.syn("RID", "DD02", 1);
+    // RID↔AVK: gap junction (motor state coordination)
+    b.gj("RID", "AVKL", 1);
 }
 
 } // anonymous namespace

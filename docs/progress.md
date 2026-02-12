@@ -778,17 +778,25 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **尾部完整**: PHA+PHB+PHC 三联体 + ALN/PLN 尾脊组
 - **diag 验证**: OLLL S=0.100, PHCL S=0.122, AVG S=0.284 — 全部活跃
 
+### Step 110: RMH + RMF + RID — 头部小运动神经元 ✅ (2026-02-13)
+> 详细文档: [steps/step110_rmh_rmf_rid.md](steps/step110_rmh_rmf_rid.md)
+
+- **+5 神经元**: RMH(2) 头运动 + RMF(2) 头运动 + RID 背侧神经内分泌 (250→255)
+- **+11 突触 +1 间隙**: SDQR→RMH(直接路径!) + RIC→RMH + AVK/RIS→RMF + ALA→RID
+- **SDQR 补全**: Emmons 2024 "SDQR targets the RMH head motor neurons" 实现
+- **diag 验证**: RMHL S=0.268, RMFL S=0.184, RID S=0.263 — 全部活跃
+
 ---
 
 ## 当前系统状态
 
 ```
 架构: 8 层 (环境/躯体/感知/神经元/连接组/神经调质/运动/行为)
-神经元: 250 个 MVP 子集 (302 全集待扩展)
+神经元: 255 个 MVP 子集 (302 全集待扩展)
   感觉: 77 (ASE/AWC/AWA/ASH/ALM/PLM/NSM/ADE/PDE/AFD/ADF/ASJ/ASK/ASI/ADL/FLP/PHB/PHA/URX/BAG/PVD L/R + CEP 4× + OLQ 4× + IL1 4× + IL2 4× + URY 4× + OLL L/R + PHC L/R + AVM + PVM + AQR + PQR + SDQR + ALN L/R + PLN L/R)
   中间: 65 (AIA/AIB/AIY/AIZ/RIA/RIB/RIM/RIC/AVA/AVB/AVD/AVE/PVC/AVF/AUA/AVK/AVJ/AVH/PVP/AIN/LUA/I1/RIP L/R + SAA 4× + RIS + RIH + RMG L/R + DVA + DVC + PVT + PVR + RIG + ALA + URB L/R + BDU L/R + AVG)
-  运动: 108 (SMD 4 + RMD 4 + URA 4 + SIA 4 + SIB 4 + SMB 4 + RIV 2 + RMED/RMEV 2 + AS01-11(11) + DA01-09(9) + DB01-07(7) + VA01-12(12) + VB01-11(11) + DD01-06(6) + VD01-13(13) + MC 2 + M3 2 + M4 + HSN 2 + VC4/VC5 + AVL + DVB)
-突触: 625 化学 + 214 间隙连接 (全部带 Tsodyks-Markram STP, 支持分数 sections)
+  运动: 113 (SMD 4 + RMD 4 + URA 4 + SIA 4 + SIB 4 + SMB 4 + RMH 2 + RMF 2 + RIV 2 + RMED/RMEV 2 + RID + AS01-11(11) + DA01-09(9) + DB01-07(7) + VA01-12(12) + VB01-11(11) + DD01-06(6) + VD01-13(13) + MC 2 + M3 2 + M4 + HSN 2 + VC4/VC5 + AVL + DVB)
+突触: 636 化学 + 215 间隙连接 (全部带 Tsodyks-Markram STP, 支持分数 sections)
   Step 42: Cook 2019 校准 (+8 RIA↔RIV, -2 AVE→RIV) + RIV↔RIV gap
   Step 84-91: VNC MN 完整互连 (交叉抑制/本体感觉波/后退波 全部完成)
 神经调质: 7 种 (5-HT, DA, OA, TA, NLP-12, PDF, FLP-11) — volume transmission + 饱食度(泵驱动)
