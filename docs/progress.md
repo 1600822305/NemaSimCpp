@@ -804,6 +804,15 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **CLI**: --dishabit-at <sec> 指定反习惯化刺激时间
 - **regtest**: 20/20 PASS (171/337/98)
 
+### Step 80: 温度培养学习 (Tc 可塑性) ✅ (2026-02-12)
+> 详细文档: [steps/step80_thermotaxis_learning.md](steps/step80_thermotaxis_learning.md)
+
+- **喂食门控 Tc 适应** (Hedgecock & Russell 1975, Chi 2007): 食物存在→Tc 趋近当前温度，离食→Tc 远离
+- **实现**: ThermoTransducer::adapt_tc() + food_here 信号（非 satiety）
+- **涌现**: 有食→FOOD wins(+21mm), 无食→TEMP wins(-10mm) — 行为分离
+- **Tc 学习**: 有食 seed 7 dTc=-0.69°C（正关联），无食 dTc=+1.43°C（饥饿厌恶）
+- **regtest**: 20/20 PASS (171/337/98)
+
 ---
 
 ## 当前系统状态

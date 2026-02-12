@@ -137,8 +137,8 @@ public:
         // Track raw temperature for Tc adaptation
         raw_ += (temperature - raw_) * dt / fast_tau_;
 
-        // Cultivation temperature memory: very slow adaptation (hours)
-        tc_ += (temperature - tc_) * dt / tc_adapt_tau_;
+        // Step 80: Tc adaptation moved to adapt_tc() — feeding-state gated
+        // No longer unconditional; called separately with learn_signal
 
         // Compute deviation from Tc (always positive)
         double deviation = std::abs(raw_ - tc_);
@@ -171,11 +171,27 @@ public:
     double cultivation_temp() const { return tc_; }
     void set_cultivation_temp(double tc) { tc_ = tc; }
 
+    // Step 80: Feeding-state gated Tc adaptation (Hedgecock & Russell 1975)
+    // learn_signal > 0 (fed): Tc → current temp (approach learned)
+    // learn_signal < 0 (starved): Tc ← away from current temp (aversion)
+    // REF: Chi 2007 J Exp Biol — temperature and food independently affect thermotaxis
+    //      Kodama 2006 — INS-1/DAF-2 mediates starvation-temperature association
+    //      Nishida 2011 — CREB in AFD (cell-autonomous memory)
+    void adapt_tc(double learn_signal, double temperature, double dt) {
+        // learn_factor scales the learning rate relative to tc_adapt_tau_
+        // With factor=10, tc_adapt_tau_=3600s, dt_sum=300s, learn_signal=0.5:
+        //   Δtc ≈ 0.5 × 10 × (300/3600) × ΔT ≈ 0.42 × ΔT
+        double rate = learn_signal * tc_learn_factor_ * dt / tc_adapt_tau_;
+        tc_ += (temperature - tc_) * rate;
+    }
+
 private:
     double gain_;
     double baseline_;
     double tc_adapt_tau_;   // cultivation temperature adaptation tau (ms)
     double fast_tau_;        // raw temperature tracker tau (ms)
+
+    double tc_learn_factor_ = 10.0;  // Step 80: learning rate multiplier for Tc adaptation
 
     double raw_ = 20.0;      // fast-tracking temperature
     double tc_ = 20.0;       // cultivation temperature memory (Tc)

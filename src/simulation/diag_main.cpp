@@ -1124,9 +1124,10 @@ int main(int argc, char* argv[]) {
         double afdl_v = (afdl_id >= 0) ? sim.neurons()[afdl_id]->get_membrane_potential() : 0;
         double afdr_v = (afdr_id >= 0) ? sim.neurons()[afdr_id]->get_membrane_potential() : 0;
         double afd_S = 1.0 / (1.0 + std::exp(-(afdl_v - (-35.0)) / 5.0));
+        double tc_learned = sim.learned_tc();
         std::cout << "   Temperature at head: " << std::setprecision(1) << std::fixed << temp_now << " C"
-                  << "  Tc(cultivation)=" << 22.5 << " C"
-                  << "  dT=" << std::setprecision(2) << (temp_now - 22.5) << std::endl;
+                  << "  Tc(initial)=22.5  Tc(learned)=" << std::setprecision(2) << tc_learned << " C"
+                  << "  dTc=" << std::setprecision(2) << (tc_learned - 22.5) << std::endl;
         std::cout << "   Temp gradient: " << std::setprecision(3) << tgrad_mag << " C/mm"
                   << " (dir: " << std::setprecision(2) << tgrad.x << ", " << tgrad.y << ")"
                   << "  Tc target: x~" << std::setprecision(0) << (25.0 + (22.5 - 20.0) / 0.5) << "mm (LEFT)" << std::endl;

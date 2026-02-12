@@ -103,6 +103,8 @@ public:
     // Sensitization / dishabituation (Step 79)
     double sensitization() const { return sensitization_; }
     void set_dishabit_time(double t_ms) { dishabit_time_ = t_ms; }
+    // Step 80: Tc learning accessor (returns current learned Tc from first AFD transducer)
+    double learned_tc() const { return thermo_mappings_.empty() ? cultivation_temp_ : thermo_mappings_[0].transducer.cultivation_temp(); }
     // Pharyngeal pump (Step 24)
     double pump_rate_hz() const { return pharynx_.pump_rate_hz(); }
     int total_pumps() const { return pharynx_.total_pumps(); }

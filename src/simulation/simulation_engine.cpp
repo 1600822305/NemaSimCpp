@@ -852,12 +852,27 @@ void SimulationEngine::apply_thermo_input() {
     double sat_switch_t = 1.0 / (1.0 + fast_exp(-10.0 * (satiety_ - 0.5)));
     double thermo_sat_gain = 0.2 + 1.8 * sat_switch_t;  // hungry: 0.2, fed: 2.0
 
+    // Step 80: Feeding-state gated Tc adaptation (Hedgecock & Russell 1975)
+    // learn_signal > 0 (on food): Tc → current temp (positive association)
+    // learn_signal < 0 (off food): Tc ← away from current temp (aversion)
+    // Uses food presence at head (not satiety) — Chi 2007: food conditions affect
+    // WHICH behavior is exhibited, and Tc memory is established at food location
+    // REF: Chi 2007 J Exp Biol — food/temp independent mechanisms
+    double food_here = environment_.sample_food_density(head_pos);
+    double thermo_learn_signal = (food_here > 0.1) ? 0.5 : -0.3;
+    bool thermo_learn_tick = (static_cast<int>(current_time_ / dt_) % 200 == 0);
+
     for (auto& tm : thermo_mappings_) {
         if (tm.neuron_id < 0 || tm.neuron_id >= n) continue;
         double I_thermo = tm.transducer.update(temperature, dt_);
         I_thermo *= thermo_sat_gain;
         // AFD current adds to (not replaces) any existing external current
         neurons_[tm.neuron_id]->add_synaptic_current(I_thermo);
+
+        // Step 80: Tc learning (cell-autonomous in AFD, Nishida 2011)
+        if (thermo_learn_tick) {
+            tm.transducer.adapt_tc(thermo_learn_signal, temperature, 100.0);
+        }
     }
 }
 
