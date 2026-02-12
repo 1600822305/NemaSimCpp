@@ -831,15 +831,23 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **新闭合回路**: ASK→AVH→RIG→AIZ/RIA 信息素→感觉桥→导航
 - **regtest**: 20/20 PASS (178/367/107)
 
+### Step 83: AVF/LUA 尾部中继 + 第二前进命令 ✅ (2026-02-12)
+> 详细文档: [steps/step83_avf_lua_tail_relay.md](steps/step83_avf_lua_tail_relay.md)
+
+- **+4 神经元**: AVFL/AVFR(第二前进命令) + LUAL/LUAR(尾部感觉中继)
+- **AVF**: PHA/PVC→AVF→AVB 第二前进命令通路 (Emmons 2024)
+- **LUA**: PHB/PLM→LUA→AVD/PVC 尾部感觉中继，闭合 Step 81 PHB/PHA 下游回路
+- **regtest**: 20/20 PASS (182/381/111)
+
 ---
 
 ## 当前系统状态
 
 ```
 架构: 8 层 (环境/躯体/感知/神经元/连接组/神经调质/运动/行为)
-神经元: 178 个 MVP 子集 (302 全集待加载)
+神经元: 182 个 MVP 子集 (302 全集待加载)
   感觉: 57 (ASE/AWC/AWA/ASH/ALM/PLM/NSM/CEP/ADE/PDE/AFD/ADF/ASJ/ASK/ASI/ADL/FLP/PHB/PHA L/R + AVM + OLQ 4× + IL1 4× + URX L/R + AQR + PQR + BAG L/R + PVD L/R)
-  中间: 51 (+AIN L/R, RIG) (AIA/AIB/AIY/AIZ/RIA/RIB/RIM/RIC/AVA/AVB/AVD/AVE/PVC/AUA/AVK/AVJ/AVH/PVP/AIN/I1/RIP L/R + RIS + RIH + RMG L/R + DVA + DVC + PVT + PVR + RIG)
+  中间: 55 (+AVF L/R, LUA L/R) (AIA/AIB/AIY/AIZ/RIA/RIB/RIM/RIC/AVA/AVB/AVD/AVE/PVC/AVF/AUA/AVK/AVJ/AVH/PVP/AIN/LUA/I1/RIP L/R + RIS + RIH + RMG L/R + DVA + DVC + PVT + PVR + RIG)
   运动: 70 (SMD/RMD/SMB 4×2+4 + RIV L/R + RMED/RMEV + AS01-07 + DB01-07/VB01-07/DA01-05/VA01-05/DD01-05/VD01-05 + MC/M3 L/R + M4 + HSN L/R + VC4/VC5 + AVL + DVB)
 突触: ~215 化学 + ~56 间隙连接 (全部带 Tsodyks-Markram STP, 支持分数 sections)
   Step 42: Cook 2019 校准 (+8 RIA↔RIV, -2 AVE→RIV) + RIV↔RIV gap

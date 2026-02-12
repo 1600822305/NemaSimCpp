@@ -293,6 +293,22 @@ void build_neurons(CB& b) {
     // REF: Chalfie 1985, White 1986, Kawano 2011, Zheng 1999
     b.neuron("PVCL", NT::INTER, NTT::GLUTAMATE);
     b.neuron("PVCR", NT::INTER, NTT::GLUTAMATE);
+    // Step 83: AVF — second forward command interneuron (ventral cord)
+    // Receives PHA (tail chemosensory) + PVC (forward command)
+    // Outputs to AVB (forward drive) — parallel to PVC→AVB
+    // Emmons 2024: "AVF collects input... directs output to... AVB"
+    // Community 9; cholinergic
+    // REF: Emmons 2024 PLOS Biology, Cook 2019
+    b.neuron("AVFL", NT::INTER, NTT::ACETYLCHOLINE);
+    b.neuron("AVFR", NT::INTER, NTT::ACETYLCHOLINE);
+    // Step 83: LUA — tail sensory relay interneuron
+    // Receives PHB (tail repellent) + PLM (posterior touch)
+    // Outputs to AVD/PVC (backward/forward command relay)
+    // Integrates tail sensory modalities for command neuron selection
+    // Glutamatergic; Cook 2019: preanal ganglion
+    // REF: White 1986, Cook 2019, Emmons 2024
+    b.neuron("LUAL", NT::INTER, NTT::GLUTAMATE);
+    b.neuron("LUAR", NT::INTER, NTT::GLUTAMATE);
     // Step 82: AIN — ring interneuron, parallel chemotaxis relay
     // Receives ASE/AWC chemosensory input, outputs to AIY/RIA
     // Creates parallel pathway ASE→AIN→AIY alongside direct ASE→AIY
@@ -680,6 +696,34 @@ void build_touch_nociception(CB& b) {
     b.syn("PHAL", "AVHL", 1); b.syn("PHAR", "AVHR", 1);
     // PHA bilateral coupling
     b.gj("PHAL", "PHAR", 2);
+
+    // Step 83: LUA — tail sensory relay interneuron
+    // Integrates PHB (repellent) + PLM (touch) → command neurons
+    // PHB→LUA: tail repellent relay (Cook 2019: ~3 EM sections)
+    b.syn("PHBL", "LUAL", 2); b.syn("PHBR", "LUAR", 2);
+    // PLM→LUA: posterior touch relay (Cook 2019: ~2 EM sections)
+    b.syn("PLML", "LUAL", 2); b.syn("PLMR", "LUAR", 2);
+    // LUA→AVD: backward command relay (tail sensory → reversal)
+    b.syn("LUAL", "AVDL", 2); b.syn("LUAR", "AVDR", 2);
+    // LUA→PVC: forward command relay (tail sensory → forward escape)
+    b.syn("LUAL", "PVCL", 1); b.syn("LUAR", "PVCR", 1);
+    // LUA bilateral coupling
+    b.gj("LUAL", "LUAR", 2);
+    // LUA↔PHB: gap junction (local tail circuit, Cook 2019)
+    b.gj("LUAL", "PHBL", 1); b.gj("LUAR", "PHBR", 1);
+
+    // Step 83: AVF — second forward command interneuron
+    // Emmons 2024: "AVF collects input... directs output to... AVB"
+    // PHA→AVF: tail food/pheromone → forward drive
+    b.syn("PHAL", "AVFL", 2); b.syn("PHAR", "AVFR", 2);
+    // PVC→AVF: forward command relay (strengthens forward drive)
+    b.syn("PVCL", "AVFL", 2); b.syn("PVCR", "AVFR", 2);
+    // AVF→AVB: second forward command output (parallel to PVC→AVB)
+    b.syn("AVFL", "AVBL", 3); b.syn("AVFR", "AVBR", 3);
+    // AVF bilateral coupling
+    b.gj("AVFL", "AVFR", 2);
+    // AVF↔PVQ: gap junction (Emmons 2024: ventral cord coupling)
+    // PVQ not in model yet, skip
 }
 
 // ================================================================
