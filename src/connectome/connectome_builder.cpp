@@ -878,6 +878,17 @@ void build_defecation(CB& b) {
     // During DMP, may coordinate body wall relaxation for posterior contraction
     // REF: White 1986 — AVL gap junctions to D-type neurons
     b.gj("AVL", "DD05", 2);
+    // Step 71: AVL/DVB GABA → B-class motor neuron inhibition during DMP
+    // AVL axon runs full ventral cord → GABA release contacts posterior MNs
+    // During DMP (50-70pA drive): AVL fires → GABA inhibits VB/DB → speed reduction
+    // Replaces direct dmp_speed_factor_ multiplication (P0-5 fix)
+    // REF: Alkema 2015 Sci Rep — DMP coupled to locomotion pause
+    //      Jiang 2022 Nat Commun — AVL fires compound APs during DMP
+    //      White 1986 — AVL axon contacts in ventral cord
+    b.inh("AVL", "VB05", 1);  // posterior ventral B-class
+    b.inh("AVL", "DB05", 1);  // posterior dorsal B-class
+    b.inh("DVB", "VB06", 1);  // DVB in tail → posterior MNs
+    b.inh("DVB", "VB07", 1);
     // RIS ⊣ AVL: sleep neuron inhibits defecation during quiescence
     // DMP suppressed during sleep — consistent with global RIS inhibition
     b.inh("RIS", "AVL", 1);

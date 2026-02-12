@@ -508,19 +508,11 @@ void SimulationEngine::step() {
     // Effects: tonic currents on target neurons, speed modulation
     neuromod_.update(neurons_, dt_);
 
-    // Apply neuromodulation + sleep speed scaling to body
-    // Step 27: FLP-11 sleep suppression stacks with neuromodulation
-    double sleep_speed_factor = 1.0;
-    {
-        int nn = static_cast<int>(neurons_.size());
-        if (nid("RIS") >= 0 && nid("RIS") < nn) {
-            double rv = neurons_[nid("RIS")]->get_membrane_potential();
-            double flp11 = 1.0 / (1.0 + fast_exp(-(rv - (-35.0)) / 5.0));
-            sleep_speed_factor = 1.0 - 0.97 * flp11;  // up to 97% speed reduction (near-atonia)
-        }
-    }
+    // Step 71: sleep speed suppression now handled by FLP-11 SPEED_SCALE target
+    // in NeuromodulationManager (P0-6 fix). Removed: sleep_speed_factor direct multiplication.
+    // FLP-11 SPEED_SCALE -0.95 achieves equivalent near-atonia during sleep.
     // Step 44: clamp effective speed_scale to prevent extreme values
-    double effective_speed = params.speed_scale * neuromod_.get_speed_scale() * sleep_speed_factor;
+    double effective_speed = params.speed_scale * neuromod_.get_speed_scale();
 
     // Step 68: Basal slowing now emerges from DA→DOP-3→B-class motor neuron inhibition
     // CEP on food → DA↑ → DOP-3(-6pA×14 motor neurons) → reduced ACh → less muscle → slower
@@ -529,9 +521,9 @@ void SimulationEngine::step() {
     // REF: Chase 2004 Nat Neurosci — DOP-3 extrasynaptic on cholinergic motor neurons
     //      Sawin 2000 — cat-2 mutants fail to slow; BSR ~30% reduction in WT
 
-    // Step 56: DMP body contraction speed modulation
-    // pBoc/aBoc/Exp phases cause brief locomotion pauses
-    effective_speed *= dmp_speed_factor_;
+    // Step 71: DMP speed modulation now EMERGENT (P0-5 fix)
+    // AVL/DVB fire during DMP → GABA inhibits B-class MN → speed reduction
+    // Removed: effective_speed *= dmp_speed_factor_
 
     if (effective_speed > 3.0) effective_speed = 3.0;
     if (effective_speed < 0.1) effective_speed = 0.1;

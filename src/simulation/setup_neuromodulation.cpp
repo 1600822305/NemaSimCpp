@@ -583,7 +583,110 @@ void SimulationEngine::setup_neuromodulation() {
         neuromod_.add_modulator(std::move(pdf));
     }
 
-    LOG_INFO("Neuromodulation setup: 5-HT (dwelling), DA (basal slowing), OA (roaming), TA (escape), NLP-12 (ARS), PDF (roaming)");
+    // --- FLP-11 (RFamide sleep neuropeptide) ---
+    // Step 71: P0-6 fix — replace direct apply_sleep_effects() current injections
+    // with NeuromodulationManager framework for consistency.
+    // Source: RIS (single sleep-active neuron)
+    // FLP-11 is the MAJOR sleep-inducing transmitter of RIS (not GABA).
+    // Acts SYSTEMICALLY via volume transmission — receptors expressed in neurons
+    // NOT postsynaptic to RIS (extrasynaptic release).
+    // Key receptor: DMSR-1 (Gi/o-coupled GPCR) — inhibits cholinergic neurons
+    // Self-inhibition: DMSR-1 also on RIS → negative feedback → limits sleep duration
+    // REF: Turek 2016 eLife — FLP-11 is major sleep transmitter, flp-11 KO: immobility 48%→14%
+    //      Rossi 2025 Current Biology — DMSR-1 receptor discovery:
+    //        "DMSR-1 induces sleep by acting in cholinergic neurons"
+    //        "inhibiting cholinergic signaling is necessary for sleep"
+    //        "DMSR-1 in RIS limits sleep duration" (self-inhibition)
+    //      Konietzka 2020 Nat Commun — RIS as locomotion stop neuron
+    {
+        Neuromodulator flp11;
+        flp11.name = "FLP-11";
+        flp11.tau_rise = 2000.0;     // 2s — neuropeptide DCV release (slower than amines)
+        flp11.tau_decay = 8000.0;    // 8s — peptide degradation (slow, sustains sleep)
+        flp11.release_threshold = 0.3;
+
+        // Source neuron: RIS (single, unpaired)
+        int ris = connectome_.get_neuron_id("RIS");
+        if (ris >= 0) flp11.source_neuron_ids.push_back(ris);
+
+        // Target 1: DMSR-1 → AVA/AVB command interneurons (cholinergic, Gi/o inhibitory)
+        // Sleep: suppress both forward and reverse command → locomotion quiescence
+        // Previously: direct -15pA injection in apply_sleep_effects()
+        // At FLP-11 conc ~0.7 during sleep: -20 × 0.7 = -14pA (matches old -15pA)
+        int aval = connectome_.get_neuron_id("AVAL");
+        int avar = connectome_.get_neuron_id("AVAR");
+        int avbl = connectome_.get_neuron_id("AVBL");
+        int avbr = connectome_.get_neuron_id("AVBR");
+        if (aval >= 0) flp11.targets.push_back(
+            {aval, "DMSR-1", ModulationEffect::EXCITABILITY, -20.0});
+        if (avar >= 0) flp11.targets.push_back(
+            {avar, "DMSR-1", ModulationEffect::EXCITABILITY, -20.0});
+        if (avbl >= 0) flp11.targets.push_back(
+            {avbl, "DMSR-1", ModulationEffect::EXCITABILITY, -20.0});
+        if (avbr >= 0) flp11.targets.push_back(
+            {avbr, "DMSR-1", ModulationEffect::EXCITABILITY, -20.0});
+
+        // Target 2: DMSR-1 → MC pharyngeal motor neurons (cholinergic)
+        // Sleep: suppress pharyngeal pumping → no feeding during sleep
+        // Previously: direct -12pA injection
+        // At conc ~0.7: -18 × 0.7 = -12.6pA (matches old -12pA)
+        const char* mc_names[] = {"MCL", "MCR"};
+        for (auto name : mc_names) {
+            int id = connectome_.get_neuron_id(name);
+            if (id >= 0) flp11.targets.push_back(
+                {id, "DMSR-1", ModulationEffect::EXCITABILITY, -18.0});
+        }
+
+        // Target 3: DMSR-1 → SMD/RMD head motor neurons (cholinergic)
+        // Sleep: suppress head oscillation → near-atonia
+        // Previously: direct -20pA injection to head_motor group
+        // At conc ~0.7: -28 × 0.7 = -19.6pA (matches old -20pA)
+        const char* head_mn[] = {"SMDDL", "SMDDR", "SMDVL", "SMDVR",
+                                  "RMDDL", "RMDDR", "RMDVL", "RMDVR",
+                                  "RMED", "RMEV"};
+        for (auto name : head_mn) {
+            int id = connectome_.get_neuron_id(name);
+            if (id >= 0) flp11.targets.push_back(
+                {id, "DMSR-1", ModulationEffect::EXCITABILITY, -28.0});
+        }
+
+        // Target 4: DMSR-1 → body wall motor neurons (cholinergic A/B-class)
+        // Sleep: suppress locomotion drive → body quiescence
+        // Previously: direct -30pA injection to DA/VA/DB/VB/DD/VD 01-03
+        // At conc ~0.7: -42 × 0.7 = -29.4pA (matches old -30pA)
+        const char* body_mn[] = {
+            "DA01", "DA02", "DA03", "DA04", "DA05",
+            "VA01", "VA02", "VA03", "VA04", "VA05",
+            "DB01", "DB02", "DB03", "DB04", "DB05", "DB06", "DB07",
+            "VB01", "VB02", "VB03", "VB04", "VB05", "VB06", "VB07",
+            "DD01", "DD02", "DD03", "DD04", "DD05",
+            "VD01", "VD02", "VD03", "VD04", "VD05"
+        };
+        for (auto name : body_mn) {
+            int id = connectome_.get_neuron_id(name);
+            if (id >= 0) flp11.targets.push_back(
+                {id, "DMSR-1", ModulationEffect::EXCITABILITY, -42.0});
+        }
+
+        // Target 5: DMSR-1 → speed scale (systemic locomotion suppression)
+        // Replaces sleep_speed_factor direct multiplication
+        // At conc ~0.7: speed_scale × (1 - 0.95×0.7) = ×0.335 (~67% reduction)
+        // Combined with motor neuron inhibition → near-atonia during deep sleep
+        flp11.targets.push_back(
+            {-1, "DMSR-1", ModulationEffect::SPEED_SCALE, -0.95});
+
+        // Target 6: FRPR-8 → RIS self-inhibition (negative feedback)
+        // FLP-11 acts on FRPR-8/DMSR-1 on RIS itself → limits sleep duration
+        // "DMSR-1 is necessary in the sleep-active RIS neuron for limiting sleep duration"
+        // This creates sleep homeostasis: RIS fires → FLP-11↑ → RIS self-inhibited → wake
+        // REF: Rossi 2025 — dual role of FLP-11 (sleep induction + termination)
+        if (ris >= 0) flp11.targets.push_back(
+            {ris, "FRPR-8", ModulationEffect::EXCITABILITY, -8.0}); // -8pA self-inhibition
+
+        neuromod_.add_modulator(std::move(flp11));
+    }
+
+    LOG_INFO("Neuromodulation setup: 5-HT (dwelling), DA (basal slowing), OA (roaming), TA (escape), NLP-12 (ARS), PDF (roaming), FLP-11 (sleep)");
 }
 
 } // namespace celegans

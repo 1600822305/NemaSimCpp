@@ -325,7 +325,8 @@ private:
     double dmp_phase_timer_ = -1.0;       // ms into current DMP execution (-1 = inactive)
     int dmp_count_ = 0;                   // total DMP cycles completed
     bool dmp_active_ = false;             // true during DMP motor execution
-    double dmp_speed_factor_ = 1.0;       // [0,1] speed modulation during DMP phases
+    // Step 71: dmp_speed_factor_ REMOVED (P0-5 fix)
+    // Speed reduction now emerges from AVL/DVB GABA → B-class MN inhibition
     void update_defecation();             // called each step
 
     // Reversal & omega turn tracking

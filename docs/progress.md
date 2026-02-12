@@ -710,6 +710,19 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **结论**: Step 66 涌现性确认 — reversal 完全依赖 AVA 回路
 - **regtest**: 17 pass, 0 FAIL
 
+### Step 71: P0-5 DMP 涌现减速 + P0-6 FLP-11 神经调质化 ✅ (2026-02-12)
+> 详细文档: [steps/step71_p0_dmp_flp11_fix.md](steps/step71_p0_dmp_flp11_fix.md)
+
+- **P0-5 修复**: 移除 `dmp_speed_factor_` 直接乘法，DMP 减速从 AVL/DVB GABA → B-class MN 抑制涌现
+  - 新突触: AVL→VB05/DB05, DVB→VB06/VB07 (GABAergic inhibitory)
+  - REF: Jiang 2022 Nat Commun, Alkema 2015 Sci Rep
+- **P0-6 修复**: FLP-11 加入 NeuromodulationManager 为第 7 种调质
+  - 来源: RIS; 受体: DMSR-1 (Gi/o) → 胆碱能神经元抑制
+  - 52 个靶点: AVA/AVB(-20pA), MC(-18pA), SMD/RMD(-28pA), 体壁MN(-42pA), SPEED_SCALE(-0.95)
+  - 自抑制: FRPR-8→RIS(-8pA) — 负反馈限制睡眠时长 (Rossi 2025 Current Biology)
+  - 移除: `apply_sleep_effects()` 直接注入 + `sleep_speed_factor` 直接乘法
+- **CI**: 0.373 (seed=42), **regtest**: 17/17 PASS
+
 ---
 
 ## 当前系统状态
@@ -722,7 +735,7 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
   运动: 70 (SMD/RMD/SMB 4×2+4 + RIV L/R + RMED/RMEV + AS01-07 + DB01-07/VB01-07/DA01-05/VA01-05/DD01-05/VD01-05 + MC/M3 L/R + M4 + HSN L/R + VC4/VC5 + AVL + DVB)
 突触: ~197 化学 + ~36 间隙连接 (全部带 Tsodyks-Markram STP, 支持分数 sections)
   Step 42: Cook 2019 校准 (+8 RIA↔RIV, -2 AVE→RIV) + RIV↔RIV gap
-神经调质: 6 种 (5-HT, DA, OA, TA, NLP-12, PDF) — volume transmission + 饱食度(泵驱动)
+神经调质: 7 种 (5-HT, DA, OA, TA, NLP-12, PDF, FLP-11) — volume transmission + 饱食度(泵驱动)
   5-HT 源: NSM(食物) + HSN(产卵) — 4个源神经元 (Step 43: ADF 移除)
   5-HT 靶标 (20个, 5种受体): MOD-1→AIY/AIB/AIZ/PVC(抑制) + SER-4→RIC(抑制)+speed(-0.40)+reversal(-0.50) + SER-1→RIA/RIC(兴奋) + SER-5→ASH(增敏) + LGC-50→RIA(SYNAPSE_GAIN)
   DA 源: CEP(4)+ADE(2)+PDE(2) = 8个 (完整), 9个靶标: DOP-1→DVA(+4)/RIA(+2) + DOP-3→AVA(-3)/AVB(-2) + DOP-2→CEP(-3, 自受体)
@@ -747,7 +760,9 @@ P0/P1 违规全部修复:
   P1-1.3: food edge 概率公式移除 → 从 AVA-AVB 平衡涌现 (Step 70)
   P1-1.4: basal_slow 直接乘法移除 → DA→DOP-3→B-class MN 涌现 (Step 68)
   P1-1.5: set_locomotion_state 覆盖移除 → 完全神经回路驱动 (Step 66)
-行为指标 (4-seed, 300s): CI≈0.14, near_food≈21%, reversal_rate≈0.18/s, speed≈0.20mm/s
+  P0-5: DMP speed_factor 移除 → AVL/DVB GABA→B-class MN 涌现减速 (Step 71)
+  P0-6: FLP-11 直接注入移除 → NeuromodulationManager DMSR-1 框架 (Step 71)
+行为指标 (seed=42, 300s): CI≈0.37, near_food≈24%, reversal_rate≈0.16/s, speed≈0.21mm/s
 工具: celegans_diag.exe (信号链诊断+fitness) + celegans_regtest.exe (回归检测+电流溯源)
 
 运动驱动 (Step 13 — 生物学机制):

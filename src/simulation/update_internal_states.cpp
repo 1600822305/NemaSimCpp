@@ -140,49 +140,20 @@ void SimulationEngine::update_fatigue() {
 }
 
 void SimulationEngine::apply_sleep_effects() {
-    int n = static_cast<int>(neurons_.size());
-    if (nid("RIS") < 0 || nid("RIS") >= n) return;
-
-    double ris_V = neurons_[nid("RIS")]->get_membrane_potential();
-    double flp11 = 1.0 / (1.0 + fast_exp(-(ris_V - (-35.0)) / 5.0));
-
-    if (flp11 < 0.1) return;
-
-    double cmd_inhibition = -15.0 * flp11;
-    const char* cmd_names[] = {"AVAL", "AVAR", "AVBL", "AVBR"};
-    for (auto name : cmd_names) {
-        int id = connectome_.get_neuron_id(name);
-        if (id >= 0 && id < n) {
-            neurons_[id]->add_synaptic_current(cmd_inhibition);
-        }
-    }
-
-    double mc_inhibition = -12.0 * flp11;
-    for (int id : nids("MC")) {
-        if (id >= 0 && id < n) {
-            neurons_[id]->add_synaptic_current(mc_inhibition);
-        }
-    }
-
-    double head_inhibition = -20.0 * flp11;
-    for (int id : nids("head_motor")) {
-        if (id >= 0 && id < n) {
-            neurons_[id]->add_synaptic_current(head_inhibition);
-        }
-    }
-
-    double motor_inhibition = -30.0 * flp11;
-    const char* motor_names[] = {
-        "DA01", "DA02", "DA03", "DB01", "DB02", "DB03",
-        "VA01", "VA02", "VA03", "VB01", "VB02", "VB03",
-        "DD01", "DD02", "DD03", "VD01", "VD02", "VD03"
-    };
-    for (auto name : motor_names) {
-        int id = connectome_.get_neuron_id(name);
-        if (id >= 0 && id < n) {
-            neurons_[id]->add_synaptic_current(motor_inhibition);
-        }
-    }
+    // Step 71: P0-6 fix — all FLP-11 sleep effects now handled by
+    // NeuromodulationManager (7th modulator: FLP-11).
+    // RIS → FLP-11 release → DMSR-1 (Gi/o) on cholinergic neurons → inhibition
+    // Self-inhibition: DMSR-1 on RIS → negative feedback → sleep homeostasis
+    // REF: Turek 2016 eLife, Rossi 2025 Current Biology
+    //
+    // REMOVED: direct current injection to AVA/AVB (-15pA), MC (-12pA),
+    // head_motor (-20pA), body motor neurons (-30pA).
+    // These are now FLP-11 EXCITABILITY targets in setup_neuromodulation().
+    //
+    // is_sleeping_ state is still maintained by update_fatigue() for:
+    // - Sleep-dependent learning (Step 62: learning rate ×2, forgetting ×0.3)
+    // - DMP suppression during sleep
+    // - Diagnostic reporting
 }
 
 // ================================================================
@@ -246,8 +217,8 @@ void SimulationEngine::update_defecation() {
         // Non-neural: intestinal Ca²⁺ wave directly contracts posterior body wall
         // Modeled as brief speed reduction (body shortens posteriorly)
         if (dmp_phase_timer_ < 1000.0) {
-            // Mild posterior contraction → speed reduction
-            dmp_speed_factor_ = 0.6;  // 40% speed reduction
+            // Step 71: speed reduction emerges from AVL/DVB GABA → B-class MN inhibition
+            // (no direct speed_factor — P0-5 fix)
         }
         // Phase 2: aBoc (1500–2500ms) — anterior body contraction
         // Requires AVL (non-redundant, non-GABA mechanism)
@@ -255,8 +226,7 @@ void SimulationEngine::update_defecation() {
         else if (dmp_phase_timer_ >= 1500.0 && dmp_phase_timer_ < 2500.0) {
             double aboc_drive = 50.0;  // Strong activation for AP firing
             if (avl_id < n) neurons_[avl_id]->set_external_current(aboc_drive);
-            // Mild anterior contraction
-            dmp_speed_factor_ = 0.7;
+            // Step 71: AVL GABA → VB05/DB05 inhibition → emergent anterior slowing
         }
         // Phase 3: Exp/EMC (2500–3500ms) — enteric muscle contraction
         // AVL + DVB fire synchronized GABA APs → EXP-1 on enteric muscles
@@ -265,14 +235,12 @@ void SimulationEngine::update_defecation() {
             double exp_drive = 70.0;  // Maximal drive for AP burst
             if (avl_id < n) neurons_[avl_id]->set_external_current(exp_drive);
             if (dvb_id < n) neurons_[dvb_id]->set_external_current(exp_drive);
-            // Brief pause during expulsion
-            dmp_speed_factor_ = 0.5;
+            // Step 71: AVL+DVB maximal GABA → strongest MN inhibition → emergent pause
         }
         // Inter-phase and post-DMP: baseline drive
         else {
             if (avl_id < n) neurons_[avl_id]->set_external_current(1.0);
             if (dvb_id < n) neurons_[dvb_id]->set_external_current(1.0);
-            dmp_speed_factor_ = 1.0;
         }
 
         // DMP complete after 4s
@@ -288,7 +256,6 @@ void SimulationEngine::update_defecation() {
         // Between DMP cycles: low baseline (AVL/DVB are quiet)
         if (avl_id < n) neurons_[avl_id]->set_external_current(1.0);
         if (dvb_id < n) neurons_[dvb_id]->set_external_current(1.0);
-        dmp_speed_factor_ = 1.0;
     }
 }
 
