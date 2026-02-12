@@ -525,6 +525,11 @@ void SimulationEngine::step() {
     // Effects: tonic currents on target neurons, speed modulation
     neuromod_.update(neurons_, dt_);
 
+    // Step 76: Enhanced Slowing Response — hunger-dependent MOD-1 amplification
+    // Must be AFTER neuromod_.update() (needs 5-HT concentration)
+    // Must be BEFORE neuron step() (applies current to AIY/PVC/RIC)
+    apply_esr_modulation();
+
     // Step 71: sleep speed suppression now handled by FLP-11 SPEED_SCALE target
     // in NeuromodulationManager (P0-6 fix). Removed: sleep_speed_factor direct multiplication.
     // FLP-11 SPEED_SCALE -0.95 achieves equivalent near-atonia during sleep.

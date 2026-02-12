@@ -87,6 +87,8 @@ public:
     double satiety() const { return satiety_; }
     // Sickness (Step 26: learned pathogen avoidance)
     double sickness() const { return sickness_; }
+    // ESR receptor upregulation level (Step 76)
+    double esr_receptor_level() const { return esr_receptor_level_; }
     // Food memory / ARS (Step 20d)
     double food_memory() const { return food_memory_; }
     // Egg-laying (Step 38)
@@ -240,6 +242,18 @@ private:
     double satiety_ = 0.0;             // [0,1] — 0=hungry, 1=full
     double satiety_tau_deplete_ = 40000.0; // ms to get hungry (40s off food)
     void update_satiety();              // called each step (now uses pharynx pump rate)
+
+    // Step 76: Enhanced Slowing Response — ESR (Sawin 2000 Neuron)
+    // Starvation → MOD-1/SER-4 receptor upregulation → amplified 5-HT sensitivity
+    // When starved worm encounters food: 5-HT + upregulated receptors
+    //   → extra inhibition of AIY/PVC → less forward drive → speed drops EMERGENTLY
+    // NOT a direct speed change — emerges from circuit-level neural effects
+    // REF: Sawin 2000 — tph-1 required; Gürel 2012 — mod-1;ser-4 double mutant abolishes ESR
+    double esr_mod1_gain_ = -8.0;      // pA, extra MOD-1 on AIY/PVC when starved × 5-HT
+    double esr_receptor_level_ = 0.0;   // [0,1] slow MOD-1 upregulation during starvation
+    double esr_upregulate_tau_ = 60000.0; // ms, receptor upregulation time (60s starvation)
+    double esr_downregulate_tau_ = 30000.0; // ms, receptor downregulation when fed (30s)
+    void apply_esr_modulation();        // hunger × 5-HT → amplified MOD-1 on circuit
 
     // Step 47: Food-edge head poke reversal (eLife 2024, Flavell lab)
     // When head exits food boundary → reversal with high probability (dwelling)

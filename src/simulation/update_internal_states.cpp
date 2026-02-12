@@ -52,6 +52,76 @@ void SimulationEngine::update_satiety() {
 }
 
 // ================================================================
+// Step 76: Enhanced Slowing Response — ESR (Sawin 2000 Neuron)
+//
+// Biology: Starved worms slow dramatically more on food than well-fed worms.
+//   - BSR (well-fed): DA-mediated, ~30% speed reduction (Step 68, emergent)
+//   - ESR (starved): 5-HT-mediated, ~80% speed reduction (this step)
+//   - Requires tph-1 (5-HT synthesis) and mod-1 + ser-4 receptors
+//
+// Mechanism: Starvation upregulates MOD-1/SER-4 receptor expression
+//   → same 5-HT concentration produces stronger inhibitory effect
+//   → AIY/PVC more inhibited → less forward drive → speed drops
+//
+// Implementation: hunger × 5-HT concentration → extra inhibitory current
+//   on AIY (forward interneuron) and PVC (forward command).
+//   Speed change EMERGES from circuit effects, not direct manipulation.
+//
+// REF: Sawin 2000 Neuron — ESR discovery, tph-1/cat-2 dissociation
+//      Gürel 2012 Genetics — mod-1;ser-4 double mutant abolishes ESR
+//      Flavell 2013 Cell — 5-HT promotes dwelling via MOD-1 on AIY
+// ================================================================
+void SimulationEngine::apply_esr_modulation() {
+    double sht = neuromod_.get_concentration("5-HT");
+    double hunger = 1.0 - satiety_;  // 0=well-fed, 1=starved
+
+    // 1. Update slow receptor upregulation level
+    // Biology: starvation → transcriptional upregulation of MOD-1/SER-4 receptors
+    // This takes tens of minutes in vivo; modeled as 60s tau for simulation timescale
+    // esr_receptor_level_ starts at 0 → prevents ESR at simulation start (satiety=0)
+    if (hunger > 0.5) {
+        // Starving: receptors slowly upregulate
+        double target = (hunger - 0.5) / 0.5;  // 0 at hunger=0.5, 1 at hunger=1.0
+        esr_receptor_level_ += (target - esr_receptor_level_) * dt_ / esr_upregulate_tau_;
+    } else {
+        // Well-fed: receptors slowly downregulate
+        esr_receptor_level_ -= esr_receptor_level_ * dt_ / esr_downregulate_tau_;
+    }
+    if (esr_receptor_level_ < 0.0) esr_receptor_level_ = 0.0;
+    if (esr_receptor_level_ > 1.0) esr_receptor_level_ = 1.0;
+
+    // 2. ESR current = gain × receptor_level × 5-HT_concentration
+    // At full ESR (receptor=1, 5-HT=0.5): -8 × 1.0 × 0.5 = -4pA extra per target
+    // Stacks with existing MOD-1 tonic: AIY gets -2.5×0.5 + (-4) = -5.25pA total
+    // At simulation start (receptor=0): no extra current → unchanged behavior
+    double esr_current = esr_mod1_gain_ * esr_receptor_level_ * sht;
+
+    int n = static_cast<int>(neurons_.size());
+
+    // MOD-1 upregulation on AIY — enhanced forward drive suppression
+    // Gürel 2012: mod-1 expressed in AIY, required for ESR
+    for (int id : nids("AIY")) {
+        if (id >= 0 && id < n)
+            neurons_[id]->add_synaptic_current(esr_current);
+    }
+
+    // MOD-1 upregulation on PVC — enhanced forward command suppression
+    // PVC→AVB is a major forward drive pathway; 5-HT↑ + hunger → PVC more inhibited
+    for (int id : nids("PVC")) {
+        if (id >= 0 && id < n)
+            neurons_[id]->add_synaptic_current(esr_current);
+    }
+
+    // SER-4 upregulation on RIC — enhanced OA suppression when starved on food
+    // Prevents roaming state activation during ESR (should stay dwelling)
+    // Weaker than MOD-1 effect (×0.5): SER-4 is modulatory, MOD-1 is primary
+    for (int id : nids("RIC")) {
+        if (id >= 0 && id < n)
+            neurons_[id]->add_synaptic_current(esr_current * 0.5);
+    }
+}
+
+// ================================================================
 // Area-Restricted Search (Step 20d)
 // ================================================================
 void SimulationEngine::update_food_memory() {

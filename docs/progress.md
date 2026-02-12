@@ -767,6 +767,15 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - 4 层回路完成: AWB → AUA/RMG → AVA/AVD → 运动神经元
 - **regtest**: 20/20 PASS (171/337/98)
 
+### Step 76: 增强减速响应 (ESR) — 涌现行为 ✅ (2026-02-12)
+> 详细文档: [steps/step76_esr_enhanced_slowing.md](steps/step76_esr_enhanced_slowing.md)
+
+- **ESR 涌现机制**: 饥饿 → MOD-1/SER-4 受体慢速上调 (τ=60s) → 5-HT 效应放大
+- **回路级效应**: 额外抑制电流注入 AIY(-8pA) + PVC(-8pA) + RIC(-4pA) × receptor × 5-HT
+- **非直接速度操控**: 速度降低从 AIY/PVC 抑制 → 前进驱动↓ → 运动神经元活性↓ 涌现
+- BSR (DA, Step 68) vs ESR (5-HT, 此步骤): 两条独立通路，匹配 Sawin 2000 cat-2/tph-1 解离
+- **regtest**: 20/20 PASS (30s 内受体上调不充分，不影响基线)
+
 ---
 
 ## 当前系统状态

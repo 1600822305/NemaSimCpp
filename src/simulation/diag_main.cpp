@@ -892,6 +892,17 @@ int main(int argc, char* argv[]) {
     }
     std::cout << "   sickness: " << std::setprecision(3) << sim.sickness() << std::endl;
 
+    // Step 76: Enhanced Slowing Response diagnostics
+    std::cout << "\n29. ENHANCED SLOWING RESPONSE (Step 76, Sawin 2000):" << std::endl;
+    std::cout << "   satiety: " << std::setprecision(3) << sim.satiety()
+              << "  hunger: " << std::setprecision(3) << (1.0 - sim.satiety())
+              << "  esr_receptor: " << std::setprecision(3) << sim.esr_receptor_level() << std::endl;
+    double sht_conc = sim.neuromodulation().get_concentration("5-HT");
+    std::cout << "   5-HT: " << std::setprecision(3) << sht_conc
+              << "  esr_current: " << std::setprecision(2)
+              << (-8.0 * sim.esr_receptor_level() * sht_conc) << " pA" << std::endl;
+    std::cout << "   speed_scale: " << std::setprecision(3) << sim.neuromodulation().get_speed_scale() << std::endl;
+
     std::cout << "\n9. DISTANCE TO FOOD:" << std::endl;
     std::cout << "   initial=" << std::setprecision(2) << dists.front()
               << "  final=" << dists.back() << " mm" << std::endl;
