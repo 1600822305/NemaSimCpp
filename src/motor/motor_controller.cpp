@@ -99,6 +99,14 @@ void MotorController::initialize(const std::unordered_map<std::string, int>& nam
     add_mapping(name_to_id, "SMDVL", 0, 4, false);
     add_mapping(name_to_id, "SMDVR", 0, 4, false);
 
+    // Step 105: URA — inner labial motor neurons (nose positioning)
+    // URA makes NMJs in nerve ring → head body wall muscles
+    // Segments 0-3: nose tip region (more anterior than SMD)
+    // REF: White 1986, Emmons 2024
+    add_mapping(name_to_id, "URADL", 0, 3, true);
+    add_mapping(name_to_id, "URADR", 0, 3, true);
+    add_mapping(name_to_id, "URAVL", 0, 3, false);
+    add_mapping(name_to_id, "URAVR", 0, 3, false);
     // Step 103: SAA — sublateral interneurons with NMJs (motor-like)
     // SAA makes neuromuscular junctions similar to sublateral motor neurons
     // "SAA, SMB, and SMD express genes for known stretch receptors" (Emmons 2024)

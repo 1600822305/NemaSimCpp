@@ -263,6 +263,18 @@ void build_neurons(CB& b) {
     b.neuron("IL2VL", NT::SENSORY, NTT::ACETYLCHOLINE);
     b.neuron("IL2VR", NT::SENSORY, NTT::ACETYLCHOLINE);
 
+    // Step 105: URA — inner labial motor neurons (4 quadrant)
+    // Community 2 (Foraging): same module as IL1/IL2
+    // Motor neuron making NMJs in nerve ring → head body wall muscles
+    // Dendritic extensions towards nose → possible sensory function ("unknown receptor")
+    // IL1/IL2 → URA → head muscles: nose positioning during foraging
+    // Cholinergic (Pereira 2015 eLife)
+    // REF: White 1986, Emmons 2024 PLOS Biology (PMC10983851)
+    b.neuron("URADL", NT::MOTOR, NTT::ACETYLCHOLINE);
+    b.neuron("URADR", NT::MOTOR, NTT::ACETYLCHOLINE);
+    b.neuron("URAVL", NT::MOTOR, NTT::ACETYLCHOLINE);
+    b.neuron("URAVR", NT::MOTOR, NTT::ACETYLCHOLINE);
+
     // --- Interneurons ---
     b.neuron("AIAL", NT::INTER, NTT::ACETYLCHOLINE);
     b.neuron("AIAR", NT::INTER, NTT::ACETYLCHOLINE);
@@ -1033,6 +1045,18 @@ void build_head_motor(CB& b) {
     // IL1 ↔ RIH: gap junction integration for foraging regulation
     b.gj("IL1DL", "RIH", 1); b.gj("IL1DR", "RIH", 1);
     b.gj("IL1VL", "RIH", 1); b.gj("IL1VR", "RIH", 1);
+
+    // Step 105: IL1/IL2 → URA — inner labial motor pathway for foraging
+    // "IL1 and IL2 target body wall muscles in the head via URA" (Emmons 2024)
+    // IL1→URA: nose touch/tactile → head positioning (ipsilateral quadrant)
+    b.syn("IL1DL", "URADL", 2); b.syn("IL1DR", "URADR", 2);
+    b.syn("IL1VL", "URAVL", 2); b.syn("IL1VR", "URAVR", 2);
+    // IL2→URA: inner labial chemical/environmental → head positioning
+    b.syn("IL2DL", "URADL", 1); b.syn("IL2DR", "URADR", 1);
+    b.syn("IL2VL", "URAVL", 1); b.syn("IL2VR", "URAVR", 1);
+    // URA→RMD: coordinate head muscle contraction (nose positioning)
+    b.syn("URADL", "RMDDL", 1); b.syn("URADR", "RMDDR", 1);
+    b.syn("URAVL", "RMDVL", 1); b.syn("URAVR", "RMDVR", 1);
 
     // Step 60: Dopaminergic mechanosensory circuit (ADE + PDE)
     // ADE → RIC: DA from head deirid → octopaminergic interneuron

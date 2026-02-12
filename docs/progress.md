@@ -739,17 +739,24 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **依据**: Hills 2004 ARS 转换需 5-15min; Zhang 2005 学习厌恶需分钟级
 - **附加**: bottleneck curvature 阈值 0.1→0.04; cli_nseeds 默认 4→1
 
+### Step 105: URA 内唇运动神经元 — 鼻部定位/觅食通路 ✅ (2026-02-13)
+> 详细文档: [steps/step105_ura_inner_labial_motor.md](steps/step105_ura_inner_labial_motor.md)
+
+- **+4 神经元**: URA(4) 内唇运动神经元 (226→230)
+- **+12 突触**: IL1/IL2→URA→RMD 鼻部定位通路
+- **Community 2 完善**: IL1/IL2→URA→头部肌肉 (觅食运动输出)
+
 ---
 
 ## 当前系统状态
 
 ```
 架构: 8 层 (环境/躯体/感知/神经元/连接组/神经调质/运动/行为)
-神经元: 226 个 MVP 子集 (302 全集待扩展)
+神经元: 230 个 MVP 子集 (302 全集待扩展)
   感觉: 63 (ASE/AWC/AWA/ASH/ALM/PLM/NSM/ADE/PDE/AFD/ADF/ASJ/ASK/ASI/ADL/FLP/PHB/PHA/URX/BAG/PVD L/R + CEP 4×(DL/DR/VL/VR) + OLQ 4× + IL1 4× + IL2 4× + AVM + AQR + PQR)
   中间: 59 (AIA/AIB/AIY/AIZ/RIA/RIB/RIM/RIC/AVA/AVB/AVD/AVE/PVC/AVF/AUA/AVK/AVJ/AVH/PVP/AIN/LUA/I1/RIP L/R + SAA 4× + RIS + RIH + RMG L/R + DVA + DVC + PVT + PVR + RIG)
-  运动: 104 (SMD 4 + RMD 4 + SIA 4 + SIB 4 + SMB 4 + RIV 2 + RMED/RMEV 2 + AS01-11(11) + DA01-09(9) + DB01-07(7) + VA01-12(12) + VB01-11(11) + DD01-06(6) + VD01-13(13) + MC 2 + M3 2 + M4 + HSN 2 + VC4/VC5 + AVL + DVB)
-突触: 557 化学 + 193 间隙连接 (全部带 Tsodyks-Markram STP, 支持分数 sections)
+  运动: 108 (SMD 4 + RMD 4 + URA 4 + SIA 4 + SIB 4 + SMB 4 + RIV 2 + RMED/RMEV 2 + AS01-11(11) + DA01-09(9) + DB01-07(7) + VA01-12(12) + VB01-11(11) + DD01-06(6) + VD01-13(13) + MC 2 + M3 2 + M4 + HSN 2 + VC4/VC5 + AVL + DVB)
+突触: 569 化学 + 193 间隙连接 (全部带 Tsodyks-Markram STP, 支持分数 sections)
   Step 42: Cook 2019 校准 (+8 RIA↔RIV, -2 AVE→RIV) + RIV↔RIV gap
   Step 84-91: VNC MN 完整互连 (交叉抑制/本体感觉波/后退波 全部完成)
 神经调质: 7 种 (5-HT, DA, OA, TA, NLP-12, PDF, FLP-11) — volume transmission + 饱食度(泵驱动)
@@ -761,7 +768,7 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
   FLP-11 源: RIS (睡眠) — DMSR-1→AVA/AVB(-20)/MC(-18)/head_MN(-28)/body_MN(-42, 胆碱能only)/SPEED(-0.95) + FRPR-8→RIS(-8, 自抑制)
 离子通道: 14 种 (EGL-19/UNC-2/CCA-1/SHL-1/KQT-3/SLO-1/NCA/MEC + EGL-36/IRK/TWK/SLO-2/OSM-9/EXP-2)
 神经元模型: 单隔室 HH 分级电位 (L2) + 多隔室 (RIA) + 钙动力学
-身体: 2D 弹性杆 48 段, 87 个运动神经元-肌肉映射, 体节间曲率扩散(弹性耦合)
+身体: 2D 弹性杆 48 段, 91 个运动神经元-肌肉映射, 体节间曲率扩散(弹性耦合)
 环境: 50×50 mm, 4化学场(food_odor+soluble+repellent+pheromone) + 线性温度梯度 (0.5°C/mm) + O₂场(food派生) + 光场(高斯σ=8mm)
 内部状态: satiety_(泵驱动), sickness_(有毒食物), food_memory_(双通路ARS), fatigue_(睡眠驱动)
 学习: 盐学习(ASER w_mod) + 病原体学习(AWC翻转+WV反向+厌食) + 温度学习(Tc适应+AWC饥饿中断) + STP习惯化 + 睡眠巩固(Step 62) + INS-1厌食(Step 63)
