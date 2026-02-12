@@ -1,0 +1,23 @@
+MULTI-SEED: 4 seeds, 300s each, 4 parallel jobs
+  seed 123 done (1/4)
+  seed 124 done (2/4)
+  seed 125 done (3/4)
+  seed 126 done (4/4)
+
+========================================
+  MULTI-SEED RESULTS (4 seeds, 66.7s wall time)
+========================================
+  CI:           -0.924 卤 0.243
+  Speed:        0.164 卤 0.002 mm/s
+  Reversals:    47.2 卤 0.4
+  Omegas:       0.0 卤 0.0
+  Omega/Rev:    0.000 卤 0.000
+  Near food:    12.4 卤 1.5%
+  D/V ratio:    0.34 卤 0.25
+
+  Per-seed:
+  seed    CI     speed  rev  omega  near%
+   123  -0.877  0.162   47      0   10.4
+   124  -1.229  0.166   48      0   14.0
+   125  -1.029  0.162   47      0   13.6
+   126  -0.563  0.166   47      0   11.6
