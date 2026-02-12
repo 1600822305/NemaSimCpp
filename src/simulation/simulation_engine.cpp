@@ -492,6 +492,10 @@ void SimulationEngine::step() {
     update_pathogen_learning();  // AWC synapse plasticity flip
     apply_synaptic_forgetting(); // Step 62: slow w_mod→1.0 drift (sleep suppresses)
 
+    // 5b5b. Step 63: INS-1 insulin signaling (Lin 2010 JNeurosci)
+    update_ins1();               // compute INS-1 from satiety + sickness
+    apply_ins1_modulation();     // INS-1 → DAF-2 ⊣ AWC/AIA/AIY
+
     // 5b6. Step 27: Sleep / Quiescence (Lethargus)
     update_fatigue();            // fatigue accumulation → RIS activation
     apply_sleep_effects();       // FLP-11 → global motor inhibition

@@ -769,6 +769,16 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 - REF: Chouhan 2023 Cell, Zhang 2005 Nature, Iannacone 2017 JNeurosci
 - **regtest**: 17 pass, 0 FAIL
 
+### Step 63: INS-1 胰岛素信号 + 厌食涌现 ✅ (2026-02-12)
+> 详细文档: [steps/step63_ins1_insulin_anorexia.md](steps/step63_ins1_insulin_anorexia.md)
+
+- INS-1 从 satiety/sickness 计算: (1-satiety) × (1+sickness×3)
+- INS-1 → DAF-2 ⊣ AWC(-6pA)/AIA(-5pA)/AIY(-8pA): 化学趋性抑制
+- sickness → MC 抑制 (-20pA): 泵率从 3Hz→0.5Hz (下降 83%!)
+- **涌现**: 毒素摄入→sickness↑→MC抑制→pump↓→satiety↓→INS-1↑→趋化↓→远离食物
+- REF: Lin 2010 JNeurosci, You 2008, Comm Bio 2022
+- **regtest**: 17 pass, 0 FAIL
+
 ---
 
 ## 当前系统状态
@@ -792,7 +802,7 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 身体: 2D 弹性杆 48 段, 29 个运动神经元-肌肉映射, 体节间曲率扩散(弹性耦合)
 环境: 50×50 mm, 3化学场(food_odor+soluble+repellent) + 线性温度梯度 (0.5°C/mm) + O₂场(food派生) + 光场(高斯σ=8mm)
 内部状态: satiety_(泵驱动), sickness_(有毒食物), food_memory_(双通路ARS), fatigue_(睡眠驱动)
-学习: 盐学习(ASER w_mod) + 病原体学习(AWC翻转+WV反向+厌食) + STP习惯化 + 睡眠巩固(Step 62)
+学习: 盐学习(ASER w_mod) + 病原体学习(AWC翻转+WV反向+厌食) + STP习惯化 + 睡眠巩固(Step 62) + INS-1厌食(Step 63)
 仿真: dt=0.5ms, CPU 实时 (10000步 < 1s)
 性能: cache_neuron_ids_and_synapses() 一次性缓存 10 ID + 6 typed 指针 + 3 组突触索引
 计算: CPU (默认) + OpenCL GPU 后端 (>500突触自动启用, AMD RX 6950 XT 就绪)
@@ -800,7 +810,7 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 工具: CLI 运行时参数覆盖 (--as_factor/--pulse_amp/--duration/--seed/--light 等, 无需重编译调参)
       --fitness 模式: 4 seeds × 3 scenarios 自动评估, 输出标量 fitness score
 可视化: Dear ImGui + ImPlot + GLFW, 3列布局, 实时调参+信号链诊断
-状态: 趋化+触觉回避+化学回避+排斥weathervane+病原体学习(CI反向!)+多化学物种+RIM稳定+神经调质+ARS(双通路:DARPP-32+NLP-12)+觅食循环+STP+盐学习+温度趋性+咽部泵食+睡眠/静止(RIS/FLP-11)+RIV omega(TA门控)+后退运动+RIA↔RIV负反馈环路+PDF roaming+food-edge反转(latch检测)+5-HT受体多样性(MOD-1/SER-4/SER-1/SER-5)+光回避(ASJ/LITE-1)+排便DMP(AVL/DVB 45s)+DA闭环(DOP-1/DOP-2/DOP-3, ESR)+tap习惯化(STP涌现)+腹索整合中枢(Emmons 2024)+睡眠巩固记忆(Chouhan 2023), 纯涌现 (162神经元)
+状态: 趋化+触觉回避+化学回避+排斥weathervane+病原体学习(CI反向!)+多化学物种+RIM稳定+神经调质+ARS(双通路:DARPP-32+NLP-12)+觅食循环+STP+盐学习+温度趋性+咽部泵食+睡眠/静止(RIS/FLP-11)+RIV omega(TA门控)+后退运动+RIA↔RIV负反馈环路+PDF roaming+food-edge反转(latch检测)+5-HT受体多样性(MOD-1/SER-4/SER-1/SER-5)+光回避(ASJ/LITE-1)+排便DMP(AVL/DVB 45s)+DA闭环(DOP-1/DOP-2/DOP-3, ESR)+tap习惯化(STP涌现)+腹索整合中枢(Emmons 2024)+睡眠巩固记忆(Chouhan 2023)+INS-1胰岛素厌食(Lin 2010), 纯涌现 (162神经元)
 行为指标: CI≈0.75 (300s), near_food≈42%, reversal_rate≈0.11/s, speed≈0.19mm/s, 5-HT≈0.13, DA≈0.11, OA≈0.42
 工具: celegans_diag.exe (信号链诊断+fitness) + celegans_regtest.exe (回归检测+电流溯源)
 

@@ -21,11 +21,17 @@ void SimulationEngine::apply_pharyngeal_modulation() {
     double mc_5ht_current = 15.0 * sht_conc;
     double mc_oa_current = -10.0 * oa_conc;
 
+    // Step 63: Sickness → MC suppression (anorexia)
+    // Sick worms reduce pharyngeal pumping → less food intake → lower satiety
+    // REF: You 2008 — pathogen exposure reduces feeding rate
+    //      Melo & Ruvkun 2012 — sickness behavior includes feeding suppression
+    double mc_sickness = sickness_mc_suppress_ * sickness_;  // 0 to -20 pA
+
     for (int id : nids("MC")) {
         if (id >= 0 && id < n) {
             double food_conc = environment_.sample_food_density(body_.get_head_position());
             double food_drive = 8.0 * food_conc / (food_conc + 0.1);
-            double mc_tonic = 3.0 + food_drive + mc_5ht_current + mc_oa_current;
+            double mc_tonic = 3.0 + food_drive + mc_5ht_current + mc_oa_current + mc_sickness;
             neurons_[id]->add_synaptic_current(mc_tonic);
         }
     }

@@ -292,4 +292,61 @@ void SimulationEngine::update_defecation() {
     }
 }
 
+// ================================================================
+// Step 63: INS-1 Insulin Signaling (Lin 2010 JNeurosci)
+// ================================================================
+// INS-1 is released from ASI and AIA as a starvation/sickness signal.
+// Release increases when: (1) food is ABSENT (starvation), (2) sickness is HIGH.
+// INS-1 acts via DAF-2 receptor on AWC, AIA, AIY to reduce chemotaxis gain.
+// This creates "anorexia": sick worms approach food less → avoid toxic food.
+// REF: Lin 2010 — INS-1 from ASI+AIA, DAF-2 on AWC switches attraction→avoidance
+//      Comm Bio 2022 — INS-1 from AIA → DAF-2c on ASER (taste avoidance)
+//      You 2008 — insulin pathway required for pathogen avoidance behavior
+void SimulationEngine::update_ins1() {
+    // INS-1 release rate:
+    //   - Baseline: proportional to (1 - satiety) → more release when hungry
+    //   - Sickness boost: × (1 + sickness × gain) → sick worms release more
+    //   - On food but sick: satiety stays moderate, sickness drives INS-1 up
+    double starvation_signal = 1.0 - satiety_;  // 0 when full, 1 when hungry
+    double sickness_boost = 1.0 + sickness_ * ins1_sickness_gain_;  // 1→4 at max sickness
+    double target = starvation_signal * sickness_boost;
+    if (target > 1.0) target = 1.0;
+
+    // First-order dynamics (neuropeptide: slow, τ=10s)
+    ins1_conc_ += (target - ins1_conc_) * dt_ / ins1_tau_;
+    if (ins1_conc_ < 0.0) ins1_conc_ = 0.0;
+    if (ins1_conc_ > 1.0) ins1_conc_ = 1.0;
+}
+
+void SimulationEngine::apply_ins1_modulation() {
+    if (ins1_conc_ < 0.01) return;  // skip if negligible
+
+    int n = static_cast<int>(neurons_.size());
+
+    // Target 1: AWC — DAF-2 → reduces excitability (attraction→avoidance switch)
+    // High INS-1 → AWC less excitable → weaker chemotaxis toward food odor
+    // REF: Lin 2010 — DAF-2 in AWC switches signaling mode
+    for (int id : nids("AWC")) {
+        if (id >= 0 && id < n) {
+            neurons_[id]->add_synaptic_current(ins1_awc_gain_ * ins1_conc_);
+        }
+    }
+
+    // Target 2: AIA — DAF-2 → reduces chemotaxis relay
+    // AIA is a key hub: AWC→AIA→AIY. INS-1 dampens this relay.
+    for (int id : nids("AIA")) {
+        if (id >= 0 && id < n) {
+            neurons_[id]->add_synaptic_current(ins1_aia_gain_ * ins1_conc_);
+        }
+    }
+
+    // Target 3: AIY — DAF-2 → reduces forward drive
+    // Lower AIY activity → less AVB drive → slower forward locomotion
+    for (int id : nids("AIY")) {
+        if (id >= 0 && id < n) {
+            neurons_[id]->add_synaptic_current(ins1_aiy_gain_ * ins1_conc_);
+        }
+    }
+}
+
 } // namespace celegans

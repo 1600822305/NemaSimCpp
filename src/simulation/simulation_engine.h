@@ -106,6 +106,8 @@ public:
     // Step 62: Force sleep for consolidation experiments
     void force_sleep(double duration_ms) { forced_sleep_end_ = current_time_ + duration_ms; }
     double learning_sleep_drive() const { return learning_sleep_drive_; }
+    // Step 63: INS-1 insulin concentration
+    double ins1_conc() const { return ins1_conc_; }
 
     // Callback for each step (for logging/visualization)
     using StepCallback = std::function<void(const SimulationEngine&, int step_num)>;
@@ -270,6 +272,23 @@ private:
     double mod1_aiz_gain_ = -6.0;        // pA, ADF sickness 5-HT → MOD-1 ⊣ AIZ (half of AIY)
     void update_sickness();              // accumulate sickness from toxic food intake
     void update_pathogen_learning();     // AWC→AIY w_mod↓, AWC→AIB w_mod↑
+
+    // Step 63: INS-1 insulin signaling (Lin 2010 JNeurosci, Comm Bio 2022)
+    // INS-1 released from ASI/AIA as starvation/sickness signal.
+    // Acts via DAF-2 on AWC (attraction→avoidance switch), AIA, AIY (reduce chemotaxis).
+    // Sickness enhances INS-1 → "anorexia" (reduced feeding when sick).
+    // REF: Lin 2010 — INS-1 from ASI+AIA → DAF-2 on AWC
+    //      Comm Bio 2022 — INS-1 from AIA → DAF-2c on ASER (taste avoidance)
+    //      You 2008 — insulin pathway in pathogen avoidance
+    double ins1_conc_ = 0.0;             // [0,1] INS-1 concentration (virtual neuromodulator)
+    double ins1_tau_ = 10000.0;          // ms, 10s time constant (neuropeptide, slow)
+    double ins1_sickness_gain_ = 3.0;    // sickness amplification of INS-1 release
+    double ins1_aiy_gain_ = -8.0;        // pA, INS-1 → DAF-2 ⊣ AIY (reduce forward drive)
+    double ins1_aia_gain_ = -5.0;        // pA, INS-1 → DAF-2 ⊣ AIA (reduce chemotaxis relay)
+    double ins1_awc_gain_ = -6.0;        // pA, INS-1 → DAF-2 ⊣ AWC (attraction→avoidance)
+    double sickness_mc_suppress_ = -20.0; // pA, sickness → MC suppression (anorexia)
+    void update_ins1();                  // compute INS-1 from satiety + sickness
+    void apply_ins1_modulation();        // apply INS-1 effects on target neurons
 
     // Step 62: Sleep-dependent memory consolidation (Chouhan 2023 Cell)
     // "Sleep is required to consolidate odor memory and remodel olfactory synapses"
