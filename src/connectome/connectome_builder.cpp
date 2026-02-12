@@ -1050,6 +1050,34 @@ void build_command_ventral(CB& b) {
     b.gj("DB07", "AS08", 1); b.gj("DB07", "AS09", 1);
     b.gj("DB07", "AS10", 1); b.gj("DB07", "AS11", 1);
 
+    // Step 89: AS → VD excitatory connections — dorsal bias mechanism
+    // Tolstenkov 2018 eLife: AS depolarization → excites overlapping VD neurons
+    // → VD GABAergic output inhibits ventral BWMs → net dorsal bias
+    // Each AS excites VD(s) in its segment region (White 1986, Cook 2019)
+    b.syn("AS01", "VD01", 1);
+    b.syn("AS02", "VD02", 1); b.syn("AS02", "VD03", 1);
+    b.syn("AS03", "VD03", 1); b.syn("AS03", "VD04", 1);
+    b.syn("AS04", "VD04", 1); b.syn("AS04", "VD05", 1);
+    b.syn("AS05", "VD06", 1); b.syn("AS05", "VD07", 1);
+    b.syn("AS06", "VD07", 1); b.syn("AS06", "VD08", 1);
+    b.syn("AS07", "VD08", 1); b.syn("AS07", "VD09", 1);
+    b.syn("AS08", "VD09", 1); b.syn("AS08", "VD10", 1);
+    b.syn("AS09", "VD10", 1); b.syn("AS09", "VD11", 1);
+    b.syn("AS10", "VD12", 1);
+    b.syn("AS11", "VD13", 1);
+
+    // Step 89: AS ↔ AVA gap junctions — electrical feedback to backward PIN
+    // Tolstenkov 2018 eLife: UNC-7 innexin mediates AS→AVA retrograde signaling
+    // AS photostimulation → 18% ΔR/R Ca²⁺ in AVA, abolished in unc-7(e5)
+    // AS→AVB signaling not significant (smaller number of gap junctions)
+    // Pattern: odd AS→AVAL, even AS→AVAR (alternating, matches chemical synapses)
+    b.gj("AS01", "AVAL", 1); b.gj("AS02", "AVAR", 1);
+    b.gj("AS03", "AVAL", 1); b.gj("AS04", "AVAR", 1);
+    b.gj("AS05", "AVAL", 1); b.gj("AS06", "AVAR", 1);
+    b.gj("AS07", "AVAL", 1); b.gj("AS08", "AVAR", 1);
+    b.gj("AS09", "AVAL", 1); b.gj("AS10", "AVAR", 1);
+    b.gj("AS11", "AVAL", 1);
+
     // Step 53: PVC forward command interneuron circuit
     // --- Inputs to PVC ---
     // PLM → PVC: posterior gentle touch → accelerate forward (Chalfie 1985)
@@ -1211,6 +1239,14 @@ void build_sleep_and_gaps(CB& b) {
     b.gj("VB05", "VB06", 2); b.gj("VB06", "VB07", 2);
     b.gj("VB07", "VB08", 2); b.gj("VB08", "VB09", 2);
     b.gj("VB09", "VB10", 2); b.gj("VB10", "VB11", 2);
+
+    // Step 89: DB↔DB adjacent gap junctions — dorsal proprioceptive wave
+    // Symmetric to VB↔VB (Wen 2012): dorsal B-type MNs also propagate
+    // bending waves via proprioceptive coupling between adjacent neurons
+    // Cook 2019: DB(n)↔DB(n+1) gap junctions present
+    b.gj("DB01", "DB02", 2); b.gj("DB02", "DB03", 2);
+    b.gj("DB03", "DB04", 2); b.gj("DB04", "DB05", 2);
+    b.gj("DB05", "DB06", 2); b.gj("DB06", "DB07", 2);
 }
 
 // ================================================================

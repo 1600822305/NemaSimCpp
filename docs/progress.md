@@ -880,6 +880,14 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **Tolstenkov 2018 eLife**: AS 双模式活动 + 背侧偏转 + UNC-7 电反馈
 - **regtest**: 20/20 PASS (210/455/126)
 
+### Step 89: VNC 运动回路互连完善 ✅ (2026-02-12)
+> 详细文档: [steps/step89_vnc_interconnect.md](steps/step89_vnc_interconnect.md)
+
+- **AS→VD 背侧偏转**: 19条兴奋性突触 (Tolstenkov 2018 eLife)
+- **AS↔AVA 电反馈**: 11条间隙连接 (UNC-7 innexin)
+- **DB↔DB 本体感觉波**: 6条相邻间隙连接 (对称 VB↔VB, Wen 2012)
+- **regtest**: 20/20 PASS (210/474/143)
+
 ---
 
 ## 当前系统状态
