@@ -71,6 +71,11 @@ struct SimMetrics {
     double midbody_curv_amp;      // curvature amplitude at seg 10 (wave reaches mid-body?)
     double curv_sign_change_hz;   // sign-change rate at seg 7 (numerical instability detector)
     double muscle_work_mean;      // mean |dorsal-ventral| / N_seg (speed driver)
+
+    // Step 74: Connectome integrity & CI baseline
+    int neuron_count;
+    int synapse_count;
+    int gap_junction_count;
 };
 
 SimMetrics run_and_measure(int duration_ms = 30000,
@@ -231,6 +236,11 @@ SimMetrics run_and_measure(int duration_ms = 30000,
     int ris_id = conn.get_neuron_id("RIS");
     m.ris_v_final = (ris_id >= 0 && ris_id < (int)sim.neurons().size())
         ? sim.neurons()[ris_id]->get_membrane_potential() : -65.0;
+
+    // Step 74: Connectome integrity counts
+    m.neuron_count = static_cast<int>(conn.num_neurons());
+    m.synapse_count = static_cast<int>(conn.num_synapses());
+    m.gap_junction_count = static_cast<int>(conn.num_gap_junctions());
 
     return m;
 }
@@ -407,6 +417,13 @@ int main(int argc, char* argv[]) {
         {"Curv stability",      m.curv_sign_change_hz,           1.5,   200, "Hz", ""},
         // Muscle work: must be >0.1 for any forward motion (D/V cancellation -> 0)
         {"Muscle work",         m.muscle_work_mean,              0.35,  60,  "", ""},
+
+        // Step 74: Connectome integrity — catches missing neurons/synapses immediately
+        // These are DETERMINISTIC values — any deviation means a build error
+        // Step 73: 169 neurons (162 + FLP(2) + IL1(4) + RIH(1))
+        {"Neuron count",        (double)m.neuron_count,          169.0,  1,  "", ""},
+        {"Synapse count",       (double)m.synapse_count,         331.0,  1,  "", ""},
+        {"Gap junction count",  (double)m.gap_junction_count,    96.0,   1,  "", ""},
     };
 
     // ---- Check each metric ----

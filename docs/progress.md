@@ -749,6 +749,14 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **4-seed CI**: 均值 **0.464** (+63% vs Step 72), seed=7 达 0.905
 - **regtest**: 17/17 PASS
 
+### Step 74: Regtest 升级 — 连接组完整性检测 ✅ (2026-02-12)
+> 详细文档: [steps/step74_regtest_upgrade.md](steps/step74_regtest_upgrade.md)
+
+- **新增 3 个确定性指标** (17→20): Neuron count(169), Synapse count(331), Gap junction count(96)
+- 通过 `Connectome::num_neurons/synapses/gap_junctions()` API 获取
+- tolerance=1%: 任何连接组构建错误都会立即被捕获
+- **regtest**: 20/20 PASS
+
 ---
 
 ## 当前系统状态
