@@ -764,8 +764,14 @@ int main(int argc, char* argv[]) {
 
     // Step 56: DMP diagnostics
     std::cout << "\n26. DEFECATION MOTOR PROGRAM (Step 56):" << std::endl;
+    // Step 59: fix expectation — DMP only fires when timer resets ON food
+    // Expected ≈ (duration/period) × near_food_fraction, NOT duration/period
+    double dmp_max = (duration / 1000.0) / 45.0;
+    double near_food_frac = (total_samples > 0) ? (double)near_food_samples / total_samples : 0.5;
     std::cout << "   DMP cycles: " << sim.dmp_count()
-              << "  (expected ~" << std::setprecision(0) << (duration / 1000.0) / 45.0 << " at 45s period)" << std::endl;
+              << "  (max ~" << std::setprecision(0) << dmp_max
+              << " at 45s period, adjusted for " << std::setprecision(0) << (near_food_frac * 100)
+              << "% on food: ~" << std::setprecision(1) << (dmp_max * near_food_frac) << ")" << std::endl;
     {
         const auto& ns = sim.neurons();
         int nn = (int)ns.size();
@@ -828,7 +834,7 @@ int main(int argc, char* argv[]) {
         double nsml_v_max = *std::max_element(nsml_v_vs.begin(), nsml_v_vs.end());
         double nsml_v_min = *std::min_element(nsml_v_vs.begin(), nsml_v_vs.end());
         // Compute how much above threshold the release rate is
-        double threshold = 0.3;  // 5-HT release_threshold (Step 45: restored from 0.5)
+        double threshold = 0.25;  // 5-HT release_threshold (Step 59: 0.30→0.25)
         double above_thresh = nsml_s_mean - threshold;
         double max_possible = 1.0 - threshold;
         double release_drive_est = (above_thresh > 0 && max_possible > 0) ? above_thresh / max_possible : 0.0;

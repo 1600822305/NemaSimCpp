@@ -726,6 +726,16 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 - **CI: 0.42→0.97**, NLP-12: 0→0.048, 5-HT targets: 14→20, PDF targets: 4→6
 - **regtest**: 17 pass, 0 FAIL
 
+### Step 59: 5-HT/PDF 参数重校准 ✅ (2026-02-12)
+> 详细文档: [steps/step59_5ht_pdf_recalibration.md](steps/step59_5ht_pdf_recalibration.md)
+
+- Step 58 恢复 PDF→NSM 后，-25pA 过度抑制 NSM → 5-HT=0.076（过低）
+- 修复: PDF→NSM -25→-15 pA + 5-HT release_threshold 0.30→0.25
+- **5-HT: 0.076→0.135**, NSM above_threshold: -0.08→+0.026
+- DMP diag 修正: "expected ~7" → 考虑 near_food% 的调整值
+- CI: 0.97→0.91（5-HT slowing 生效，更真实）
+- **regtest**: 17 pass, 0 FAIL
+
 ---
 
 ## 当前系统状态
@@ -757,7 +767,7 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
       --fitness 模式: 4 seeds × 3 scenarios 自动评估, 输出标量 fitness score
 可视化: Dear ImGui + ImPlot + GLFW, 3列布局, 实时调参+信号链诊断
 状态: 趋化+触觉回避+化学回避+排斥weathervane+病原体学习(CI反向!)+多化学物种+RIM稳定+神经调质+ARS(双通路:DARPP-32+NLP-12)+觅食循环+STP+盐学习+温度趋性+咽部泵食+睡眠/静止(RIS/FLP-11)+RIV omega(TA门控)+后退运动+RIA↔RIV负反馈环路+PDF roaming+food-edge反转(latch检测)+5-HT受体多样性(MOD-1/SER-4/SER-1/SER-5)+光回避(ASJ/LITE-1)+排便DMP(AVL/DVB 45s), 纯涌现 (140神经元)
-行为指标: CI≈0.97 (300s), near_food≈40%, reversal_rate≈0.10/s, speed≈0.18mm/s
+行为指标: CI≈0.91 (300s), near_food≈40%, reversal_rate≈0.10/s, speed≈0.18mm/s, 5-HT≈0.14
 工具: celegans_diag.exe (信号链诊断+fitness) + celegans_regtest.exe (回归检测+电流溯源)
 
 运动驱动 (Step 13 — 生物学机制):
