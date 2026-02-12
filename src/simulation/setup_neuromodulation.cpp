@@ -1,7 +1,7 @@
 // ================================================================
 // Neuromodulation Setup — Split from simulation_engine.cpp (Step 50a)
 //
-// Configures all 6 neuromodulators: 5-HT, DA, OA, TA, NLP-12, PDF
+// Configures all 7 neuromodulators: 5-HT, DA, OA, TA, NLP-12, PDF, FLP-11
 // This file is part of the SimulationEngine class (same class, split source).
 // ================================================================
 #include "simulation/simulation_engine.h"
@@ -247,7 +247,8 @@ void SimulationEngine::setup_neuromodulation() {
         //      Sawin 2000 — cat-2 mutants fail to slow on food (~30% reduction in WT)
         //      "DOP-3 and DOP-1 act in the same motor neurons, not postsynaptic to DA neurons"
         const char* b_class_names[] = {"DB01", "DB02", "DB03", "DB04", "DB05", "DB06", "DB07",
-                                        "VB01", "VB02", "VB03", "VB04", "VB05", "VB06", "VB07"};
+                                        "VB01", "VB02", "VB03", "VB04", "VB05", "VB06", "VB07",
+                                        "VB08", "VB09", "VB10", "VB11"};
         for (auto mn_name : b_class_names) {
             int mn_id = connectome_.get_neuron_id(mn_name);
             if (mn_id >= 0) dopamine.targets.push_back(
@@ -650,17 +651,21 @@ void SimulationEngine::setup_neuromodulation() {
                 {id, "DMSR-1", ModulationEffect::EXCITABILITY, -28.0});
         }
 
-        // Target 4: DMSR-1 → body wall motor neurons (cholinergic A/B-class)
+        // Target 4: DMSR-1 → body wall motor neurons (cholinergic only)
         // Sleep: suppress locomotion drive → body quiescence
-        // Previously: direct -30pA injection to DA/VA/DB/VB/DD/VD 01-03
+        // Rossi 2025 Current Biology: "dmsr-1 induces sleep by acting in cholinergic neurons"
+        // DMSR-1 (Gi/o) inhibits ACh release → muscle relaxation → quiescence
+        // DD/VD are GABAergic (not cholinergic) — excluded per Rossi 2025
+        // DD/VD quiescence emerges indirectly: less ACh drive via LGC-46 → less GABA
         // At conc ~0.7: -42 × 0.7 = -29.4pA (matches old -30pA)
         const char* body_mn[] = {
             "DA01", "DA02", "DA03", "DA04", "DA05",
+            "DA06", "DA07", "DA08", "DA09",
             "VA01", "VA02", "VA03", "VA04", "VA05",
+            "VA06", "VA07", "VA08", "VA09", "VA10", "VA11", "VA12",
             "DB01", "DB02", "DB03", "DB04", "DB05", "DB06", "DB07",
             "VB01", "VB02", "VB03", "VB04", "VB05", "VB06", "VB07",
-            "DD01", "DD02", "DD03", "DD04", "DD05",
-            "VD01", "VD02", "VD03", "VD04", "VD05"
+            "VB08", "VB09", "VB10", "VB11"
         };
         for (auto name : body_mn) {
             int id = connectome_.get_neuron_id(name);

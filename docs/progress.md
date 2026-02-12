@@ -699,27 +699,37 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **默认并行上限**: min(8, hardware_concurrency)
 - **regtest**: 20/20 PASS
 
+### Step 100: 系统状态刷新 + FLP-11/DOP-3 覆盖修复 ✅ (2026-02-13)
+> 详细文档: [steps/step100_system_status_refresh.md](steps/step100_system_status_refresh.md)
+
+- **Bug 1**: FLP-11 body_mn[] 移除 DD/VD(GABAergic) + 添加 DA06-09/VA06-12/VB08-11(胆碱能) — Rossi 2025 Current Biology
+- **Bug 2**: DOP-3 b_class_names[] 添加 VB08-11 (14→18 B-class MN) — Chase 2004 Nat Neurosci
+- **注释**: 6→7 neuromodulators
+- **文档**: 「当前系统状态」全面刷新 (突触 215→513, 映射 29→75, 文件 44→62, 感觉 61→63, 运动 98→96 等)
+
 ---
 
 ## 当前系统状态
 
 ```
 架构: 8 层 (环境/躯体/感知/神经元/连接组/神经调质/运动/行为)
-神经元: 214 个 MVP 子集 (302 全集待加载)
-  感觉: 61 (ASE/AWC/AWA/ASH/ALM/PLM/NSM/CEP/ADE/PDE/AFD/ADF/ASJ/ASK/ASI/ADL/FLP/PHB/PHA L/R + AVM + OLQ 4× + IL1 4× + IL2 4× + URX L/R + AQR + PQR + BAG L/R + PVD L/R)
-  中间: 55 (+AVF L/R, LUA L/R) (AIA/AIB/AIY/AIZ/RIA/RIB/RIM/RIC/AVA/AVB/AVD/AVE/PVC/AVF/AUA/AVK/AVJ/AVH/PVP/AIN/LUA/I1/RIP L/R + RIS + RIH + RMG L/R + DVA + DVC + PVT + PVR + RIG)
-  运动: 98 (+AS08-11) (SMD/RMD/SMB 4×2+4 + RIV L/R + RMED/RMEV + AS01-11 + DB01-07/VB01-11/DA01-09/VA01-12/DD01-06/VD01-13 + MC/M3 L/R + M4 + HSN L/R + VC4/VC5 + AVL + DVB)
-突触: ~215 化学 + ~56 间隙连接 (全部带 Tsodyks-Markram STP, 支持分数 sections)
+神经元: 214 个 MVP 子集 (302 全集待扩展)
+  感觉: 63 (ASE/AWC/AWA/ASH/ALM/PLM/NSM/ADE/PDE/AFD/ADF/ASJ/ASK/ASI/ADL/FLP/PHB/PHA/URX/BAG/PVD L/R + CEP 4×(DL/DR/VL/VR) + OLQ 4× + IL1 4× + IL2 4× + AVM + AQR + PQR)
+  中间: 55 (AIA/AIB/AIY/AIZ/RIA/RIB/RIM/RIC/AVA/AVB/AVD/AVE/PVC/AVF/AUA/AVK/AVJ/AVH/PVP/AIN/LUA/I1/RIP L/R + RIS + RIH + RMG L/R + DVA + DVC + PVT + PVR + RIG)
+  运动: 96 (SMD 4 + RMD 4 + SMB 4 + RIV 2 + RMED/RMEV 2 + AS01-11(11) + DA01-09(9) + DB01-07(7) + VA01-12(12) + VB01-11(11) + DD01-06(6) + VD01-13(13) + MC 2 + M3 2 + M4 + HSN 2 + VC4/VC5 + AVL + DVB)
+突触: 513 化学 + 185 间隙连接 (全部带 Tsodyks-Markram STP, 支持分数 sections)
   Step 42: Cook 2019 校准 (+8 RIA↔RIV, -2 AVE→RIV) + RIV↔RIV gap
+  Step 84-91: VNC MN 完整互连 (交叉抑制/本体感觉波/后退波 全部完成)
 神经调质: 7 种 (5-HT, DA, OA, TA, NLP-12, PDF, FLP-11) — volume transmission + 饱食度(泵驱动)
   5-HT 源: NSM(食物) + HSN(产卵) — 4个源神经元 (Step 43: ADF 移除)
-  5-HT 靶标 (20个, 5种受体): MOD-1→AIY/AIB/AIZ/PVC(抑制) + SER-4→RIC(抑制)+speed(-0.40)+reversal(-0.50) + SER-1→RIA/RIC(兴奋) + SER-5→ASH(增敏) + LGC-50→RIA(SYNAPSE_GAIN)
-  DA 源: CEP(4)+ADE(2)+PDE(2) = 8个 (完整), 9个靶标: DOP-1→DVA(+4)/RIA(+2) + DOP-3→AVA(-3)/AVB(-2) + DOP-2→CEP(-3, 自受体)
+  5-HT 靶标 (20个, 5种受体): MOD-1→AIY/AIB/AIZ/PVC(抑制) + SER-4→RIC(抑制)+speed(-0.60)+reversal(-0.50) + SER-1→RIA/RIC(兴奋) + SER-5→ASH(增敏) + LGC-50→RIA(SYNAPSE_GAIN)
+  DA 源: CEP(4)+ADE(2)+PDE(2) = 8个 (完整), 27个靶标: DOP-3→DB01-07/VB01-11(-3pA)/AVA(-3)/AVB(-2) + DOP-1→DVA(+4)/RIA(+2) + DOP-2→CEP(-3, 自受体)
   TA 源: RIM (逃逸协调) — LGC-55→SMD/AVB/RIV抑制 + TYRA-3→ASH增敏 + SER-2→AIY抑制
   NLP-12 源: DVA (本体感觉) — CKR-1→SMD(+5pA, 头摆ARS) + CKR-2→AVA(+2pA) + DA→DOP-1→DVA(+4pA)
+  FLP-11 源: RIS (睡眠) — DMSR-1→AVA/AVB(-20)/MC(-18)/head_MN(-28)/body_MN(-42, 胆碱能only)/SPEED(-0.95) + FRPR-8→RIS(-8, 自抑制)
 离子通道: 14 种 (EGL-19/UNC-2/CCA-1/SHL-1/KQT-3/SLO-1/NCA/MEC + EGL-36/IRK/TWK/SLO-2/OSM-9/EXP-2)
 神经元模型: 单隔室 HH 分级电位 (L2) + 多隔室 (RIA) + 钙动力学
-身体: 2D 弹性杆 48 段, 29 个运动神经元-肌肉映射, 体节间曲率扩散(弹性耦合)
+身体: 2D 弹性杆 48 段, 75 个运动神经元-肌肉映射, 体节间曲率扩散(弹性耦合)
 环境: 50×50 mm, 4化学场(food_odor+soluble+repellent+pheromone) + 线性温度梯度 (0.5°C/mm) + O₂场(food派生) + 光场(高斯σ=8mm)
 内部状态: satiety_(泵驱动), sickness_(有毒食物), food_memory_(双通路ARS), fatigue_(睡眠驱动)
 学习: 盐学习(ASER w_mod) + 病原体学习(AWC翻转+WV反向+厌食) + STP习惯化 + 睡眠巩固(Step 62) + INS-1厌食(Step 63)
@@ -727,8 +737,9 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 性能: cache_neuron_ids_and_synapses() 一次性缓存 10 ID + 6 typed 指针 + 3 组突触索引
 计算: CPU (默认) + OpenCL GPU 后端 (>500突触自动启用, AMD RX 6950 XT 就绪)
 构建: CMake + MSVC 19.44 + C++20 + vcpkg (OpenCL/ImGui/ImPlot/GLFW)
-工具: CLI 运行时参数覆盖 (--as_factor/--pulse_amp/--duration/--seed/--light 等, 无需重编译调参)
+工具: CLI 运行时参数覆盖 (--as_factor/--pulse_amp/--duration/--seed/--light/--seeds N -j M 等)
       --fitness 模式: 4 seeds × 3 scenarios 自动评估, 输出标量 fitness score
+      --seeds N -j M: N 种子 M 线程并行, 自动聚合 mean±std (Step 99)
 可视化: Dear ImGui + ImPlot + GLFW, 3列布局, 实时调参+信号链诊断
 P0/P1 违规全部修复:
   P0-1.1: Pirouette Poisson 移除 → reversal 从 AVA 涌现 (Step 66)
@@ -755,7 +766,7 @@ P0/P1 违规全部修复:
   V_SMDDL: -65↔-30mV 交替 burst, V_SMDVL: 反相
   速度: 0.05-0.24 mm/s (真实 ~0.2 mm/s, 在生物学范围内)
 
-核心回路 (默认连接组, ~200 突触):
+核心回路 (默认连接组, 513 化学突触 + 185 间隙连接):
   趋化性: ASE/AWC/AWA → AIA/AIB/AIY/AIZ → RIA → SMD (头部转向)
   关键: AIA AND-gate (Kakaria 2019): AWA→AIA(gj兴奋) + AWC/ASE⊣AIA(Cl⁻去抑制)
   关键: AIA ⊣ AIB (抑制性, Chalasani 2007), AIY → AVB (Gray 2005)
@@ -765,6 +776,8 @@ P0/P1 违规全部修复:
   后退: AWC→AIB→AVA → DA/VA → 背/腹侧体壁肌肉
   Omega: RIA→RIV(兴奋) + RIV→RIA(抑制) 负反馈环路, TA门控 post-inhibitory rebound
   交叉抑制: DD ↔ VD (背腹交替), SMD dorsal↔ventral (头部半中心)
+  VNC 完整互连: VB→VD + DB→DD + VA→DD + DA→VD (4条交叉抑制通路)
+  本体感觉波: B类 DB↔DB/VB↔VB + A类 VA↔VA/DA↔DA + DA↔AS (相邻间隙连接)
   左右耦合: AVA L-R / AVB L-R / AVD L-R / RIV L-R (间隙连接)
   咽部CPG: I1←RIP(gj) → MC(ACh起搏) ↔ M3(Glu松弛) → 咽部肌肉AP
            MC→M4(峡部蠕动), 5-HT→MC(SER-7↑), OA→MC(↓)
@@ -777,21 +790,23 @@ P0/P1 违规全部修复:
   SMD校准: CCA-1 1.8nS + SLO-1 2.5nS + leak 1.2/-65 → 49mV振荡 (Nicoletti 2019)
   Reversal: 完全从 AVA 神经回路涌现 (Step 66: Schmitt 0.35/0.15 + 离子通道噪声)
   Food-edge: always-inject AVA 40pA/500ms, 反转概率从 AVA-AVB 平衡涌现 (Step 70)
-  Basal slowing: DA→DOP-3(-3pA)→14 B-class MN 涌现减速 (Step 68, 移除直接乘法)
+  Basal slowing: DA→DOP-3(-3pA)→18 B-class MN 涌现减速 (Step 68+100, 移除直接乘法)
   速度: ~0.20 mm/s (文献值 ~0.15-0.2 mm/s)
 
 文件结构:
-  src/core/         — 4 文件 (types/config/logger .h/.cpp)
-  src/neuron/       — 8 文件 (ion_channel/calcium/single_compartment/factory .h/.cpp)
-  src/connectome/   — 8 文件 (synapse/gap_junction/connectome/loader .h/.cpp)
-  src/body/         — 4 文件 (body_model/muscle_system .h/.cpp)
-  src/motor/        — 2 文件 (motor_controller .h/.cpp)
-  src/environment/  — 5 文件 (environment/chemical_field/sensory_transducer .h/.cpp)
-  src/pharynx/      — 1 文件 (pharyngeal_pump.h)
-  src/simulation/   — 12 文件 (simulation_engine .h/.cpp + 7 拆分cpp + main.cpp + diag_main.cpp + regression_test.cpp)
-  src/visualization/ — 3 文件 (vis_app .h/.cpp + vis_main.cpp)
-  docs/             — 2+ 文件 (blueprint.md + progress.md + steps/ + tools/)
-  总计: 44 文件 (CMakeLists.txt + 42 源文件 + 文档)
+  src/core/            — 7 文件 (types/config/fast_math/logger .h/.cpp)
+  src/neuron/          — 10 文件 (ion_channel/calcium/single_compartment/multi_compartment/factory .h/.cpp)
+  src/connectome/      — 10 文件 (chemical_synapse/gap_junction/connectome/connectome_builder/connectome_loader .h/.cpp)
+  src/body/            — 4 文件 (body_model/muscle_system .h/.cpp)
+  src/motor/           — 2 文件 (motor_controller .h/.cpp)
+  src/environment/     — 5 文件 (environment/chemical_field .h/.cpp + sensory_transducer.h)
+  src/pharynx/         — 1 文件 (pharyngeal_pump.h)
+  src/neuromodulation/ — 2 文件 (neuromodulation .h/.cpp)
+  src/compute/         — 5 文件 (compute_backend.h + cpu_backend.h + opencl_backend .h/.cpp + kernels.cl)
+  src/simulation/      — 12 文件 (simulation_engine .h/.cpp + 7 拆分cpp + main.cpp + diag_main.cpp + regression_test.cpp)
+  src/visualization/   — 3 文件 (vis_app .h/.cpp + vis_main.cpp)
+  docs/                — blueprint.md + progress.md + steps/ + tools/
+  总计: 62 文件 (CMakeLists.txt + 60 .h/.cpp + kernels.cl + 文档)
 
 参考项目对标:
   OpenWorm: Sibernetic (SPH 物理) + c302 (NeuroML 神经元) + Geppetto (可视化)
