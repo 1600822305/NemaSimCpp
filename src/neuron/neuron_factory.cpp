@@ -15,6 +15,9 @@ std::unique_ptr<SingleCompartmentNeuron> NeuronFactory::create_default(const Neu
     neuron->add_channel(std::make_unique<EGL19Channel>(0.8));
     neuron->add_channel(std::make_unique<SHL1Channel>(1.0));
     neuron->add_channel(std::make_unique<NCAChannel>(0.15));
+    // Step 57: IRK (resting potential stabilization) + TWK (background leak)
+    neuron->add_channel(std::make_unique<IRKChannel>(0.2));
+    neuron->add_channel(std::make_unique<TWKChannel>(0.08));
 
     return neuron;
 }
@@ -33,6 +36,10 @@ std::unique_ptr<SingleCompartmentNeuron> NeuronFactory::create_motor(const Neuro
     neuron->add_channel(std::make_unique<SHL1Channel>(1.5));
     neuron->add_channel(std::make_unique<KQT3Channel>(0.3));
     neuron->add_channel(std::make_unique<NCAChannel>(0.12));
+    // Step 57: EGL-36 (delayed rectifier) + SLO-2 (Na-activated K⁺) + IRK
+    neuron->add_channel(std::make_unique<EGL36Channel>(0.6));
+    neuron->add_channel(std::make_unique<SLO2Channel>(0.8));
+    neuron->add_channel(std::make_unique<IRKChannel>(0.15));
 
     return neuron;
 }
@@ -50,6 +57,10 @@ std::unique_ptr<SingleCompartmentNeuron> NeuronFactory::create_sensory(const Neu
     neuron->add_channel(std::make_unique<SHL1Channel>(0.8));
     neuron->add_channel(std::make_unique<KQT3Channel>(0.4));
     neuron->add_channel(std::make_unique<NCAChannel>(0.10));
+    // Step 57: EGL-36 (repolarization) + IRK (resting) + TWK (background)
+    neuron->add_channel(std::make_unique<EGL36Channel>(0.5));
+    neuron->add_channel(std::make_unique<IRKChannel>(0.25));
+    neuron->add_channel(std::make_unique<TWKChannel>(0.12));
 
     return neuron;
 }
@@ -68,6 +79,10 @@ std::unique_ptr<SingleCompartmentNeuron> NeuronFactory::create_inter(const Neuro
     neuron->add_channel(std::make_unique<KQT3Channel>(0.3));
     neuron->add_channel(std::make_unique<SLO1Channel>(1.0));
     neuron->add_channel(std::make_unique<NCAChannel>(0.15));
+    // Step 57: EGL-36 (repolarization) + SLO-2 (Na-activated K⁺) + IRK
+    neuron->add_channel(std::make_unique<EGL36Channel>(0.4));
+    neuron->add_channel(std::make_unique<SLO2Channel>(0.6));
+    neuron->add_channel(std::make_unique<IRKChannel>(0.2));
 
     return neuron;
 }
@@ -88,6 +103,10 @@ std::unique_ptr<SingleCompartmentNeuron> NeuronFactory::create_motor_b_class(con
     neuron->add_channel(std::make_unique<KQT3Channel>(0.3));
     neuron->add_channel(std::make_unique<NCAChannel>(0.12));
     neuron->add_channel(std::make_unique<MechanoSensitiveChannel>(3.0, -10.0));
+    // Step 57: EGL-36 + SLO-2 + IRK (same as generic motor)
+    neuron->add_channel(std::make_unique<EGL36Channel>(0.6));
+    neuron->add_channel(std::make_unique<SLO2Channel>(0.8));
+    neuron->add_channel(std::make_unique<IRKChannel>(0.15));
 
     return neuron;
 }
@@ -109,6 +128,8 @@ std::unique_ptr<SingleCompartmentNeuron> NeuronFactory::create_motor_head(const 
     neuron->add_channel(std::make_unique<KQT3Channel>(0.3));
     neuron->add_channel(std::make_unique<SLO1Channel>(5.0));   // strong BK for Ca-dependent adaptation
     neuron->add_channel(std::make_unique<NCAChannel>(0.02));   // minimal persistent inward
+    // Step 57: EGL-36 (repolarization backup) — low g_max, CCA-1/SLO-1 dominate
+    neuron->add_channel(std::make_unique<EGL36Channel>(0.3));
 
     // Fast calcium dynamics for bursting: 10x sensitivity, 100ms decay
     // Standard neurons: buffer_ratio=0.01, tau=200ms → too slow for oscillation
@@ -193,6 +214,13 @@ std::unique_ptr<Neuron> NeuronFactory::create(const NeuronInfo& info) {
         // Head motor neurons (SMD/RMD) get strong CCA-1 for oscillation
         if (name_starts_with(info.name, "SMD") || name_starts_with(info.name, "RMD")) {
             return create_motor_head(info);
+        }
+        // Step 57: AVL/DVB enteric motor neurons — EXP-2 for AP repolarization
+        // Compound APs: UNC-2 Ca²⁺ spike + EXP-2 K⁺ repolarization (Jiang 2022)
+        if (info.name == "AVL" || info.name == "DVB") {
+            auto n = create_motor(info);
+            n->add_channel(std::make_unique<EXP2Channel>(2.5)); // strong EXP-2 for AP repolarization
+            return n;
         }
         return create_motor(info);
     }

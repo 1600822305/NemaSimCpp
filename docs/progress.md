@@ -707,6 +707,15 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 - 调制: 5-HT 延长周期(+15%) + 睡眠压制 + 仅食物上表达
 - **regtest**: 17 pass, 0 FAIL
 
+### Step 57: Ion Channel Expansion (8→14) ✅ (2026-02-12)
+> 详细文档: [steps/step57_ion_channels_expansion.md](steps/step57_ion_channels_expansion.md)
+
+- **新增 6 种离子通道**: EGL-36(Kv3) + IRK(Kir) + TWK(K₂P) + SLO-2(Na⁺-K⁺) + OSM-9(TRPV) + EXP-2(肠道Kv)
+- 按神经元类型分配: 感觉(+EGL-36/IRK/TWK), 中间(+EGL-36/SLO-2/IRK), 运动(+EGL-36/SLO-2/IRK)
+- AVL/DVB 特化: +EXP-2(2.5nS) 用于 DMP 动作电位复极化 (Jiang 2022)
+- 电生理改善: ASEL -36→-40mV, ASER -43→-47mV (静息更负，符合生物学)
+- **regtest**: 17 pass, 0 FAIL
+
 ---
 
 ## 当前系统状态
@@ -724,7 +733,7 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
   5-HT 靶标 (20个, 5种受体): MOD-1→AIY/AIB/AIZ/PVC(抑制) + SER-4→RIC(抑制)+speed(-0.40)+reversal(-0.50) + SER-1→RIA/RIC(兴奋) + SER-5→ASH(增敏) + LGC-50→RIA(SYNAPSE_GAIN)
   TA 源: RIM (逃逸协调) — LGC-55→SMD/AVB/RIV抑制 + TYRA-3→ASH增敏 + SER-2→AIY抑制
   NLP-12 源: DVA (本体感觉) — CKR-1→SMD(+5pA, 头摆ARS) + CKR-2→AVA(+2pA) + DA→DOP-1→DVA(+4pA)
-离子通道: 8/14 种 (EGL-19/UNC-2/CCA-1/SHL-1/KQT-3/SLO-1/NCA/MEC)
+离子通道: 14 种 (EGL-19/UNC-2/CCA-1/SHL-1/KQT-3/SLO-1/NCA/MEC + EGL-36/IRK/TWK/SLO-2/OSM-9/EXP-2)
 神经元模型: 单隔室 HH 分级电位 (L2) + 多隔室 (RIA) + 钙动力学
 身体: 2D 弹性杆 48 段, 29 个运动神经元-肌肉映射, 体节间曲率扩散(弹性耦合)
 环境: 50×50 mm, 3化学场(food_odor+soluble+repellent) + 线性温度梯度 (0.5°C/mm) + O₂场(food派生) + 光场(高斯σ=8mm)
