@@ -12,12 +12,14 @@ void Environment::initialize(double width, double height) {
     chem_field_.initialize(width, height, 100, 100);
     soluble_field_.initialize(width, height, 100, 100);  // Step 26b: salt/amino acids
     repellent_field_.initialize(width, height, 100, 100);
+    pheromone_field_.initialize(width, height, 100, 100);  // Step 64: ascaroside pheromones
 }
 
 void Environment::step(double dt) {
     chem_field_.step(dt);
     soluble_field_.step(dt);
     repellent_field_.step(dt);
+    if (has_pheromone_) pheromone_field_.step(dt);
 }
 
 double Environment::sample_chemical(Vector2d pos) const {
@@ -84,6 +86,21 @@ void Environment::set_temperature_gradient(double center_temp, Vector2d gradient
         temp_grad_x_ = 0.0;
         temp_grad_y_ = 0.0;
     }
+}
+
+// Step 64: Pheromone field — ascaroside social signals
+// ascr#3/C9 diffuses from other worms, detected by ADL (Jang 2012)
+// Modeled as static Gaussian source (simulating nearby conspecific)
+double Environment::sample_pheromone(Vector2d pos) const {
+    if (!has_pheromone_) return 0.0;
+    return pheromone_field_.sample(pos);
+}
+
+void Environment::set_pheromone_source(Vector2d pos, double intensity) {
+    has_pheromone_ = true;
+    // Pheromone diffuses broadly (σ=6mm, intermediate between food lawn and volatile)
+    // REF: Srinivasan 2008 — ascarosides are water-soluble, moderate diffusion
+    pheromone_field_.add_point_source(pos, intensity, 36.0); // σ²=36mm²
 }
 
 } // namespace celegans

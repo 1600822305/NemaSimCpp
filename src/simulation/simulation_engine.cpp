@@ -780,6 +780,29 @@ void SimulationEngine::apply_sensory_input() {
         }
     }
 
+    // Step 64: Pheromone sensing via ADL (Jang 2012, Srinivasan 2008)
+    // ADL detects ascaroside pheromones (ascr#3/C9) → avoidance in hermaphrodites
+    // ADL already has repellent ON transduction (Step 61); pheromone is ADDITIVE
+    // Circuit: ADL→AVA (reversal), ADL→AIA/AIB (chemotaxis modulation)
+    // REF: Jang 2012 — ADL is primary ascr#3 sensor
+    //      Srinivasan 2008 — ascarosides as social signals
+    if (environment_.has_pheromone()) {
+        Vector2d head_pos = body_.get_head_position();
+        double pheromone = environment_.sample_pheromone(head_pos);
+        if (pheromone > 0.01) {
+            // ADL: TONIC pheromone response — sustained avoidance drive
+            // gain=40 pA at saturating pheromone (half-max at conc=0.2)
+            // REF: Jang 2012 — ADL calcium imaging shows sustained response to ascr#3
+            for (int adl_id : nids("ADL")) {
+                if (adl_id >= 0 && adl_id < n) {
+                    double phr_drive = 40.0 * pheromone / (pheromone + 0.2);
+                    double I_existing = neurons_[adl_id]->get_I_ext();
+                    neurons_[adl_id]->set_external_current(I_existing + phr_drive);
+                }
+            }
+        }
+    }
+
     // Step 43: ADF sickness 5-HT → MOD-1 ⊣ AIY/AIZ
     // MOVED to post-reset section in step() — add_synaptic_current() would be
     // wiped by reset_synaptic_current() if called here.

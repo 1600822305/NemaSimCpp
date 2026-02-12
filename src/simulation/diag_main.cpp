@@ -142,6 +142,8 @@ int main(int argc, char* argv[]) {
     int cli_nseeds = 4;
     unsigned int cli_seed = 123;
     double cli_sleep_after_learn = 0.0;  // Step 62: forced sleep after learning (seconds)
+    bool cli_pheromone = false;              // Step 64: enable pheromone source
+    double cli_pheromone_x = 15.0, cli_pheromone_y = 25.0, cli_pheromone_intensity = 0.8;
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
         if (arg == "--duration" && i+1 < argc) cli_duration = std::atof(argv[++i]) * 1000.0;
@@ -160,6 +162,10 @@ int main(int argc, char* argv[]) {
         else if (arg == "--fitness") cli_fitness = true;
         else if (arg == "--seeds" && i+1 < argc) cli_nseeds = std::atoi(argv[++i]);
         else if (arg == "--sleep-after-learning" && i+1 < argc) cli_sleep_after_learn = std::atof(argv[++i]);
+        else if (arg == "--pheromone") cli_pheromone = true;
+        else if (arg == "--pheromone_x" && i+1 < argc) { cli_pheromone = true; cli_pheromone_x = std::atof(argv[++i]); }
+        else if (arg == "--pheromone_y" && i+1 < argc) { cli_pheromone = true; cli_pheromone_y = std::atof(argv[++i]); }
+        else if (arg == "--pheromone_intensity" && i+1 < argc) { cli_pheromone = true; cli_pheromone_intensity = std::atof(argv[++i]); }
         else if (arg == "--help" || arg == "-h") {
             std::cout << "Usage: celegans_diag [options]\n"
                       << "  --duration <sec>      Simulation duration (default: 300)\n"
@@ -176,7 +182,10 @@ int main(int argc, char* argv[]) {
                       << "  --quiet / -q          Only show key metrics\n"
                       << "  --fitness             Multi-seed fitness evaluation mode\n"
                       << "  --seeds <n>           Number of seeds for fitness mode (default: 4)\n"
-                      << "  --sleep-after-learning <sec>  Force sleep after toxin exposure (Step 62)\n";
+                      << "  --sleep-after-learning <sec>  Force sleep after toxin exposure (Step 62)\n"
+                      << "  --pheromone           Enable pheromone source at (15,25) (Step 64)\n"
+                      << "  --pheromone_x/y <f>   Pheromone source position\n"
+                      << "  --pheromone_intensity <f>  Pheromone intensity 0-1 (default: 0.8)\n";
             return 0;
         }
     }
@@ -299,6 +308,12 @@ int main(int argc, char* argv[]) {
     // Step 55: Light source (UV/blue)
     if (cli_light) {
         sim.environment().set_light_source({cli_light_x, cli_light_y}, cli_light_intensity);
+    }
+
+    // Step 64: Pheromone source (ascaroside social signal)
+    if (cli_pheromone) {
+        sim.environment().set_pheromone_source(
+            {cli_pheromone_x, cli_pheromone_y}, cli_pheromone_intensity);
     }
 
     // Step 41: Reset transducers after environment changes
