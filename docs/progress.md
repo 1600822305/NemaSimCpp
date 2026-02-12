@@ -747,15 +747,26 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 - **NLP-12: 0.032→0.105**, CI: 0.91→0.965, DA targets: 1→9
 - **regtest**: 17 pass, 0 FAIL
 
+### Step 61: 腹索中间神经元扩展 (144→162) ✅ (2026-02-12)
+> 详细文档: [steps/step61_ventral_cord_integrators.md](steps/step61_ventral_cord_integrators.md)
+
+- 新增 18 个神经元: 5 感觉 (AVM/ASI/ADL) + 13 中间 (DVC/PVT/AVK/AVJ/AVH/PVP/PVR)
+- Emmons 2024: community 9 腹索整合中枢 (1步连接 59% 神经元)
+- PDE→AVK (50% PDE 输出!) → RIM/RIV 转弯回路
+- AVJ↔RIS (5段 gj) — O₂/双恶→睡眠耦合
+- PVP: 全神经系统最高 gj 度 (AQR 102段!)
+- CI: 0.97→0.75 (命令输入多样化, 文献范围 0.5-0.8)
+- **regtest**: 17 pass, 0 FAIL
+
 ---
 
 ## 当前系统状态
 
 ```
 架构: 8 层 (环境/躯体/感知/神经元/连接组/神经调质/运动/行为)
-神经元: 144 个 MVP 子集 (302 全集待加载)
-  感觉: 42 (ASE/AWC/AWA/ASH/ALM/PLM/NSM/CEP/ADE/PDE/AFD/ADF/ASJ/ASK L/R + OLQ 4× + URX L/R + AQR + PQR + BAG L/R + PVD L/R)
-  中间: 32 (AIA/AIB/AIY/AIZ/RIA/RIB/RIM/RIC/AVA/AVB/AVD/AVE/PVC/AUA/I1/RIP L/R + RIS + DVA)
+神经元: 162 个 MVP 子集 (302 全集待加载)
+  感觉: 47 (ASE/AWC/AWA/ASH/ALM/PLM/NSM/CEP/ADE/PDE/AFD/ADF/ASJ/ASK/ASI/ADL L/R + AVM + OLQ 4× + URX L/R + AQR + PQR + BAG L/R + PVD L/R)
+  中间: 45 (AIA/AIB/AIY/AIZ/RIA/RIB/RIM/RIC/AVA/AVB/AVD/AVE/PVC/AUA/AVK/AVJ/AVH/PVP/I1/RIP L/R + RIS + DVA + DVC + PVT + PVR)
   运动: 70 (SMD/RMD/SMB 4×2+4 + RIV L/R + RMED/RMEV + AS01-07 + DB01-07/VB01-07/DA01-05/VA01-05/DD01-05/VD01-05 + MC/M3 L/R + M4 + HSN L/R + VC4/VC5 + AVL + DVB)
 突触: ~197 化学 + ~36 间隙连接 (全部带 Tsodyks-Markram STP, 支持分数 sections)
   Step 42: Cook 2019 校准 (+8 RIA↔RIV, -2 AVE→RIV) + RIV↔RIV gap
@@ -778,8 +789,8 @@ Dear ImGui + ImPlot + GLFW + OpenGL 实时可视化:
 工具: CLI 运行时参数覆盖 (--as_factor/--pulse_amp/--duration/--seed/--light 等, 无需重编译调参)
       --fitness 模式: 4 seeds × 3 scenarios 自动评估, 输出标量 fitness score
 可视化: Dear ImGui + ImPlot + GLFW, 3列布局, 实时调参+信号链诊断
-状态: 趋化+触觉回避+化学回避+排斥weathervane+病原体学习(CI反向!)+多化学物种+RIM稳定+神经调质+ARS(双通路:DARPP-32+NLP-12)+觅食循环+STP+盐学习+温度趋性+咽部泵食+睡眠/静止(RIS/FLP-11)+RIV omega(TA门控)+后退运动+RIA↔RIV负反馈环路+PDF roaming+food-edge反转(latch检测)+5-HT受体多样性(MOD-1/SER-4/SER-1/SER-5)+光回避(ASJ/LITE-1)+排便DMP(AVL/DVB 45s)+DA闭环(DOP-1/DOP-2/DOP-3, ESR)+tap习惯化(STP涌现), 纯涌现 (144神经元)
-行为指标: CI≈0.97 (300s), near_food≈40%, reversal_rate≈0.10/s, speed≈0.18mm/s, 5-HT≈0.16, DA≈0.12, NLP-12≈0.10
+状态: 趋化+触觉回避+化学回避+排斥weathervane+病原体学习(CI反向!)+多化学物种+RIM稳定+神经调质+ARS(双通路:DARPP-32+NLP-12)+觅食循环+STP+盐学习+温度趋性+咽部泵食+睡眠/静止(RIS/FLP-11)+RIV omega(TA门控)+后退运动+RIA↔RIV负反馈环路+PDF roaming+food-edge反转(latch检测)+5-HT受体多样性(MOD-1/SER-4/SER-1/SER-5)+光回避(ASJ/LITE-1)+排便DMP(AVL/DVB 45s)+DA闭环(DOP-1/DOP-2/DOP-3, ESR)+tap习惯化(STP涌现)+腹索整合中枢(Emmons 2024), 纯涌现 (162神经元)
+行为指标: CI≈0.75 (300s), near_food≈42%, reversal_rate≈0.11/s, speed≈0.19mm/s, 5-HT≈0.13, DA≈0.11, OA≈0.42
 工具: celegans_diag.exe (信号链诊断+fitness) + celegans_regtest.exe (回归检测+电流溯源)
 
 运动驱动 (Step 13 — 生物学机制):

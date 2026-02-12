@@ -118,6 +118,18 @@ void SimulationEngine::initialize_default() {
             // Lower gain (12): posterior, fewer synaptic connections than CEP/ADE
             // REF: Sawin 2000 — PDE contributes to basal slowing; Chase & Koelle 2007
             chemo_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::TONIC, 12.0, 1.0, 500.0, 5000.0, 0.5), true});
+        } else if (starts_with(info.name, "ASI")) {
+            // Step 61: ASI — insulin/dauer sensory, food quality sensing
+            // TONIC: fires on food (like NSM, but insulin pathway instead of 5-HT)
+            // Low gain: ASI is more neuroendocrine than fast signaling
+            // REF: Bargmann & Horvitz 1991, Beverly 2011
+            chemo_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::TONIC, 10.0, 1.0, 500.0, 5000.0, 0.5), true});
+        } else if (starts_with(info.name, "ADL")) {
+            // Step 61: ADL — pheromone/nociceptive amphid sensory
+            // ON response to repellent (like ASH but weaker)
+            // Detects ascarosides, SDS — activated by noxious chemicals
+            // REF: Troemel 1997, Jang 2012
+            chemo_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::ON, 15.0, 1.0, 200.0, 1000.0, 0.3), false});
         } else if (starts_with(info.name, "AFD")) {
             // AFD: thermosensory neuron — handled by thermo_mappings, not chemo
             // ThermoTransducer: gain=150, baseline=5pA, Tc_tau=3600s(1hr), fast_tau=200ms
@@ -125,11 +137,12 @@ void SimulationEngine::initialize_default() {
             // gain=150: strong modulation when approaching/leaving Tc (ratio AFD/ASE~0.78)
             thermo_mappings_.push_back({info.id, ThermoTransducer(150.0, 5.0, 3600000.0, 200.0)});
         } else if (!starts_with(info.name, "ALM") && !starts_with(info.name, "PLM")
+                   && !starts_with(info.name, "AVM")
                    && !starts_with(info.name, "ADF") && !starts_with(info.name, "AWB")
                    && !starts_with(info.name, "ASJ") && !starts_with(info.name, "ASK")) {
             // Non-touch sensory neurons: low baseline
             other_sensory_ids_.push_back(info.id);
-            // ALM/PLM excluded: zero baseline, only activated by wall collision
+            // ALM/PLM/AVM excluded: zero baseline, only activated by wall collision/tap
             // ADF excluded: driven by sickness_ state (Step 26)
             // ASJ/ASK excluded: Step 55 — driven by light field (LITE-1 photoreceptor)
         }
@@ -1164,12 +1177,15 @@ void SimulationEngine::apply_touch_stimulus() {
     }
 
     if (front_touch) {
-        // Strong current pulse to ALM neurons → triggers reversal via ALM→AVD→AVA
+        // Strong current pulse to ALM+AVM neurons → triggers reversal via ALM/AVM→AVD→AVA
         for (int id : nids("ALM")) {
             if (id >= 0 && id < n) {
                 neurons_[id]->set_external_current(touch_current_);
             }
         }
+        // Step 61: AVM anterior gentle touch (single neuron, same modality as ALM)
+        int avm = nid("AVM");
+        if (avm >= 0 && avm < n) neurons_[avm]->set_external_current(touch_current_);
         // Also activate OLQ at full strength during body touch
         for (int id : nids("OLQ")) {
             if (id >= 0 && id < n) {
@@ -1216,6 +1232,9 @@ void SimulationEngine::apply_touch_stimulus() {
             for (int id : nids("PLM")) {
                 if (id >= 0 && id < n) neurons_[id]->set_external_current(tap_current_);
             }
+            // Step 61: AVM in tap (anterior gentle touch, like ALM)
+            int avm_tap = nid("AVM");
+            if (avm_tap >= 0 && avm_tap < n) neurons_[avm_tap]->set_external_current(tap_current_);
         } else {
             tap_active_ = false;
         }

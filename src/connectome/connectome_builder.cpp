@@ -202,6 +202,23 @@ void build_neurons(CB& b) {
     //      Bargmann & Horvitz 1991 — ASK amphid sensory neuron
     b.neuron("ASKL", NT::SENSORY, NTT::GLUTAMATE);
     b.neuron("ASKR", NT::SENSORY, NTT::GLUTAMATE);
+    // Step 61: AVM — anterior gentle touch neuron (single, unpaired)
+    // Completes mechanosensory circuit: AVM + ALM = anterior touch, PLM = posterior
+    // AVM born post-embryonically (L1), migrates to mid-body ventral
+    // REF: Chalfie 1985, Way & Chalfie 1989 — AVM gentle touch
+    b.neuron("AVM",  NT::SENSORY, NTT::ACETYLCHOLINE);
+    // Step 61: ASI — amphid sensory, insulin/dauer pathway
+    // Secretes DAF-7 (TGF-β) and INS-1 (insulin-like) → food quality signaling
+    // Key node for developmental decision (dauer vs reproductive)
+    // REF: Bargmann & Horvitz 1991, Beverly 2011, Cornils 2011
+    b.neuron("ASIL", NT::SENSORY, NTT::GLUTAMATE);
+    b.neuron("ASIR", NT::SENSORY, NTT::GLUTAMATE);
+    // Step 61: ADL — pheromone + nociceptive amphid sensory
+    // Detects ascaroside pheromones (ascr#3 avoidance), SDS, Cu2+
+    // Minor role in chemical avoidance (revealed when ASH ablated)
+    // REF: Troemel 1997 Cell, Jang 2012, Serrano-Saiz 2013
+    b.neuron("ADLL", NT::SENSORY, NTT::GLUTAMATE);
+    b.neuron("ADLR", NT::SENSORY, NTT::GLUTAMATE);
 
     // --- Interneurons ---
     b.neuron("AIAL", NT::INTER, NTT::ACETYLCHOLINE);
@@ -251,6 +268,50 @@ void build_neurons(CB& b) {
     // REF: Alkema 2005 — RIC produces OA, antagonizes 5-HT dwelling
     b.neuron("RICL", NT::INTER, NTT::OCTOPAMINE);
     b.neuron("RICR", NT::INTER, NTT::OCTOPAMINE);
+    // Step 61: Ventral cord interneurons — "integration hub" (Emmons 2024)
+    // Community 9: 13 classes of non-command VNC interneurons synapse onto
+    // 59% of all neurons in 1 step, 98% in 2 steps (chemical)
+    // DVC — stretch receptor interneuron (single, unpaired)
+    // Stretch → AVA (backward locomotion), gap junctions to PVT
+    // REF: Li 2006, Emmons 2024 PLOS Biology
+    b.neuron("DVC",  NT::INTER, NTT::GLUTAMATE);
+    // PVT — neuropeptide network hub (single, unpaired)
+    // Connected to DVC by gap junctions; similar connectivity
+    // Hub of neuropeptide connectome (Ripoll-Sánchez 2023)
+    // REF: Emmons 2024 — PVT is hub of neuropeptide communication
+    b.neuron("PVT",  NT::INTER, NTT::GLUTAMATE);
+    // AVK — PDE target, turn circuit integrator
+    // Primary target of PDE (50% of PDE output by weight!)
+    // Outputs to RIM, RIV (turn circuit), sublateral motors
+    // Expresses FLP-1 neuropeptide; gap junctions to RIC, DVA
+    // REF: Emmons 2024, Li 1999 — FLP-1 locomotion
+    b.neuron("AVKL", NT::INTER, NTT::GLUTAMATE);
+    b.neuron("AVKR", NT::INTER, NTT::GLUTAMATE);
+    // AVJ — O₂/aversive integrator
+    // Inputs: ADL, AQR, PQR, URX (all O₂/aversive)
+    // Gap junctions to RIS (5 sections!) — sleep connection
+    // REF: Emmons 2024
+    b.neuron("AVJL", NT::INTER, NTT::GLUTAMATE);
+    b.neuron("AVJR", NT::INTER, NTT::GLUTAMATE);
+    // AVH — sensory bridge interneuron
+    // Gap junctions to ASK, PHB; output to SMB sublateral motor
+    // Creates ASK→AVH→RIR→AIZ/RIA pathway
+    // REF: Emmons 2024
+    b.neuron("AVHL", NT::INTER, NTT::GLUTAMATE);
+    b.neuron("AVHR", NT::INTER, NTT::GLUTAMATE);
+    // PVP — highest gap junction degree in entire nervous system
+    // Gap junctions: AQR(102!), PQR(26), DVC(54), PVT(31)
+    // Chemical output to AVA, AVB, PVC
+    // Involved in roaming/dwelling regulation
+    // REF: Emmons 2024, Flavell 2020
+    b.neuron("PVPL", NT::INTER, NTT::GLUTAMATE);
+    b.neuron("PVPR", NT::INTER, NTT::GLUTAMATE);
+    // PVR — proprioceptive hub (single, unpaired)
+    // Mechanosensory, extension into tail whip
+    // Hub of bodywide sensory network with DVA
+    // Gap junctions to DVA; output to RIP (pharyngeal regulation)
+    // REF: Emmons 2024 — "significance previously unrecognized"
+    b.neuron("PVR",  NT::INTER, NTT::GLUTAMATE);
 
     // --- Motor neurons ---
     // Head motor neurons
@@ -822,6 +883,107 @@ void build_defecation(CB& b) {
     b.inh("RIS", "AVL", 1);
 }
 
+// ================================================================
+// 13. Ventral Cord Integrators + New Sensory (Step 61)
+// ================================================================
+void build_ventral_cord_integrators(CB& b) {
+    // Step 61: AVM — anterior gentle touch (completes ALM/PLM circuit)
+    // AVM → AVD: anterior touch excites backward command (like ALM)
+    // AVM ⊣ AVB: anterior touch inhibits forward (like ALM)
+    // REF: Chalfie 1985, Way & Chalfie 1989
+    b.gj("AVM", "AVDL", 2); b.gj("AVM", "AVDR", 2);
+    b.inh("AVM", "AVBL", 2); b.inh("AVM", "AVBR", 2);
+    // AVM → PVC: Cook 2019 — AVM has chemical output to PVC
+    b.syn("AVM", "PVCL", 1); b.syn("AVM", "PVCR", 1);
+
+    // Step 61: ASI — insulin/dauer sensory circuit
+    // ASI → AIA: chemosensory relay (like ASE, AWC)
+    // ASI → AIY: dauer/food quality → forward drive modulation
+    // ASI → AIB: weak, aversive component
+    // REF: Bargmann & Horvitz 1991, Beverly 2011
+    b.syn("ASIL", "AIAL", 2); b.syn("ASIR", "AIAR", 2);
+    b.syn("ASIL", "AIYL", 1); b.syn("ASIR", "AIYR", 1);
+    b.syn("ASIL", "AIBL", 1); b.syn("ASIR", "AIBR", 1);
+    b.gj("ASIL", "ASIR", 1);  // bilateral coupling
+
+    // Step 61: ADL — pheromone/nociceptive circuit
+    // ADL → AVA: aversive sensing → reversal (like ASH but weaker)
+    // ADL → AVJ: O₂/aversive integration (Emmons 2024)
+    // ADL → AIA: chemosensory relay
+    // REF: Troemel 1997, Jang 2012
+    b.syn("ADLL", "AVAL", 1); b.syn("ADLR", "AVAR", 1);
+    b.syn("ADLL", "AVJL", 1); b.syn("ADLR", "AVJR", 1);
+    b.syn("ADLL", "AIAL", 1); b.syn("ADLR", "AIAR", 1);
+    b.gj("ADLL", "ADLR", 1);
+
+    // Step 61: DVC — stretch receptor → AVA backward locomotion
+    // Documented mechanosensory function (Li 2006)
+    // Chemical output to AVA; gap junctions to PVT
+    // REF: Emmons 2024, Li 2006
+    b.syn("DVC", "AVAL", 2); b.syn("DVC", "AVAR", 2);
+    b.gj("DVC", "PVT", 3);
+
+    // Step 61: PVT — neuropeptide hub
+    // Gap junctions to DVC (see above), PVP
+    // Weak chemical output to navigational interneurons
+    // REF: Emmons 2024 — PVT is neuropeptide connectome hub
+    b.gj("PVT", "PVPL", 2); b.gj("PVT", "PVPR", 2);
+
+    // Step 61: AVK — PDE target, turn circuit integrator
+    // PDE → AVK: MAJOR connection (50% of PDE output!)
+    // AVK → RIM: turn circuit modulation
+    // AVK → RIV: omega turn circuit
+    // AVK ↔ RIC: gap junction (octopaminergic coupling)
+    // AVK ↔ DVA: gap junction (proprioceptive integration)
+    // REF: Emmons 2024 — AVK aggregates PDE + sensory → turn circuit
+    b.syn("PDEL", "AVKL", 3); b.syn("PDER", "AVKR", 3); // PDE→AVK (major!)
+    b.syn("AVKL", "RIML", 1); b.syn("AVKR", "RIMR", 1);
+    b.syn("AVKL", "RIVL", 1); b.syn("AVKR", "RIVR", 1);
+    b.syn("AVKL", "SMBDL", 1); b.syn("AVKR", "SMBDR", 1); // sublateral motor
+    b.gj("AVKL", "RICL", 2); b.gj("AVKR", "RICR", 2);
+    b.gj("AVKL", "DVA", 1); b.gj("AVKR", "DVA", 1);
+    b.gj("AVKL", "AVKR", 2);  // bilateral coupling
+
+    // Step 61: AVJ — O₂/aversive integrator
+    // Inputs: ADL (above), AQR, PQR, URX (O₂ sensors)
+    // AVJ ↔ RIS: 5 gap junction sections! — sleep coupling
+    // REF: Emmons 2024 — AVJ integrates O₂/aversive → RIS
+    b.syn("AQR", "AVJL", 1); b.syn("AQR", "AVJR", 1);
+    b.syn("PQR", "AVJL", 1); b.syn("PQR", "AVJR", 1);
+    b.syn("URXL", "AVJL", 1); b.syn("URXR", "AVJR", 1);
+    b.gj("AVJL", "RIS", 3); b.gj("AVJR", "RIS", 2);  // 5 total sections
+    b.gj("AVJL", "AVJR", 2);
+
+    // Step 61: AVH — sensory bridge interneuron
+    // Gap junctions to ASK; chemical output to SMB
+    // Creates path: ASK → AVH → SMB (sublateral motor modulation)
+    // REF: Emmons 2024 — bridges pheromone sensing to motor output
+    b.gj("AVHL", "ASKL", 2); b.gj("AVHR", "ASKR", 2);
+    b.syn("AVHL", "SMBVL", 1); b.syn("AVHR", "SMBVR", 1);
+    b.gj("AVHL", "AVHR", 1);
+
+    // Step 61: PVP — highest gap junction degree neuron
+    // Gap junctions: AQR, PQR (O₂ sensors), DVC, PVT (above)
+    // Chemical output to AVA, AVB, PVC (command modulation)
+    // REF: Emmons 2024 — PVP roaming/dwelling regulation
+    b.gj("PVPL", "AQR", 4); b.gj("PVPR", "AQR", 4);   // 102 sections total
+    b.gj("PVPL", "PQR", 2); b.gj("PVPR", "PQR", 2);   // 26 sections
+    b.gj("PVPL", "DVC", 3); b.gj("PVPR", "DVC", 3);   // 54 sections
+    b.syn("PVPL", "AVAL", 1); b.syn("PVPR", "AVAR", 1);
+    b.syn("PVPL", "AVBL", 1); b.syn("PVPR", "AVBR", 1);
+    b.syn("PVPL", "PVCL", 1); b.syn("PVPR", "PVCR", 1);
+    b.gj("PVPL", "PVPR", 3);
+
+    // Step 61: PVR — proprioceptive hub
+    // Gap junctions to DVA (bodywide sensory network)
+    // Chemical output to AVJ (sensory → aversive integration)
+    // Output to RIP (pharyngeal regulation — bodywide state sensing)
+    // REF: Emmons 2024 — PVR + DVA = bodywide proprioceptive network
+    b.gj("PVR", "DVA", 2);
+    b.syn("PVR", "AVJL", 1); b.syn("PVR", "AVJR", 1);
+    b.syn("PVR", "RIPL", 1); b.syn("PVR", "RIPR", 1);
+}
+
 } // anonymous namespace
 
 // ================================================================
@@ -855,6 +1017,7 @@ void build_default_connectome(
     build_pharynx(b);            // MC/M3/M4/I1/RIP pharyngeal CPG
     build_egg_laying(b);         // HSN/VC egg-laying
     build_defecation(b);         // Step 56: AVL/DVB defecation motor program
+    build_ventral_cord_integrators(b); // Step 61: AVM/ASI/ADL/DVC/PVT/AVK/AVJ/AVH/PVP/PVR
     build_sleep_and_gaps(b);     // RIS sleep + core L-R gap junctions
 
     LOG_INFO("Generated default connectome: ", neurons.size(), " neurons, ",
