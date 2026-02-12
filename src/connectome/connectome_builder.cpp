@@ -220,6 +220,19 @@ void build_neurons(CB& b) {
     // Process runs laterally along body; possible stretch/O2 dual function
     // REF: White 1986, Emmons 2024 (PMC10983851)
     b.neuron("SDQR", NT::SENSORY, NTT::GLUTAMATE);
+    // Step 108: ALN — tail-spike sensory neurons (L/R pair)
+    // Processes extend into tailspike; implicated in O2 sensation
+    // Receive phasmid (PHA) input; contribute 20% of SAA chemical input
+    // Target sublateral motor neurons SAA and SMB
+    // REF: White 1986, Emmons 2024 (PMC10983851)
+    b.neuron("ALNL", NT::SENSORY, NTT::GLUTAMATE);
+    b.neuron("ALNR", NT::SENSORY, NTT::GLUTAMATE);
+    // Step 108: PLN — tail-spike sensory neurons (L/R pair)
+    // Similar to ALN; processes in tailspike; O2 + phasmid input
+    // Also targets sublateral motor neurons (SAA, SMB)
+    // REF: White 1986, Emmons 2024 (PMC10983851)
+    b.neuron("PLNL", NT::SENSORY, NTT::GLUTAMATE);
+    b.neuron("PLNR", NT::SENSORY, NTT::GLUTAMATE);
     // Step 61: ASI — amphid sensory, insulin/dauer pathway
     // Secretes DAF-7 (TGF-β) and INS-1 (insulin-like) → food quality signaling
     // Key node for developmental decision (dauer vs reproductive)
@@ -338,6 +351,13 @@ void build_neurons(CB& b) {
     // Works with RIS for sleep regulation; distinct mechanism (stress vs fatigue)
     // REF: Van Buskirk & Bhatt 2007, Hill 2014 Curr Biol, Nath 2016 J Neurosci
     b.neuron("ALA",  NT::INTER, NTT::UNKNOWN);
+    // Step 108: BDU — body cavity sensory interneurons (L/R pair)
+    // Processes face coelomic cavity; possible proprioceptive/osmotic function
+    // Part of bodywide sensory network with DVA and PVR (Emmons 2024)
+    // "BDU(L/R)" listed as having sensory function (dendritic extensions)
+    // REF: White 1986, Emmons 2024 (PMC10983851)
+    b.neuron("BDUL", NT::INTER, NTT::GLUTAMATE);
+    b.neuron("BDUR", NT::INTER, NTT::GLUTAMATE);
     // Command interneurons
     b.neuron("AVAL", NT::INTER, NTT::ACETYLCHOLINE);
     b.neuron("AVAR", NT::INTER, NTT::ACETYLCHOLINE);
@@ -1701,6 +1721,32 @@ void build_ventral_cord_integrators(CB& b) {
     b.syn("FLPL", "ALA", 1); b.syn("FLPR", "ALA", 1);
     // ALA↔RIS: gap junction — coordinate sleep/quiescence systems
     b.gj("ALA", "RIS", 2);
+
+    // Step 108: ALN/PLN → SAA — tail-spike sensory → sublateral turn circuit
+    // "ALN and PLN contribute 20% of the chemical input to SAA" (Emmons 2024)
+    // ALN/PLN also target SMB sublateral motor neurons
+    // REF: Emmons 2024 (PMC10983851), White 1986
+    b.syn("ALNL", "SAADL", 2); b.syn("ALNR", "SAADR", 2);
+    b.syn("ALNL", "SAAVL", 2); b.syn("ALNR", "SAAVR", 2);
+    b.syn("PLNL", "SAADL", 2); b.syn("PLNR", "SAADR", 2);
+    b.syn("PLNL", "SAAVL", 2); b.syn("PLNR", "SAAVR", 2);
+    // ALN/PLN → SMB: sublateral motor modulation
+    b.syn("ALNL", "SMBDL", 1); b.syn("ALNR", "SMBDR", 1);
+    b.syn("PLNL", "SMBVL", 1); b.syn("PLNR", "SMBVR", 1);
+    // PHA → ALN/PLN: phasmid tail sensory → tail-spike relay
+    b.syn("PHAL", "ALNL", 1); b.syn("PHAR", "ALNR", 1);
+    b.syn("PHAL", "PLNL", 1); b.syn("PHAR", "PLNR", 1);
+    // ALN↔PLN: gap junction (coordinate tail sensing)
+    b.gj("ALNL", "PLNL", 1); b.gj("ALNR", "PLNR", 1);
+
+    // Step 108: BDU — body cavity sensory interneuron
+    // Part of bodywide proprioceptive network (DVA, PVR, BDU)
+    // BDU↔PVR: gap junction (body sensing network)
+    b.gj("BDUL", "PVR", 2); b.gj("BDUR", "PVR", 2);
+    // BDU→AVA: body state → locomotion modulation
+    b.syn("BDUL", "AVAL", 1); b.syn("BDUR", "AVAR", 1);
+    // BDU↔ALN: gap junction (Emmons 2024: PVR-ALN connected)
+    b.gj("BDUL", "ALNL", 1); b.gj("BDUR", "ALNR", 1);
 }
 
 } // anonymous namespace

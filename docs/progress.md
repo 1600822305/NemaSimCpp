@@ -762,17 +762,25 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **内唇完整**: IL1/IL2→URA(运动) + URB(中间) + URY(感觉) 全覆盖
 - **diag 验证**: URBL S=0.351, URYDL S=0.125 — 全部活跃
 
+### Step 108: ALN + PLN + BDU — 尾脊/体腔传感 ✅ (2026-02-13)
+> 详细文档: [steps/step108_aln_pln_bdu.md](steps/step108_aln_pln_bdu.md)
+
+- **+6 神经元**: ALN(2) + PLN(2) 尾脊感觉 + BDU(2) 体腔中间 (239→245)
+- **+18 突触 +6 间隙**: ALN/PLN→SAA(20%输入!)/SMB + PHA→ALN/PLN + BDU↔PVR
+- **SAA 补全**: Emmons 2024 “ALN/PLN contribute 20% of SAA input”
+- **diag 验证**: ALNL S=0.139, PLNL S=0.135, BDUL S=0.280 — 全部活跃
+
 ---
 
 ## 当前系统状态
 
 ```
 架构: 8 层 (环境/躯体/感知/神经元/连接组/神经调质/运动/行为)
-神经元: 239 个 MVP 子集 (302 全集待扩展)
-  感觉: 69 (ASE/AWC/AWA/ASH/ALM/PLM/NSM/ADE/PDE/AFD/ADF/ASJ/ASK/ASI/ADL/FLP/PHB/PHA/URX/BAG/PVD L/R + CEP 4× + OLQ 4× + IL1 4× + IL2 4× + URY 4× + AVM + PVM + AQR + PQR + SDQR)
-  中间: 62 (AIA/AIB/AIY/AIZ/RIA/RIB/RIM/RIC/AVA/AVB/AVD/AVE/PVC/AVF/AUA/AVK/AVJ/AVH/PVP/AIN/LUA/I1/RIP L/R + SAA 4× + RIS + RIH + RMG L/R + DVA + DVC + PVT + PVR + RIG + ALA + URB L/R)
+神经元: 245 个 MVP 子集 (302 全集待扩展)
+  感觉: 73 (ASE/AWC/AWA/ASH/ALM/PLM/NSM/ADE/PDE/AFD/ADF/ASJ/ASK/ASI/ADL/FLP/PHB/PHA/URX/BAG/PVD L/R + CEP 4× + OLQ 4× + IL1 4× + IL2 4× + URY 4× + AVM + PVM + AQR + PQR + SDQR + ALN L/R + PLN L/R)
+  中间: 64 (AIA/AIB/AIY/AIZ/RIA/RIB/RIM/RIC/AVA/AVB/AVD/AVE/PVC/AVF/AUA/AVK/AVJ/AVH/PVP/AIN/LUA/I1/RIP L/R + SAA 4× + RIS + RIH + RMG L/R + DVA + DVC + PVT + PVR + RIG + ALA + URB L/R + BDU L/R)
   运动: 108 (SMD 4 + RMD 4 + URA 4 + SIA 4 + SIB 4 + SMB 4 + RIV 2 + RMED/RMEV 2 + AS01-11(11) + DA01-09(9) + DB01-07(7) + VA01-12(12) + VB01-11(11) + DD01-06(6) + VD01-13(13) + MC 2 + M3 2 + M4 + HSN 2 + VC4/VC5 + AVL + DVB)
-突触: 598 化学 + 201 间隙连接 (全部带 Tsodyks-Markram STP, 支持分数 sections)
+突触: 616 化学 + 207 间隙连接 (全部带 Tsodyks-Markram STP, 支持分数 sections)
   Step 42: Cook 2019 校准 (+8 RIA↔RIV, -2 AVE→RIV) + RIV↔RIV gap
   Step 84-91: VNC MN 完整互连 (交叉抑制/本体感觉波/后退波 全部完成)
 神经调质: 7 种 (5-HT, DA, OA, TA, NLP-12, PDF, FLP-11) — volume transmission + 饱食度(泵驱动)
