@@ -100,6 +100,9 @@ public:
     // Tap habituation (Step 60/78)
     int tap_count() const { return tap_count_; }
     bool tap_active() const { return tap_active_; }
+    // Sensitization / dishabituation (Step 79)
+    double sensitization() const { return sensitization_; }
+    void set_dishabit_time(double t_ms) { dishabit_time_ = t_ms; }
     // Pharyngeal pump (Step 24)
     double pump_rate_hz() const { return pharynx_.pump_rate_hz(); }
     int total_pumps() const { return pharynx_.total_pumps(); }
@@ -151,6 +154,7 @@ private:
     void apply_proprioceptive_stretch(); // body curvature → MEC channels in motor neurons
     void apply_head_tonic();             // tonic drive to head motor neurons (from upstream)
     void apply_touch_stimulus();         // wall collision → ALM/PLM activation (Chalfie 1985)
+    void apply_sensitization();          // Step 79: nociceptive sensitization → touch pool boost
     void apply_riv_omega();              // Step 31: RIV-driven omega turn (emergent from TA gating)
     void setup_neuromodulation();         // configure 5-HT, DA, TA modulators (Step 20)
 
@@ -210,6 +214,20 @@ private:
     int tap_count_ = 0;             // number of taps delivered
     bool tap_active_ = false;       // is a tap pulse currently active?
     double tap_pulse_end_ = 0.0;    // when current tap pulse ends
+    // Step 79: Nociceptive sensitization / dishabituation (Groves & Thompson 1970)
+    // Dual-process theory: habituation (S-process, STP) + sensitization (R-process)
+    // Strong ASH activation → slow sensitization state → boosts touch vesicle recovery
+    // REF: Groves & Thompson 1970 Psychol Rev — dual-process theory
+    //      Rankin & Broster 1992 — dishabituation in C. elegans
+    //      Greer 2008 — SER-2/PKC modulation of mechanosensory synapses
+    double sensitization_ = 0.0;           // [0,1] nociceptive sensitization level
+    double sensitization_tau_decay_ = 30000.0;  // ms, slow decay (~30s, Rankin 1992)
+    double sensitization_rise_rate_ = 0.005;    // per ms of strong ASH activity
+    double sensitization_pool_boost_ = 0.0003;  // vesicle pool boost per ms when sensitized
+    double dishabit_time_ = -1.0;          // ms, when to deliver dishabituating stimulus (-1=off)
+    double dishabit_duration_ = 2000.0;    // ms, harsh stimulus duration (2s train)
+    double dishabit_current_ = 100.0;      // pA, harsh stimulus to ASH (strong nociceptive)
+    std::vector<size_t> touch_syn_indices_; // cached indices of touch circuit synapses for pool boost
     // Step 66: Pirouette Poisson REMOVED — reversals emerge from AVA neural circuit
     // REF: Roberts 2016 eLife — stochastic switch, Piggott 2011 Cell — dual circuits
     // Food edge reversal preserved: inject AVA current instead of setting is_reversing_

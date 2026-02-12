@@ -308,7 +308,7 @@ void SimulationEngine::cache_neuron_ids_and_synapses() {
     static const char* prefixes[] = {
         "AIB", "ADF", "AIY", "AWB", "AIZ",
         "ALM", "PLM", "OLQ", "CEP", "URX", "AUA", "BAG", "PVD",
-        "HSN", "VC", "RIC", "MC", "M3", "I1", "PVC", "RMG",
+        "HSN", "VC", "RIC", "MC", "M3", "I1", "PVC", "RMG", "ASH", "FLP",
     };
     for (auto prefix : prefixes) {
         auto& group = nids_[prefix];
@@ -393,6 +393,7 @@ void SimulationEngine::step() {
     // 2c. Touch stimulus: wall collision → ALM/PLM activation (Step 18)
     // Uses set_external_current() → I_ext_ → survives reset
     apply_touch_stimulus();
+    apply_sensitization();  // Step 79: nociceptive sensitization → touch pool boost
 
     // 3. Head motor tonic: upstream interneuron drive (RIA→SMD already in connectome)
     // Uses set_external_current() → I_ext_ → survives reset
@@ -1620,6 +1621,89 @@ void SimulationEngine::apply_touch_stimulus() {
             double ava_pulse = 40.0;  // Step 70: 40pA reliable activation (state-dependence from AVA-AVB balance)
             if (nid("AVAL") >= 0 && nid("AVAL") < n) neurons_[nid("AVAL")]->add_synaptic_current(ava_pulse);
             if (nid("AVAR") >= 0 && nid("AVAR") < n) neurons_[nid("AVAR")]->add_synaptic_current(ava_pulse);
+        }
+    }
+}
+
+// ================================================================
+// Step 79: Nociceptive sensitization / dishabituation
+// Dual-process theory (Groves & Thompson 1970):
+//   S-process: stimulus-specific habituation (STP vesicle depletion)
+//   R-process: state-dependent sensitization (this function)
+//   Net response = S × R
+//
+// Mechanism:
+//   1. Strong ASH activation (nociceptive) → sensitization_ rises
+//   2. sensitization_ decays slowly (τ=30s, longer than TA's 2s)
+//   3. When sensitized: boost vesicle recovery at touch synapses
+//      → partially restores depleted pool → next tap triggers reversal
+//
+// Dishabituating stimulus:
+//   --dishabit-at <sec>: inject 100pA to ASH for 2s (harsh mechanical)
+//   This mimics electric shock or train stimulus (Rankin & Broster 1992)
+//
+// REF: Groves & Thompson 1970 Psychol Rev — dual-process theory
+//      Rankin & Broster 1992 — dishabituation in C. elegans
+//      Greer 2008 — SER-2/PKC modulates mechanosensory synapses
+//      Marcus 1988 — sensitization ≠ dishabituation (independent)
+// ================================================================
+void SimulationEngine::apply_sensitization() {
+    int n = static_cast<int>(neurons_.size());
+
+    // --- 1. Dishabituating stimulus delivery ---
+    if (dishabit_time_ > 0 && current_time_ >= dishabit_time_ &&
+        current_time_ < dishabit_time_ + dishabit_duration_) {
+        for (int id : nids("ASH")) {
+            if (id >= 0 && id < n) {
+                neurons_[id]->set_external_current(dishabit_current_);
+            }
+        }
+    }
+
+    // --- 2. Monitor ASH activity → update sensitization ---
+    double ash_activity = 0.0;
+    int ash_count = 0;
+    for (int id : nids("ASH")) {
+        if (id >= 0 && id < n) {
+            double v = neurons_[id]->get_membrane_potential();
+            double s = 1.0 / (1.0 + std::exp(-(v - (-25.0)) / 5.0));
+            ash_activity += s;
+            ash_count++;
+        }
+    }
+    if (ash_count > 0) ash_activity /= ash_count;
+
+    if (ash_activity > 0.3) {
+        sensitization_ += sensitization_rise_rate_ * ash_activity * dt_;
+        if (sensitization_ > 1.0) sensitization_ = 1.0;
+    }
+    sensitization_ -= sensitization_ / sensitization_tau_decay_ * dt_;
+    if (sensitization_ < 0.0) sensitization_ = 0.0;
+
+    // --- 3. Boost touch synapse vesicle recovery when sensitized ---
+    if (sensitization_ > 0.05) {
+        if (touch_syn_indices_.empty()) {
+            auto& synapses = connectome_.synapses_mut();
+            const auto& ni = connectome_.neuron_infos();
+            for (size_t i = 0; i < synapses.size(); ++i) {
+                int pre = synapses[i].pre_id(), post = synapses[i].post_id();
+                if (pre < 0 || pre >= n || post < 0 || post >= n) continue;
+                const auto& pn = ni[pre].name;
+                const auto& qn = ni[post].name;
+                bool is_touch_pre = (pn.substr(0,3) == "ALM" || pn.substr(0,3) == "PLM" || pn.substr(0,3) == "ASH");
+                bool is_touch_post = (qn.substr(0,3) == "AVD" || qn.substr(0,3) == "AVA" ||
+                                      qn.substr(0,3) == "AVB" || qn.substr(0,3) == "PVC" ||
+                                      qn.substr(0,3) == "AIB" || qn.substr(0,3) == "RIM");
+                if (is_touch_pre && is_touch_post) {
+                    touch_syn_indices_.push_back(i);
+                }
+            }
+        }
+        auto& synapses = connectome_.synapses_mut();
+        for (size_t idx : touch_syn_indices_) {
+            double pool = synapses[idx].vesicle_pool();
+            double boost = sensitization_ * sensitization_pool_boost_ * dt_;
+            synapses[idx].set_vesicle_pool(pool + boost);
         }
     }
 }

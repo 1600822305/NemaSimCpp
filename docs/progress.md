@@ -794,6 +794,16 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **多机制涌现**: STP 耗竭 + gap junction 反馈 + 回路适应 + Schmitt trigger 阈值
 - **regtest**: 20/20 PASS (171/337/98)
 
+### Step 79: 反习惯化/敏化涌现 ✅ (2026-02-12)
+> 详细文档: [steps/step79_dishabituation.md](steps/step79_dishabituation.md)
+
+- **双过程理论** (Groves & Thompson 1970): S-过程(STP 习惯化) + R-过程(敏化)
+- **实现**: apply_sensitization() — ASH 强激活 → sensitization_ 慢衰减(τ=30s) → 触觉突触 pool 恢复
+- **Bug 修复**: ASH/FLP 未在 nids_ 缓存注册 → nids("ASH") 返回空 → 敏化完全无效
+- **结果**: 4 seed 一致 — 习惯化(0%) → **反习惯化(50-75%)** → 再习惯化(0%)
+- **CLI**: --dishabit-at <sec> 指定反习惯化刺激时间
+- **regtest**: 20/20 PASS (171/337/98)
+
 ---
 
 ## 当前系统状态

@@ -69,6 +69,9 @@ public:
     // Short-term plasticity accessors (Step 21a/b)
     double vesicle_pool() const { return vesicle_pool_; }
     double release_prob() const { return release_prob_; }
+    // Step 79: Allow external pool modulation (sensitization/dishabituation)
+    void set_vesicle_pool(double v) { vesicle_pool_ = v; if (vesicle_pool_ > 1.0) vesicle_pool_ = 1.0; if (vesicle_pool_ < 0.01) vesicle_pool_ = 0.01; }
+    double tau_recovery() const { return tau_recovery_; }
     void set_stp_params(double tau_rec, double alpha_d, double tau_f, double alpha_f, double p0) {
         tau_recovery_ = tau_rec;
         alpha_d_ = alpha_d;

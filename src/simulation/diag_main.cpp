@@ -150,6 +150,7 @@ int main(int argc, char* argv[]) {
     double cli_sleep_after_learn = 0.0;  // Step 62: forced sleep after learning (seconds)
     bool cli_pheromone = false;              // Step 64: enable pheromone source
     double cli_pheromone_x = 15.0, cli_pheromone_y = 25.0, cli_pheromone_intensity = 0.8;
+    double cli_dishabit_at = -1.0;              // Step 79: dishabituation stimulus time (seconds)
     std::vector<std::string> cli_ablations;   // Step 67: neurons to ablate
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
@@ -174,6 +175,7 @@ int main(int argc, char* argv[]) {
         else if (arg == "--pheromone_y" && i+1 < argc) { cli_pheromone = true; cli_pheromone_y = std::atof(argv[++i]); }
         else if (arg == "--pheromone_intensity" && i+1 < argc) { cli_pheromone = true; cli_pheromone_intensity = std::atof(argv[++i]); }
         else if (arg == "--ablate" && i+1 < argc) { cli_ablations.push_back(argv[++i]); }
+        else if (arg == "--dishabit-at" && i+1 < argc) { cli_dishabit_at = std::atof(argv[++i]); }
         else if (arg == "--help" || arg == "-h") {
             std::cout << "Usage: celegans_diag [options]\n"
                       << "  --duration <sec>      Simulation duration (default: 300)\n"
@@ -430,6 +432,7 @@ int main(int argc, char* argv[]) {
     int prev_tap_count = 0;          // track tap count changes
     double tap_onset_time = -1.0;    // when current tap started
     std::vector<double> tap_pool_at_onset;   // vesicle pool at each tap onset
+    std::vector<double> tap_sens_at_onset;   // Step 79: sensitization level at tap onset
     std::vector<bool> tap_got_reversal;      // did reversal occur within 2s of tap?
     double tap_reversal_window = 2000.0;     // ms, window to detect tap-induced reversal
     bool tap_reversal_detected = false;      // flag for current tap window
@@ -455,6 +458,11 @@ int main(int argc, char* argv[]) {
     int total_samples = 0;
     int total_steps = (int)(duration / sim.dt());
     int sample_interval = (int)(100.0 / sim.dt()); // every 100ms
+
+    // Step 79: Wire dishabituation stimulus time
+    if (cli_dishabit_at > 0) {
+        sim.set_dishabit_time(cli_dishabit_at * 1000.0); // convert s → ms
+    }
 
     // Step 62: Sleep-after-learning experiment tracking
     bool sleep_consolidation_triggered = false;
@@ -587,6 +595,7 @@ int main(int argc, char* argv[]) {
             if (cur_tap > prev_tap_count) {
                 // New tap just started — record vesicle pool of first ALM→AVD synapse
                 double pool = 1.0;
+                double sens_at_tap = sim.sensitization();
                 const auto& syns = sim.connectome().synapses();
                 const auto& ni = sim.connectome().neuron_infos();
                 int nn = (int)sim.neurons().size();
@@ -603,6 +612,7 @@ int main(int argc, char* argv[]) {
                     // Already tracked
                 }
                 tap_pool_at_onset.push_back(pool);
+                tap_sens_at_onset.push_back(sens_at_tap);
                 tap_got_reversal.push_back(false);
                 tap_reversal_detected = false;
                 tap_onset_time = sim.current_time();
@@ -952,10 +962,11 @@ int main(int argc, char* argv[]) {
     std::cout << "   taps delivered: " << tap_pool_at_onset.size() << std::endl;
     if (!tap_pool_at_onset.empty()) {
         // Print per-tap data
-        std::cout << "   tap#  pool    reversal" << std::endl;
+        std::cout << "   tap#  pool    sens   reversal" << std::endl;
         for (size_t i = 0; i < tap_pool_at_onset.size(); ++i) {
             std::cout << "   " << std::setw(3) << (i+1)
                       << "   " << std::setprecision(3) << std::fixed << tap_pool_at_onset[i]
+                      << "  " << std::setprecision(3) << (i < tap_sens_at_onset.size() ? tap_sens_at_onset[i] : 0.0)
                       << "   " << (tap_got_reversal[i] ? "YES" : "no") << std::endl;
         }
         // Summary: first 5 vs last 5 reversal rate
@@ -979,6 +990,33 @@ int main(int argc, char* argv[]) {
                   << " (Δ=" << std::setprecision(1)
                   << (100.0*(tap_pool_at_onset.back() - tap_pool_at_onset.front())/tap_pool_at_onset.front())
                   << "%)" << std::endl;
+        // Step 79: Dishabituation analysis — find tap immediately after dishabit stimulus
+        if (cli_dishabit_at > 0) {
+            int pre_dh_count = 0, post_dh_count = 0;
+            int pre_dh_rev = 0, post_dh_rev = 0;
+            for (size_t i = 0; i < tap_pool_at_onset.size(); ++i) {
+                double tap_time = (i + 1) * 10.0; // approx tap time in seconds
+                if (tap_time < cli_dishabit_at - 20 && tap_time > cli_dishabit_at - 70) {
+                    // Last 5 taps before dishabit (habituated)
+                    pre_dh_count++;
+                    if (tap_got_reversal[i]) pre_dh_rev++;
+                }
+                if (tap_time > cli_dishabit_at && tap_time < cli_dishabit_at + 50) {
+                    // First 5 taps after dishabit
+                    post_dh_count++;
+                    if (tap_got_reversal[i]) post_dh_rev++;
+                }
+            }
+            std::cout << std::defaultfloat;
+            std::cout << "   --- DISHABITUATION (stimulus at " << cli_dishabit_at << "s) ---" << std::endl;
+            std::cout << "   sensitization: " << std::setprecision(3) << sim.sensitization() << std::endl;
+            if (pre_dh_count > 0)
+                std::cout << "   pre-dishabit:  " << pre_dh_rev << "/" << pre_dh_count
+                          << " reversals (" << std::setprecision(0) << (100.0*pre_dh_rev/pre_dh_count) << "%)" << std::endl;
+            if (post_dh_count > 0)
+                std::cout << "   post-dishabit: " << post_dh_rev << "/" << post_dh_count
+                          << " reversals (" << std::setprecision(0) << (100.0*post_dh_rev/post_dh_count) << "%)" << std::endl;
+        }
     }
 
     std::cout << "\n9. DISTANCE TO FOOD:" << std::endl;
