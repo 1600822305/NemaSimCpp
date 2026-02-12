@@ -1,4 +1,4 @@
-# Group 01: 神经调质与突触可塑性 (Step 20-22)
+# Step 20-22: 神经调质与突触可塑性
 
 > 本文档为中文档，合并 Step 20-22 的完整一级内容。
 > 详细子文档见各 Step 链接。
@@ -18,7 +18,7 @@
 
 ## Step 20: 神经调质层 (Layer 6) — 行为状态切换 ✅ (2026-02-10)
 
-> 详细文档: [steps/step20_neuromodulation.md](../steps/step20_neuromodulation.md)
+> 详细文档: [step20_neuromodulation.md](step20_neuromodulation.md)
 
 - **框架**: NeuromodulationManager — 源→浓度(τ_rise/τ_decay)→受体效应(EXCITABILITY/SPEED_SCALE/REVERSAL_RATE)
 - **4 种调质**: 5-HT(NSM→dwelling) + DA(CEP→basal slowing) + OA(RIC→roaming) + food_memory(DARPP-32→ARS)
@@ -124,7 +124,7 @@ ModulationEffect: EXCITABILITY / SYNAPSE_GAIN / SPEED_SCALE / REVERSAL_RATE
 
 ## Step 21: 突触可塑性 (Layer 5) — STD/STF + 盐学习 ✅ (2026-02-10)
 
-> 详细文档: [steps/step21_synaptic_plasticity.md](../steps/step21_synaptic_plasticity.md)
+> 详细文档: [step21_synaptic_plasticity.md](step21_synaptic_plasticity.md)
 
 为所有 ~110 个化学突触添加 Tsodyks-Markram 短时可塑性:
 - **STD (囊泡耗竭)**: n(t) ∈ [0,1], dn/dt = (1-n)/τ - α_d·S·n

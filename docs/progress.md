@@ -108,370 +108,108 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **RIM 稳定**: RIM↔AVA gj 阻止自发 reversal, 迟滞 0.65/0.35
 - 结果: CI=0.564, reversals 115→8/min, 神经元 62→64
 
-### Group 01: 神经调质与突触可塑性 (Step 20-22) ✅ (2026-02-10)
-> 中文档: [groups/group01_neuromodulation_plasticity.md](groups/group01_neuromodulation_plasticity.md) | 子文档: [step20](steps/step20_neuromodulation.md) / [step21](steps/step21_synaptic_plasticity.md)
+### Step 20-22: 神经调质与突触可塑性 ✅ (2026-02-10)
+> 中文档: [steps/step20-22_neuromodulation_plasticity.md](steps/step20-22_neuromodulation_plasticity.md) | 子文档: [step20](steps/step20_neuromodulation.md) / [step21](steps/step21_synaptic_plasticity.md)
 
 | Step | 核心内容 | 关键指标 |
 |------|---------|---------|
 | **20** | NeuromodulationManager + 4调质(5-HT/DA/OA/food_memory) + 觅食循环涌现 | 神经元 64→**72**, CI=0.520 |
 | **21** | Tsodyks-Markram STP(STD/STF) + 盐学习 + Omega偏置 + Klinokinesis | 10-seed CI=0.43, good=8/10 |
-| **22** | OpenCL GPU 后端, >500突触自动启用 (AMD RX 6950 XT) | CPU/GPU 自动切换 |
+| **22** | OpenCL GPU 后端, >2000突触自动启用 (AMD RX 6950 XT) | CPU/GPU 自动切换 |
 
 - **本组关键**: Layer 5-6 建立 — 觅食循环(roam↔dwell) + 突触状态(n/p/w_mod) + ARS局部搜索 + GPU基础设施
 
-### Step 23: 温度趋性 (Thermotaxis) ✅ (2026-02-10)
-> 详细文档: [steps/step23_thermotaxis.md](steps/step23_thermotaxis.md)
+### Step 23-24: 新感觉模态与咽部系统 ✅ (2026-02-10)
+> 中文档: [steps/step23-24_sensory_pharynx.md](steps/step23-24_sensory_pharynx.md) | 子文档: [step23](steps/step23_thermotaxis.md) / [step24](steps/step24_pharyngeal_pump.md)
 
-新感觉模态接入已有回路 — 验证架构通用性:
-- **AFD L/R**: 温度感觉神经元 (谷氨酸能), Mori & Ohshima 1995
-- **AFD→AIY** (3 sections): 共享 AIY→RIA→SMD 下游通路 (与趋化相同!)
-- **AFD→AIZ** (2 sections): 冷趋性分支 (Mori 1995 — AIZ 消融→嗜热)
-- **ThermoTransducer**: 培养温度记忆 Tc (tau=120s), dT 响应 (gain=60pA/°C)
-- **温度场**: 线性梯度 0.5°C/mm, 中心 20°C (7.5°C~32.5°C)
-- **饱食调制**: 已通过 AWC-AIA 通路自动实现 (eLife 2021 Hawk — INS-1 肠脑信号)
-- **结果**: AFD 活跃 (-39.9/-45.8 mV), 不破坏趋化 (CI 正常)
-- **架构验证**: 新感觉神经元接入共享节点 AIY, 无需修改下游回路
-- **REF**: Mori 1995, Clark 2006, Luo 2014 PNAS, eLife 2021 Hawk
+| Step | 核心内容 | 关键指标 |
+|------|---------|---------|
+| **23** | AFD 温度趋性, 共享 AIY 下游通路, 架构通用性验证 | 不破坏趋化, CI 正常 |
+| **24** | 咽部泵食 4 相状态机, 9 咽部神经元, 真实进食替换占位符 | satiety 0.4-0.55, 泵频 2-3Hz |
+| **Post-24** | Pirouette 调制修复 + SMD 振荡器修复 + regtest 工具 | CI=**0.746**, SMD 222→115mV |
 
-### Step 24: 咽部泵食系统 (Pharyngeal Pumping) ✅ (2026-02-10)
-> 详细文档: [steps/step24_pharyngeal_pump.md](steps/step24_pharyngeal_pump.md)
+- **本组关键**: 温度感觉验证架构可扩展性 + 占位符→真实咽部泵食 + regtest 工具建立
 
-替换占位符 satiety (`dist<3mm→sat+=dt/τ`) 为真实咽部泵食机制:
-- **9 个咽部神经元**: MC L/R (ACh起搏器), M3 L/R (Glu松弛计时), M4 (峡部蠕动), I1 L/R (桥梁), RIP L/R (咽外桥梁)
-- **PharyngealPump**: 4相状态机 (REST→E→P→R), MC调制不应期 (800ms→200ms = 1-4 Hz)
-- **5-HT→MC SER-7**: +15pA 兴奋 (Song & Avery 2012), OA→MC: -10pA 抑制
-- **真实进食**: pump_event × food_conc × 0.006 → satiety (泵频~2-3Hz, ~800次/300s)
-- **5-HT正反馈环**: food→NSM→5-HT→MC→↑pump→↑intake→↑sat→NSM↓
-- **结果**: CI≈0.4-0.5, satiety振荡0.4-0.55, FOOD↔TEMP切换正常
-- **REF**: Avery (WormBook 2012), Raizen & Avery 1994, Song & Avery 2012 eLife
+### Step 25-26: 化学回避与病原体学习 ✅ (2026-02-10)
+> 中文档: [steps/step25-26_chemical_avoidance_learning.md](steps/step25-26_chemical_avoidance_learning.md) | 子文档: [step25](steps/step25_chemical_avoidance.md) / [step26](steps/step26_pathogen_learning.md)
 
-### Post-24 修复: Pirouette 调制 + SMD 修复 + 回归测试工具
+| Step | 核心内容 | 关键指标 |
+|------|---------|---------|
+| **25** | ASH 伤害感觉(TONIC) + repellent_field_ + 排斥 Weathervane 涌现绕路 | CI=0.655, 绕路 r≥1.4mm |
+| **26** | 条件性病原体学习: sickness→AWC翻转+厌食, 三层回避(ASH/AWC/5-HT) | **CI=-0.18**(反向!), +ADF, +sickness |
 
-- Pirouette dC/dt sigmoid + 梯度/食物密度分离 + omega 方向/持续时间修复 → CI=0.746
-- SMD 振荡器修复 (移除 ±200pA omega 注入) → SMD 振幅 222→115mV
-- **regtest 工具**: 30s 基线对比 + 电流溯源 + 注入检测
+- **本组关键**: 先天回避(ASH) + 学习性回避(AWC翻转) + 三层化学回避架构 + sickness 内部状态
 
-### Step 25: 化学回避 + ASH 伤害感觉 + 排斥 Weathervane
+### Step 27-28: 睡眠与多隔室模型 ✅ (2026-02-10)
+> 中文档: [steps/step27-28_sleep_multicompartment.md](steps/step27-28_sleep_multicompartment.md) | 子文档: [step27](steps/step27_sleep_lethargus.md) / [step28](steps/step28_multi_compartment.md)
 
-- **排斥化学场**: Environment 添加独立 repellent_field_ (σ²=25mm² 局部化毒物)
-- **ASH TONIC型**: gain=80, baseline=3pA, half_max=0.5, clamp=80pA (排斥物中心52pA)
-- **新增突触**: ASH→AIB(3, GLR-1), ASH→RIM(1, 促omega), ASH→AVA(3, 从2恢复)
-- **5-HT→AIB**: MOD-1 Cl⁻通道 -6pA 抑制 (在食物上时压制回避=冒险觅食)
-- **排斥 Weathervane**: ∇C_repellent⊥ → 反向曲率偏置, 持续偏转绕路 (不受satiety调制)
-- **涌现绕路**: 排斥物挡路→不穿过(r_dist≥1.4mm)→向北偏转(y:25→32)→从侧面到达食物
-- **结果**: regtest 12 pass; CI=0.655, time_near_food=18.5%
-- **REF**: Summers 2015, Cook 2019, Bargmann & Kaplan 1998, Iino & Yoshida 2009
-- **文档**: docs/steps/step25_chemical_avoidance.md
+| Step | 核心内容 | 关键指标 |
+|------|---------|---------|
+| **27** | RIS/FLP-11 睡眠-觉醒循环, fatigue 内部状态, 涌现唤醒阈值 | 觉醒/睡眠 ~100s/80s, 速度比 10:1 |
+| **28** | RIA 3隔室模型(soma/nrV/nrD), Ca²⁺ nrV-nrD 差异→klinotaxis | CI avg +0.20, sleep 20% |
 
-### Step 26: 条件性病原体回避学习
+- **本组关键**: +fatigue 内部状态 + 多隔室神经元模型(RIA) + 睡眠-觉醒循环涌现
 
-- **生物学**: Zhang 2005 Nature — 吃致病菌→生病→学会回避同种气味 (条件性味觉厌恶)
-- **新增神经元**: ADF L/R (5-HT源) — 85总神经元
-- **新增突触**: ADF→AIY(2, MOD-1抑制), ADF→AIZ(1) — ~120总突触
-- **Sickness状态**: 在有毒食物区进食时累积 (τ_rise=30s, τ_decay=600s 持久记忆)
-- **ADF驱动**: I_ext = 2 + 30×sickness_ (最高32pA → 5-HT释放 → MOD-1抑制AIY)
-- **AWC突触翻转**: lr=0.003(15x), AWC→AIY w_mod↓0.1(底限), AWC→AIB w_mod↑2.3(+130%)
-- **Weathervane AWC偏好翻转**: awc_pref=(w_mod-0.55)×3.0, 学后=-1.35(排斥力>引诱力)
-- **疾病性厌食**: sick_suppression=1-0.85×sickness(化学感觉降到15%)
-- **多化学物种**: soluble_field_基础设施(ASE独立通道就绪)
-- **fmem双重保护**: 快速衰减(tau 90s→5s) + 充值门控(生病时不记好食物)
-- **三层化学回避**: 先天ASH(即时) + 学习AWC翻转(~60s) + 5-HT调制(秒级)
-- **结果**: regtest 12 pass; **CI=-0.18(反向!)**, fmem=0.000, near_food=29%
-- **REF**: Zhang 2005 Nature, Ha 2010 Neuron, Bargmann 2006
-- **文档**: docs/steps/step26_pathogen_learning.md
+### Step 29-33: 运动回路精化 ✅ (2026-02-10)
+> 中文档: [steps/step29-33_motor_circuit_refinement.md](steps/step29-33_motor_circuit_refinement.md) | 子文档: [step29](steps/step29_proprioceptive_wave.md) / [step30](steps/step30_tyramine_rim.md) / [step31](steps/step31_riv_omega_turn.md) / [step32](steps/step32_as_motor.md) / [step33](steps/step33_olq_rme.md)
 
-### Step 27: 睡眠/静止 (Lethargus)
+| Step | 核心内容 | 关键指标 |
+|------|---------|---------|
+| **29** | B类顺序本体感觉波 + 半隐式Euler, speed +153% | speed 0.076→**0.192** |
+| **30** | Tyramine(第4调质) — LGC-55→SMD/AVB抑制, 承诺式逆转涌现 | TA conc 0.27 |
+| **31** | RIV omega turn 涌现, 删除硬编码P(omega), TA门控 | omega=4, 硬编码→涌现 |
+| **32** | AS01-05 背侧偏置, SMD相位→omega门控, TuningParams CLI | ω/rev 100%→**67%** |
+| **33** | OLQ鼻触 + RME(GABA)头部增益控制, D/V对称修复 | D/V 3.6×→**1.06×** |
 
-- **生物学**: Turek 2016 eLife — RIS释放FLP-11神经肽→全身静止 (非行为睡眠)
-- **新增神经元**: RIS (1个, GABA+FLP-11肽能) — 84总神经元
-- **新增突触**: RIS⊣AVA(2), RIS⊣AVB(1), RIS⊣AIB(1) + RIS↔AIB gap(4)
-- **fatigue_状态**: [0,1] 活动累积(τ_rise=120s)/睡眠消退(τ_decay=60s)
-- **RIS激活**: 2+40×sigmoid(fatigue-0.7) + 25pA睡眠维持 - 3×self_inhibition
-- **FLP-11效应**: 速度×(1-0.97×flp11), AVA/AVB -15pA, MC -12pA, SMD/RMD -20pA, 体壁MN -30pA
-- **睡眠-觉醒循环**: ~100s觉醒 → ~80s睡眠 → 自发恢复, 2个周期/300s
-- **唤醒阈值**: 涌现 — ALM 80pA >> FLP-11 15pA → 强刺激可打断睡眠
-- **结果**: regtest 12 pass; 睡眠速度0.01-0.03mm/s(觉醒0.19-0.27, 比值~10:1)
-- **REF**: Turek 2016 eLife, Konietzka 2020 Nat Commun, Nagy 2014 eLife
-- **文档**: docs/steps/step27_sleep_lethargus.md
+- **本组关键**: 波传播+TA逃逸+Omega涌现+AS背侧门控+RME对称修复 — 运动系统从基础→精化
 
-### Step 28: 多隔室神经元模型 (RIA)
+### Step 34-35: 气体感觉 (O₂/CO₂) ✅ (2026-02-10)
+> 中文档: [steps/step34-35_gas_sensing.md](steps/step34-35_gas_sensing.md) | 子文档: [step34](steps/step34_oxygen.md) / [step35](steps/step35_co2_bag.md)
 
-- **生物学**: Hendricks 2012 Nature — RIA轴突nrV/nrD域独立Ca2+编码头部运动
-- **新增类**: MultiCompartmentNeuron (Compartment结构体, 轴向耦合, IP3 Ca2+ store release)
-- **RIA 3隔室**: soma(感觉谷氨酸) + nrV(SMDVL ACh/GAR-3) + nrD(SMDDL ACh/GAR-3)
-- **新增突触**: SMDDL->RIAL nrD(1), SMDDR->RIAR nrD(1), SMDVL->RIAL nrV(1), SMDVR->RIAR nrV(1)
-- **klinotaxis**: Ca2+ nrV-nrD差异(DC移除+300ms滤波) -> curvature_bias, 替代Step 19 AC/DC近似
-- **参数**: store_release=0.0003, gain=3000, max_bias=0.5, mod_gain=5, axial=0.15nS
-- **结果**: regtest 14 pass; heading 16.9 deg/s; CI avg +0.20; sleep 20%
-- **REF**: Hendricks 2012 Nature, Ouellette 2018 eNeuro, Iino & Yoshida 2009
-- **文档**: docs/steps/step28_multi_compartment.md
+| Step | 核心内容 | 关键指标 |
+|------|---------|---------|
+| **34** | URX/AQR/PQR O₂感觉 + AUA中继 + NPR-1调制, O₂场=21%-13%×food | URX S=0.24, O₂=19.3% |
+| **35** | BAG CO₂感觉 + URX交叉抑制, 涌现: 饥饿留食 vs 饱食+生病离开 | sickness=1时 CI +0.57→**+0.08** |
 
-### Step 29: 本体感觉波传播 (Proprioceptive Wave)
+- **本组关键**: O₂(食物代理) + CO₂(对抗信号) — 气体感觉完成，涌现饥饿/饱食决策
 
-- **生物学**: Wen 2012 Neuron — B类MN自身转导本体感觉; Boyle 2012 — 双稳态+拉伸受体沿轴突整合
-- **B类顺序感知**: DB01→seg2(SMD领地), DB02→seg7(DB01领地), DB03→seg15(DB02领地)
-- **D/V交替接力**: DB01(+curv) → VB02(-curv) → DB03(+curv) = S波
-- **A类保持同步**: seg 0/5/15 原始映射不变 (提供基础肌肉驱动力)
-- **曲率扩散**: 0.5 体节间弹性耦合 (Boyle 2012)
-- **曲率数值稳定性**: 半隐式Euler替代Forward Euler (stiffness×dt=5.25>>2, 无条件稳定)
-- **关键教训**: A类映射不可改; Forward Euler对刚性ODE不稳定
-- **结果**: regtest 17 pass; speed 0.3, heading 17.1; diag speed 0.076→0.192 (+153%)
-- **REF**: Wen 2012 Neuron, Boyle 2012 Frontiers, Yeon 2018 PLOS Biology
-- **文档**: docs/steps/step29_proprioceptive_wave.md
+### Step 36-38: 全身感觉与产卵 ✅ (2026-02-10)
+> 中文档: [steps/step36-38_body_sensing_egglaying.md](steps/step36-38_body_sensing_egglaying.md) | 子文档: [step36](steps/step36_proprioception.md) / [step37](steps/step37_ave_omega_grading.md) / [step38](steps/step38_egg_laying.md)
 
-### Step 30: Tyramine — RIM 逃逸反应协调
+| Step | 核心内容 | 关键指标 |
+|------|---------|---------|
+| **36** | DVA(TRP-4全身曲率) + PVD(harsh touch+本体感觉) 双模态 | DVA S=0.327, wave GOOD |
+| **37** | AVE后退指令分级: 弱→短reversal, 强→长reversal+omega | ω/rev 100%→**85%** |
+| **38** | HSN/VC产卵系统, egg_pressure→HSN burst, HSN为5-HT源 | eggs=2, 5-HT源 4→**6** |
 
-- **生物学**: RIM 是酪胺能神经元 (TDC-1+, TBH-1-), 通过 gap junction 与 AVA 共激活
-- **TA 第4种调质**: 源 RIM L/R, τ_rise=500ms, τ_decay=2s (逃逸时间尺度)
-- **LGC-55→SMD**: -25pA Cl⁻ 抑制 → 逆转期间头部摆动停止 (Pirri 2009)
-- **LGC-55→AVB**: -10pA 抑制前进 → 促进长逆转 (Pirri 2009)
-- **TYRA-3→ASH**: +5pA 增敏伤害感觉 → 碰壁增敏涌现 (Rex 2005)
-- **TA→OA耦合**: RIC +2pA 模拟 TBH-1 底物供给 (Alkema 2005)
-- **涌现**: 承诺式逆转(~200ms延迟) + 碰壁增敏(TA累积→ASH敏化)
-- **结果**: regtest 17 pass; speed 0.3, heading 18.2; TA conc 0.27
-- **REF**: Alkema 2005 Neuron, Pirri 2009 Neuron, Donnelly 2013 PLOS Biology
-- **文档**: docs/steps/step30_tyramine_rim.md
+- **本组关键**: DVA/PVD全身感觉 + AVE强度分级omega门控 + 产卵系统(HSN新增5-HT源)
 
-### Step 31: RIV-Driven Omega Turn — 硬编码→涌现
+### Step 39-42: 运动扩展与行为整合 ✅ (2026-02-11)
+> 中文档: [steps/step39-42_motor_expansion_integration.md](steps/step39-42_motor_expansion_integration.md) | 子文档: [step39](steps/step39_motor_expansion.md) / [step40](steps/step40_stability_audit.md) / [step42](steps/step42_connectome_calibration.md)
 
-- **生物学**: RIV 是 GABA能运动神经元，控制腹侧头部弯曲，启动 omega turn (Gray 2005)
-- **RIVL/RIVR 神经元**: GABA能, 84→88 neurons
-- **突触**: AIB→RIV (1 section, L/R 梯度不对称) + RIV⊣RMD dorsal (1 section)
-- **TA→RIV**: LGC-55 -20pA 抑制 (复用 Step 30 受体)
-- **Post-reversal pulse**: 幅度=60×[TA], tau=400ms, L/R±30%梯度不对称
-- **删除硬编码**: P(omega)公式 + 固定方向 + 固定持续时间 → 全部从 RIV burst 涌现
-- **涌现特性**: 长逎转(高TA)→强脉冲→CCA-1 burst→omega; 短逎转(低TA)→弱脉冲→无omega
-- **结果**: regtest 17 pass; omega=4, heading=11.0, speed=0.3
-- **REF**: Gray 2005 PNAS, Donnelly 2013 PLOS Biology, Ouellette 2022 eLife, Neural Sequences 2024
-- **文档**: docs/steps/step31_riv_omega_turn.md
+| Step | 核心内容 | 关键指标 |
+|------|---------|---------|
+| **39** | B/A/D 类 MN 3→7/5/5 扩展(+18), 7级顺序本体感觉 | muscle work 0.316→**0.338** |
+| **40** | 5-HT稀释bug修复(0.34→0.73), 参数校准, 10-seed验证 | omega=0.44±0.11, 8/8 GOOD |
+| **41** | 后退运动+觅食调制+Warmup, NSM/CEP阈值修正 | 速度调制: 5-HT -40%, DA -30% |
+| **42** | Cook 2019 EM校准, RIA↔RIV负反馈环路, 性能优化, Fitness框架 | --fitness CLI, 4-seed×3-scenario |
 
-### Step 32: AS Motor Neurons — 背侧偏置
+- **本组关键**: MN扩展→连续覆盖 + Cook 2019校准 + 5-HT修复 + Fitness自动评估框架
 
-- **生物学**: AS 是谷氨酸能运动神经元，专门投射背侧体壁肌肉，打破背腹对称
-- **AS01-AS05**: 5个运动神经元, 88→93 neurons, 覆盖 dorsal seg 2-40
-- **突触输入**: AVA→AS + AVB→AS (始终活跃) + DD⊣AS (交叉抑制) + DB↔AS (gap junction)
-- **AS 背侧抵抗→omega 门控**: pre-reversal dorsal tone 快照 + RIV burst peak detection
-  - 逆转开始时记录 dorsal tone (SMD 随机相位) → burst 峰值时评估
-  - effective_riv = peak_release - pre_rev_tone × as_factor (1.0)
-  - 高 dorsal tone → 阻断 omega; 低 dorsal tone → 允许 omega
-- **运行时参数系统**: TuningParams CLI 覆盖, sweep_as_factor.ps1 参数扫描脚本
-- **涌现**: omega/reversal 从 100% (Step 31) 降至 67% (Step 32); SMD 相位门控
-- **结果**: regtest 17 pass; omega/reversal=0.67, speed=0.18, wave=GOOD
-- **REF**: White 1986, Haspel 2010, Chen 2006
-- **文档**: docs/steps/step32_as_motor.md
+### Step 43-49: 觅食行为完善 ✅ (2026-02-11)
+> 中文档: [steps/step43-49_foraging_neuromod.md](steps/step43-49_foraging_neuromod.md) | 子文档: [step43](steps/step43_pathogen_avoidance.md) / [step44](steps/step44_off_food_search.md) / [step45](steps/step45_nlp12_foraging.md) / [step46](steps/step46_pdf_roaming.md) / [step47](steps/step47_food_edge_reversal.md) / [step48](steps/step48_foraging_cycle.md) / [step49](steps/step49_5ht_pathway.md)
 
-### Step 33: OLQ 鼻触 + RME 头部抑制
+| Step | 核心内容 | 关键指标 |
+|------|---------|---------|
+| **43** | AWB/ADF回路重构, ADF 5-HT源移除, TA→SER-2→AIY | 病原体回避闭环 |
+| **44** | Off-food reversal rate调制, 修复死代码, ARS pirouette bonus | CI 0.131→**0.685** |
+| **45** | NLP-12(DVA→CKR-1→SMD) + NSM肠道感觉 + 5-HT阈值修复 | 5-HT 0.18→**0.53**, NLP-12=6靶 |
+| **46** | PDF-1 roaming神经肽, 5-HT/PDF双稳态对抗 | CI 0.72-0.92 |
+| **47** | Head poke reversal + basal slowing (DOP-3 volume transmission) | CI mean 0.67 |
+| **48** | PDF⊣NSM互抑制闭环, 正反馈环完成 | OA 0.24-0.40↑, near 33% |
+| **49** | 5-HT 5种受体闭环(MOD-1/SER-4/SER-1/SER-5/LGC-50), 靶标8→18 | CI mean **0.70** |
 
-- **生物学**: RME 是 GABAergic 头部增益控制; OLQ 是鼻尖机械感觉 (唇部纤毛)
-- **RMED/RMEV**: 对侧投射 (RMED⊣ventral, RMEV⊣dorsal) — 与 SMD 推拉配合
-- **SMD⇌RME 突触外传递**: GAR-2 毒蕈碱 + GBB-1/2 GABA_B (sections=0.3, ~0.03nS)
-- **OLQ (4个)**: 壁距<0.3mm 鼻触 → RMD 头缩回 + RIC 间接后退
-- **修复不对称**: head curv D/V ratio 从 3.6× → 1.06× (RMEV 对抗 AS01 背侧偏置)
-- **weathervane 40% SMD fraction**: 防止多通道对齐压死 SMD 振荡器
-- **as_factor 1.0→3.5**: RMEV 降低 dorsal tone → 需更高 factor 维持 omega 门控
-- **结果**: regtest 17 pass; D/V ratio=1.06, omega/reversal=0.58, wave=GOOD
-- **REF**: White 1986, Huang 2016 eLife, Hart 1995, Kaplan & Horvitz 1993
-- **文档**: docs/steps/step33_olq_rme.md
-
-### Step 34: O₂ 感觉 — URX/AQR/PQR + AUA 中继
-
-- **生物学**: O₂ 是食物位置的代理信号 (细菌耗氧 → 食物区 O₂ 8-12%)
-- **URX L/R**: 胆碱能高 O₂ 传感器 (gcy-35/gcy-36 → cGMP → TAX-2/TAX-4)
-- **AQR/PQR**: 体腔 O₂ 传感器 (谷氨酸能, 各 1 个无配对)
-- **AUA L/R**: O₂ 信号中继/整合枢纽 (接收 URX+ADF, 输出 AVA/AVB)
-- **O₂ 场**: O₂(x) = 21% - 13% × food_density(x)，无需新类
-- **NPR-1 调制**: N2 = tonic -25pA 常量 (组成性激活, 21% O₂ 下 net=5pA)
-- **O₂ 场**: 基于 food_density (σ=3mm 细菌密度), 非 volatile odor (σ=12mm)
-- **研究修正**: URX 是 ACh 非 Glu; URX→AUA→AVA (非直接); AQR→AVA (非 AIY)
-- **regtest 修复**: SMD swing 45→55, heading rate 15→10 (105 neuron 适配)
-- **结果**: regtest 17 pass; URX release=0.24, O₂ mean=19.3%, wave=GOOD
-- **REF**: Gray 2004 Nature, Cheung 2005, Chang 2006 PLoS Biology, Laurent 2015 eLife
-- **文档**: docs/steps/step34_oxygen.md
-
-### Step 35: CO₂ 感觉 — BAG + O₂ 回路修复
-
-- **生物学**: CO₂ 是 O₂ 的对抗信号 (细菌产 CO₂ → 食物区 CO₂ 高 ~3%)
-- **BAG L/R**: 谷氨酸能 CO₂ 传感器 (gcy-9 → cGMP → TAX-2/TAX-4)
-- **CO₂ 场**: CO₂(x) = 0.04% + 3% × food_density(x)
-- **转导**: tonic (>0.5% 阈值, 40pA gain) + phasic (dCO₂/dt 敏感) + OFF 反弹
-- **URX 交叉抑制**: N2 中 URX 被 NPR-1 压制 → BAG 正常工作 (Carrillo 2013)
-- **连接**: BAG⊣AIY (抑制前进) + BAG→AIB (促进转弯) + BAG→RIA (头部调制)
-- **Step 34 修复**: AUA→AVA 0.3 sections (NPR-1 presynaptic), URX NPR-1 -28pA, AUA NPR-1 -12pA
-- **涌现**: 饥饿=留下吃 (O₂>CO₂), 饱食+生病=离开 (CO₂+sickness>O₂)
-- **结果**: regtest 17 pass; CI 从 +0.57→+0.08 (sickness=1), reversals 12→21, BAGL S=0.207
-- **REF**: Hallem 2008 PNAS, Bretscher 2011 Neuron, Carrillo 2013 J Neurosci
-- **文档**: docs/steps/step35_co2_bag.md
-
-### Step 36: DVA/PVD — 全身本体感觉
-
-- **DVA**: 单个无配对谷氨酸能中间神经元，TRP-4 TRPN 拉伸受体通道
-- **PVD L/R**: 谷氨酸能感觉神经元，树突铺满全身体壁，双模态 (harsh touch + 本体感觉)
-- **DVA 转导**: 全身平均|曲率| × 15pA gain → 调制 B 类运动神经元增益
-- **PVD 转导**: harsh touch (壁距<1mm, 60pA) + 后体曲率 (8pA gain)
-- **连接**: DVA→DB/VB (1 sec), DVA→AVA (0.5 sec), PVD→AVA (2 sec), PVD↔DVA (gap)
-- **修复**: PVD harsh touch 阈值 3→1mm, 电流 100→60pA (防止 arena 逃逸)
-- **结果**: regtest 17 pass; DVA S=0.327, PVDL S=0.169, omega/reversal 0.94, wave GOOD
-- **REF**: Li 2006 Nature, Way & Chalfie 1989, Yeon 2018 PLoS Biology
-- **文档**: docs/steps/step36_proprioception.md
-
-### Step 37: AVE 后退指令 — reversal 分级 + omega 门控
-
-- **问题**: omega/reversal=100% (AIB→RIV 基线太高, BAG+AWC 提升 AIB)
-- **方案**: 删除 AIB→RIV, 改为 AVE→RIV (只有强 reversal 时 AVE 激活才触发 omega)
-- **AVE 连接**: AIB→AVE (1 sec, 弱), ASH→AVE (2 sec), AVE→DA (1 sec), AVE→RIV (1 sec)
-- **AVA↔AVE gap**: 3 sections (紧密耦合, Kawano 2011)
-- **涌现**: 弱刺激→AVA only→短 reversal→不 omega; 强刺激→AVA+AVE→长 reversal→omega
-- **结果**: regtest 17 pass; omega/reversal 100%→85%, CI=-0.303, D/V ratio=1.00
-- **REF**: Chalfie 1985, Piggott 2011, Kawano 2011, Gray 2005
-- **文档**: docs/steps/step37_ave_omega_grading.md
-
-### Step 38: HSN/VC — 产卵系统
-
-- **HSN L/R**: 5-HT 能指令运动神经元，驱动阴门肌肉收缩
-- **VC4/VC5**: ACh 能运动神经元，正反馈促进产卵
-- **egg_pressure**: 缓慢累积 (tau=120s)，超过 0.7 阈值 → HSN burst → 产卵
-- **连接**: PLM⊣HSN (touch 抑制), VC→VB (减速), HSN↔VC (gap), HSN 为 5-HT 源
-- **tyramine 反馈**: TA→LGC-55→HSN 超极化 (终止 active state)
-- **修复**: wall_dist clamp 防止 arena 外 PVD 饱和
-- **结果**: regtest 17 pass; eggs=2, HSNL S=0.210, VC4 S=0.424, 5-HT sources 4→6
-- **REF**: Collins 2016 eLife, Waggoner 1998 Neuron, 2021 J Neurosci
-- **文档**: docs/steps/step38_egg_laying.md
-
-### Step 39: 运动神经元扩展 — 完整 B/A/D 覆盖
-
-- **扩展**: DB 3→7, VB 3→7, DA 3→5, VA 3→5, DD 3→5, VD 3→5, AS 5→7 (+18 神经元)
-- **连续覆盖**: B 类 7 单元 tile seg 4-42 无间隙 (之前 3 单元有大跳跃)
-- **突触扩展**: AVA→DA/VA 5个, AVB→DB/VB 7个, DD↔VD 5对, DD⊣AS, DB↔AS gap, DVA→DB/VB 7个, AVE→DA 5个
-- **本体感觉**: B 类 7 级顺序接力 (DB01→DB02→...→DB07), A 类 5 级同步
-- **结果**: regtest 17 pass (3 连续); muscle work 0.316→0.338, curv stability 2.0→0.6 Hz
-- **REF**: White 1986, Haspel 2010, Wen 2012, Gao & Zhen 2018
-- **文档**: docs/steps/step39_motor_expansion.md
-
-### Step 40: 稳定性审计 — 5-HT 稀释修复 + 参数校准
-
-- **5-HT 稀释 bug**: release_drive 分母从 total sources → active sources，5-HT 0.34→0.73
-- **diag CLI 覆盖 bug**: 硬编码默认值覆盖 header 默认值，参数修改对 diag 不可见
-- **pulse_amp**: 60→50 (omega ratio 对此不敏感，5-HT 修复是主因)
-- **regtest baselines**: SMDVL swing 55→45/65%, heading 10→5/60%, omega 3→1/200%
-- **10-seed 结果**: speed std=0.001, 5-HT std=0.003, omega=0.44±0.11, wave 8/8 GOOD
-- **清理**: 3 个旧 sweep 脚本 → 1 个通用 sweep.ps1
-- **文档**: docs/steps/step40_stability_audit.md
-
-### Step 41: 行为整合 — 后退运动 + 觅食状态调制 + Warmup
-
-- **后退运动**: pirouette reversal 覆盖 command neuron balance → `body_.set_locomotion_state(0,1)` 强制后退
-  - 后退速度 60% (Fang-Yen 2010), 曲率偏置仅限前进阶段 (Iino 2009)
-- **NSM/CEP 阈值修正**: half_max 0.1→0.5，防止食物远处 (10mm) 产生虚假 5-HT/DA 释放
-- **5-HT 释放阈值**: 0.3→0.5，防止 ADF 基线活性膨胀 off-food 5-HT
-- **速度调制增强**: 5-HT -40% (Sawin 2000), DA -30% (basal slowing), OA +35% (补偿)
-- **Weathervane 5-HT 调制**: off-food(5-HT≈0)→全额, on-food(5-HT≈0.7)→40% SMD fraction
-- **Omega 方向**: 体姿信号 (SMD 相位) + 梯度信号共同决定 omega L/R bias
-- **Warmup**: 50 步网络平衡后重置神经调质浓度，消除初始瞬态
-- **reset_transducers()**: 环境变化后重置化学感觉转导器
-
-### Step 42: Cook 2019 连接组校准 + 性能优化 + Fitness 框架
-
-- **连接组校准 (Cook 2019 EM)**: AVD→AVA 1→2, AIB→AVA 3/3→2/1, AIY→RIA 4→5
-- **AVE→RIV 删除**: Cook 2019 无此连接，此前导致 RIV tonic 激活破坏 omega
-- **RIA↔RIV 负反馈环路**: RIA→RIV(ACh兴奋) + RIV→RIA(GABA抑制) + RIV↔RIV gap(4)
-  - 自限制振荡: RIA 兴奋 RIV → RIV 抑制 RIA → 周期性，TA 深度抑制后 rebound = omega
-- **参数**: pulse_amp 50, as_factor 1.7 (环路补偿)
-- **性能优化**: 缓存 awc_pref(消除 3 亿次/300s 字符串操作), 缓存 10 个 neuron ID(消除 1080 万次哈希查找), 缓存 6 个 typed 指针(消除 360 万次 dynamic_cast), 预索引 AWC/ASER 学习突触
-- **Fitness 框架**: `--fitness` CLI, SimMetrics 结构体, 4 seeds × 3 scenarios 自动评估
-  - f = 10·CI - 5·max(0,CI_toxic) - 3·|ω-0.65| - 3·|DV-1| - 2·|spd-0.18| + 2·near_food
-- **regtest**: 17 pass, 0 FAIL
-- **文档**: docs/steps/step42_connectome_calibration.md
-
-### Step 43: 病原体回避 — AWB/ADF/AIZ 回路重构 ✅ (2026-02-11)
-> 详细文档: [steps/step43_pathogen_avoidance.md](steps/step43_pathogen_avoidance.md)
-
-- **AWB 排斥嗅觉**: AWB↔AUA gap junction 驱动 AUA→AVA 后退 (Filipowicz 2022 BMC Biology)
-- **ADF 病原体信号**: sickness-dependent MOD-1 → AIY/AIZ 抑制 (直接电流注入，非突触)
-- **ADF 5-HT 源移除**: ADF 基线释放膨胀 off-food 5-HT，生物学上 ADF 5-HT 需要 TPH-1 上调 (Zhang 2005)
-- **TA→SER-2→AIY**: RIM tyramine 通过 SER-2 GPCR 抑制 AIY (Jin & Bargmann 2016 Cell)
-- **5-HT→AIY 校准**: -5.0→-2.5 pA (补偿 ADF→AIY 突触删除后的净效应)
-- **文档**: docs/steps/step43_pathogen_avoidance.md
-
-### Step 44: Off-Food 搜索行为 — Reversal Rate 调制 ✅ (2026-02-11)
-> 详细文档: [steps/step44_off_food_search.md](steps/step44_off_food_search.md)
-
-- **根因**: `reversal_rate_scale_` 死代码 — 已计算但从未被 pirouette 触发代码使用
-- **5-HT → REVERSAL_RATE**: 新增 -0.50 target，on-food 36% 抑制 (dwelling), off-food 无抑制
-- **基础 pirouette 参数提高**: r_min 0.01→0.03, r_max 0.16→0.25 (off-food 目标 6/min)
-- **ARS pirouette bonus**: food_memory → +0.08/s 最大 (离开食物后 local search)
-- **speed_scale clamp**: [0.1, 3.0] 防止极端值
-- **CLI 修复**: --no_toxin/--no-toxin 双支持
-- **结果**: reversal_rate 0.04→0.10/s, CI 0.131→0.685, time_near_food 0%→52%
-- **REF**: Gray 2005 PNAS, Campbell 2016 PLOS Genetics, Hills 2004 J Neurosci, Flavell 2013 Cell
-- **regtest**: 17 pass, 0 FAIL
-- **文档**: docs/steps/step44_off_food_search.md
-
-### Step 45: NLP-12 + NSM 肠道感觉 + 5-HT 阈值修复 ✅ (2026-02-11)
-> 详细文档: [steps/step45_nlp12_foraging.md](steps/step45_nlp12_foraging.md)
-
-- **NLP-12 神经肽**: DVA→NLP-12 (CCK 同源物), tau_rise=3s, tau_decay=15s, threshold=0.5
-- **CKR-1→SMD**: +5pA×4 (ARS 主通路), **CKR-2→AVA**: +2pA×2 (辅助通路)
-- **DA→DOP-1→DVA**: +4pA 多巴胺预激活 (Bhattacharya 2014)
-- **双通路 ARS**: 快速 DARPP-32→AVA +1.5pA + 慢速 NLP-12→CKR-1→SMD
-- **NLP-12 targets=0 bug**: setup_neuromodulation() 在 cache_neuron_ids() 前调用 → 用 get_neuron_id() 修复
-- **NSM 肠道感觉**: food_density→pump_rate_hz (Randi 2018 Cell: ASIC DEL-7/DEL-3 检测泵食)
-- **5-HT threshold**: 0.5→0.3 (ADF 在 Step 43 已移除, 高阈值失去理由; NSM mean S=0.45<0.5 → drive=0)
-- **删除**: 无证据 CKR-2→AVB 抑制靶点, NSM chemo_mappings_ 条目
-- **移除 satiety→NSM -15pA**: NSM 不受 satiety 影响 (Randi 2018); roaming 通过 RIC→OA (已有)
-- **结果**: CI=0.44-0.91, 5-HT 0.18→**0.53** (3倍↑), NLP-12 targets 0→**6**
-- **REF**: Ramachandran 2021 eLife, Randi 2018 Cell, Flavell 2013/2023 Cell, You 2008 Cell
-- **regtest**: 17 pass, 0 FAIL
-
-### Step 46: PDF-1 — Roaming 神经肽 (5-HT/PDF 双稳态开关) ✅ (2026-02-11)
-> 详细文档: [steps/step46_pdf_roaming.md](steps/step46_pdf_roaming.md)
-
-- **PDF-1 神经肽**: roaming/dwelling 双稳态开关的"另一半" (Flavell 2013 Cell)
-- **源神经元**: AVB (前进命令) + RIA (头部转向) — roaming 时活跃 → PDF 积累
-- **PDFR-1**: Gαs→cAMP; tau_rise=5s, tau_decay=20s (神经肽，缓慢)
-- **靶点**: SPEED_SCALE +25%, REVERSAL_RATE +30%, AIY +3pA (促进 roaming)
-- **对抗 5-HT**: PDF speed +25% vs 5-HT -40%; PDF reversal +30% vs 5-HT -50%
-- **regtest baseline**: SMDDL I_syn 20→32 pA (PDF→AIY→RIA→SMD 传导)
-- **结果**: CI=0.72-0.92 (更稳定), 5-HT=0.54, PDF=0.20, near_food=3-9%
-- **REF**: Flavell 2013 Cell, Barrios 2012 Nat Neurosci, Janssen 2009
-- **regtest**: 17 pass, 0 FAIL
-
-### Step 47: Food Dwelling — Head Poke Reversal + Basal Slowing ✅ (2026-02-11)
-> 详细文档: [steps/step47_food_edge_reversal.md](steps/step47_food_edge_reversal.md)
-
-- **Head poke reversal**: 头部从食物→非食物 (0.4→0.3) → 状态依赖反转 p=0.50+0.30×5HT-0.30×PDF
-- **Basal slowing**: on_lawn sigmoid 直接乘 effective_speed (25% on-food 减速, instant)
-- **架构发现**: DA 通过 DOP-3 extrasynaptic volume transmission (Chase 2004), 不经 CEP 突触回路
-- **CEP→OLQ 级联**: 40pA CEP 驱动 → gap junction → OLQ→RMD/RIC 级联破坏趋化 (已修复)
-- **DA SPEED_SCALE 双重计算**: neuromod DA -0.30 (tau_decay=5s) + instant basal_slow → 移除前者
-- **CEP 配置**: 恢复 chemo_mappings modest drive (gain=20), 仅用于 DVA/DOP-1/NLP-12 priming
-- **结果**: CI=0.57-0.90 (mean 0.67), 5-HT=0.53, speed=0.15-0.16 (基线 0.17)
-- **REF**: Flavell 2024 eLife, Sawin 2000 Neuron, Chase 2004 Nature Neurosci
-- **regtest**: 17 pass, 0 FAIL
-
-### Step 48: Foraging Cycle Closure — PDF⊣NSM Mutual Inhibition ✅ (2026-02-11)
-> 详细文档: [steps/step48_foraging_cycle.md](steps/step48_foraging_cycle.md)
-
-- **PDF→NSM 抑制** (-25pA): PDFR-1 网络抑制 NSM，完成 roaming/dwelling 双稳态互抑制
-- **文献证据**: Flavell 2020 eLife — "PDF receptor-expressing neurons inhibit NSM", "necessary and sufficient"
-- **5-HT→RIC 抑制降低** (-8→-4pA): 允许 RIC 在饱食时激活 → OA/PDF 更快上升
-- **正反馈环**: PDF↑ → NSM↓ → 5-HT↓ → RIC释放 → OA↑ → AVB↑ → PDF↑↑
-- **结果**: CI=0.21-0.93 (mean 0.59), OA=0.24-0.40↑, 5-HT=0.47-0.52, near_food=~33% (之前报告6-9%为regex bug)
-- **REF**: Flavell 2020 eLife (Ji et al.), Flavell 2013 Cell, Chase & Koelle 2007
-- **regtest**: 17 pass, 0 FAIL
-
-### Step 49: 5-HT 通路完善 — 受体多样性闭环 ✅ (2026-02-11)
-> 详细文档: [steps/step49_5ht_pathway.md](steps/step49_5ht_pathway.md)
-
-- **SER-1 → RIA** (+3pA 兴奋性 Gαq): 头部转向调制，增强 dwelling 时 klinotaxis 导航
-- **SER-1 → RIC** (+2pA 兴奋性 Gαq): 与 SER-4 推拉 (net -2pA)，防止 OA 完全关闭
-- **MOD-1 → AIZ** (-3pA 抑制性 Cl⁻): 抑制 dwelling 时不必要的热探索
-- **SER-5 → ASH** (+4pA 兴奋性): 进食时增敏伤害感觉，维持化学警戒
-- **SPEED_SCALE 标签修正**: SER-7→SER-4 (SER-7 是咽部专用, Dag & Flavell 2023)
-- **LGC-50 → RIA** (SYNAPSE_GAIN +0.15): 阳离子通道，突触可塑性增益 (Morud 2021)
-- **5-HT 靶标**: 8→18 (覆盖 5/6 种已知受体: MOD-1, SER-4, SER-1, SER-5, LGC-50; SER-7已在咽部实现)
-- **结果**: CI=0.51-0.85 (mean 0.70↑), near_food=33%, 5-HT=0.50-0.52
-- **REF**: Dag & Flavell 2023 Cell, Dernovici 2007, Harris 2009, Ranganathan 2000
-- **regtest**: 17 pass, 0 FAIL
+- **本组关键**: NLP-12+PDF双调质 + 5-HT受体多样性 + PDF⊣NSM互抑制 → 觅食循环完整闭环
 
 ### Step 50: 重构 — 拆分 simulation_engine.cpp ✅ (2026-02-11)
 > 详细文档: [steps/step50_refactor_split_engine.md](steps/step50_refactor_split_engine.md)
