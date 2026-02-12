@@ -151,7 +151,7 @@ int main(int argc, char* argv[]) {
     bool cli_light = false;
     double cli_light_x = 25.0, cli_light_y = 25.0, cli_light_intensity = 1.0;
     bool cli_fitness = false;
-    int cli_nseeds = 4;
+    int cli_nseeds = 1;
     int cli_jobs = std::min(8, (int)std::thread::hardware_concurrency());
     unsigned int cli_seed = 123;
     double cli_sleep_after_learn = 0.0;  // Step 62: forced sleep after learning (seconds)
