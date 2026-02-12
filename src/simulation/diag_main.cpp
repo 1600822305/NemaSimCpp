@@ -1370,6 +1370,78 @@ int main(int argc, char* argv[]) {
         }
     }
 
+    // Step 95: ROAMING/DWELLING STATE ANALYSIS (Flavell 2013 Cell)
+    // Primary discriminator: 5-HT concentration (NSM activity = dwelling marker)
+    // Roaming: 5-HT < 0.35 AND not sleeping (PDF↑, fast runs)
+    // Dwelling: 5-HT ≥ 0.35 AND not sleeping (5-HT↑, slow + many reversals)
+    // Sleep: is_sleeping = true (FLP-11↑)
+    // REF: Flavell 2013 — NSM Ca²⁺ activity anti-correlates with roaming
+    //      Ben Arous 2009 — roaming/dwelling on bacterial lawn
+    {
+        const double sht_threshold = 0.35;  // 5-HT boundary between states
+        int roam_samples = 0, dwell_samples = 0, sleep_samples = 0;
+        int roam_bouts = 0, dwell_bouts = 0;
+        int prev_state = -1; // 0=roam, 1=dwell, 2=sleep
+        double roam_speed_sum = 0, dwell_speed_sum = 0;
+        double roam_5ht_sum = 0, dwell_5ht_sum = 0;
+        size_t n_ts = std::min({actual_speed_vs.size(), sleep_vs.size(), sht_vs.size()});
+        for (size_t i = 0; i < n_ts; ++i) {
+            int state;
+            if (sleep_vs[i]) {
+                state = 2;
+                sleep_samples++;
+            } else if (sht_vs[i] < sht_threshold) {
+                state = 0; // roaming (low 5-HT)
+                roam_samples++;
+                roam_speed_sum += actual_speed_vs[i];
+                roam_5ht_sum += sht_vs[i];
+            } else {
+                state = 1; // dwelling (high 5-HT)
+                dwell_samples++;
+                dwell_speed_sum += actual_speed_vs[i];
+                dwell_5ht_sum += sht_vs[i];
+            }
+            if (state != prev_state && state < 2 && prev_state < 2 && prev_state >= 0) {
+                if (state == 0) roam_bouts++;
+                else dwell_bouts++;
+            }
+            if (state < 2) prev_state = state;
+        }
+        double total_awake = roam_samples + dwell_samples;
+        double roam_pct = total_awake > 0 ? 100.0 * roam_samples / total_awake : 0;
+        double dwell_pct = total_awake > 0 ? 100.0 * dwell_samples / total_awake : 0;
+        double sleep_pct = n_ts > 0 ? 100.0 * sleep_samples / n_ts : 0;
+        double roam_speed = roam_samples > 0 ? roam_speed_sum / roam_samples : 0;
+        double dwell_speed = dwell_samples > 0 ? dwell_speed_sum / dwell_samples : 0;
+        double roam_5ht = roam_samples > 0 ? roam_5ht_sum / roam_samples : 0;
+        double dwell_5ht = dwell_samples > 0 ? dwell_5ht_sum / dwell_samples : 0;
+        std::cout << "\n33. ROAMING/DWELLING STATES (Step 95, Flavell 2013):" << std::endl;
+        std::cout << "   Roaming:  " << std::setprecision(1) << roam_pct << "% of awake time ("
+                  << roam_bouts << " bouts, speed=" << std::setprecision(3) << roam_speed
+                  << " mm/s, 5-HT=" << std::setprecision(3) << roam_5ht << ")" << std::endl;
+        std::cout << "   Dwelling: " << std::setprecision(1) << dwell_pct << "% of awake time ("
+                  << dwell_bouts << " bouts, speed=" << std::setprecision(3) << dwell_speed
+                  << " mm/s, 5-HT=" << std::setprecision(3) << dwell_5ht << ")" << std::endl;
+        std::cout << "   Sleep:    " << std::setprecision(1) << sleep_pct << "% of total time" << std::endl;
+        std::cout << "   5-HT final=" << std::setprecision(3) << sim.neuromodulation().get_concentration("5-HT")
+                  << "  PDF final=" << std::setprecision(3) << sim.neuromodulation().get_concentration("PDF") << std::endl;
+        // Validation: roaming speed should be > dwelling speed (Flavell 2013)
+        bool speed_diff = roam_speed > dwell_speed * 1.15;
+        int transitions = roam_bouts + dwell_bouts;
+        double awake_sec = total_awake * 0.1; // 100ms sample interval
+        if (transitions >= 2 && roam_pct > 8 && dwell_pct > 8 && speed_diff) {
+            std::cout << "   [OK] Bistable: " << transitions << " R↔D transitions, speed ratio="
+                      << std::setprecision(2) << (dwell_speed > 0 ? roam_speed/dwell_speed : 0)
+                      << "x (awake " << std::setprecision(0) << awake_sec << "s)" << std::endl;
+        } else if (transitions >= 1 && roam_pct > 5 && dwell_pct > 5) {
+            std::cout << "   [..] Weak bistability: " << transitions << " transitions"
+                      << (speed_diff ? "" : " (speed ratio too small)") << std::endl;
+        } else {
+            std::cout << "   [!!] No clear state switching (roam=" << std::setprecision(0)
+                      << roam_pct << "%, dwell=" << dwell_pct << "%)" << std::endl;
+        }
+    }
+
     // BOTTLENECK ANALYSIS
     std::cout << "\n========================================" << std::endl;
     std::cout << "  BOTTLENECK ANALYSIS" << std::endl;

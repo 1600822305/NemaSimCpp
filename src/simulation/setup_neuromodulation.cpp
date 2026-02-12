@@ -118,7 +118,7 @@ void SimulationEngine::setup_neuromodulation() {
         // REF: Sawin 2000 — serotonin reduces locomotion speed
         //      Dag & Flavell 2023 Cell Fig 2 — SER-4 core slowing receptor
         serotonin.targets.push_back(
-            {-1, "SER-4", ModulationEffect::SPEED_SCALE, -0.40}); // behavioral state: dwelling generally slower (stacks with instant food-contact slowing)
+            {-1, "SER-4", ModulationEffect::SPEED_SCALE, -0.60}); // Step 95: -0.40→-0.60 (Flavell 2013: dwelling speed ~50% of roaming)
 
         // Target: RIC inhibition (cross-inhibit OA source during dwelling)
         // 5-HT → SER-4 on RIC → inhibit → no OA during active dwelling

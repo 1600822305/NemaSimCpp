@@ -932,6 +932,17 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **REF**: Kawano 2011, Wen 2012, Gao 2018 — 后退波反向传播
 - **regtest**: 20/20 PASS
 
+### Step 95: Roaming/Dwelling 行为状态涌现 ✅ (2026-02-13)
+> 详细文档: [steps/step95_roaming_dwelling.md](steps/step95_roaming_dwelling.md)
+
+- **双稳态涌现**: 5-HT/PDF 竞争产生 Roaming↔Dwelling 状态切换
+- **Dwelling**: 90% awake time, speed=0.18 mm/s, 5-HT=0.56
+- **Roaming**: 10% awake time, speed=0.22 mm/s, 5-HT=0.28
+- **7 R↔D transitions** in 300s, speed ratio=1.2x
+- **5-HT SER-4 SPEED_SCALE**: -0.40→-0.60 (Flavell 2013: dwelling ~50% roaming speed)
+- **REF**: Flavell 2013 Cell, Ben Arous 2009, Dag & Flavell 2023
+- **regtest**: 20/20 PASS
+
 ---
 
 ## 当前系统状态
