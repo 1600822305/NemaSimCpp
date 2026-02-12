@@ -1031,6 +1031,34 @@ int main(int argc, char* argv[]) {
     std::cout << "   reversal_rate: " << std::setprecision(2) << reversal_count / (duration/1000.0) << " /s ("
               << reversal_count << " total, target ~0.1/s)" << std::endl;
 
+    // Step 97: O₂ SPATIAL DISTRIBUTION (Gray 2004, Chang 2006, Cheung 2005)
+    // Gaussian food model: O₂ = 21% - 13% × food_density
+    // Center (<5mm): O₂ ≈ 8-12%, border (5-12mm): 12-18%, open (>12mm): 18-21%
+    // NOTE: "bordering" requires flat lawn; gaussian model shows O₂-modulated exploration
+    // Key difference: Hawaiian (npr-1 lf, RMG active) shows more open-field exploration
+    //   due to RMG→AVA reversal drive, while N2 stays near food via chemotaxis
+    {
+        int center_n = 0, border_n = 0, open_n = 0;
+        double center_r = 5.0, border_r = 12.0;
+        for (double d : dists) {
+            if (d < center_r) center_n++;
+            else if (d < border_r) border_n++;
+            else open_n++;
+        }
+        int tot = (int)dists.size();
+        double center_pct = tot > 0 ? 100.0 * center_n / tot : 0;
+        double border_pct = tot > 0 ? 100.0 * border_n / tot : 0;
+        double open_pct   = tot > 0 ? 100.0 * open_n / tot : 0;
+        std::cout << "\n35. O2 SPATIAL DISTRIBUTION (Step 97, Chang 2006):" << std::endl;
+        std::cout << "   Lawn center (<" << center_r << "mm): "
+                  << std::setprecision(1) << center_pct << "%" << std::endl;
+        std::cout << "   Lawn border (" << center_r << "-" << border_r << "mm): "
+                  << std::setprecision(1) << border_pct << "%" << std::endl;
+        std::cout << "   Open field (>" << border_r << "mm): "
+                  << std::setprecision(1) << open_pct << "%" << std::endl;
+        std::cout << "   (Compare --npr1 0 for Hawaiian: expect more open-field time)" << std::endl;
+    }
+
     // Step 19b: Intermediate neuron diagnostic — pirouette pathway
     std::cout << "\n11. PIROUETTE SIGNAL CHAIN:" << std::endl;
     std::cout << "   AWC (OFF): L=" << std::setprecision(2) << mean(awcl_vs)

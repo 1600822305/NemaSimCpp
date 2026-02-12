@@ -955,6 +955,16 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **REF**: Macosko 2009 Nature, de Bono 2002, Hall & Bhatt 2017 Dev Neurobiol
 - **regtest**: 20/20 PASS (214 neurons, 185 gj)
 
+### Step 97: O₂ 偏好 / 空间分布诊断 ✅ (2026-02-13)
+> 详细文档: [steps/step97_o2_preference.md](steps/step97_o2_preference.md)
+
+- **O₂ 空间分布诊断**: Section 35, 分 3 区域 (center/border/open)
+- **N2 vs Hawaiian 对比** (seed=42): Hawaiian open field 30% vs N2 8% (3.75x)
+- **URX 活性差异**: Hawaiian S=0.086 vs N2 S=0.055 (+56%)
+- **注意**: 高斯食物模型中 OAI 被趋化性混淆，raw zone percentages 更可靠
+- **REF**: Chang 2006 PLoS Biology, Gray 2004 Nature, Cheung 2005
+- **regtest**: 20/20 PASS
+
 ---
 
 ## 当前系统状态
