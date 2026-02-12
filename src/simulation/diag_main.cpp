@@ -512,6 +512,8 @@ int main(int argc, char* argv[]) {
     int pvm_id   = conn.get_neuron_id("PVM");      // Step 106: posterior touch
     int sdqr_id  = conn.get_neuron_id("SDQR");    // Step 106: body-side O2
     int ala_id   = conn.get_neuron_id("ALA");      // Step 106: stress sleep
+    int urbl_id  = conn.get_neuron_id("URBL");     // Step 107: URB inner labial inter
+    int urydl_id = conn.get_neuron_id("URYDL");    // Step 107: URY inner labial sensory
 
     // Accumulators
     std::vector<double> grad_mags, grad_normals, biases;
@@ -555,6 +557,7 @@ int main(int argc, char* argv[]) {
     // Step 102-106: new neuron voltage accumulators
     std::vector<double> siadl_v_vs, sibdl_v_vs, saadl_v_vs, smbdl_v_vs;
     std::vector<double> uradl_v_vs, pvm_v_vs, sdqr_v_vs, ala_v_vs;
+    std::vector<double> urbl_v_vs, urydl_v_vs;
     // Step 78: Tap habituation tracking
     int prev_tap_count = 0;          // track tap count changes
     double tap_onset_time = -1.0;    // when current tap started
@@ -860,6 +863,8 @@ int main(int argc, char* argv[]) {
             pvm_v_vs.push_back(getV(pvm_id));
             sdqr_v_vs.push_back(getV(sdqr_id));
             ala_v_vs.push_back(getV(ala_id));
+            urbl_v_vs.push_back(getV(urbl_id));
+            urydl_v_vs.push_back(getV(urydl_id));
 
             // Store
             grad_mags.push_back(grad_mag);
@@ -1739,6 +1744,12 @@ int main(int argc, char* argv[]) {
                   << " mV  S(release)=" << std::setprecision(3) << release(mean(sdqr_v_vs)) << std::endl;
         std::cout << "     ALA:   V mean=" << std::setprecision(1) << mean(ala_v_vs)
                   << " mV  S(release)=" << std::setprecision(3) << release(mean(ala_v_vs)) << std::endl;
+        // Inner labial circuit (Step 107)
+        std::cout << "   Inner labial circuit (Step 107):" << std::endl;
+        std::cout << "     URBL:  V mean=" << std::setprecision(1) << mean(urbl_v_vs)
+                  << " mV  S(release)=" << std::setprecision(3) << release(mean(urbl_v_vs)) << std::endl;
+        std::cout << "     URYDL: V mean=" << std::setprecision(1) << mean(urydl_v_vs)
+                  << " mV  S(release)=" << std::setprecision(3) << release(mean(urydl_v_vs)) << std::endl;
         // Check for dead neurons (resting at -65mV with no input)
         auto check_alive = [](const std::string& name, double v_mean) {
             if (v_mean < -60.0) {
@@ -1756,6 +1767,8 @@ int main(int argc, char* argv[]) {
         all_alive &= check_alive("PVM", mean(pvm_v_vs));
         all_alive &= check_alive("SDQR", mean(sdqr_v_vs));
         all_alive &= check_alive("ALA", mean(ala_v_vs));
+        all_alive &= check_alive("URBL", mean(urbl_v_vs));
+        all_alive &= check_alive("URYDL", mean(urydl_v_vs));
         if (all_alive) {
             std::cout << "   [OK] All new neurons receiving input (V > -60 mV)" << std::endl;
         }

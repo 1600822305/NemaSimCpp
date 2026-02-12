@@ -288,6 +288,25 @@ void build_neurons(CB& b) {
     b.neuron("URAVL", NT::MOTOR, NTT::ACETYLCHOLINE);
     b.neuron("URAVR", NT::MOTOR, NTT::ACETYLCHOLINE);
 
+    // Step 107: URB — inner labial interneuron (L/R pair)
+    // Community 2 (Foraging): same module as IL1/IL2/URA
+    // "UR" = "unknown receptor" — dendritic extensions towards nose (J. White)
+    // Interneuron relay: IL1/RIB → URB → RMD/RIA (head motor coordination)
+    // REF: White 1986, Emmons 2024 (PMC10983851)
+    b.neuron("URBL", NT::INTER, NTT::GLUTAMATE);
+    b.neuron("URBR", NT::INTER, NTT::GLUTAMATE);
+
+    // Step 107: URY — inner labial sensory neurons (4 quadrant)
+    // Community 4: with CEP/RMD/SMD (head motor/mechanosensory module)
+    // "UR" = "unknown receptor" — dendritic extensions towards nose
+    // Sensory endings detect nose environment; outputs to RIB/RMD/SMD
+    // Connected to CEP (dopaminergic) → possible food/texture sensing role
+    // REF: White 1986, Emmons 2024 (PMC10983851)
+    b.neuron("URYDL", NT::SENSORY, NTT::GLUTAMATE);
+    b.neuron("URYDR", NT::SENSORY, NTT::GLUTAMATE);
+    b.neuron("URYVL", NT::SENSORY, NTT::GLUTAMATE);
+    b.neuron("URYVR", NT::SENSORY, NTT::GLUTAMATE);
+
     // --- Interneurons ---
     b.neuron("AIAL", NT::INTER, NTT::ACETYLCHOLINE);
     b.neuron("AIAR", NT::INTER, NTT::ACETYLCHOLINE);
@@ -1076,6 +1095,30 @@ void build_head_motor(CB& b) {
     // URA→RMD: coordinate head muscle contraction (nose positioning)
     b.syn("URADL", "RMDDL", 1); b.syn("URADR", "RMDDR", 1);
     b.syn("URAVL", "RMDVL", 1); b.syn("URAVR", "RMDVR", 1);
+
+    // Step 107: URB — inner labial interneuron relay (Community 2)
+    // IL1→URB: nose touch → interneuron relay (parallel to IL1→URA motor path)
+    b.syn("IL1DL", "URBL", 1); b.syn("IL1DR", "URBR", 1);
+    b.syn("IL1VL", "URBL", 1); b.syn("IL1VR", "URBR", 1);
+    // RIB→URB: foraging circuit input (RIB is Community 2 hub)
+    b.syn("RIBL", "URBL", 1); b.syn("RIBR", "URBR", 1);
+    // URB→RIA: head motor modulation (navigation)
+    b.syn("URBL", "RIAL", 1); b.syn("URBR", "RIAR", 1);
+    // URB→RMD: head withdrawal coordination
+    b.syn("URBL", "RMDDL", 1); b.syn("URBR", "RMDDR", 1);
+    // URB↔URA: gap junction — coordinate inner labial motor/interneuron
+    b.gj("URBL", "URADL", 1); b.gj("URBR", "URADR", 1);
+
+    // Step 107: URY — inner labial sensory (Community 4)
+    // URY→RIB: nose sensory → foraging interneuron
+    b.syn("URYDL", "RIBL", 1); b.syn("URYDR", "RIBR", 1);
+    b.syn("URYVL", "RIBL", 1); b.syn("URYVR", "RIBR", 1);
+    // URY→RMD: direct nose sensory → head motor (ipsilateral)
+    b.syn("URYDL", "RMDDL", 1); b.syn("URYDR", "RMDDR", 1);
+    b.syn("URYVL", "RMDVL", 1); b.syn("URYVR", "RMDVR", 1);
+    // URY↔CEP: gap junction — nose mechanosensory coordination (Community 4)
+    b.gj("URYDL", "CEPDL", 1); b.gj("URYDR", "CEPDR", 1);
+    b.gj("URYVL", "CEPVL", 1); b.gj("URYVR", "CEPVR", 1);
 
     // Step 60: Dopaminergic mechanosensory circuit (ADE + PDE)
     // ADE → RIC: DA from head deirid → octopaminergic interneuron
