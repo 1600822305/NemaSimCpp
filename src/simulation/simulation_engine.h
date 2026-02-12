@@ -41,9 +41,9 @@ public:
         float synapse_scale   = 1.0f;    // global synapse weight multiplier
         float speed_scale     = 2.0f;    // Keep at 2.0 for off-food chemotaxis; 5-HT=-0.80 handles on-food slowing
         float sensory_gain    = 1.0f;    // chemosensory transducer gain multiplier
-        float bias_clamp      = 12.0f;   // Step 85: 5→12 pA. 5pA was hitting clamp → CI=0.25. 12pA allows steering.
+        float bias_clamp      = 30.0f;   // Step 93: 12→30 pA. 20pA still saturating. 30pA allows full steering + aversion range.
         // Step 32: Runtime-tunable parameters (avoid recompile for parameter sweeps)
-        float as_factor       = 1.7f;    // AS dorsal resistance factor (Step 42C: 2.0→1.7, RIA↔RIV feedback loop)
+        float as_factor       = 2.8f;    // AS dorsal resistance factor (Step 93: 1.7→2.8, DD/VD cross-inhibition lowered dorsal tone → 96% omega)
         float pulse_amp       = 50.0f;   // RIV post-reversal pulse amplitude (Step 42C: 80→50, RIA↔RIV provides base drive)
         float omega_threshold = 0.5f;    // RIV release threshold for omega mode
         float riv_tonic       = 1.0f;    // RIV baseline tonic drive (pA)
@@ -305,8 +305,8 @@ private:
     double sickness_tau_rise_ = 30000.0; // ms, slow accumulation while eating toxin (~30s)
     double sickness_tau_decay_ = 600000.0; // ms, very slow recovery (~10min, persistent memory)
     double awb_pathogen_gain_ = 25.0;    // pA, AWB drive from pathogen odor × sickness
-    double mod1_aiy_gain_ = -12.0;       // pA, ADF sickness 5-HT → MOD-1 ⊣ AIY (max at sickness=1)
-    double mod1_aiz_gain_ = -6.0;        // pA, ADF sickness 5-HT → MOD-1 ⊣ AIZ (half of AIY)
+    double mod1_aiy_gain_ = -20.0;       // pA, ADF sickness 5-HT → MOD-1 ⊣ AIY (Step 93: -12→-20, stronger suppression)
+    double mod1_aiz_gain_ = -10.0;       // pA, ADF sickness 5-HT → MOD-1 ⊣ AIZ (Step 93: -6→-10)
     void update_sickness();              // accumulate sickness from toxic food intake
     void update_pathogen_learning();     // AWC→AIY w_mod↓, AWC→AIB w_mod↑
 

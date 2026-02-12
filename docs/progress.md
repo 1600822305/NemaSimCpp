@@ -912,6 +912,17 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **setup_gpu_stp.cpp**: STP 参数 + GPU 后端 3 函数
 - 纯工程重构，零逻辑变更，编译零错误
 
+### Step 93: 行为调优 — Omega比例/病原体回避/偏置钳位 ✅ (2026-02-13)
+> 详细文档: [steps/step93_behavior_tuning.md](steps/step93_behavior_tuning.md)
+
+- **omega/reversal 96%→57%**: as_factor 1.7→2.8 (DD/VD交叉抑制压低dorsal tone后补偿)
+- **病原体回避生效**: CI从+0.35→-0.01 (sickness=1时)
+  - klinokinesis极性翻转: 食物梯度强→高pirouette→逃离 (Zhang 2005, Ha 2010)
+  - MOD-1抑制增强: AIY -12→-20pA, AIZ -6→-10pA
+- **bias_clamp 12→30pA**: 消除weathervane饱和
+- **AS01 seg 2-6→4-8**: 避免head区域背侧偏置
+- **regtest**: 20/20 PASS
+
 ---
 
 ## 当前系统状态
@@ -951,7 +962,7 @@ P0/P1 违规全部修复:
   P1-1.5: set_locomotion_state 覆盖移除 → 完全神经回路驱动 (Step 66)
   P0-5: DMP speed_factor 移除 → AVL/DVB GABA→B-class MN 涌现减速 (Step 71)
   P0-6: FLP-11 直接注入移除 → NeuromodulationManager DMSR-1 框架 (Step 71)
-行为指标 (4-seed, 300s): CI≈0.46 (全4种子正), near_food≈10%, reversal_rate≈0.16/s, speed≈0.21mm/s
+行为指标 (300s): CI≈0.44 (naive), CI≈-0.01 (sickness=1, 病原体回避生效), omega/reversal≈57%, reversal_rate≈0.14/s, speed≈0.15mm/s
 工具: celegans_diag.exe (信号链诊断+fitness) + celegans_regtest.exe (回归检测+电流溯源)
 
 运动驱动 (Step 13 — 生物学机制):

@@ -103,7 +103,7 @@ void MotorController::initialize(const std::unordered_map<std::string, int>& nam
     // AS provides tonic dorsal bias; active during both fwd and bwd locomotion
     // ~3-4 segments each for finer dorsal control
     // REF: White 1986, Haspel 2010, Tolstenkov 2018 eLife
-    add_mapping(name_to_id, "AS01", 2, 6, true);    // head-neck transition
+    add_mapping(name_to_id, "AS01", 4, 8, true);    // Step 93: 2→4 start, avoid head seg 0-3 (SMD domain → D/V symmetry)
     add_mapping(name_to_id, "AS02", 6, 10, true);   // anterior body
     add_mapping(name_to_id, "AS03", 10, 14, true);  // anterior-mid
     add_mapping(name_to_id, "AS04", 14, 18, true);  // mid-anterior

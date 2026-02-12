@@ -160,10 +160,27 @@ void SimulationEngine::apply_gradient_klinokinesis() {
     Vector2d grad = environment_.chemical_field().gradient(head_pos);
     double grad_mag = std::sqrt(grad.x * grad.x + grad.y * grad.y);
 
-    double no_signal_factor = fast_exp(-grad_mag / 0.002);
+    // Step 93: Pathogen learning flips klinokinesis polarity
+    // Naive (awc_pref>0): no gradient → high pirouette → local search (Calhoun 2014)
+    // Sick  (awc_pref<0): ON gradient → high pirouette → escape food zone
+    // REF: Zhang 2005 Nature — learned aversion reverses chemotaxis strategy
+    //      Ha 2010 Neuron — AWC→AIB pathway mediates aversive pirouettes
+    double pref = awc_pref_cached_;
+    double kk_current = 0.0;
+    if (pref >= 0.0) {
+        // Naive: weak/no gradient → excite AVA → more pirouettes (explore)
+        double no_signal_factor = fast_exp(-grad_mag / 0.002);
+        kk_current = 1.0 * no_signal_factor;
+    } else {
+        // Sick: strong gradient (near food) → excite AVA → pirouettes to escape
+        // Inverted: grad_mag high → kk_current high (opposite of naive)
+        // Step 93: 2→5 pA base, stronger escape drive near food
+        // REF: Ha 2010 — AWC→AIB aversive pirouettes are vigorous
+        double on_signal_factor = 1.0 - fast_exp(-grad_mag / 0.002);
+        kk_current = 5.0 * on_signal_factor * (-pref);  // scale by aversion strength
+    }
 
     int n = static_cast<int>(neurons_.size());
-    double kk_current = 1.0 * no_signal_factor;
     if (nid("AVAL") >= 0 && nid("AVAL") < n) neurons_[nid("AVAL")]->add_synaptic_current(kk_current);
     if (nid("AVAR") >= 0 && nid("AVAR") < n) neurons_[nid("AVAR")]->add_synaptic_current(kk_current);
 }
