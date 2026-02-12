@@ -99,16 +99,21 @@ void MotorController::initialize(const std::unordered_map<std::string, int>& nam
     add_mapping(name_to_id, "SMDVL", 0, 4, false);
     add_mapping(name_to_id, "SMDVR", 0, 4, false);
 
-    // Step 32/39: AS motor neurons — dorsal-only body wall projection
-    // AS provides tonic dorsal bias; RIV must overcome this for omega turns
-    // REF: White 1986 (anatomy), Haspel 2010 (dorsal projection)
+    // Step 88: AS motor neurons expanded 7→11 (complete complement)
+    // AS provides tonic dorsal bias; active during both fwd and bwd locomotion
+    // ~3-4 segments each for finer dorsal control
+    // REF: White 1986, Haspel 2010, Tolstenkov 2018 eLife
     add_mapping(name_to_id, "AS01", 2, 6, true);    // head-neck transition
-    add_mapping(name_to_id, "AS02", 6, 12, true);   // anterior body
-    add_mapping(name_to_id, "AS03", 12, 18, true);  // mid-anterior
-    add_mapping(name_to_id, "AS04", 18, 24, true);  // mid-body
-    add_mapping(name_to_id, "AS05", 24, 30, true);  // mid-posterior
-    add_mapping(name_to_id, "AS06", 30, 36, true);  // posterior
-    add_mapping(name_to_id, "AS07", 36, 42, true);  // tail
+    add_mapping(name_to_id, "AS02", 6, 10, true);   // anterior body
+    add_mapping(name_to_id, "AS03", 10, 14, true);  // anterior-mid
+    add_mapping(name_to_id, "AS04", 14, 18, true);  // mid-anterior
+    add_mapping(name_to_id, "AS05", 18, 22, true);  // mid-body
+    add_mapping(name_to_id, "AS06", 22, 26, true);  // mid-body
+    add_mapping(name_to_id, "AS07", 26, 30, true);  // mid-posterior
+    add_mapping(name_to_id, "AS08", 30, 33, true);  // posterior
+    add_mapping(name_to_id, "AS09", 33, 36, true);  // posterior
+    add_mapping(name_to_id, "AS10", 36, 39, true);  // near-tail
+    add_mapping(name_to_id, "AS11", 39, 42, true);  // tail
 
     // Step 33: RME head motor neurons — GABAergic amplitude control
     // RMED innervates VENTRAL head muscles (contralateral! name="Dorsal" but projects ventral)

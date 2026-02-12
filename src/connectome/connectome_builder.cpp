@@ -497,6 +497,11 @@ void build_neurons(CB& b) {
     // RIV must compete → graded omega turns emerge from RIV-AS force balance
     // REF: White 1986 (anatomy), Haspel 2010 (dorsal projection),
     //      Chen 2006 (active during both forward and backward)
+    // Step 88: expanded from 7→11 (complete complement)
+    // Tolstenkov 2018 eLife: AS MNs asymmetrically excite dorsal muscles
+    // + VD neurons, active during both forward and backward locomotion
+    // AS→dorsal BWM (excitatory) + AS→VD (ventral inhibition via VD)
+    // AS↔AVA gap junctions: electrical feedback to backward PIN (UNC-7)
     b.neuron("AS01", NT::MOTOR, NTT::GLUTAMATE);
     b.neuron("AS02", NT::MOTOR, NTT::GLUTAMATE);
     b.neuron("AS03", NT::MOTOR, NTT::GLUTAMATE);
@@ -504,6 +509,10 @@ void build_neurons(CB& b) {
     b.neuron("AS05", NT::MOTOR, NTT::GLUTAMATE);
     b.neuron("AS06", NT::MOTOR, NTT::GLUTAMATE);
     b.neuron("AS07", NT::MOTOR, NTT::GLUTAMATE);
+    b.neuron("AS08", NT::MOTOR, NTT::GLUTAMATE);
+    b.neuron("AS09", NT::MOTOR, NTT::GLUTAMATE);
+    b.neuron("AS10", NT::MOTOR, NTT::GLUTAMATE);
+    b.neuron("AS11", NT::MOTOR, NTT::GLUTAMATE);
     // Step 33: RME head motor neurons — GABAergic amplitude control
     // RMED/RMEV modulate head bending amplitude via push-pull with SMD
     // RMED innervates VENTRAL head muscles (contralateral!)
@@ -1005,14 +1014,20 @@ void build_command_ventral(CB& b) {
     b.inh("VD05", "AVAR", 1); b.inh("VD11", "AVAR", 2); b.inh("VD13", "AVAR", 2);
 
     // Step 32: AS motor neuron circuit (White 1986, Haspel 2010, Chen 2006)
-    // AVA → AS
+    // AVA → AS (Tolstenkov 2018: AS receives from both forward and backward PINs)
     b.syn("AVAL", "AS01", 1); b.syn("AVAR", "AS02", 1);
     b.syn("AVAL", "AS03", 1); b.syn("AVAR", "AS04", 1); b.syn("AVAL", "AS05", 1);
     b.syn("AVAR", "AS06", 1); b.syn("AVAL", "AS07", 1);
+    // Step 88: AS08-11 (alternating L/R pattern continues)
+    b.syn("AVAR", "AS08", 1); b.syn("AVAL", "AS09", 1);
+    b.syn("AVAR", "AS10", 1); b.syn("AVAL", "AS11", 1);
     // AVB → AS
     b.syn("AVBL", "AS01", 1); b.syn("AVBR", "AS02", 1);
     b.syn("AVBL", "AS03", 1); b.syn("AVBR", "AS04", 1); b.syn("AVBL", "AS05", 1);
     b.syn("AVBR", "AS06", 1); b.syn("AVBL", "AS07", 1);
+    // Step 88: AVB→AS08-11
+    b.syn("AVBR", "AS08", 1); b.syn("AVBL", "AS09", 1);
+    b.syn("AVBR", "AS10", 1); b.syn("AVBL", "AS11", 1);
     // DD ⊣ AS: GABAergic cross-inhibition during ventral phase
     b.inh("DD01", "AS01", 1); b.inh("DD01", "AS02", 1);
     b.inh("DD02", "AS03", 1); b.inh("DD02", "AS04", 1);
@@ -1020,12 +1035,20 @@ void build_command_ventral(CB& b) {
     b.inh("DD04", "AS05", 1); b.inh("DD04", "AS06", 1);
     b.inh("DD05", "AS06", 1); b.inh("DD05", "AS07", 1);
     b.inh("DD06", "AS07", 1); // Step 86: DD06 posterior overlap
+    // Step 88: DD⊣AS08-11 (DD05/DD06 cover posterior segments)
+    b.inh("DD05", "AS08", 1); // DD05 seg 30-36, AS08 ~30-33
+    b.inh("DD06", "AS09", 1); // DD06 seg 36-42, AS09 ~33-36
+    b.inh("DD06", "AS10", 1); // DD06 seg 36-42, AS10 ~36-39
+    b.inh("DD06", "AS11", 1); // DD06 seg 36-42, AS11 ~39-42
     // DB ↔ AS: gap junction coupling (synchronize dorsal activation)
     b.gj("DB01", "AS01", 1); b.gj("DB01", "AS02", 1);
     b.gj("DB02", "AS03", 1); b.gj("DB02", "AS04", 1);
     b.gj("DB03", "AS04", 1); b.gj("DB03", "AS05", 1);
     b.gj("DB04", "AS05", 1); b.gj("DB05", "AS06", 1);
     b.gj("DB06", "AS06", 1); b.gj("DB07", "AS07", 1);
+    // Step 88: DB↔AS08-11 (DB07 covers posterior, overlaps AS08-11)
+    b.gj("DB07", "AS08", 1); b.gj("DB07", "AS09", 1);
+    b.gj("DB07", "AS10", 1); b.gj("DB07", "AS11", 1);
 
     // Step 53: PVC forward command interneuron circuit
     // --- Inputs to PVC ---
