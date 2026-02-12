@@ -723,6 +723,19 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
   - 移除: `apply_sleep_effects()` 直接注入 + `sleep_speed_factor` 直接乘法
 - **CI**: 0.373 (seed=42), **regtest**: 17/17 PASS
 
+### Step 72: AIA AND-gate 修正 + ASE→AIB 直接 klinokinesis 通路 ✅ (2026-02-12)
+> 详细文档: [steps/step72_aia_andgate_ase_aib_klinokinesis.md](steps/step72_aia_andgate_ase_aib_klinokinesis.md)
+
+- **3个连接组错误修正** (Kakaria 2019 eLife):
+  - AWA→AIA: 化学突触 syn(3) → **缝雙连接 gj(3)** — AWA::TeTx 无影响, unc-7/unc-9 消除响应
+  - ASEL→AIA: 兴奋性 syn(5) → **抑制性 inh(3)** — 谷氨酸激活 GLC-3/AVR-14 Cl⁻ 通道
+  - AWC→AIA: 不存在 → **inh(2) 新增** — 去抑制通路 (AND-gate 的一半)
+- **AIA AND-gate**: 双稳态(-80mV/-20mV), 阈值 2-3pA, 需要 AWA gj兴奋 + 谷氨酸能神经元去抑制
+- **ASE→AIB 直接通路** (Kuramochi 2018): ASER→AIB syn(1)兴奋 + ASEL→AIB inh(1)抑制
+- **ASEL/ASER 不对称 tau** (Suzuki 2008): ASEL slow_tau=3000ms(瞬态), ASER slow_tau=8000ms(持续), 比值 2.7:1
+- **4-seed CI**: 均值 0.284 (全4种子全正), **near_food**: 35.1% (+46% 提升)
+- **regtest**: 17/17 PASS
+
 ---
 
 ## 当前系统状态
@@ -762,7 +775,7 @@ P0/P1 违规全部修复:
   P1-1.5: set_locomotion_state 覆盖移除 → 完全神经回路驱动 (Step 66)
   P0-5: DMP speed_factor 移除 → AVL/DVB GABA→B-class MN 涌现减速 (Step 71)
   P0-6: FLP-11 直接注入移除 → NeuromodulationManager DMSR-1 框架 (Step 71)
-行为指标 (seed=42, 300s): CI≈0.37, near_food≈24%, reversal_rate≈0.16/s, speed≈0.21mm/s
+行为指标 (4-seed, 300s): CI≈0.28 (全4种子正), near_food≈35%, reversal_rate≈0.16/s, speed≈0.21mm/s
 工具: celegans_diag.exe (信号链诊断+fitness) + celegans_regtest.exe (回归检测+电流溯源)
 
 运动驱动 (Step 13 — 生物学机制):
@@ -774,14 +787,16 @@ P0/P1 违规全部修复:
   头部振荡: CCA-1 burst → Ca²⁺ → SLO-1(BK) 适应 → 复极化 → 周期 ~500ms (Step 65: 振幅 110→49mV)
   半中心CPG: SMD dorsal↔ventral 交叉抑制(3 sections) → 背腹交替 burst (~2Hz)
   Klinotaxis: sensory_AC × curvature → RIA乘法门控 → SMB颈部偏置 (Ouellette 2018)
-  Pirouette: ASEL→AIA⊣AIB→AVA(抑C↑), ASER⊣AIA→AIB→AVA(促C↓)
+  Pirouette: ASEL⊣AIA→AIB→AVA(抑C↑) + ASER⊣AIA→AIB→AVA(促C↓) + ASER→AIB(直接, Step 72)
   速度模型: 肌肉功率 × 波形效率 × 时间活动 (Fang-Yen 2010)
   V_SMDDL: -65↔-30mV 交替 burst, V_SMDVL: 反相
   速度: 0.05-0.24 mm/s (真实 ~0.2 mm/s, 在生物学范围内)
 
 核心回路 (默认连接组, ~200 突触):
   趋化性: ASE/AWC/AWA → AIA/AIB/AIY/AIZ → RIA → SMD (头部转向)
+  关键: AIA AND-gate (Kakaria 2019): AWA→AIA(gj兴奋) + AWC/ASE⊣AIA(Cl⁻去抑制)
   关键: AIA ⊣ AIB (抑制性, Chalasani 2007), AIY → AVB (Gray 2005)
+  ASE→AIB 直接 klinokinesis: ASER→AIB(GLR-1兴奋) + ASEL⊣AIB(GLC-3抑制) (Kuramochi 2018)
   触觉: ALM → AVD (前触) / PLM → AVA (后触)
   前进: 感觉→AIY→AVB→DB/VB → 背/腹侧体壁肌肉
   后退: AWC→AIB→AVA → DA/VA → 背/腹侧体壁肌肉

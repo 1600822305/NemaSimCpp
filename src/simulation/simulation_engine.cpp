@@ -65,18 +65,35 @@ void SimulationEngine::initialize_default() {
         //   soluble (salt/amino acids, environmental) → ASE → soluble_field_
         // REF: Bargmann 2006 — AWC detects volatile odors, ASE detects ions
         if (starts_with(info.name, "ASEL")) {
-            // ASE: detects salt/amino acids (Bargmann 2006)
-            // Currently samples same field as AWC for regression safety;
-            // soluble_field_ infrastructure ready for future multi-odor routing
-            // fast_tau=100ms: captures 2Hz head oscillation for klinotaxis
-            chemo_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::ON, 100.0, 5.0, 100.0)});
+            // ASEL: ON-cell — excited by NaCl concentration INCREASE
+            // Suzuki 2008 Nature: ASEL produces TRANSIENT calcium response
+            //   "fast calcium response to upstep, immediately decayed to steady state"
+            // → slow_tau=3000ms matches ~2-3s transient decay from calcium traces
+            // Promotes runs via ASEL⊣AIA(Cl⁻)→AIB released + ASEL⊣AIB(GLC-3 direct)
+            // REF: Suzuki 2008 Nature, Kuramochi 2018, Miller 2005 JNeurosci
+            chemo_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::ON, 100.0, 5.0, 100.0, 3000.0)});
         } else if (starts_with(info.name, "ASER")) {
-            chemo_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::OFF, 100.0, 5.0, 100.0)});
+            // ASER: OFF-cell — excited by NaCl concentration DECREASE
+            // Suzuki 2008 Nature: ASER produces SUSTAINED calcium response
+            //   "large, long-lasting response to downstep, slowly decayed" (>10s)
+            // Kuramochi 2018: AIB shows "similar response pattern as ASER"
+            // → slow_tau=8000ms matches sustained OFF dynamics (~10-30s persistence)
+            // Asymmetry 2.7:1 (ASER 8000 / ASEL 3000) biases toward detecting
+            // "wrong direction" movements (critical for klinokinesis)
+            // Promotes turns via ASER→AIB(GLR-1 direct) + ASER⊣AIA→AIB(released)
+            // REF: Suzuki 2008 Nature, Kuramochi 2018, Miller 2005 JNeurosci
+            chemo_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::OFF, 100.0, 5.0, 100.0, 8000.0)});
         } else if (starts_with(info.name, "AWC")) {
-            // AWC: volatile odor channel → samples chem_field_ (food odor)
+            // AWC: OFF-cell — excited by odor REMOVAL (Chalasani 2007 Nature)
+            // Sustained OFF response: calcium rises and persists for seconds after odor removal
+            // AWC→AIB(GLR-1 excit.) + AWC→AIY(GLC-3 inhib.) + AWC⊣AIA(Cl⁻ disinhibit.)
+            // REF: Chalasani 2007 Nature, Kakaria 2019 eLife, Tsunozaki 2008
             chemo_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::OFF, 80.0, 5.0, 100.0)});
         } else if (starts_with(info.name, "AWA")) {
-            // AWA: volatile odor channel → samples chem_field_ (food odor)
+            // AWA: ON-cell — excited by odor ADDITION (Larsch 2015 Cell Reports)
+            // Desensitizes within 10s at high conc. (1.15µM), retains sensitivity to increases
+            // AWA→AIA via gap junction (Kakaria 2019) — excitatory half of AND-gate
+            // REF: Larsch 2015 Cell Reports, Kakaria 2019 eLife, Bargmann 1993
             chemo_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::ON, 80.0, 5.0, 100.0)});
         } else if (starts_with(info.name, "ASH")) {
             // Step 25: ASH nociceptors sample REPELLENT field (not attractant)

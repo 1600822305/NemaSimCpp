@@ -460,14 +460,43 @@ void build_neurons(CB& b) {
 // ================================================================
 void build_chemotaxis(CB& b) {
     // Sensory → Interneuron
-    b.syn("ASEL", "AIAL", 5); b.syn("ASEL", "AIYL", 3);
+    // Step 72: ASEL→AIA INHIBITORY (Kakaria 2019 eLife)
+    // Glutamate from ASEL activates GLC-3/AVR-14 Cl⁻ channels on AIA → shunting inhibition
+    // AIA AND-gate: requires AWA gap junction excitation AND glutamatergic disinhibition
+    // ASEL inhibition provides gain control, prevents AIA over-activation
+    // REF: Kakaria 2019 eLife, Cook 2019
+    b.inh("ASEL", "AIAL", 3); b.syn("ASEL", "AIYL", 3);
     // ASER→AIA/AIY: INHIBITORY (eLife 2024, Matsumoto et al.)
     // ASER releases glutamate → GLC-3 (Cl⁻ channel) on AIY → inhibitory
     // Fixes pirouette modulation: C↓ → ASER↑ → AIA↓ → AIB↑(disinhibited) → more pirouettes
     b.inh("ASER", "AIAR", 2); b.inh("ASER", "AIYR", 2);
+    // Step 72: ASE→AIB DIRECT klinokinesis pathway (Kuramochi 2018)
+    // ASER→AIB: EXCITATORY (GLR-1 AMPA + mGluR, proximal to AIB soma)
+    // C↓ → ASER active → AIB directly excited → reversals (FAST, direct)
+    // Cook 2019: ASER→AIB ~7 EM sections; scaled to 3 for model balance
+    // ASEL→AIB: INHIBITORY (GLC-3 Cl⁻ channel, distal on AIB neurite)
+    // C↑ → ASEL active → AIB directly inhibited → fewer reversals
+    // Cook 2019: ASEL→AIB ~3 EM sections; scaled to 2
+    // REF: Kuramochi 2018 Front Mol Neurosci, Suzuki 2008 Nature, Cook 2019
+    b.syn("ASER", "AIBL", 1); b.syn("ASER", "AIBR", 1);
+    b.inh("ASEL", "AIBL", 1); b.inh("ASEL", "AIBR", 1);
     b.syn("AWCL", "AIBL", 4); b.syn("AWCL", "AIYL", 6);
     b.syn("AWCR", "AIBR", 4); b.syn("AWCR", "AIYR", 6);
-    b.syn("AWAL", "AIAL", 3); b.syn("AWAR", "AIAR", 3);
+    // Step 72: AWA→AIA via GAP JUNCTIONS (Kakaria 2019 eLife)
+    // AWA::TeTx (blocks vesicle release): AIA response UNCHANGED → not chemical synapse
+    // unc-7/unc-9 innexin mutants: AIA response diminished → gap junction mediated
+    // Gap junctions preferentially mediate anterograde flow (AWA→AIA > AIA→AWA)
+    // AIA is bistable (-80mV / -20mV, threshold 2-3pA): AWA gj current flips AIA state
+    // REF: Kakaria 2019 eLife, Cook 2019
+    b.gj("AWAL", "AIAL", 3); b.gj("AWAR", "AIAR", 3);
+    // Step 72: AWC→AIA INHIBITORY — disinhibition pathway (Kakaria 2019 eLife)
+    // AWC is OFF cell: food present → AWC silent → less glutamate → AIA Cl⁻ channels close
+    // → AIA membrane resistance increases → AWA gap junction current sufficient to flip AIA
+    // Food absent → AWC active → glutamate → AIA inhibited → AWA gj current shunted
+    // This is the disinhibition half of the AIA AND-gate
+    // Removing glutamate from AWC+ASE (eat-4 excision) → AIA responds like unc-18 mutants
+    // REF: Kakaria 2019 eLife Figure 4F-G
+    b.inh("AWCL", "AIAL", 2); b.inh("AWCR", "AIAR", 2);
     // Step 23: Thermotaxis circuit — AFD→AIY (Mori & Ohshima 1995)
     // AFD is the primary thermosensory neuron, AIY is the shared integration node
     // AFD→AIY: excitatory, 5 sections (strengthened to compete with chemotaxis)

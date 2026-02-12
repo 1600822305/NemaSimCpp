@@ -32,3 +32,5 @@ Desktop.ini
 diag_detail.txt
 diag_notoxin*.txt
 timing.txt
+ci_*.txt
+ci_*e.txt
