@@ -85,7 +85,7 @@ private:
     double stiffness_ = 10.0;        // body stiffness (nN·mm²)
     double damping_ = 0.5;           // damping coefficient
     double curvature_diffusion_ = 0.5; // Step 29: gentle elastic coupling (Boyle 2012)
-    double muscle_gain_ = 0.3;       // max curvature per unit activation
+    double muscle_gain_ = 8.0;       // curvature gain (1/mm per unit diff activation); Boyle 2012: real curv ~3-5/mm
     double drag_coeff_tangent_ = 1.0;   // tangential drag
     double drag_coeff_normal_ = 10.0;   // normal drag (anisotropic for low Re)
     double speed_ = 0.0;             // current locomotion speed (mm/s)

@@ -945,6 +945,13 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **驱动**: 真实 302 神经元 SimulationEngine，非预录回放
 - **集成**: 替换左下角化学场面板，零额外依赖
 
+### Step 131: 曲率增益调优 + 可视化升级 ✅ (2026-02-13)
+> 详细文档: [steps/step131_curvature_gain_tuning.md](steps/step131_curvature_gain_tuning.md)
+
+- **修复**: muscle_gain_ 0.3→8.0 (虫体从直线变为可见弯曲, 曲率 1.1→3.0/mm)
+- **根因**: 原增益太低 + 10个头部MN用MAX聚合导致共收缩
+- **渲染升级**: 伪3D管状体(5条带+抛物线光照) + Sibernetic配色(激活=红, 松弛=米色)
+
 ---
 
 ## 当前系统状态

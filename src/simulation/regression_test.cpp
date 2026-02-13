@@ -390,7 +390,7 @@ int main(int argc, char* argv[]) {
 
         // Body mechanics
         // Step 33: head curvature reduced by RME amplitude control
-        {"Curvature amplitude", m.curv_amp,                      0.06,  60, "/mm", ""},  // Step 103: 0.14→0.06 (12 new head MN mappings → D/V balance ↑ → net curvature ↓)
+        {"Curvature amplitude", m.curv_amp,                      1.1,   60, "/mm", ""},  // Step 131: 0.06→1.1 (muscle_gain 0.3→8.0, biological curvature ~3-5/mm)
         {"Speed mean",          m.speed_mean,                    0.20,  40, "mm/s", ""},  // Step 94: 0.30→0.20 (backward wave proprioception now correct → more A-class activation during reversal)
         // Step 34: heading rate baseline lowered 15→10 — 105-neuron system turns less aggressively
         {"Heading rate",        m.heading_rate,                  8.0,   60, "deg/s", ""},  // Step 66: 5→8 (emergent reversals + omega turns increase turning)
@@ -411,7 +411,7 @@ int main(int argc, char* argv[]) {
 
         // Step 29: Wave propagation & curvature stability
         // Mid-body curvature amplitude: wave must propagate past head (seg 10 amp > 0.05)
-        {"Midbody curv amp",    m.midbody_curv_amp,              0.20,  60,  "/mm", ""},
+        {"Midbody curv amp",    m.midbody_curv_amp,              3.0,   60,  "/mm", ""},  // Step 131: 0.20→3.0 (biological range)
         // Curvature sign-change rate at seg 7: ~0.2 Hz normal, >100 Hz = numerical instability
         // Step 33: curv stability baseline raised — RME gain control affects oscillation frequency
         {"Curv stability",      m.curv_sign_change_hz,           1.5,   200, "Hz", ""},
