@@ -1022,6 +1022,19 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **结果**: 曲率振幅 2.8 /mm ✓, 中体曲率 3.5 /mm ✓, 肌肉做功 0.3 ✓, 曲率稳定性 0.0 Hz ✓
 - **验证**: Regtest 20/20 pass ✅, baselines 已更新匹配新物理模型
 
+### Step 140: 局部中心修正 — 物理弯曲与转向恢复 ✅ (2026-02-14)
+> 详细文档: [steps/step140_center_correction.md](steps/step140_center_correction.md)
+
+- **问题**: Step 139 的 phi-drive 产生正确曲率但 cx/cy 不弯曲 → heading_rate≈0, CI=0
+- **尝试失败**: (1) 端点力偶/扭矩 → cx/cy 不动 (2) 中心法向力 → agar 拖曳锁死身体
+- **最终方案**: phi-drive + 局部中心修正（三层架构）
+  - Phi-drive: K_DRIVE=0.15, K_RESTORE=5.0, DPHI_MAX=0.015（曲率控制）
+  - 中心修正: BLEND=0.15, 无级联, 幅度限制 0.5×seg_len（cx/cy 跟踪 phi）
+  - **关键**: 本体感觉用 phi 曲率（非 cx/cy）→ 切断正反馈环
+- **肌肉激活**: 移除 d/(d+v) 归一化 → INPUT_SCALE=3.0 缩放, muscle_work 恢复
+- **结果**: heading_rate ≈ 1.7-3.5 deg/s ✓, curv ≈ 1.6-2.0 /mm ✓, 10/10 runs 20/20 pass
+- **验证**: Regtest 20/20 pass ✅ (10 连续运行全部通过)
+
 ---
 
 ## 当前系统状态

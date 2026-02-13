@@ -390,10 +390,10 @@ int main(int argc, char* argv[]) {
 
         // Body mechanics
         // Step 33: head curvature reduced by RME amplitude control
-        {"Curvature amplitude", m.curv_amp,                      5.0,   60, "/mm", ""},  // Step 136: 3.3→5.0 (additive speed_scale → stronger effective drive)
+        {"Curvature amplitude", m.curv_amp,                      2.0,   80, "/mm", ""},  // Step 140: 5→2.0 (phi-based curvature, DPHI_MAX=0.015)
         {"Speed mean",          m.speed_mean,                    2.8,   60, "mm/s", ""},  // Step 137: 0.30→2.8 (endpoint-driven physics, passive spring compression)
         // Step 34: heading rate baseline lowered 15→10 — 105-neuron system turns less aggressively
-        {"Heading rate",        m.heading_rate,                  0.5,   200, "deg/s", ""},  // Step 137: 8→0.5 (phi-based curvature, no physical center bending)
+        {"Heading rate",        m.heading_rate,                  3.0,   200, "deg/s", ""},  // Step 140: 0.5→3.0 (center correction → physical bending, stochastic)
 
         // Sensory
         {"ASEL mean V",         m.asel_mean,                    -40.0,  20, "mV", "ASEL"},
@@ -411,10 +411,10 @@ int main(int argc, char* argv[]) {
 
         // Step 29: Wave propagation & curvature stability
         // Mid-body curvature amplitude: wave must propagate past head (seg 10 amp > 0.05)
-        {"Midbody curv amp",    m.midbody_curv_amp,              3.0,   60,  "/mm", ""},  // Step 131: 0.20→3.0 (biological range)
+        {"Midbody curv amp",    m.midbody_curv_amp,              2.0,  100,  "/mm", ""},  // Step 140: 3→2.0 (phi-based curvature, stable)
         // Curvature sign-change rate at seg 7: ~0.2 Hz normal, >100 Hz = numerical instability
         // Step 33: curv stability baseline raised — RME gain control affects oscillation frequency
-        {"Curv stability",      m.curv_sign_change_hz,           0.5,   200, "Hz", ""},  // Step 137: 1.5→0.5 (stable phi-driven curvature)
+        {"Curv stability",      m.curv_sign_change_hz,           1.0,   200, "Hz", ""},  // Step 140: 0.5→1.0 (center correction adds sign changes)
         // Muscle work: must be >0.1 for any forward motion (D/V cancellation -> 0)
         {"Muscle work",         m.muscle_work_mean,              0.25,  60,  "", ""},  // Step 137: 0.35→0.25 (raw input D/V difference)
 

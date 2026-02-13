@@ -177,13 +177,13 @@ void BodyModel::apply_diagonal_forces(int seg, double* fdx, double* fdy, double*
 }
 
 // ================================================================
-// Active muscle forces — placeholder (actual drive is in apply_curvature_drive)
-// Endpoint force approach cannot produce bending in straight or near-straight
-// bodies because interior rod forces cancel by symmetry.
+// Active muscle forces — handled by phi-drive + center correction
+// (see curvature drive block in update_physics).
+// Endpoint force approach cannot produce oscillating bending because
+// passive spring restoring (agar drag) locks the body shape.
 // ================================================================
 void BodyModel::apply_muscle_forces(int /*seg*/, double* /*fdx*/, double* /*fdy*/, double* /*fvx*/, double* /*fvy*/) {
-    // Muscle bending is applied as direct curvature drive after integration.
-    // See apply_curvature_drive() in update_physics().
+    // Muscle bending handled by phi-drive + local center correction.
 }
 
 // ================================================================
@@ -246,20 +246,11 @@ void BodyModel::update_muscle_activations(double dt) {
     for (int i = 0; i < NSEG; ++i) {
         auto& m = muscles_[i];
 
-        // Compute differential bending signal from accumulated inputs.
-        // Multiple motor neurons += their releases; the D/V DIFFERENCE drives bending.
-        // Normalize by max to keep within [0,1] range.
-        double d_raw = std::max(m.dorsal_input, 0.0);
-        double v_raw = std::max(m.ventral_input, 0.0);
-        double total = d_raw + v_raw;
-        double d_in, v_in;
-        if (total > 1e-6) {
-            d_in = d_raw / total;  // ∈ [0,1]
-            v_in = v_raw / total;  // ∈ [0,1], d_in + v_in = 1
-        } else {
-            d_in = 0.0;
-            v_in = 0.0;
-        }
+        // Scale by typical max input to keep activations in [0,1]
+        // while preserving D/V ratio. Raw inputs ~2-3 from multiple MNs.
+        constexpr double INPUT_SCALE = 3.0;
+        double d_in = std::clamp(m.dorsal_input / INPUT_SCALE, 0.0, 1.0);
+        double v_in = std::clamp(m.ventral_input / INPUT_SCALE, 0.0, 1.0);
 
         // Fast leaky integrator (tau=20ms for responsive bending)
         constexpr double TAU_FAST = 0.02;
@@ -389,49 +380,76 @@ void BodyModel::update_physics(double dt_seconds) {
     }
 
     // ================================================================
-    // Direct curvature drive — muscle D/V difference → rod angle adjustment
-    // Endpoint force approach cannot produce bending due to interior rod
-    // force cancellation. Instead, directly adjust phi to create curvature.
+    // Phi-drive: muscle D/V difference → rod angle adjustment
+    // Neural input drives phi; passive springs can't oscillate cx/cy
+    // fast enough, so we control angles directly from motor neurons.
     // ================================================================
-    // Curvature drive with restoring: dphi/dt = K_DRIVE*diff - K_RESTORE*dphi
-    // Equilibrium: dphi_eq = K_DRIVE*diff / K_RESTORE
-    // Passive springs don't produce enough restoring in the endpoint scheme,
-    // so we add explicit angular restoring to prevent runaway.
     {
-        constexpr double K_DRIVE   = 0.15;   // drive strength (rad/s per unit raw diff)
-        constexpr double K_RESTORE = 5.0;   // restoring toward straight (1/s)
-        constexpr double DPHI_MAX  = 0.04;  // hard clamp on inter-rod angle (~1.9 /mm)
+        constexpr double K_DRIVE   = 0.15;   // rad/s per unit raw diff
+        constexpr double K_RESTORE = 5.0;    // restoring toward straight (1/s)
+        constexpr double DPHI_MAX  = 0.015;  // hard clamp (~0.72 /mm)
 
         for (int s = 0; s < NSEG; ++s) {
             const auto& m = muscles_[s];
-
-            // Use RAW motor neuron input difference.
             double diff = m.dorsal_input - m.ventral_input;
-
-            // Anterior-posterior gradient: head stronger
             double gradient = 0.7 * (1.0 - 0.6 * static_cast<double>(s) / NSEG);
             diff *= gradient;
 
-            // Current inter-rod angle
             double dphi = rods_[s].phi - rods_[s + 1].phi;
             while (dphi >  PI) dphi -= 2.0 * PI;
             while (dphi < -PI) dphi += 2.0 * PI;
 
-            // Drive + restoring
             double dphi_rate = K_DRIVE * diff - K_RESTORE * dphi;
             double dphi_adj = dphi_rate * dt_seconds;
-
-            // Compute new angle and hard-clamp
-            double new_dphi = dphi + dphi_adj;
-            new_dphi = std::clamp(new_dphi, -DPHI_MAX, DPHI_MAX);
+            double new_dphi = std::clamp(dphi + dphi_adj, -DPHI_MAX, DPHI_MAX);
             double actual_adj = new_dphi - dphi;
 
-            // Apply angle change to phi
             rods_[s].phi     += actual_adj * 0.5;
             rods_[s + 1].phi -= actual_adj * 0.5;
+        }
+    }
 
-            // No center displacement — curvature is measured from phi differences
-            // in sync_segments_from_rods. Centers are maintained by force integration.
+    // ================================================================
+    // Local center correction: nudge cx/cy toward phi-consistent
+    // positions WITHOUT head-to-tail cascade.
+    // For each adjacent pair, compute the direction they SHOULD have
+    // (from avg phi) and blend the current direction toward it.
+    // This makes cx/cy track the phi-driven bending, enabling
+    // physical heading changes through asymmetric RFT drag.
+    // ================================================================
+    {
+        constexpr double BLEND = 0.15;  // fraction per frame (no feedback → safe to increase)
+
+        // Compute ALL corrections from ORIGINAL positions (no in-frame cascade)
+        double cx_adj[NBAR] = {}, cy_adj[NBAR] = {};
+        for (int i = 0; i < NSEG; ++i) {
+            double avg_phi = 0.5 * (rods_[i].phi + rods_[i + 1].phi);
+            double tangent = avg_phi - PI * 0.5;
+            double dx_target = -seg_len_ * std::cos(tangent);
+            double dy_target = -seg_len_ * std::sin(tangent);
+
+            double dx_cur = rods_[i + 1].cx - rods_[i].cx;
+            double dy_cur = rods_[i + 1].cy - rods_[i].cy;
+
+            double corr_x = BLEND * (dx_target - dx_cur) * 0.5;
+            double corr_y = BLEND * (dy_target - dy_cur) * 0.5;
+            cx_adj[i]     -= corr_x;
+            cy_adj[i]     -= corr_y;
+            cx_adj[i + 1] += corr_x;
+            cy_adj[i + 1] += corr_y;
+        }
+        // Apply all at once, with per-rod magnitude limit
+        constexpr double MAX_ADJ = 0.5;  // max fraction of seg_len per frame
+        double adj_limit = MAX_ADJ * seg_len_;
+        for (int i = 0; i < NBAR; ++i) {
+            double mag = std::sqrt(cx_adj[i] * cx_adj[i] + cy_adj[i] * cy_adj[i]);
+            if (mag > adj_limit && mag > 1e-15) {
+                double scale = adj_limit / mag;
+                cx_adj[i] *= scale;
+                cy_adj[i] *= scale;
+            }
+            rods_[i].cx += cx_adj[i];
+            rods_[i].cy += cy_adj[i];
         }
     }
 
@@ -458,12 +476,11 @@ void BodyModel::sync_segments_from_rods() {
         double dx = rods_[i].cx - rods_[i + 1].cx;
         double dy = rods_[i].cy - rods_[i + 1].cy;
         seg.angle = std::atan2(dy, dx);
-        // Curvature from rod PHI differences (not center positions).
-        // The curvature drive modifies phi directly; center positions are
-        // maintained by force integration and may not reflect phi-driven bending.
+        // Curvature from PHI differences (stable for proprioception).
+        // Center correction moves cx/cy for heading changes but must NOT
+        // feed back into proprioception (would create positive feedback).
         seg.prev_curvature = seg.curvature;
         if (i > 0) {
-            // dphi between rod i and rod i+1 represents the inter-rod angle
             double dphi_curv = rods_[i].phi - rods_[i + 1].phi;
             while (dphi_curv >  PI) dphi_curv -= 2.0 * PI;
             while (dphi_curv < -PI) dphi_curv += 2.0 * PI;
