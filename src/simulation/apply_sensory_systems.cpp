@@ -831,6 +831,73 @@ void SimulationEngine::apply_sensitization() {
     sensitization_ -= sensitization_ / sensitization_tau_decay_ * dt_;
     if (sensitization_ < 0.0) sensitization_ = 0.0;
 
+    // --- 2b. Step 119: FLP-20/FRPR-3/RID cross-modal sensitization (Chew 2018 Neuron) ---
+    // Touch neurons (ALM/PLM/AVM) release FLP-20 neuropeptide when active.
+    // FLP-20 acts extrasynaptically on FRPR-3 receptor in RID interneuron.
+    // RID is a neuroendocrine cell that releases neuropeptides from dense core vesicles.
+    // RID activation → (1) ASH cross-modal sensitization, (2) locomotor arousal.
+    // Duration: 1-2 minutes (slow neuropeptide timescale).
+    {
+        // Monitor touch neuron activity → FLP-20 release
+        double touch_activity = 0.0;
+        int touch_count = 0;
+        for (int id : nids("ALM")) {
+            if (id >= 0 && id < n) {
+                double v = neurons_[id]->get_membrane_potential();
+                touch_activity += 1.0 / (1.0 + std::exp(-(v - (-30.0)) / 5.0));
+                touch_count++;
+            }
+        }
+        for (int id : nids("PLM")) {
+            if (id >= 0 && id < n) {
+                double v = neurons_[id]->get_membrane_potential();
+                touch_activity += 1.0 / (1.0 + std::exp(-(v - (-30.0)) / 5.0));
+                touch_count++;
+            }
+        }
+        { int avm = nid("AVM");
+          if (avm >= 0 && avm < n) {
+            double v = neurons_[avm]->get_membrane_potential();
+            touch_activity += 1.0 / (1.0 + std::exp(-(v - (-30.0)) / 5.0));
+            touch_count++;
+          }
+        }
+        if (touch_count > 0) touch_activity /= touch_count;
+
+        // FLP-20 concentration: rises when touch neurons active, decays with tau
+        double flp20_target = touch_activity;
+        flp20_conc_ += (flp20_target - flp20_conc_) * dt_ / flp20_tau_;
+        if (flp20_conc_ < 0.0) flp20_conc_ = 0.0;
+        if (flp20_conc_ > 1.0) flp20_conc_ = 1.0;
+
+        // RID activation: driven by FLP-20 via FRPR-3, slow decay (arousal duration)
+        if (flp20_conc_ > 0.1) {
+            double rid_drive = (flp20_conc_ - 0.1) / 0.9;  // 0→1 above threshold
+            rid_activity_ += rid_drive * dt_ / 10000.0;     // slow rise (~10s)
+        }
+        rid_activity_ -= rid_activity_ * dt_ / rid_tau_;    // slow decay (~60s)
+        if (rid_activity_ < 0.0) rid_activity_ = 0.0;
+        if (rid_activity_ > 1.0) rid_activity_ = 1.0;
+
+        // RID → ASH cross-modal sensitization (extrasynaptic neuropeptide)
+        // "Aversive mechanical stimulus leads to sensitization of ASH"
+        if (rid_activity_ > 0.05) {
+            double ash_boost = rid_ash_boost_ * rid_activity_;
+            for (int id : nids("ASH")) {
+                if (id >= 0 && id < n)
+                    neurons_[id]->add_synaptic_current(ash_boost);
+            }
+        }
+
+        // RID → locomotor arousal: inject current to RID neuron itself
+        // RID already has connections to DD motor neurons (Step 110)
+        int rid_id = nid("RID");
+        if (rid_id >= 0 && rid_id < n && flp20_conc_ > 0.1) {
+            double rid_drive_pA = 15.0 * flp20_conc_;  // up to 15pA
+            neurons_[rid_id]->add_synaptic_current(rid_drive_pA);
+        }
+    }
+
     // --- 3. Boost touch synapse vesicle recovery when sensitized ---
     if (sensitization_ > 0.05) {
         if (touch_syn_indices_.empty()) {

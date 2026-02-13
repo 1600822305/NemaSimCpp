@@ -1160,6 +1160,23 @@ int main(int argc, char* argv[]) {
               << conn.num_synapses() << " synapses, "
               << conn.num_gap_junctions() << " gap junctions" << std::endl;
 
+    // Step 119: FLP-20/RID cross-modal sensitization diagnostic
+    std::cout << "\n36. CROSS-MODAL SENSITIZATION (Step 119, Chew 2018):" << std::endl;
+    {
+        int rid_id = conn.get_neuron_id("RID");
+        int nn = (int)sim.neurons().size();
+        std::cout << "   sensitization=" << std::setprecision(3) << sim.sensitization() << std::endl;
+        if (rid_id >= 0 && rid_id < nn) {
+            double rv = sim.neurons()[rid_id]->get_membrane_potential();
+            std::cout << "   RID: V=" << std::setprecision(1) << rv << " mV"
+                      << "  S(release)=" << std::setprecision(3) << release(rv) << std::endl;
+        }
+        std::cout << "   FLP-20→FRPR-3→RID: touch neurons→neuropeptide→neuroendocrine" << std::endl;
+        std::cout << "   RID→ASH boost: " << std::setprecision(1) 
+                  << (sim.sensitization() > 0.05 ? 12.0 * sim.sensitization() : 0.0)
+                  << " pA (cross-modal)" << std::endl;
+    }
+
     // Step 75: Pathogen aversion hub diagnostics
     std::cout << "\n28. PATHOGEN AVERSION (Step 75, AWB→AUA/RMG→AVA):" << std::endl;
     std::cout << "   RMGL:  V mean=" << std::setprecision(1) << mean(rmgl_v_vs)

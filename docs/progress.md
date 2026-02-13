@@ -847,6 +847,14 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **回避行为**: ASH→AIB→AVA 已有回路驱动急转回避
 - **CLI**: --osm 启用渗透压环实验
 
+### Step 119: 伤害性敏化 — FLP-20/FRPR-3/RID 交叉模态敏化 ✅ (2026-02-13)
+> 详细文档: [steps/step119_nociceptive_priming.md](steps/step119_nociceptive_priming.md)
+
+- **升级 Step 79**: 添加 FLP-20/FRPR-3/RID 完整交叉模态敏化通路
+- **机制**: ALM/PLM/AVM → FLP-20 → FRPR-3 → RID → ASH敏化(12pA) + 运动觉醒
+- **diag**: RID V=-39.3mV, S=0.298, ASH boost=12pA
+- **REF**: Chew 2018 Neuron
+
 ---
 
 ## 当前系统状态
@@ -872,7 +880,7 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 身体: 2D 弹性杆 48 段, 91 个运动神经元-肌肉映射, 体节间曲率扩散(弹性耦合)
 环境: 50×50 mm, 4化学场(food_odor+soluble+repellent+pheromone) + 线性温度梯度 (0.5°C/mm) + O₂场(food派生) + 光场(高斯σ=8mm) + 渗透压环(Step 118)
 内部状态: satiety_(泵驱动), sickness_(有毒食物), food_memory_(双通路ARS), fatigue_(睡眠驱动)
-学习: 盐学习(ASER w_mod) + 病原体学习(AWC翻转+WV反向+厌食) + 温度学习(Tc适应+AWC饥饿中断) + 联想条件学习(AWC→AIY w_mod双向, Step 117) + STP习惯化 + 睡眠巩固(Step 62) + INS-1厌食(Step 63)
+学习: 盐学习(ASER w_mod) + 病原体学习(AWC翻转+WV反向+厌食) + 温度学习(Tc适应+AWC饥饿中断) + 联想条件学习(AWC→AIY w_mod双向, Step 117) + STP习惯化 + FLP-20/RID交叉模态敏化(Step 119) + 睡眠巩固(Step 62) + INS-1厌食(Step 63)
 仿真: dt=0.5ms, CPU 实时 (10000步 < 1s)
 性能: cache_neuron_ids_and_synapses() 一次性缓存 10 ID + 6 typed 指针 + 3 组突触索引
 计算: CPU (默认) + OpenCL GPU 后端 (>500突触自动启用, AMD RX 6950 XT 就绪)

@@ -230,6 +230,16 @@ private:
     double sensitization_tau_decay_ = 30000.0;  // ms, slow decay (~30s, Rankin 1992)
     double sensitization_rise_rate_ = 0.005;    // per ms of strong ASH activity
     double sensitization_pool_boost_ = 0.0003;  // vesicle pool boost per ms when sensitized
+    // Step 119: FLP-20/FRPR-3/RID cross-modal sensitization (Chew 2018 Neuron)
+    // Touch neurons (ALM/PLM/AVM) release FLP-20 → FRPR-3 on RID → neuropeptides
+    // → ASH cross-modal sensitization + locomotor arousal (1-2 min)
+    // REF: Chew 2018 Neuron, Li 2013 Learn Mem, Ardiel 2017
+    double flp20_conc_ = 0.0;              // [0,1] FLP-20 neuropeptide concentration
+    double flp20_tau_ = 5000.0;            // ms, 5s release/decay (neuropeptide timescale)
+    double rid_activity_ = 0.0;            // [0,1] RID neuroendocrine activation
+    double rid_tau_ = 60000.0;             // ms, 60s RID activity decay (arousal duration)
+    double rid_ash_boost_ = 12.0;          // pA, RID → ASH cross-modal sensitization
+    double rid_speed_boost_ = 0.15;        // fraction speed increase during arousal
     double dishabit_time_ = -1.0;          // ms, when to deliver dishabituating stimulus (-1=off)
     double dishabit_duration_ = 2000.0;    // ms, harsh stimulus duration (2s train)
     double dishabit_current_ = 100.0;      // pA, harsh stimulus to ASH (strong nociceptive)
