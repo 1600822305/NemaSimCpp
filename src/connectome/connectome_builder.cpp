@@ -1181,9 +1181,7 @@ void build_interneuron(CB& b) {
     b.syn("AIYL", "AIZL", 3); b.syn("AIYR", "AIZR", 3);
     // AIY → AVB: promotes forward locomotion
     // REF: Gray 2005 — AIY ablation reduces forward runs
-    b.syn("AIYL", "AVBL", 3); b.syn("AIYR", "AVBR", 3);
-    // AVB drive pathway: AIY → AVB (TD-01, additional excitatory interneuron drive)
-    // REF: White 1986, WormAtlas
+    // REF: White 1986, WormAtlas — TD-01 excitatory interneuron drive
     b.syn("AIYL", "AVBL", 3); b.syn("AIYR", "AVBR", 3);
     // AIB → RIM: activates RIM during reversals (reversal signal relay)
     b.syn("AIBL", "RIML", 3); b.syn("AIBR", "RIMR", 3);

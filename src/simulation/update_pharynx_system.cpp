@@ -29,7 +29,7 @@ void SimulationEngine::apply_pharyngeal_modulation() {
 
     for (int id : nids("MC")) {
         if (id >= 0 && id < n) {
-            double food_conc = environment_.sample_food_density(body_.get_head_position());
+            double food_conc = cached_food_at_head_;
             double food_drive = 8.0 * food_conc / (food_conc + 0.1);
             double mc_tonic = 3.0 + food_drive + mc_5ht_current + mc_oa_current + mc_sickness;
             neurons_[id]->add_synaptic_current(mc_tonic);
@@ -90,7 +90,7 @@ void SimulationEngine::update_pharynx() {
     bool pump_event = pharynx_.update(mc_release, m3_release, dt_);
 
     if (pump_event) {
-        double food_conc = environment_.sample_food_density(body_.get_head_position());
+        double food_conc = cached_food_at_head_;
         double food_ingested = pharynx_.compute_food_intake(food_conc, true);
         satiety_ += food_ingested;
         if (satiety_ > 1.0) satiety_ = 1.0;

@@ -18,7 +18,7 @@ static bool starts_with(const std::string& s, const char* prefix) {
 // Satiety internal state (Step 20c)
 // ================================================================
 void SimulationEngine::update_satiety() {
-    double food_conc = environment_.sample_food_density(body_.get_head_position());
+    double food_conc = cached_food_at_head_;
     double on_food = food_conc * food_conc / (food_conc * food_conc + 0.09);
 
     double depletion_rate = (on_food < 0.3) ? 1.0 : 0.5;
@@ -127,7 +127,7 @@ void SimulationEngine::apply_esr_modulation() {
 // Area-Restricted Search (Step 20d)
 // ================================================================
 void SimulationEngine::update_food_memory() {
-    double food_conc = environment_.sample_food_density(body_.get_head_position());
+    double food_conc = cached_food_at_head_;
     double on_food = food_conc / (food_conc + 0.1);
 
     double effective_decay_tau = food_memory_tau_decay_;
@@ -268,8 +268,7 @@ void SimulationEngine::update_defecation() {
 
     // DMP only active on food (intestinal Ca²⁺ oscillator requires feeding)
     // REF: Liu & Thomas 1994 — off lawn, DMP not expressed
-    Vector2d head_pos = body_.get_head_position();
-    double food = environment_.sample_food_density(head_pos);
+    double food = cached_food_at_head_;
     bool on_food = (food > 0.2);
 
     // During sleep: suppress DMP (RIS global inhibition already handles AVL)
@@ -750,8 +749,8 @@ void SimulationEngine::apply_arousal_gating() {
 //      Fielenbach & Antebi 2008 — DAF-2/DAF-16 insulin/FOXO pathway
 // ================================================================
 void SimulationEngine::update_dauer_decision() {
-    Vector2d head_pos = body_.get_head_position();
-    double food_here = environment_.sample_food_density(head_pos);
+    Vector2d head_pos = cached_head_pos_;
+    double food_here = cached_food_at_head_;
 
     // --- 1. DAF-7/TGF-β from ASI: food-dependent ---
     // Food present → DAF-7 high (1.0) → reproductive

@@ -71,9 +71,8 @@ void SimulationEngine::update_salt_learning() {
 // Step 26: Learned Pathogen Avoidance (Zhang 2005 Nature)
 // ================================================================
 void SimulationEngine::update_sickness() {
-    Vector2d head_pos = body_.get_head_position();
-    double food_here = environment_.sample_food_density(head_pos);
-    double toxin_here = environment_.sample_repellent(head_pos);
+    double food_here = cached_food_at_head_;
+    double toxin_here = cached_repellent_at_head_;
 
     bool eating_toxic = (food_here > 0.1 && toxin_here > 0.1 && pharynx_.pump_rate_hz() > 0.5);
 
@@ -202,8 +201,7 @@ void SimulationEngine::update_odor_conditioning() {
     auto& synapses = connectome_.synapses_mut();
 
     // Food signal at head position: >0.5 = food present, <0.5 = no food
-    Vector2d head_pos = body_.get_head_position();
-    double food_here = environment_.sample_food_density(head_pos);
+    double food_here = cached_food_at_head_;
     // Sigmoid food detection threshold (>0.1 = food detected)
     double food_signal = 1.0 / (1.0 + fast_exp(-20.0 * (food_here - 0.1)));
 

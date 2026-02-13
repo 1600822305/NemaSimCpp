@@ -42,7 +42,8 @@ void SimulationEngine::apply_sensory_input() {
     double sick_suppression = 1.0 - 0.85 * sickness_;  // sick: 15% of normal drive
 
     // Food density at head (narrow σ=3mm for NSM/CEP food detectors)
-    double food_density = environment_.sample_food_density(head_pos);
+    // Uses per-step cache (computed once in step())
+    double food_density = cached_food_at_head_;
 
     for (auto& cm : chemo_mappings_) {
         if (cm.neuron_id < 0 || cm.neuron_id >= n) continue;
@@ -147,8 +148,7 @@ void SimulationEngine::apply_sensory_input() {
     // AWB ⊣ AIY further suppresses approach
     // REF: Troemel 1997 Cell, Ha 2010 Neuron, BMC Biology 2022
     {
-        Vector2d head_pos = body_.get_head_position();
-        double repellent = environment_.sample_repellent(head_pos);
+        double repellent = cached_repellent_at_head_;
         for (int awb_id : nids("AWB")) {
             if (awb_id >= 0 && awb_id < n) {
                 // Base response: low (2pA) — AWB mainly activated after learning
@@ -166,7 +166,6 @@ void SimulationEngine::apply_sensory_input() {
     //      Liu 2010 — ASJ+ASK+AWB+ASH combinatorial light sensing
     //      Edwards 2008 — LITE-1 identified in genetic screen
     if (environment_.has_light()) {
-        Vector2d head_pos = body_.get_head_position();
         double light = environment_.sample_light(head_pos);
         if (light > 0.01) {
             // ASJ: primary photoreceptor — strongest light response
@@ -216,7 +215,6 @@ void SimulationEngine::apply_sensory_input() {
     // REF: Jang 2012 — ADL is primary ascr#3 sensor
     //      Srinivasan 2008 — ascarosides as social signals
     if (environment_.has_pheromone()) {
-        Vector2d head_pos = body_.get_head_position();
         double pheromone = environment_.sample_pheromone(head_pos);
         if (pheromone > 0.01) {
             // ADL: TONIC pheromone response — sustained avoidance drive
@@ -250,7 +248,7 @@ void SimulationEngine::apply_thermo_input() {
     // AFD→AIY: excitatory, drives thermotaxis via shared AIY→RIA→SMD pathway
     // REF: Mori & Ohshima 1995, Clark 2006, Luo 2014 PNAS
     int n = static_cast<int>(neurons_.size());
-    Vector2d head_pos = body_.get_head_position();
+    Vector2d head_pos = cached_head_pos_;
     double temperature = environment_.sample_temperature(head_pos);
 
     // Step 23c: Satiety modulates thermosensory gain (Mori 1995)
@@ -266,7 +264,7 @@ void SimulationEngine::apply_thermo_input() {
     // Uses food presence at head (not satiety) — Chi 2007: food conditions affect
     // WHICH behavior is exhibited, and Tc memory is established at food location
     // REF: Chi 2007 J Exp Biol — food/temp independent mechanisms
-    double food_here = environment_.sample_food_density(head_pos);
+    double food_here = cached_food_at_head_;
     double thermo_learn_signal = (food_here > 0.1) ? 0.5 : -0.3;
     bool thermo_learn_tick = (static_cast<int>(current_time_ / dt_) % 200 == 0);
 
@@ -320,7 +318,7 @@ void SimulationEngine::apply_thermo_input() {
 // ================================================================
 void SimulationEngine::apply_tail_chemosensation() {
     int n = static_cast<int>(neurons_.size());
-    Vector2d tail_pos = body_.get_tail_position();
+    Vector2d tail_pos = cached_tail_pos_;
 
     // PHB: TONIC response to repellent at tail
     // gain=40: weaker than ASH (80) — tail is secondary nociceptor
@@ -334,7 +332,7 @@ void SimulationEngine::apply_tail_chemosensation() {
 
     // PHA: TONIC response to food at tail (weak, neuroendocrine)
     // Senses food quality / pheromone at tail position
-    double food_at_tail = environment_.sample_food_density(tail_pos);
+    double food_at_tail = cached_food_at_tail_;
     double pha_drive = 10.0 * food_at_tail / (food_at_tail + 0.5) + 1.0;  // baseline 1pA
     for (int id : nids("PHA")) {
         if (id >= 0 && id < n) neurons_[id]->set_external_current(pha_drive);
@@ -517,8 +515,9 @@ void SimulationEngine::apply_touch_stimulus() {
     {
         // Compute O₂ at head and tail from FOOD DENSITY (bacteria, σ≈3mm)
         // NOT sample_chemical (volatile odor, σ≈12mm) — O₂ depletion is local
-        double food_at_head = environment_.sample_food_density(head);
-        double food_at_tail = environment_.sample_food_density(tail);
+        // Uses per-step cache (computed once in step())
+        double food_at_head = cached_food_at_head_;
+        double food_at_tail = cached_food_at_tail_;
         // Normalize food concentration (peak ~1.0 at source center)
         // O₂ = 21% - 13% × food_density → range [8%, 21%]
         double o2_head = 21.0 - 13.0 * std::min(food_at_head, 1.0);
@@ -585,7 +584,7 @@ void SimulationEngine::apply_touch_stimulus() {
     // REF: Hallem & Sternberg 2008, Bretscher 2011, Carrillo 2013
     // ======================================================================
     {
-        double food_at_head = environment_.sample_food_density(head);
+        double food_at_head = cached_food_at_head_;
         double co2_head = 0.04 + 3.0 * std::min(food_at_head, 1.0);  // range [0.04%, 3.04%]
 
         // Phasic component: BAG responds to CO₂ CHANGES more than absolute level
@@ -787,7 +786,7 @@ void SimulationEngine::apply_touch_stimulus() {
         // REF: Flavell 2024 eLife — head poke reversal ~55%, leaving ~0.5%
         //      Leaving coupled to roaming state (20× higher in roaming vs dwelling)
         //      cat-2/tph-1 mutants: more leaving (more roaming), dynamics preserved
-        double food_at_head = environment_.sample_food_density(body_.get_head_position());
+        double food_at_head = cached_food_at_head_;
         bool currently_on_lawn = (food_at_head > 0.4);
         bool food_edge_exit = (was_on_lawn_ && food_at_head < 0.3);
         if (currently_on_lawn) was_on_lawn_ = true;

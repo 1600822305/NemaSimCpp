@@ -1004,6 +1004,15 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **代码**: 删除 diag_main.cpp 中 Three.js 动画导出代码块 (~60 行)，保留 BodyModel3D 诊断输出
 - **验证**: Release 编译零错误，三个 exe 均成功生成
 
+### Step 138: 虫体模型清理 (Stub for Re-implementation) ✅ (2026-02-13)
+> 详细文档: [steps/step138_body_model_cleanup.md](steps/step138_body_model_cleanup.md)
+
+- **清理**: 移除 body_model.h/cpp 和 body_model_3d.h/cpp 中全部 Boyle 2012 物理实现
+- **保留**: 全部公共 API 接口 (20+ 方法)、BodySegment 结构体、几何初始化
+- **移除**: 曲率 ODE、RFT 拖曳矩阵、Hill 肌肉模型、被动力弹簧、PBD 约束、肌肉 LPF
+- **目的**: 为完整重新实现虫体物理模型做准备
+- **验证**: Release 编译零错误，celegans_diag.exe + celegans_sim.exe 均成功生成
+
 ---
 
 ## 当前系统状态

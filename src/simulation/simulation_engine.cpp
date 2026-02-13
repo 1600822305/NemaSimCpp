@@ -415,6 +415,14 @@ void SimulationEngine::step() {
     // 1. Environment update
     environment_.step(dt_ * 0.001);
 
+    // 1b. Cache frequently-sampled environment values (avoid redundant sampling)
+    // These are used by 7+ subsystems per step; sampling involves Gaussian distance calc
+    cached_head_pos_ = body_.get_head_position();
+    cached_tail_pos_ = body_.get_tail_position();
+    cached_food_at_head_ = environment_.sample_food_density(cached_head_pos_);
+    cached_food_at_tail_ = environment_.sample_food_density(cached_tail_pos_);
+    cached_repellent_at_head_ = environment_.sample_repellent(cached_head_pos_);
+
     // 2. Sensory input: chemosensory neurons detect gradient, others get baseline
     // These use set_external_current() → writes to I_ext_ → survives I_syn_ reset
     // REF: Bargmann 2006, Suzuki 2008

@@ -502,6 +502,14 @@ private:
         return (it != nids_.end()) ? it->second : empty;
     }
 
+    // === Performance: per-step cached environment samples (avoid redundant sampling) ===
+    // Computed once at start of step(), used by all subsystems
+    Vector2d cached_head_pos_;                   // body head position
+    Vector2d cached_tail_pos_;                   // body tail position
+    double cached_food_at_head_ = 0.0;           // sample_food_density(head)
+    double cached_food_at_tail_ = 0.0;           // sample_food_density(tail)
+    double cached_repellent_at_head_ = 0.0;      // sample_repellent(head)
+
     // === Performance: cached typed pointers (avoid per-step dynamic_cast) ===
     SingleCompartmentNeuron* smd_scn_[4] = {};  // [0]=SMDDL [1]=SMDVL [2]=SMDDR [3]=SMDVR
     MultiCompartmentNeuron* ria_mcn_[2] = {};   // [0]=RIAL [1]=RIAR
