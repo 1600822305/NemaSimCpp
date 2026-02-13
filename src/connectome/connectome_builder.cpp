@@ -746,6 +746,22 @@ void build_neurons(CB& b) {
     // REF: Collins 2016 eLife, 2021 J Neurosci — VC facilitates egg release
     b.neuron("VC4",  NT::MOTOR, NTT::ACETYLCHOLINE);
     b.neuron("VC5",  NT::MOTOR, NTT::ACETYLCHOLINE);
+    // Step 112: VC1-3, VC6 — remaining vulval cholinergic motor neurons
+    // VC1-3 anterior to vulva, VC6 posterior; weaker vulval coupling than VC4/VC5
+    // All receive HSN serotonergic input; modulate egg-laying timing
+    // REF: White 1986, Collins 2016 eLife
+    b.neuron("VC1",  NT::MOTOR, NTT::ACETYLCHOLINE);
+    b.neuron("VC2",  NT::MOTOR, NTT::ACETYLCHOLINE);
+    b.neuron("VC3",  NT::MOTOR, NTT::ACETYLCHOLINE);
+    b.neuron("VC6",  NT::MOTOR, NTT::ACETYLCHOLINE);
+    // Step 112: SAB — sublateral motor neurons (D + VL/VR = 3)
+    // Community 2 (Foraging); axons in sublateral nerves
+    // Distinctive: AVK outputs to ALL sublateral MNs EXCEPT SAB (Emmons 2024)
+    // Cholinergic; innervate anterior body wall muscles
+    // REF: White 1986, Emmons 2024
+    b.neuron("SABD",  NT::MOTOR, NTT::ACETYLCHOLINE);
+    b.neuron("SABVL", NT::MOTOR, NTT::ACETYLCHOLINE);
+    b.neuron("SABVR", NT::MOTOR, NTT::ACETYLCHOLINE);
 }
 
 // ================================================================
@@ -1856,6 +1872,20 @@ void build_ventral_cord_integrators(CB& b) {
     b.syn("RICL", "AIML", 1); b.syn("RICR", "AIMR", 1);
     // AIM↔AIM: L/R gap junction (coordinate bilateral)
     b.gj("AIML", "AIMR", 2);
+
+    // Step 112: VC1-3, VC6 — remaining vulval motor neurons
+    // HSN→VC: serotonergic drive to all VCs (egg-laying active state)
+    b.syn("HSNL", "VC1", 1); b.syn("HSNL", "VC2", 1); b.syn("HSNL", "VC3", 1);
+    b.syn("HSNR", "VC6", 1);
+    // VC↔VC: gap junctions — coordinate vulval muscle contractions
+    b.gj("VC1", "VC2", 1); b.gj("VC2", "VC3", 1);
+    b.gj("VC3", "VC4", 1); b.gj("VC5", "VC6", 1);
+
+    // Step 112: SAB — sublateral motor (Community 2)
+    // AVA→SAB: backward command → anterior body wall (White 1986)
+    b.syn("AVAL", "SABD", 1); b.syn("AVAR", "SABVL", 1); b.syn("AVAR", "SABVR", 1);
+    // SAB↔SMD: gap junction — sublateral/head motor coordination
+    b.gj("SABD", "SMDDL", 1); b.gj("SABVL", "SMDVL", 1); b.gj("SABVR", "SMDVR", 1);
 
     // Step 110: RMH — head motor (Community 2, Foraging)
     // SDQR→RMH: "SDQR targets the RMH head motor neurons" (Emmons 2024)

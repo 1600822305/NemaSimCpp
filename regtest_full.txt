@@ -3,15 +3,15 @@
   [CLI] as_factor=2.8 pulse_amp=50
 ========================================
 
-  [OK] SMDDL V swing             49.0 mV
-  [OK] SMDVL V swing             34.7 mV
-  [OK] SMD diff amplitude        80.2 mV
-  [OK] SMDDL |I_syn| max         16.6 pA
+  [OK] SMDDL V swing             62.1 mV
+  [OK] SMDVL V swing             32.4 mV
+  [OK] SMD diff amplitude        89.7 mV
+  [OK] SMDDL |I_syn| max         18.3 pA
   [OK] SMDDL I_ext                3.0 pA
   [OK] Curvature amplitude        0.1 /mm
   [OK] Speed mean                 0.2 mm/s
-  [OK] Heading rate               5.4 deg/s
-  [OK] ASEL mean V              -41.4 mV
+  [OK] Heading rate               5.5 deg/s
+  [OK] ASEL mean V              -41.5 mV
   [OK] ASER mean V              -46.7 mV
   [OK] Reversal count             6.0 
   [OK] Omega count                0.0 
@@ -20,9 +20,9 @@
   [OK] Midbody curv amp           0.1 /mm
   [OK] Curv stability             0.0 Hz
   [OK] Muscle work                0.2 
-  [OK] Neuron count             261.0 
-  [OK] Synapse count            646.0 
-  [OK] Gap junction count       222.0 
+  [OK] Neuron count             268.0 
+  [OK] Synapse count            653.0 
+  [OK] Gap junction count       229.0 
 
   Result: 20 pass, 0 FAIL
 
