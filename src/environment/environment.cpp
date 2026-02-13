@@ -103,4 +103,25 @@ void Environment::set_pheromone_source(Vector2d pos, double intensity) {
     pheromone_field_.add_point_source(pos, intensity, 36.0); // σ²=36mm²
 }
 
+// Step 118: Osmotic barrier — glycerol ring assay (Hilliard 2005)
+// Ring-shaped high osmolarity barrier: sharp Gaussian profile
+// Osmolarity = strength × exp(-d²/(2σ²)) where d = |r - radius|
+// Worms inside ring are trapped; ASH/OSM-9 detects barrier on contact
+double Environment::sample_osmolarity(Vector2d pos) const {
+    if (osm_strength_ <= 0.0) return 0.0;
+    double dx = pos.x - osm_center_.x;
+    double dy = pos.y - osm_center_.y;
+    double r = std::sqrt(dx * dx + dy * dy);
+    double d = r - osm_radius_;  // distance from ring center
+    double sigma2 = osm_width_ * osm_width_ * 0.5;  // half-width squared
+    return osm_strength_ * fast_exp(-d * d / (2.0 * sigma2));
+}
+
+void Environment::set_osmotic_barrier(Vector2d center, double radius, double width, double strength) {
+    osm_center_ = center;
+    osm_radius_ = radius;
+    osm_width_ = width;
+    osm_strength_ = strength;
+}
+
 } // namespace celegans

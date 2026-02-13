@@ -48,6 +48,12 @@ public:
     bool has_pheromone() const { return has_pheromone_; }
     void set_pheromone_source(Vector2d pos, double intensity);
 
+    // Step 118: Osmotic barrier field (glycerol ring assay, Hilliard 2005)
+    // High osmolarity ring/barrier that worms avoid via ASH OSM-9/TRPV
+    double sample_osmolarity(Vector2d pos) const;
+    void set_osmotic_barrier(Vector2d center, double radius, double width, double strength);
+    bool has_osmotic_barrier() const { return osm_strength_ > 0.0; }
+
     // Temperature field configuration (Step 23)
     void set_temperature_gradient(double center_temp, Vector2d gradient_dir, double gradient_strength);
     double center_temperature() const { return temp_center_; }
@@ -66,6 +72,12 @@ private:
     double temp_center_ = 20.0;  // °C at arena center
     double temp_grad_x_ = 0.0;   // °C/mm in x direction
     double temp_grad_y_ = 0.0;   // °C/mm in y direction
+
+    // Step 118: Osmotic barrier (glycerol ring)
+    Vector2d osm_center_ = {25.0, 25.0}; // center of ring
+    double osm_radius_ = 15.0;           // mm, ring radius
+    double osm_width_ = 1.5;             // mm, ring width (sharp barrier)
+    double osm_strength_ = 0.0;          // [0,1] osmolarity intensity (0=off)
 
     // Step 55: Light source (UV/blue)
     Vector2d light_pos_ = {-1.0, -1.0}; // negative = no light

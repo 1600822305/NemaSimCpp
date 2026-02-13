@@ -150,6 +150,7 @@ int main(int argc, char* argv[]) {
     bool cli_no_food = false;
     bool cli_light = false;
     double cli_light_x = 25.0, cli_light_y = 25.0, cli_light_intensity = 1.0;
+    bool cli_osm = false;  // Step 118: osmotic barrier
     bool cli_fitness = false;
     int cli_nseeds = 1;
     int cli_jobs = std::min(8, (int)std::thread::hardware_concurrency());
@@ -172,6 +173,7 @@ int main(int argc, char* argv[]) {
         else if (arg == "--npr1" && i+1 < argc) cli_npr1 = std::atof(argv[++i]);
         else if (arg == "--no-food" || arg == "--no_food") cli_no_food = true;
         else if (arg == "--light") cli_light = true;
+        else if (arg == "--osm") cli_osm = true;
         else if (arg == "--light_x" && i+1 < argc) { cli_light = true; cli_light_x = std::atof(argv[++i]); }
         else if (arg == "--light_y" && i+1 < argc) { cli_light = true; cli_light_y = std::atof(argv[++i]); }
         else if (arg == "--light_intensity" && i+1 < argc) { cli_light = true; cli_light_intensity = std::atof(argv[++i]); }
@@ -198,6 +200,7 @@ int main(int argc, char* argv[]) {
                       << "  --seed <n>            RNG seed (default: 123)\n"
                       << "  --no-toxin            Non-toxic food (disable repellent)\n"
                       << "  --no-food             No food (empty arena, random walk)\n"
+                      << "  --osm                 Enable osmotic barrier ring (glycerol ring assay)\n"
                       << "  --light               Enable light source at (25,25)\n"
                       << "  --light_x/y <f>       Light source position\n"
                       << "  --light_intensity <f>  Light intensity 0-1 (default: 1.0)\n"
@@ -434,6 +437,12 @@ int main(int argc, char* argv[]) {
     if (cli_no_food) {
         sim.environment().chemical_field().clear();
         sim.environment().soluble_field().clear();
+    }
+
+    // Step 118: Osmotic barrier (glycerol ring assay)
+    if (cli_osm) {
+        // Ring at arena center, radius=15mm, width=1.5mm, strength=1.0
+        sim.environment().set_osmotic_barrier({25.0, 25.0}, 15.0, 1.5, 1.0);
     }
 
     // Step 55: Light source (UV/blue)

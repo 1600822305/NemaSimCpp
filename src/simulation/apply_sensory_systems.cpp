@@ -80,6 +80,30 @@ void SimulationEngine::apply_sensory_input() {
         neurons_[nm.neuron_id]->set_external_current(I_noci);
     }
 
+    // Step 118: Osmotic avoidance — ASH + ADL sense high osmolarity via OSM-9/TRPV
+    // Glycerol ring assay: ASH fires on contact with high osmolarity → reversal
+    // OSM-9 (TRPV) channel is primary transducer in ASH (Colbert 1997)
+    // ADL also contributes (~15% of response, Hilliard 2005)
+    // REF: Colbert 1997, Hilliard 2005, Liedtke 2003
+    if (environment_.has_osmotic_barrier()) {
+        double osm_at_head = environment_.sample_osmolarity(head_pos);
+        if (osm_at_head > 0.05) {
+            // ASH: primary osmosensor, strong phasic response
+            // Gain=60pA at full osmolarity (comparable to repellent 80pA)
+            double ash_osm = 60.0 * osm_at_head;
+            for (int id : nids("ASH")) {
+                if (id >= 0 && id < n)
+                    neurons_[id]->add_synaptic_current(ash_osm);
+            }
+            // ADL: secondary osmosensor, weaker (~25% of ASH)
+            double adl_osm = 15.0 * osm_at_head;
+            for (int id : nids("ADL")) {
+                if (id >= 0 && id < n)
+                    neurons_[id]->add_synaptic_current(adl_osm);
+            }
+        }
+    }
+
     // Step 26: ADF serotonin neurons — driven by sickness state
     // REF: Zhang 2005 Nature — PA14 exposure → TPH-1 upregulation → ADF 5-HT↑
     // ADF baseline=2pA (low), sickness drives strong depolarization → 5-HT release

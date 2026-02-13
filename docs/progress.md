@@ -839,6 +839,14 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **diag 验证**: AWC→AIY w_mod=0.245 (负向条件学习生效)
 - **REF**: Kauffman 2010, Lin 2010, Wen 2012, Cho 2016
 
+### Step 118: 渗透压回避 (Osmotic Avoidance) ✅ (2026-02-13)
+> 详细文档: [steps/step118_osmotic_avoidance.md](steps/step118_osmotic_avoidance.md)
+
+- **新环境**: 渗透压环形屏障 (glycerol ring assay, Hilliard 2005)
+- **新感知**: ASH/ADL OSM-9/TRPV 渗透压检测 (60pA/15pA)
+- **回避行为**: ASH→AIB→AVA 已有回路驱动急转回避
+- **CLI**: --osm 启用渗透压环实验
+
 ---
 
 ## 当前系统状态
@@ -862,7 +870,7 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 离子通道: 14 种 (EGL-19/UNC-2/CCA-1/SHL-1/KQT-3/SLO-1/NCA/MEC + EGL-36/IRK/TWK/SLO-2/OSM-9/EXP-2)
 神经元模型: 单隔室 HH 分级电位 (L2) + 多隔室 (RIA) + 钙动力学
 身体: 2D 弹性杆 48 段, 91 个运动神经元-肌肉映射, 体节间曲率扩散(弹性耦合)
-环境: 50×50 mm, 4化学场(food_odor+soluble+repellent+pheromone) + 线性温度梯度 (0.5°C/mm) + O₂场(food派生) + 光场(高斯σ=8mm)
+环境: 50×50 mm, 4化学场(food_odor+soluble+repellent+pheromone) + 线性温度梯度 (0.5°C/mm) + O₂场(food派生) + 光场(高斯σ=8mm) + 渗透压环(Step 118)
 内部状态: satiety_(泵驱动), sickness_(有毒食物), food_memory_(双通路ARS), fatigue_(睡眠驱动)
 学习: 盐学习(ASER w_mod) + 病原体学习(AWC翻转+WV反向+厌食) + 温度学习(Tc适应+AWC饥饿中断) + 联想条件学习(AWC→AIY w_mod双向, Step 117) + STP习惯化 + 睡眠巩固(Step 62) + INS-1厌食(Step 63)
 仿真: dt=0.5ms, CPU 实时 (10000步 < 1s)
