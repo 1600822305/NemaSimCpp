@@ -113,16 +113,91 @@ void BodyModel::update_positions(double dt) {
     //      Fang-Yen 2010 (speed ~0.15 mm/s on agar)
     // ===================================================================
 
-    // --- 1. Forward speed from muscle activity ---
-    double muscle_work = 0.0;
-    for (auto& seg : segments_) {
-        muscle_work += std::abs(seg.dorsal_activation - seg.ventral_activation);
-    }
-    muscle_work /= NUM_BODY_SEGMENTS;
+    // --- 1. RFT-based forward speed (Gray & Lissmann 1964, Boyle 2012) ---
+    // At low Re (~10⁻⁴), inertia negligible → quasi-static force balance.
+    // Drag anisotropy (C_N >> C_T on agar) converts undulation into thrust.
+    //
+    // Algorithm:
+    //   1. Compute body angles from current curvatures
+    //   2. Compute dκ/dt from curvature change (current - prev)
+    //   3. Compute joint angular velocities (cumulative dκ chain)
+    //   4. Compute shape velocities for each segment
+    //   5. Build 2×2 drag matrix A and thrust vector b
+    //   6. Solve A × V = b for body translation velocity
+    //   7. Forward speed = V · t_head
+    //
+    // REF: Gray & Lissmann 1964 (RFT for nematodes)
+    //      Boyle et al. 2012 (C. elegans neuromechanical model, K_agar=40)
+    //      Berri et al. 2009 (swim-crawl transition)
+    //      Backholm et al. 2014 (direct drag force measurements)
+    double ds = segment_length_;
+    double C_T = drag_coeff_tangent_;
+    double C_N = drag_coeff_normal_;
 
-    // REF: Fang-Yen 2010 — wild-type speed on agar ~0.15 mm/s
-    double v_max = 0.6 * speed_scale_; // mm/s; muscle_work ~0.3-0.5 → effective speed ~0.15-0.30
-    double forward_speed = v_max * muscle_work;
+    // 1a. Body angles from current curvatures
+    double theta[NUM_BODY_SEGMENTS];
+    theta[0] = segments_[0].angle;
+    for (int i = 1; i < NUM_BODY_SEGMENTS; ++i)
+        theta[i] = theta[i - 1] - segments_[i].curvature * ds;
+
+    // 1b. Curvature change rates
+    double dkappa[NUM_BODY_SEGMENTS];
+    for (int i = 0; i < NUM_BODY_SEGMENTS; ++i)
+        dkappa[i] = (segments_[i].curvature - segments_[i].prev_curvature) / dt;
+
+    // 1c. Joint angular velocities (cumulative from curvature chain)
+    // dθ_j/dt = -Σ_{k=1}^{j} dκ_k × ds
+    double omega[NUM_BODY_SEGMENTS];
+    omega[0] = 0.0;
+    for (int j = 1; j < NUM_BODY_SEGMENTS; ++j)
+        omega[j] = omega[j - 1] - dkappa[j] * ds;
+
+    // 1d. Shape velocities (cumulative from angular velocity × normal)
+    // v_shape_i = -Σ_{j=0}^{i-1} ds × ω_j × n_j
+    double vsx[NUM_BODY_SEGMENTS], vsy[NUM_BODY_SEGMENTS];
+    vsx[0] = vsy[0] = 0.0;
+    for (int i = 1; i < NUM_BODY_SEGMENTS; ++i) {
+        double nx = -std::sin(theta[i - 1]);
+        double ny =  std::cos(theta[i - 1]);
+        vsx[i] = vsx[i - 1] - ds * omega[i - 1] * nx;
+        vsy[i] = vsy[i - 1] - ds * omega[i - 1] * ny;
+    }
+
+    // 1e. Build 2×2 RFT drag matrix A and thrust vector b
+    // For each segment: F_drag = -C_T*(v·t)*t - C_N*(v·n)*n
+    // Total velocity: v_i = V + v_shape_i
+    // Force balance: A × V = b
+    double A00 = 0, A01 = 0, A11 = 0;
+    double b0 = 0, b1 = 0;
+    for (int i = 0; i < NUM_BODY_SEGMENTS; ++i) {
+        double tx = std::cos(theta[i]), ty = std::sin(theta[i]);
+        double nx = -ty, ny = tx;
+        // Symmetric drag matrix
+        A00 += C_T * tx * tx + C_N * nx * nx;
+        A01 += C_T * tx * ty + C_N * nx * ny;
+        A11 += C_T * ty * ty + C_N * ny * ny;
+        // Thrust from shape change
+        double vs_t = vsx[i] * tx + vsy[i] * ty;
+        double vs_n = vsx[i] * nx + vsy[i] * ny;
+        b0 -= C_T * vs_t * tx + C_N * vs_n * nx;
+        b1 -= C_T * vs_t * ty + C_N * vs_n * ny;
+    }
+
+    // 1f. Solve 2×2: A × V = b (A is symmetric: A10 = A01)
+    double det = A00 * A11 - A01 * A01;
+    double Vx = 0.0, Vy = 0.0;
+    if (std::abs(det) > 1e-20) {
+        Vx = ( A11 * b0 - A01 * b1) / det;
+        Vy = (-A01 * b0 + A00 * b1) / det;
+    }
+
+    // 1g. Forward speed = V · t_head × calibration
+    double head_tx = std::cos(theta[0]), head_ty = std::sin(theta[0]);
+    double forward_speed = (Vx * head_tx + Vy * head_ty) * rft_gain_ * speed_scale_;
+
+    // Clamp: prevent unrealistic speeds from transients (startup, omega turns)
+    // Fang-Yen 2010: crawl ~0.15-0.3 mm/s, max burst ~0.5 mm/s
+    forward_speed = std::clamp(forward_speed, 0.0, 1.0);
 
     // --- 1b. Locomotion direction from command neuron balance ---
     // Step 41: Implement backward locomotion during reversal

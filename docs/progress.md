@@ -967,6 +967,18 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **文献**: avr-14 (Dent 2000), avr-15/M3 (Avery 1993), glc-3/AIB (Kuramochi 2018), glc-3/AIY (Ohnishi 2011)
 - **验证**: 编译零错误, regtest 19/20 pass (Midbody curv amp 预先存在), 突触计数 697 不变
 
+### Step 134: RFT 阻力力理论运动速度 ✅ (2026-02-13)
+> 详细文档: [steps/step134_rft_locomotion.md](steps/step134_rft_locomotion.md)
+
+- **修复**: 替换 `muscle_work × v_max` 为 RFT 2×2 力平衡求解（Gray & Lissmann 1964, Boyle 2012）
+- **物理**: 速度依赖体波振幅/频率/形状 + 阻力各向异性 C_N/C_T
+- **参数**: 从 Boyle 2012 源码 worm.cc 直接提取，medium-dependent 插值:
+  - Water: C_T=3.3e-6, C_N=5.2e-6, K=1.58 (Lighthill 1976)
+  - Agar: C_T=3.2e-3, C_N=128e-3, K=40 (Berri 2009)
+  - `set_medium(0~1)` API 支持 swim-crawl 连续过渡
+- **校准**: rft_gain_=24（补偿模型曲率低估 + agar 凹槽非线性, Backholm 2014）
+- **验证**: Speed 0.2 mm/s ✓, Heading rate 5.1 deg/s ✓, regtest 19/20 pass
+
 ---
 
 ## 当前系统状态

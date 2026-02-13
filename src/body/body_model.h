@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/types.h"
+#include <algorithm>
 #include <array>
 #include <vector>
 #include <random>
@@ -91,11 +92,38 @@ private:
     // → posterior segments follow anterior curvature with muscle-time-constant delay
     double prop_coupling_ = 12.0;    // anterior→posterior coupling strength (proprioceptive gain)
     double prop_tau_ = 0.03;         // proprioceptive delay per segment (30ms → λ≈0.65 body lengths at 0.5Hz)
-    double drag_coeff_tangent_ = 1.0;   // tangential drag
-    double drag_coeff_normal_ = 10.0;   // normal drag (anisotropic for low Re)
+    // Step 134: RFT drag coefficients — medium-dependent (Boyle 2012)
+    // Absolute values from Boyle 2012 worm.cc lines 75-78 (per whole worm):
+    //   Water: C_T=3.3e-6, C_N=5.2e-6  → K=1.58 (Lighthill 1976)
+    //   Agar:  C_T=3.2e-3, C_N=128e-3  → K=40   (Berri 2009, Niebur & Erdös 1991)
+    // Linear interpolation: C(medium) = C_water + (C_agar - C_water) × medium
+    // Only the ratio C_N/C_T matters for RFT velocity (absolute values cancel)
+    double medium_ = 1.0;              // 0.0=water, 1.0=agar (Boyle 2012 MEDIUM)
+    double drag_coeff_tangent_ = 1.0;   // C_T (normalized after interpolation)
+    double drag_coeff_normal_ = 40.0;   // C_N (normalized, = K × C_T)
+    // RFT calibration gain: compensates for model curvature underestimate
+    // Our model: κ_max ≈ 1.5/mm; real C. elegans: κ_max ≈ 5-10/mm
+    // Thrust ∝ amplitude² → gain ≈ (5/1.5)² ≈ 11
+    // Also compensates for agar groove dynamics (Backholm 2014: nonlinear boost)
+    double rft_gain_ = 24.0;
+
+    void compute_drag_coefficients() {
+        // Boyle 2012 absolute drag coefficients (per whole worm, SI units)
+        constexpr double CT_water = 3.3e-6,  CN_water = 5.2e-6;
+        constexpr double CT_agar  = 3.2e-3,  CN_agar  = 128.0e-3;
+        double ct = CT_water + (CT_agar - CT_water) * medium_;
+        double cn = CN_water + (CN_agar - CN_water) * medium_;
+        // Normalize to C_T = 1.0 (only ratio matters for velocity)
+        drag_coeff_tangent_ = 1.0;
+        drag_coeff_normal_  = cn / ct;
+    }
     double speed_ = 0.0;             // current locomotion speed (mm/s)
 public:
     void set_speed_scale(double s) { speed_scale_ = s; }
+    // Set medium: 0.0=water (swimming), 1.0=agar (crawling)
+    // REF: Boyle 2012 — continuous swim-crawl transition
+    void set_medium(double m) { medium_ = std::clamp(m, 0.0, 1.0); compute_drag_coefficients(); }
+    double get_medium() const { return medium_; }
 private:
     double speed_scale_ = 1.0;       // runtime speed multiplier
     double curvature_bias_ = 0.0;    // direct curvature bias from weathervane (1/mm)
