@@ -124,6 +124,8 @@ public:
     // Step 122: Dauer formation state
     double dauer_signal() const { return dauer_signal_; }
     bool is_dauer() const { return dauer_signal_ > 0.8; }
+    // Step 123: Arousal threshold
+    double arousal_threshold() const { return arousal_threshold_; }
 
     // Callback for each step (for logging/visualization)
     using StepCallback = std::function<void(const SimulationEngine&, int step_num)>;
@@ -391,6 +393,16 @@ private:
     bool is_sleeping_ = false;            // current sleep state
     void update_fatigue();                // fatigue accumulation / decay
     void apply_sleep_effects();           // FLP-11 global inhibition during sleep
+    // Step 123: Arousal threshold modulation (Schwarz 2011 Cell Rep)
+    // During sleep, FLP-11 gates sensory responsiveness at multiple circuit levels:
+    //   1. ASH sensory neuron: Ca2+ response reduced (dampened excitability)
+    //   2. AVA/AVD interneurons: lose synchrony (asynchronous firing)
+    //   3. Graded: strong stimuli (touch 80pA) > threshold → wake; weak < threshold → sleep maintained
+    // Arousal threshold scales with FLP-11 concentration (sleep depth)
+    // REF: Schwarz 2011 Cell Rep, Raizen 2008, Cho & Bhatt 2006
+    double arousal_threshold_ = 0.0;     // [0,1] current arousal threshold (0=awake, ~0.7=deep sleep)
+    void update_arousal_threshold();      // compute from FLP-11 concentration
+    void apply_arousal_gating();          // gate sensory input during sleep
 
     // Step 56: Defecation Motor Program (DMP)
     // Intestinal Ca²⁺ oscillator (IP3/ITR-1) generates ~45s rhythm — non-neural pacemaker

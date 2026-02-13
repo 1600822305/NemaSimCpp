@@ -880,6 +880,14 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **diag**: 有食物=0.205(生殖) / 无食物=0.426(pro-dauer)
 - **REF**: Golden & Riddle 1984, Hu 2007
 
+### Step 123: 唤醒阈值调制 (Arousal Threshold Modulation) ✅ (2026-02-13)
+> 详细文档: [steps/step123_arousal_threshold.md](steps/step123_arousal_threshold.md)
+
+- **升级 Step 27/71**: FLP-11 浓度驱动的分级唤醒阈值
+- **机制**: ASH 抑制(-15pA×gate) + AVA/AVD 抑制(-8pA×gate) + 刺激依赖唤醒
+- **文献**: Schwarz 2011 Cell Rep — 多层级回路抑制
+- **REF**: Schwarz 2011, Raizen 2008
+
 ---
 
 ## 当前系统状态

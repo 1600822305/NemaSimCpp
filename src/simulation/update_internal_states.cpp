@@ -408,6 +408,105 @@ void SimulationEngine::apply_ins1_modulation() {
 }
 
 // ================================================================
+// Step 123: Arousal threshold modulation (Schwarz 2011 Cell Rep)
+// FLP-11 concentration determines arousal threshold during sleep.
+// Multilevel circuit depression: ASH dampened + AVA/AVD desynchronized.
+// Strong stimuli (touch, nociception) can overcome threshold → wake.
+// REF: Schwarz 2011 Cell Rep — multilevel modulation of ASH avoidance circuit
+//      Raizen 2008 — arousal threshold during lethargus
+//      Cho & Bhatt 2006 — graded sensory gating
+// ================================================================
+void SimulationEngine::update_arousal_threshold() {
+    if (!is_sleeping_) {
+        // Awake: threshold decays to zero
+        arousal_threshold_ -= arousal_threshold_ * dt_ / 2000.0;  // 2s decay
+        if (arousal_threshold_ < 0.0) arousal_threshold_ = 0.0;
+        return;
+    }
+
+    // Sleeping: arousal threshold tracks FLP-11 concentration
+    // FLP-11 conc from neuromodulation manager
+    double flp11 = neuromod_.get_concentration("FLP-11");
+    // Threshold = FLP-11 × fatigue (deeper sleep = higher threshold)
+    double target = flp11 * std::min(1.0, fatigue_ / fatigue_threshold_);
+    arousal_threshold_ += (target - arousal_threshold_) * dt_ / 5000.0;  // 5s smoothing
+    if (arousal_threshold_ > 1.0) arousal_threshold_ = 1.0;
+}
+
+void SimulationEngine::apply_arousal_gating() {
+    if (arousal_threshold_ < 0.05) return;  // awake or very light sleep
+
+    int n = static_cast<int>(neurons_.size());
+    double gate = arousal_threshold_;  // 0=no gating, 1=max gating
+
+    // 1. ASH sensory dampening (Schwarz 2011: Ca2+ response reduced in lethargus)
+    // Hyperpolarize ASH proportional to sleep depth
+    // At deep sleep (gate=0.7): -15pA × 0.7 = -10.5pA → ASH needs >10.5pA extra to respond
+    double ash_dampen = -15.0 * gate;
+    for (int id : nids("ASH")) {
+        if (id >= 0 && id < n)
+            neurons_[id]->add_synaptic_current(ash_dampen);
+    }
+
+    // 2. AVA/AVD interneuron dampening (loss of synchrony modeled as inhibition)
+    // "activity of corresponding interneurons becomes asynchronous"
+    // At deep sleep: -8pA per neuron → raises reversal threshold
+    double cmd_dampen = -8.0 * gate;
+    for (int id : nids("AVA")) {
+        if (id >= 0 && id < n)
+            neurons_[id]->add_synaptic_current(cmd_dampen);
+    }
+    for (int id : nids("AVD")) {
+        if (id >= 0 && id < n)
+            neurons_[id]->add_synaptic_current(cmd_dampen);
+    }
+
+    // 3. Stimulus-dependent arousal: check if sensory drive exceeds threshold
+    // Touch neurons (ALM/PLM/AVM) provide strong input (~80pA)
+    // If total sensory drive to AVA exceeds arousal threshold → wake up
+    double touch_activity = 0.0;
+    int touch_count = 0;
+    for (int id : nids("ALM")) {
+        if (id >= 0 && id < n) {
+            double v = neurons_[id]->get_membrane_potential();
+            touch_activity += 1.0 / (1.0 + fast_exp(-(v - (-30.0)) / 5.0));
+            touch_count++;
+        }
+    }
+    for (int id : nids("PLM")) {
+        if (id >= 0 && id < n) {
+            double v = neurons_[id]->get_membrane_potential();
+            touch_activity += 1.0 / (1.0 + fast_exp(-(v - (-30.0)) / 5.0));
+            touch_count++;
+        }
+    }
+    if (touch_count > 0) touch_activity /= touch_count;
+
+    // ASH nociceptive drive
+    double ash_activity = 0.0;
+    int ash_count = 0;
+    for (int id : nids("ASH")) {
+        if (id >= 0 && id < n) {
+            double v = neurons_[id]->get_membrane_potential();
+            ash_activity += 1.0 / (1.0 + fast_exp(-(v - (-30.0)) / 5.0));
+            ash_count++;
+        }
+    }
+    if (ash_count > 0) ash_activity /= ash_count;
+
+    // Combined sensory arousal signal
+    double arousal_signal = std::max(touch_activity, ash_activity);
+
+    // If sensory signal exceeds arousal threshold → force wake
+    // Touch at 80pA → activity ~0.9 >> threshold ~0.5 → wakes
+    // Weak gradient change → activity ~0.1 < threshold → stays asleep
+    if (arousal_signal > arousal_threshold_ * 0.8 && arousal_signal > 0.3) {
+        is_sleeping_ = false;
+        fatigue_ = std::max(fatigue_ * 0.5, 0.1);  // partial fatigue clear on forced wake
+    }
+}
+
+// ================================================================
 // Step 122: Dauer formation decision
 // Environmental signals → ASI neuroendocrine output → DAF-2/DAF-16 → dauer/reproductive
 //

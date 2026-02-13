@@ -575,6 +575,10 @@ void SimulationEngine::step() {
     update_fatigue();            // fatigue accumulation → RIS activation
     apply_sleep_effects();       // FLP-11 → global motor inhibition
 
+    // 5b6b. Step 123: Arousal threshold modulation (Schwarz 2011)
+    update_arousal_threshold();  // FLP-11 conc → arousal threshold
+    apply_arousal_gating();      // gate sensory input + stimulus-dependent wake
+
     // 5b7. Step 56: Defecation Motor Program (DMP)
     update_defecation();         // 45s intestinal pacemaker → AVL/DVB activation
 
