@@ -2,10 +2,31 @@
 #include <cmath>
 #include <algorithm>
 
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 namespace celegans {
 
 BodyModel::BodyModel() {
     segment_length_ = body_length_ / NUM_BODY_SEGMENTS;
+
+    // Elliptical body radius per rod (Boyle worm.cc:180)
+    // R[i] = D/2 * |sin(acos((i - N/2) / (N/2 + 0.2)))|
+    for (int i = 0; i < NBAR; ++i) {
+        double pos = (i - NUM_BODY_SEGMENTS / 2.0) / (NUM_BODY_SEGMENTS / 2.0 + 0.2);
+        pos = std::clamp(pos, -1.0, 1.0);
+        rod_radius_[i] = D_ / 2.0 * std::abs(std::sin(std::acos(pos)));
+    }
+
+    // NMJ weight gradient (Boyle worm.cc:377)
+    for (int i = 0; i < NUM_BODY_SEGMENTS; ++i) {
+        nmj_weight_[i] = 0.7 * (1.0 - i * 0.6 / NUM_BODY_SEGMENTS);
+    }
+    nmj_weight_[0] /= 1.5;  // Prevent excessive head bending
+
+    // Initialize drag coefficients
+    compute_drag_coefficients();
 }
 
 void BodyModel::initialize(Vector2d head_pos, double heading) {
@@ -14,8 +35,11 @@ void BodyModel::initialize(Vector2d head_pos, double heading) {
         seg.angle = heading;
         seg.position = head_pos - Vector2d::from_angle(heading) * (i * segment_length_);
         seg.curvature = 0.0;
+        seg.prev_curvature = 0.0;
         seg.dorsal_activation = 0.0;
         seg.ventral_activation = 0.0;
+        seg.V_muscle_dorsal = 0.0;
+        seg.V_muscle_ventral = 0.0;
     }
     prev_head_pos_ = head_pos;
 }
@@ -47,221 +71,217 @@ void BodyModel::set_muscle_activation_direct(int segment, bool dorsal, double ac
     }
 }
 
-void BodyModel::compute_curvatures(double dt) {
-    // ===================================================================
-    // Step 132: Proprioceptive body wave (Boyle & Cohen 2012)
-    //
-    // MECHANISM: B-class motor neurons are independently bistable.
-    // Stretch receptors sense anterior bending → trigger local B-neuron
-    // → full muscle activation → full curvature. The stretch receptor
-    // determines TIMING (phase), not AMPLITUDE. So the wave propagates
-    // without amplitude decay.
-    //
-    // Implementation:
-    //   Head (seg 0-3): SMD-driven oscillation (wave source)
-    //   Body (seg 4-47): exponential tracking of anterior curvature
-    //     - No amplitude loss (each segment reaches full curvature)
-    //     - Phase delay τ_prop per segment (~60ms → ~0.65 body wavelength)
-    //     - Amplitude gated by local muscle activity (DB/VB must be active)
-    //
-    // REF: Boyle & Cohen 2012, Front Comput Neurosci
-    //      Wen et al. 2012, Neuron
-    //      Fang-Yen 2010: crawl λ ≈ 0.65 body lengths, f ≈ 0.5 Hz
-    // ===================================================================
-
+// ===================================================================
+// Step 135: Muscle low-pass filter (Boyle worm.cc:493-500)
+// V_muscle tracks neural activation with time constant T_muscle = 0.1s
+// ===================================================================
+void BodyModel::update_muscles(double dt) {
     for (int i = 0; i < NUM_BODY_SEGMENTS; ++i) {
         auto& seg = segments_[i];
-
-        if (i < 4) {
-            // HEAD: driven by SMD muscle differential (wave source)
-            double muscle_diff = seg.dorsal_activation - seg.ventral_activation;
-            double target = muscle_gain_ * muscle_diff;
-
-            // Semi-implicit integration
-            double denom = 1.0 + (stiffness_ + damping_) * dt;
-            seg.curvature = (seg.curvature + dt * stiffness_ * target) / denom;
-        } else {
-            // BODY: proprioceptive wave — track anterior curvature
-            // Exponential filter: curv += (anterior - curv) * (dt / τ)
-            // This gives ZERO steady-state error (no amplitude decay)
-            double anterior_curv = segments_[i - 1].curvature;
-
-            // Muscle gating: DB/VB must be active for segment to respond
-            double muscle_amp = seg.dorsal_activation + seg.ventral_activation;
-            double gate = std::min(1.0, muscle_amp * 2.5);
-
-            // Direct muscle bias (for omega turns, reversal wave direction)
-            double muscle_diff = seg.dorsal_activation - seg.ventral_activation;
-            double muscle_bias = muscle_gain_ * muscle_diff * 0.15;
-
-            // Proprioceptive tracking with phase delay
-            double alpha = dt / prop_tau_ * gate;  // tracking rate, gated
-            seg.curvature += (anterior_curv - seg.curvature) * alpha + muscle_bias * dt;
-        }
-
-        // Clamp: crawling ~5/mm, omega ~15/mm
-        double max_curv = (omega_mode_ && i < 4) ? 15.0 : 5.0;
-        seg.curvature = std::clamp(seg.curvature, -max_curv, max_curv);
+        seg.V_muscle_dorsal  += (seg.dorsal_activation  * nmj_weight_[i] - seg.V_muscle_dorsal)  / T_muscle_ * dt;
+        seg.V_muscle_ventral += (seg.ventral_activation * nmj_weight_[i] - seg.V_muscle_ventral) / T_muscle_ * dt;
     }
 }
 
-void BodyModel::update_positions(double dt) {
-    // ===================================================================
-    // C. elegans locomotion kinematics
-    // REF: Pierce-Shimomura 1999 (pirouette model of chemotaxis)
-    //      Padmanabhan 2012 (curvature wave representation)
-    //      Fang-Yen 2010 (speed ~0.15 mm/s on agar)
-    // ===================================================================
+// ===================================================================
+// Step 135: Explicit quasi-static force balance (Boyle 2012)
+//
+// At Re ≈ 0 (no inertia): F_muscle + F_elastic + F_drag = 0
+// → v_rod = F_internal / C_drag  (per rod, instantaneous)
+//
+// Architecture: 49 rigid rods connected by 48 muscle element pairs
+// (dorsal + ventral horizontal springs) + 48 diagonal elements.
+// Each rod has center-of-mass (x, y) and orientation θ.
+// Terminal (D/V) points at ±R from CoM define muscle attachment.
+//
+// REF: Boyle, Berri & Cohen 2012, Front Comput Neurosci 6:10
+//      (resrob function, worm.cc lines 503-728)
+// ===================================================================
+void BodyModel::compute_forces_and_integrate(double dt) {
+    const int N = NUM_BODY_SEGMENTS; // 48
+    const double max_v = segment_length_ / dt * 0.5; // velocity clamp for stability
 
-    // --- 1. RFT-based forward speed (Gray & Lissmann 1964, Boyle 2012) ---
-    // At low Re (~10⁻⁴), inertia negligible → quasi-static force balance.
-    // Drag anisotropy (C_N >> C_T on agar) converts undulation into thrust.
-    //
-    // Algorithm:
-    //   1. Compute body angles from current curvatures
-    //   2. Compute dκ/dt from curvature change (current - prev)
-    //   3. Compute joint angular velocities (cumulative dκ chain)
-    //   4. Compute shape velocities for each segment
-    //   5. Build 2×2 drag matrix A and thrust vector b
-    //   6. Solve A × V = b for body translation velocity
-    //   7. Forward speed = V · t_head
-    //
-    // REF: Gray & Lissmann 1964 (RFT for nematodes)
-    //      Boyle et al. 2012 (C. elegans neuromechanical model, K_agar=40)
-    //      Berri et al. 2009 (swim-crawl transition)
-    //      Backholm et al. 2014 (direct drag force measurements)
-    double ds = segment_length_;
-    double C_T = drag_coeff_tangent_;
-    double C_N = drag_coeff_normal_;
+    // --- 1. Build rod state (49 rods) ---
+    double rx[NBAR], ry[NBAR], rth[NBAR];
+    for (int i = 0; i < N; ++i) {
+        rx[i]  = segments_[i].position.x;
+        ry[i]  = segments_[i].position.y;
+        rth[i] = segments_[i].angle;
+    }
+    // Tail rod: extends from last segment
+    rx[N]  = rx[N-1] - segment_length_ * std::cos(rth[N-1]);
+    ry[N]  = ry[N-1] - segment_length_ * std::sin(rth[N-1]);
+    rth[N] = rth[N-1];
 
-    // 1a. Body angles from current curvatures
-    double theta[NUM_BODY_SEGMENTS];
-    theta[0] = segments_[0].angle;
-    for (int i = 1; i < NUM_BODY_SEGMENTS; ++i)
-        theta[i] = theta[i - 1] - segments_[i].curvature * ds;
-
-    // 1b. Curvature change rates
-    double dkappa[NUM_BODY_SEGMENTS];
-    for (int i = 0; i < NUM_BODY_SEGMENTS; ++i)
-        dkappa[i] = (segments_[i].curvature - segments_[i].prev_curvature) / dt;
-
-    // 1c. Joint angular velocities (cumulative from curvature chain)
-    // dθ_j/dt = -Σ_{k=1}^{j} dκ_k × ds
-    double omega[NUM_BODY_SEGMENTS];
-    omega[0] = 0.0;
-    for (int j = 1; j < NUM_BODY_SEGMENTS; ++j)
-        omega[j] = omega[j - 1] - dkappa[j] * ds;
-
-    // 1d. Shape velocities (cumulative from angular velocity × normal)
-    // v_shape_i = -Σ_{j=0}^{i-1} ds × ω_j × n_j
-    double vsx[NUM_BODY_SEGMENTS], vsy[NUM_BODY_SEGMENTS];
-    vsx[0] = vsy[0] = 0.0;
-    for (int i = 1; i < NUM_BODY_SEGMENTS; ++i) {
-        double nx = -std::sin(theta[i - 1]);
-        double ny =  std::cos(theta[i - 1]);
-        vsx[i] = vsx[i - 1] - ds * omega[i - 1] * nx;
-        vsy[i] = vsy[i - 1] - ds * omega[i - 1] * ny;
+    // --- 2. Terminal (D/V) positions ---
+    double term[NBAR][2][2]; // [rod][d=0/v=1][x=0/y=1]
+    for (int i = 0; i < NBAR; ++i) {
+        double dx = rod_radius_[i] * std::cos(rth[i]);
+        double dy = rod_radius_[i] * std::sin(rth[i]);
+        term[i][0][0] = rx[i] + dx;  term[i][0][1] = ry[i] + dy;
+        term[i][1][0] = rx[i] - dx;  term[i][1][1] = ry[i] - dy;
     }
 
-    // 1e. Build 2×2 RFT drag matrix A and thrust vector b
-    // For each segment: F_drag = -C_T*(v·t)*t - C_N*(v·n)*n
-    // Total velocity: v_i = V + v_shape_i
-    // Force balance: A × V = b
-    double A00 = 0, A01 = 0, A11 = 0;
-    double b0 = 0, b1 = 0;
-    for (int i = 0; i < NUM_BODY_SEGMENTS; ++i) {
-        double tx = std::cos(theta[i]), ty = std::sin(theta[i]);
-        double nx = -ty, ny = tx;
-        // Symmetric drag matrix
-        A00 += C_T * tx * tx + C_N * nx * nx;
-        A01 += C_T * tx * ty + C_N * nx * ny;
-        A11 += C_T * ty * ty + C_N * ny * ny;
-        // Thrust from shape change
-        double vs_t = vsx[i] * tx + vsy[i] * ty;
-        double vs_n = vsx[i] * nx + vsy[i] * ny;
-        b0 -= C_T * vs_t * tx + C_N * vs_n * nx;
-        b1 -= C_T * vs_t * ty + C_N * vs_n * ny;
+    // --- 3. Horizontal element lengths & directions ---
+    double Lh[N][2], Dirh[N][2][2];
+    for (int i = 0; i < N; ++i) {
+        for (int dv = 0; dv < 2; ++dv) {
+            double ex = term[i+1][dv][0] - term[i][dv][0];
+            double ey = term[i+1][dv][1] - term[i][dv][1];
+            Lh[i][dv] = std::sqrt(ex*ex + ey*ey);
+            double inv = (Lh[i][dv] > 1e-15) ? 1.0 / Lh[i][dv] : 0.0;
+            Dirh[i][dv][0] = ex * inv;
+            Dirh[i][dv][1] = ey * inv;
+        }
     }
 
-    // 1f. Solve 2×2: A × V = b (A is symmetric: A10 = A01)
-    double det = A00 * A11 - A01 * A01;
-    double Vx = 0.0, Vy = 0.0;
-    if (std::abs(det) > 1e-20) {
-        Vx = ( A11 * b0 - A01 * b1) / det;
-        Vy = (-A01 * b0 + A00 * b1) / det;
+    // --- 4. Diagonal element lengths & directions ---
+    double Ld[N][2], Dird[N][2][2];
+    for (int i = 0; i < N; ++i) {
+        // \ : dorsal[i] → ventral[i+1]
+        double ex = term[i+1][1][0] - term[i][0][0];
+        double ey = term[i+1][1][1] - term[i][0][1];
+        Ld[i][0] = std::sqrt(ex*ex + ey*ey);
+        double inv = 1.0 / std::max(Ld[i][0], 1e-15);
+        Dird[i][0][0] = ex * inv;  Dird[i][0][1] = ey * inv;
+        // / : ventral[i] → dorsal[i+1]
+        ex = term[i+1][0][0] - term[i][1][0];
+        ey = term[i+1][0][1] - term[i][1][1];
+        Ld[i][1] = std::sqrt(ex*ex + ey*ey);
+        inv = 1.0 / std::max(Ld[i][1], 1e-15);
+        Dird[i][1][0] = ex * inv;  Dird[i][1][1] = ey * inv;
     }
 
-    // 1g. Forward speed = V · t_head × calibration
-    double head_tx = std::cos(theta[0]), head_ty = std::sin(theta[0]);
-    double forward_speed = (Vx * head_tx + Vy * head_ty) * rft_gain_ * speed_scale_;
+    // --- 5. Rest lengths (Boyle worm.cc:191-197) ---
+    double L0P[N], L0Pmm[N], L0Darr[N];
+    for (int i = 0; i < N; ++i) {
+        double dR = rod_radius_[i] - rod_radius_[i+1];
+        L0P[i] = std::sqrt(segment_length_ * segment_length_ + dR * dR);
+        double scale = 0.65 * (rod_radius_[i] + rod_radius_[i+1]) / D_;
+        L0Pmm[i] = L0P[i] - (1.0 - scale) * L0P[i]; // = scale * L0P = contraction range
+        double sR = rod_radius_[i] + rod_radius_[i+1];
+        L0Darr[i] = std::sqrt(segment_length_ * segment_length_ + sR * sR);
+    }
 
-    // Clamp: prevent unrealistic speeds from transients (startup, omega turns)
-    // Fang-Yen 2010: crawl ~0.15-0.3 mm/s, max burst ~0.5 mm/s
-    forward_speed = std::clamp(forward_speed, 0.0, 1.0);
+    // --- 6. Muscle + passive forces (Boyle worm.cc:613-636) ---
+    double FH[N][2];
+    for (int i = 0; i < N; ++i) {
+        for (int dv = 0; dv < 2; ++dv) {
+            double Vm = (dv == 0) ? segments_[std::min(i, N-1)].V_muscle_dorsal
+                                  : segments_[std::min(i, N-1)].V_muscle_ventral;
+            Vm = std::max(Vm, 0.0);
 
-    // --- 1b. Locomotion direction from command neuron balance ---
-    // Step 41: Implement backward locomotion during reversal
-    // REF: Fang-Yen 2010 — reverse speed ~60% of forward speed
-    //      Chalfie 1985 — AVA command neuron drives backward movement
-    // Smooth drives (tau=100ms) to avoid jitter at direction transitions
+            // Active element rest length (contracts when muscle active)
+            double L0_AE = L0P[i] - Vm * L0Pmm[i];
+            // Active elastic force
+            double F_AE = k_AE_ * Vm * (L0_AE - Lh[i][dv]);
+            // Passive elastic force with hardening (Boyle worm.cc:619)
+            double F_PE = k_PE_ * (L0P[i] - Lh[i][dv]);
+            double over = Lh[i][dv] - L0P[i];
+            if (over > 0.0) F_PE += k_PE_ * std::pow(2.0 * over, 4);
+
+            FH[i][dv] = F_PE + F_AE;
+        }
+    }
+
+    // Diagonal forces (Boyle worm.cc:634)
+    double FD[N][2];
+    for (int i = 0; i < N; ++i) {
+        FD[i][0] = k_DE_ * (L0Darr[i] - Ld[i][0]);
+        FD[i][1] = k_DE_ * (L0Darr[i] - Ld[i][1]);
+    }
+
+    // --- 7. Accumulate forces at terminals (Boyle worm.cc:672-693) ---
+    double Ft[NBAR][2][2]; // [rod][d/v][x/y]
+    // Head rod
+    Ft[0][0][0] = -FH[0][0]*Dirh[0][0][0] - FD[0][0]*Dird[0][0][0];
+    Ft[0][0][1] = -FH[0][0]*Dirh[0][0][1] - FD[0][0]*Dird[0][0][1];
+    Ft[0][1][0] = -FH[0][1]*Dirh[0][1][0] - FD[0][1]*Dird[0][1][0];
+    Ft[0][1][1] = -FH[0][1]*Dirh[0][1][1] - FD[0][1]*Dird[0][1][1];
+    // Interior rods
+    for (int i = 1; i < N; ++i) {
+        Ft[i][0][0] = FH[i-1][0]*Dirh[i-1][0][0] - FH[i][0]*Dirh[i][0][0]
+                    + FD[i-1][1]*Dird[i-1][1][0] - FD[i][0]*Dird[i][0][0];
+        Ft[i][0][1] = FH[i-1][0]*Dirh[i-1][0][1] - FH[i][0]*Dirh[i][0][1]
+                    + FD[i-1][1]*Dird[i-1][1][1] - FD[i][0]*Dird[i][0][1];
+        Ft[i][1][0] = FH[i-1][1]*Dirh[i-1][1][0] - FH[i][1]*Dirh[i][1][0]
+                    + FD[i-1][0]*Dird[i-1][0][0] - FD[i][1]*Dird[i][1][0];
+        Ft[i][1][1] = FH[i-1][1]*Dirh[i-1][1][1] - FH[i][1]*Dirh[i][1][1]
+                    + FD[i-1][0]*Dird[i-1][0][1] - FD[i][1]*Dird[i][1][1];
+    }
+    // Tail rod
+    Ft[N][0][0] = FH[N-1][0]*Dirh[N-1][0][0] + FD[N-1][1]*Dird[N-1][1][0];
+    Ft[N][0][1] = FH[N-1][0]*Dirh[N-1][0][1] + FD[N-1][1]*Dird[N-1][1][1];
+    Ft[N][1][0] = FH[N-1][1]*Dirh[N-1][1][0] + FD[N-1][0]*Dird[N-1][0][0];
+    Ft[N][1][1] = FH[N-1][1]*Dirh[N-1][1][1] + FD[N-1][0]*Dird[N-1][0][1];
+
+    // --- 8. Convert terminal forces → rod velocities via RFT (Boyle worm.cc:696-720) ---
+    // Smooth direction drives (for behavioral state tracking)
     smooth_fwd_ += (forward_drive_ - smooth_fwd_) * dt / 0.1;
     smooth_rev_ += (reverse_drive_ - smooth_rev_) * dt / 0.1;
     mean_rev_ += (smooth_rev_ - mean_rev_) * dt / 5.0;
+    bool reversing = smooth_rev_ > smooth_fwd_ + 0.1;
+    double dir_scale = reversing ? -0.6 : 1.0;  // reverse at 60% speed (Fang-Yen 2010)
 
-    // Net direction: +1 forward, -1 backward
-    // Hysteresis: need 0.1 margin to switch (prevents oscillation at transition)
-    double direction = 1.0;
-    if (smooth_rev_ > smooth_fwd_ + 0.1) {
-        direction = -1.0;
-        forward_speed *= 0.6;  // reverse speed is ~60% of forward (Fang-Yen 2010)
+    for (int i = 0; i < NBAR; ++i) {
+        double ct = std::cos(rth[i]), st = std::sin(rth[i]);
+        // Rotate forces to body frame
+        double Fr[2][2]; // [d/v][perp/par]
+        for (int dv = 0; dv < 2; ++dv) {
+            Fr[dv][0] =  Ft[i][dv][0]*ct + Ft[i][dv][1]*st;  // perpendicular (normal)
+            Fr[dv][1] =  Ft[i][dv][0]*st - Ft[i][dv][1]*ct;  // parallel (tangential)
+        }
+        // Normal velocity: F_perp / C_N
+        double Vn = (Fr[0][0] + Fr[1][0]) / CN_[i];
+        // Tangential velocity + angular velocity
+        double Feven = Fr[0][1] + Fr[1][1];
+        double Fodd  = (Fr[1][1] - Fr[0][1]) * 0.5;
+        double Vt = Feven / CL_[i];
+        double w  = (rod_radius_[i] > 1e-10)
+                   ? (Fodd / CL_[i]) / (M_PI * 2.0 * rod_radius_[i])
+                   : 0.0;
+        // Rotate back to lab frame
+        double vxi = Vn * ct + Vt * st;
+        double vyi = Vn * st - Vt * ct;
+        // Apply speed scale (neuromodulation) + direction
+        vxi *= speed_scale_ * dir_scale;
+        vyi *= speed_scale_ * dir_scale;
+        w   *= speed_scale_;  // angular velocity not direction-flipped
+        // Velocity clamp for numerical stability
+        vxi = std::clamp(vxi, -max_v, max_v);
+        vyi = std::clamp(vyi, -max_v, max_v);
+        // Integrate position
+        rx[i]  += vxi * dt;
+        ry[i]  += vyi * dt;
+        rth[i] += w * dt;
     }
 
-    // --- 2. Heading update: dθ/dt = v × direction × κ_head ---
-    // REF: Padmanabhan 2012 — body with curvature κ moving at speed v turns at v·κ
-    // During reversal (direction=-1): heading change reverses, consistent with
-    // tail-first locomotion where the same curvature produces opposite turning
-    double head_curv = segments_[0].curvature + curvature_bias_;
-    double dtheta = forward_speed * direction * head_curv * dt;
-    // Clamp heading change rate
-    // Run regime: 50°/s = 0.87 rad/s (Pierce-Shimomura 1999)
-    // Omega turn: 300°/s = 5.24 rad/s (deep ventral bend, Gray 2005)
-    double max_dtheta = (omega_mode_ ? 5.24 : 0.87) * dt;
-    if (dtheta > max_dtheta) dtheta = max_dtheta;
-    if (dtheta < -max_dtheta) dtheta = -max_dtheta;
-    segments_[0].angle += dtheta;
+    // --- 9. Write back to segments ---
+    for (int i = 0; i < N; ++i) {
+        segments_[i].position.x = rx[i];
+        segments_[i].position.y = ry[i];
+        segments_[i].angle = rth[i];
+    }
 
-    // --- 4. Update head position ---
-    // Step 41: direction=-1 during reversal → head moves backward
-    // This physical backward displacement is essential for pirouette function:
-    // the body position at omega turn onset depends on reversal duration,
-    // which varies stochastically, creating post-pirouette heading diversity
-    // REF: Pierce-Shimomura 1999 — "direction of new run after pirouette
-    //      was essentially random" (emerges from backward displacement + omega geometry)
-    Vector2d head_dir = Vector2d::from_angle(segments_[0].angle);
-    segments_[0].position += head_dir * forward_speed * direction * dt;
-
-    // --- 5. Save curvatures ---
-    for (int i = 0; i < NUM_BODY_SEGMENTS; ++i) {
+    // --- 10. Compute curvatures from rod angles (for feedback & diagnostics) ---
+    for (int i = 0; i < N; ++i) {
         segments_[i].prev_curvature = segments_[i].curvature;
+        if (i < N - 1) {
+            segments_[i].curvature = (segments_[i].angle - segments_[i+1].angle) / segment_length_;
+        } else {
+            segments_[i].curvature = segments_[i-1].curvature;
+        }
     }
 
-    // --- 6. Body segments follow head ---
-    // REF: Padmanabhan 2012 — θ_i = θ_{i-1} - κ_i × ds
-    for (int i = 1; i < NUM_BODY_SEGMENTS; ++i) {
-        segments_[i].angle = segments_[i - 1].angle - segments_[i].curvature * segment_length_;
-        Vector2d dir = Vector2d::from_angle(segments_[i].angle);
-        segments_[i].position = segments_[i - 1].position - dir * segment_length_;
-    }
-
-    // --- 7. Compute speed ---
+    // --- 11. Compute speed ---
     Vector2d head_pos = segments_[0].position;
     speed_ = (head_pos - prev_head_pos_).norm() / dt;
     prev_head_pos_ = head_pos;
 }
 
 void BodyModel::update_physics(double dt) {
-    compute_curvatures(dt);
-    update_positions(dt);
+    update_muscles(dt);
+    compute_forces_and_integrate(dt);
 }
 
 Vector2d BodyModel::get_head_position() const {
@@ -283,6 +303,7 @@ double BodyModel::get_local_curvature(int segment) const {
 
 double BodyModel::get_local_stretch(int segment) const {
     if (segment < 1 || segment >= NUM_BODY_SEGMENTS) return 0.0;
+    // Stretch from horizontal element length vs rest length
     double dist = (segments_[segment].position - segments_[segment - 1].position).norm();
     return (dist - segment_length_) / segment_length_;
 }

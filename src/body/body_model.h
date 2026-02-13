@@ -8,13 +8,18 @@
 
 namespace celegans {
 
+// Step 135: Force-based body model (Boyle 2012 explicit quasi-static)
+constexpr int NBAR = NUM_BODY_SEGMENTS + 1;  // 49 rigid rods (Boyle: NBAR=NSEG+1)
+
 struct BodySegment {
     Vector2d position;
     double angle = 0.0;           // orientation angle (rad)
-    double curvature = 0.0;       // local curvature (1/mm)
-    double prev_curvature = 0.0;  // previous frame curvature (for RFT)
+    double curvature = 0.0;       // local curvature (computed from adjacent angles)
+    double prev_curvature = 0.0;  // previous frame curvature
     double dorsal_activation = 0.0;  // dorsal muscle activation [0,1]
     double ventral_activation = 0.0; // ventral muscle activation [0,1]
+    double V_muscle_dorsal = 0.0;    // muscle voltage dorsal (LPF of activation)
+    double V_muscle_ventral = 0.0;   // muscle voltage ventral (LPF of activation)
 };
 
 class BodyModel {
@@ -82,40 +87,44 @@ private:
     std::array<BodySegment, NUM_BODY_SEGMENTS> segments_;
     double body_length_ = 1.0;       // mm
     double segment_length_ = 0.0;    // mm per segment
-    double body_radius_ = 0.04;      // mm (~40 μm)
-    double stiffness_ = 10.0;        // body stiffness (nN·mm²)
-    double damping_ = 0.5;           // damping coefficient
-    double curvature_diffusion_ = 0.3; // Step 29: gentle elastic coupling (Boyle 2012)
-    double muscle_gain_ = 8.0;       // curvature gain (1/mm per unit diff activation); Boyle 2012: real curv ~3-5/mm
-    // Step 132: Proprioceptive wave propagation (Boyle & Cohen 2012)
-    // B-class motor neurons sense anterior bending via stretch receptors
-    // → posterior segments follow anterior curvature with muscle-time-constant delay
-    double prop_coupling_ = 12.0;    // anterior→posterior coupling strength (proprioceptive gain)
-    double prop_tau_ = 0.03;         // proprioceptive delay per segment (30ms → λ≈0.65 body lengths at 0.5Hz)
-    // Step 134: RFT drag coefficients — medium-dependent (Boyle 2012)
-    // Absolute values from Boyle 2012 worm.cc lines 75-78 (per whole worm):
-    //   Water: C_T=3.3e-6, C_N=5.2e-6  → K=1.58 (Lighthill 1976)
-    //   Agar:  C_T=3.2e-3, C_N=128e-3  → K=40   (Berri 2009, Niebur & Erdös 1991)
-    // Linear interpolation: C(medium) = C_water + (C_agar - C_water) × medium
-    // Only the ratio C_N/C_T matters for RFT velocity (absolute values cancel)
+    double D_ = 80e-3;               // body diameter (mm) = 80 μm
+
+    // Step 135: Boyle 2012 force-based muscle mechanics (worm.cc lines 46-72)
+    // All parameters from Boyle 2012, converted to mm units
+    // Horizontal elements: passive elastic (PE) + active elastic (AE) + damping
+    double k_PE_ = 2.0e-2;           // passive elastic stiffness (mN/mm) [Boyle: 10e-3*(NSEG/24) N/m]
+    double D_PE_ = 5.0e-4;           // passive damping (mN·s/mm) [Boyle: 0.025*k_PE]
+    double AE_PE_ratio_ = 20.0;      // active/passive stiffness ratio
+    double k_AE_ = 4.0e-1;           // active elastic stiffness (mN/mm) [= AE_PE_ratio * k_PE]
+    double D_AE_ = 5.0e-2;           // active damping (mN·s/mm) [Boyle: 5*AE_PE_ratio*D_PE]
+    // Diagonal elements: prevent shearing
+    double k_DE_ = 0.1;              // diagonal stiffness (mN/mm) [Boyle: 350*k_PE, reduced for explicit Euler stability]
+    double D_DE_ = 1.0e-3;           // diagonal damping (mN·s/mm) [Boyle: 0.01*k_DE]
+    // Muscle time constant (low-pass filter)
+    double T_muscle_ = 0.1;          // seconds [Boyle worm.cc:72]
+    // NMJ weight gradient (Boyle worm.cc:377)
+    // Decreasing from head to tail: w(i) = 0.7*(1 - i*0.6/NSEG)
+    double nmj_weight_[NUM_BODY_SEGMENTS];
+    // Elliptical body radius per rod (Boyle worm.cc:180)
+    double rod_radius_[NBAR];
+    // Step 134-135: RFT drag coefficients — medium-dependent (Boyle 2012)
+    // Absolute values from Boyle 2012 worm.cc lines 75-78 (per rod, SI units):
+    //   Water: C_T=3.3e-6/(2*NBAR), C_N=5.2e-6/(2*NBAR)
+    //   Agar:  C_T=3.2e-3/(2*NBAR), C_N=128e-3/(2*NBAR)
+    // Now using ABSOLUTE values (needed for force-based velocity computation)
     double medium_ = 1.0;              // 0.0=water, 1.0=agar (Boyle 2012 MEDIUM)
-    double drag_coeff_tangent_ = 1.0;   // C_T (normalized after interpolation)
-    double drag_coeff_normal_ = 40.0;   // C_N (normalized, = K × C_T)
-    // RFT calibration gain: compensates for model curvature underestimate
-    // Our model: κ_max ≈ 1.5/mm; real C. elegans: κ_max ≈ 5-10/mm
-    // Thrust ∝ amplitude² → gain ≈ (5/1.5)² ≈ 11
-    // Also compensates for agar groove dynamics (Backholm 2014: nonlinear boost)
-    double rft_gain_ = 24.0;
+    double CL_[NBAR];                  // tangential drag per rod (SI: kg/s)
+    double CN_[NBAR];                  // normal drag per rod (SI: kg/s)
 
     void compute_drag_coefficients() {
-        // Boyle 2012 absolute drag coefficients (per whole worm, SI units)
-        constexpr double CT_water = 3.3e-6,  CN_water = 5.2e-6;
-        constexpr double CT_agar  = 3.2e-3,  CN_agar  = 128.0e-3;
-        double ct = CT_water + (CT_agar - CT_water) * medium_;
-        double cn = CN_water + (CN_agar - CN_water) * medium_;
-        // Normalize to C_T = 1.0 (only ratio matters for velocity)
-        drag_coeff_tangent_ = 1.0;
-        drag_coeff_normal_  = cn / ct;
+        constexpr double CL_water = 3.3e-6  / (2.0 * NBAR);
+        constexpr double CN_water = 5.2e-6  / (2.0 * NBAR);
+        constexpr double CL_agar  = 3.2e-3  / (2.0 * NBAR);
+        constexpr double CN_agar  = 128.0e-3 / (2.0 * NBAR);
+        for (int i = 0; i < NBAR; ++i) {
+            CL_[i] = CL_water + (CL_agar - CL_water) * medium_;
+            CN_[i] = CN_water + (CN_agar - CN_water) * medium_;
+        }
     }
     double speed_ = 0.0;             // current locomotion speed (mm/s)
 public:
@@ -138,8 +147,8 @@ private:
     std::mt19937 rng_{42};           // RNG for pirouette random reorientation
     std::uniform_real_distribution<double> angle_dist_{-3.14159, 3.14159}; // ±π
 
-    void compute_curvatures(double dt);
-    void update_positions(double dt);
+    void update_muscles(double dt);
+    void compute_forces_and_integrate(double dt);
 };
 
 } // namespace celegans

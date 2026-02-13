@@ -979,6 +979,16 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **校准**: rft_gain_=24（补偿模型曲率低估 + agar 凹槽非线性, Backholm 2014）
 - **验证**: Speed 0.2 mm/s ✓, Heading rate 5.1 deg/s ✓, regtest 19/20 pass
 
+### Step 135: 显式准静态力学体模型 ✅ (2026-02-13)
+> 详细文档: [steps/step135_force_based_body.md](steps/step135_force_based_body.md)
+
+- **重构**: 运动学体模型 → Boyle 2012 力学驱动（弹簧-阻尼器肌肉 + RFT 力平衡）
+- **物理**: 肌肉产生力 → 角质层弹性变形 → RFT 给出速度（零惯性准静态）
+- **参数**: 全部来自 Boyle 2012 worm.cc (k_PE=20e-3, AE/PE=20, T_muscle=0.1s, 椭圆体形, NMJ 权重梯度)
+- **性能**: O(N) 与运动学方案相同，无需 DAE 求解器
+- **改进**: rft_gain_ 不再需要（力平衡自然给出正确速度），Midbody curv amp 0.5→0.7 (+40%)
+- **验证**: Speed 0.2 mm/s ✓, Heading rate 5.3 deg/s ✓, regtest 19/20 pass
+
 ---
 
 ## 当前系统状态
