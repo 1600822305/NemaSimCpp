@@ -121,6 +121,9 @@ public:
     double learning_sleep_drive() const { return learning_sleep_drive_; }
     // Step 63: INS-1 insulin concentration
     double ins1_conc() const { return ins1_conc_; }
+    // Step 122: Dauer formation state
+    double dauer_signal() const { return dauer_signal_; }
+    bool is_dauer() const { return dauer_signal_ > 0.8; }
 
     // Callback for each step (for logging/visualization)
     using StepCallback = std::function<void(const SimulationEngine&, int step_num)>;
@@ -349,6 +352,19 @@ private:
     double sickness_mc_suppress_ = -20.0; // pA, sickness → MC suppression (anorexia)
     void update_ins1();                  // compute INS-1 from satiety + sickness
     void apply_ins1_modulation();        // apply INS-1 effects on target neurons
+
+    // Step 122: Dauer formation decision (Riddle 1988, Hu 2007, Golden & Riddle 1984)
+    // Environmental signals → ASI DAF-7/DAF-28 → DAF-2/DAF-16 pathway → dauer/reproductive
+    // Dauer-promoting: low food, high pheromone, high temperature (≥25°C)
+    // Dauer-preventing: food present, low pheromone, normal temperature
+    // Dauer effects: cease feeding, reduce locomotion, stress resistance
+    // REF: Riddle 1988, Golden & Riddle 1984, Hu 2007 PLoS Genet
+    double dauer_signal_ = 0.0;          // [0,1] dauer decision signal
+    double dauer_tau_ = 60000.0;         // ms, 60s integration time (developmental timescale)
+    double daf7_level_ = 1.0;            // [0,1] DAF-7/TGF-β from ASI (food→high, no food→low)
+    double daf28_level_ = 1.0;           // [0,1] DAF-28/insulin from ASI (food→high, no food→low)
+    void update_dauer_decision();         // integrate environmental signals → dauer_signal_
+    void apply_dauer_effects();           // behavioral changes when in dauer state
 
     // Step 62: Sleep-dependent memory consolidation (Chouhan 2023 Cell)
     // "Sleep is required to consolidate odor memory and remodel olfactory synapses"

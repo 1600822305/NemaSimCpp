@@ -1160,6 +1160,20 @@ int main(int argc, char* argv[]) {
               << conn.num_synapses() << " synapses, "
               << conn.num_gap_junctions() << " gap junctions" << std::endl;
 
+    // Step 122: Dauer formation diagnostic
+    std::cout << "\n38. DAUER FORMATION (Step 122, Golden & Riddle 1984):" << std::endl;
+    {
+        std::cout << "   dauer_signal=" << std::setprecision(3) << sim.dauer_signal()
+                  << "  is_dauer=" << (sim.is_dauer() ? "YES" : "no")
+                  << "  (threshold=0.8)" << std::endl;
+        std::cout << "   DAF-7/TGF-b: " << (sim.dauer_signal() < 0.3 ? "HIGH (reproductive)" : "LOW (pro-dauer)")
+                  << "  DAF-2/DAF-16: " << (sim.is_dauer() ? "DAF-16 nuclear (dauer program)" : "DAF-16 cytoplasmic (growth)")
+                  << std::endl;
+        std::cout << "   Inputs: food=" << std::setprecision(2) << sim.satiety()
+                  << "  pheromone=" << (sim.environment().has_pheromone() ? "present" : "absent")
+                  << std::endl;
+    }
+
     // Step 120: Multisensory threat-reward decision diagnostic
     std::cout << "\n37. MULTISENSORY DECISION (Step 120, Ghosh 2016):" << std::endl;
     {

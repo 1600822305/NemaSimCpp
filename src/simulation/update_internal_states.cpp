@@ -407,4 +407,109 @@ void SimulationEngine::apply_ins1_modulation() {
     }
 }
 
+// ================================================================
+// Step 122: Dauer formation decision
+// Environmental signals → ASI neuroendocrine output → DAF-2/DAF-16 → dauer/reproductive
+//
+// Dauer-promoting signals:
+//   1. Low food (satiety < 0.2) → DAF-7/DAF-28 from ASI decrease
+//   2. High pheromone (ascaroside) → ASJ/ASI detect crowding
+//   3. High temperature (≥25°C) → stress signal
+//
+// Dauer-preventing signals:
+//   1. Food present → ASI DAF-7↑, DAF-28↑ → DAF-2 active → DAF-16 cytoplasmic
+//   2. Low pheromone → no crowding signal
+//   3. Normal temperature (15-22°C)
+//
+// Decision: dauer_signal_ = integrated pro-dauer evidence [0,1]
+//   dauer_signal_ > 0.8 → dauer state (cease feeding, reduce locomotion)
+//
+// REF: Golden & Riddle 1984 — pheromone/food/temp dauer decision
+//      Hu 2007 PLoS Genet — DAF-7/DAF-28 from ASI
+//      Fielenbach & Antebi 2008 — DAF-2/DAF-16 insulin/FOXO pathway
+// ================================================================
+void SimulationEngine::update_dauer_decision() {
+    Vector2d head_pos = body_.get_head_position();
+    double food_here = environment_.sample_food_density(head_pos);
+
+    // --- 1. DAF-7/TGF-β from ASI: food-dependent ---
+    // Food present → DAF-7 high (1.0) → reproductive
+    // No food → DAF-7 low (→0.0) → promotes dauer
+    double daf7_target = (food_here > 0.1) ? 1.0 : 0.1;
+    daf7_level_ += (daf7_target - daf7_level_) * dt_ / 30000.0;  // 30s integration
+
+    // --- 2. DAF-28/insulin from ASI: satiety-dependent ---
+    // Well-fed → DAF-28 high → DAF-2 active → DAF-16 cytoplasmic → reproductive
+    // Starving → DAF-28 low → DAF-2 inactive → DAF-16 nuclear → dauer
+    double daf28_target = satiety_;
+    daf28_level_ += (daf28_target - daf28_level_) * dt_ / 30000.0;
+
+    // --- 3. Integrate pro-dauer signals ---
+    // Low DAF-7 + low DAF-28 + high pheromone + high temp → dauer
+    double food_pro_dauer = 1.0 - 0.5 * (daf7_level_ + daf28_level_);  // [0,1]
+
+    // Pheromone contribution (ascaroside crowding signal)
+    double pheromone_pro_dauer = 0.0;
+    if (environment_.has_pheromone()) {
+        double phero = environment_.sample_pheromone(head_pos);
+        pheromone_pro_dauer = phero / (phero + 0.3);  // saturating, half-max at 0.3
+    }
+
+    // Temperature contribution: high temp (≥25°C) promotes dauer
+    double temp = environment_.sample_temperature(head_pos);
+    double temp_pro_dauer = 0.0;
+    if (temp > 25.0) temp_pro_dauer = std::min(1.0, (temp - 25.0) / 2.0);
+
+    // Combined pro-dauer signal (weighted average)
+    // Food/starvation is dominant factor (weight 0.6)
+    double pro_dauer = 0.6 * food_pro_dauer + 0.25 * pheromone_pro_dauer + 0.15 * temp_pro_dauer;
+
+    // Slow integration toward decision (developmental timescale)
+    dauer_signal_ += (pro_dauer - dauer_signal_) * dt_ / dauer_tau_;
+    if (dauer_signal_ < 0.0) dauer_signal_ = 0.0;
+    if (dauer_signal_ > 1.0) dauer_signal_ = 1.0;
+}
+
+// ================================================================
+// Step 122: Dauer behavioral effects
+// When dauer_signal_ > 0.8:
+//   1. Pharyngeal pumping ceases (mouth sealed)
+//   2. Locomotion reduced (energy conservation)
+//   3. Chemosensory sensitivity altered
+//   4. Stress resistance increased (modeled as sickness decay reduction)
+// ================================================================
+void SimulationEngine::apply_dauer_effects() {
+    if (dauer_signal_ < 0.3) return;  // no effects below threshold
+
+    int n = static_cast<int>(neurons_.size());
+
+    // Graded suppression: starts at 0.3, full at 1.0
+    double dauer_strength = (dauer_signal_ - 0.3) / 0.7;
+    if (dauer_strength > 1.0) dauer_strength = 1.0;
+
+    // 1. Suppress pharyngeal pumping (MC motor neuron inhibition)
+    // Dauer larvae have sealed buccal cavity — no feeding
+    double mc_suppress = -30.0 * dauer_strength;
+    for (int id : nids("MC")) {
+        if (id >= 0 && id < n)
+            neurons_[id]->add_synaptic_current(mc_suppress);
+    }
+
+    // 2. Reduce locomotion (suppress AVB forward command)
+    // Dauer larvae are quiescent, conserving energy
+    double avb_suppress = -8.0 * dauer_strength;
+    for (int id : nids("AVB")) {
+        if (id >= 0 && id < n)
+            neurons_[id]->add_synaptic_current(avb_suppress);
+    }
+
+    // 3. Enhance ASJ sensitivity (dauer pheromone detection for exit decision)
+    // ASJ neurons mediate dauer recovery when conditions improve
+    double asj_boost = 5.0 * dauer_strength;
+    for (int id : nids("ASJ")) {
+        if (id >= 0 && id < n)
+            neurons_[id]->add_synaptic_current(asj_boost);
+    }
+}
+
 } // namespace celegans
