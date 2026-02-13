@@ -48,28 +48,77 @@ void BodyModel::set_muscle_activation_direct(int segment, bool dorsal, double ac
 }
 
 void BodyModel::compute_curvatures(double dt) {
+    // ===================================================================
+    // Step 132: Proprioceptive body wave propagation (Boyle & Cohen 2012)
+    //
+    // KEY MECHANISM: B-class motor neurons have stretch receptors that
+    // sense anterior body bending. When anterior segments bend, the
+    // stretch receptor current in posterior B-neurons crosses threshold,
+    // causing them to fire and bend their local segments. This creates
+    // an anterior→posterior curvature wave.
+    //
+    // Implementation:
+    //   Head (seg 0-3): driven by SMD muscle activation (direct neural control)
+    //   Body (seg 4-47): proprioceptive coupling from anterior segment
+    //                     modulated by local muscle activation amplitude
+    //
+    // REF: Boyle & Cohen 2012, Front Comput Neurosci
+    //      Wen et al. 2012, Neuron (proprioceptive coupling in B-type MNs)
+    //      Fang-Yen et al. 2010, JNeuro (crawling dynamics)
+    // ===================================================================
+
     for (int i = 0; i < NUM_BODY_SEGMENTS; ++i) {
         auto& seg = segments_[i];
-        // Curvature driven by differential muscle activation:
-        // dorsal > ventral -> positive curvature (dorsal bend)
-        // ventral > dorsal -> negative curvature (ventral bend)
-        double target_curvature = muscle_gain_ * (seg.dorsal_activation - seg.ventral_activation);
 
-        // Step 29: Passive elastic coupling between adjacent segments
-        // REF: Boyle 2012 — body continuity allows curvature to spread
+        // Muscle-driven target curvature
+        double muscle_diff = seg.dorsal_activation - seg.ventral_activation;
+        double muscle_target = muscle_gain_ * muscle_diff;
+
+        // Muscle amplitude (total activity, modulates proprioceptive gain)
+        double muscle_amp = seg.dorsal_activation + seg.ventral_activation;
+
+        double target_curvature;
+
+        if (i < 4) {
+            // HEAD SEGMENTS: directly driven by SMD oscillation
+            // No proprioceptive modification — SMD is the wave source
+            target_curvature = muscle_target;
+        } else {
+            // BODY SEGMENTS: proprioceptive wave propagation
+            // The anterior segment's curvature drives this segment via
+            // stretch receptor → B-neuron → muscle pathway
+            //
+            // prop_drive = anterior_curvature (what the stretch receptor senses)
+            // amplitude modulation: more muscle activity → stronger bending
+            //   (AVB active → DB/VB tonically active → muscles "ready to bend")
+            //   (AVA active → DA/VA active → reverse wave)
+            double anterior_curv = segments_[i - 1].curvature;
+
+            // Amplitude modulation: muscle activity gates the proprioceptive response
+            // Without muscle activity (muscle_amp ≈ 0), segments are passive
+            // With muscle activity (muscle_amp > 0), segments actively follow anterior
+            double amp_gate = std::min(1.0, muscle_amp * 2.0);  // saturates at 0.5 total activation
+
+            // Proprioceptive target: follow anterior curvature, gated by muscle activity
+            double prop_target = anterior_curv * amp_gate;
+
+            // Blend: proprioception dominates, but muscle differential adds bias
+            // (e.g., during omega turn, direct muscle drive can override wave)
+            target_curvature = prop_target + muscle_target * 0.3;
+        }
+
+        // Elastic coupling (gentle, prevents sharp kinks)
         double curv_left  = (i > 0) ? segments_[i - 1].curvature : seg.curvature;
         double curv_right = (i < NUM_BODY_SEGMENTS - 1) ? segments_[i + 1].curvature : seg.curvature;
         double diffusion = curvature_diffusion_ * (curv_left - 2.0 * seg.curvature + curv_right);
 
-        // Semi-implicit Euler (unconditionally stable for stiffness/damping):
-        // dcurv/dt = stiffness*(target - curv) - damping*curv + diffusion
-        // Treat stiffness*curv and damping*curv implicitly:
-        // curv_new*(1 + (stiffness+damping)*dt) = curv + dt*(stiffness*target + diffusion)
-        double denom = 1.0 + (stiffness_ + damping_) * dt;
-        seg.curvature = (seg.curvature + dt * (stiffness_ * target_curvature + diffusion)) / denom;
-        // Clamp curvature: normal locomotion ~3/mm, omega turn ~15/mm (Gray 2005)
-        // Head segments (0-3) get higher clamp during omega for deep ventral bend
-        double max_curv = (omega_mode_ && i < 4) ? 15.0 : 3.0;
+        // Semi-implicit Euler with proprioceptive coupling strength
+        double effective_stiffness = (i < 4) ? stiffness_ : prop_coupling_;
+        double denom = 1.0 + (effective_stiffness + damping_) * dt;
+        seg.curvature = (seg.curvature + dt * (effective_stiffness * target_curvature + diffusion)) / denom;
+
+        // Clamp curvature: normal locomotion ~5/mm, omega turn ~15/mm (Gray 2005)
+        double max_curv = (omega_mode_ && i < 4) ? 15.0 : 5.0;
         if (seg.curvature > max_curv) seg.curvature = max_curv;
         if (seg.curvature < -max_curv) seg.curvature = -max_curv;
     }

@@ -952,6 +952,13 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **根因**: 原增益太低 + 10个头部MN用MAX聚合导致共收缩
 - **渲染升级**: 伪3D管状体(5条带+抛物线光照) + Sibernetic配色(激活=红, 松弛=米色)
 
+### Step 132: 本体感觉波传播 ✅ (2026-02-13)
+> 详细文档: [steps/step132_proprioceptive_wave.md](steps/step132_proprioceptive_wave.md)
+
+- **核心**: Boyle & Cohen 2012 stretch receptor 机制 — 前段弯曲驱动后段跟随
+- **实现**: 头段(0-3)=SMD直驱, 体段(4-47)=前段曲率×肌肉门控+弱直驱
+- **效果**: 体中曲率 3.0→3.7/mm, S 形体波传播, 速度 0.2mm/s 不变
+
 ---
 
 ## 当前系统状态

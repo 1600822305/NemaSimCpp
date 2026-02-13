@@ -84,8 +84,13 @@ private:
     double body_radius_ = 0.04;      // mm (~40 μm)
     double stiffness_ = 10.0;        // body stiffness (nN·mm²)
     double damping_ = 0.5;           // damping coefficient
-    double curvature_diffusion_ = 0.5; // Step 29: gentle elastic coupling (Boyle 2012)
+    double curvature_diffusion_ = 0.3; // Step 29: gentle elastic coupling (Boyle 2012)
     double muscle_gain_ = 8.0;       // curvature gain (1/mm per unit diff activation); Boyle 2012: real curv ~3-5/mm
+    // Step 132: Proprioceptive wave propagation (Boyle & Cohen 2012)
+    // B-class motor neurons sense anterior bending via stretch receptors
+    // → posterior segments follow anterior curvature with muscle-time-constant delay
+    double prop_coupling_ = 12.0;    // anterior→posterior coupling strength (proprioceptive gain)
+    double prop_tau_ = 0.1;          // muscle integration time constant (100ms, Boyle 2012 Table 3)
     double drag_coeff_tangent_ = 1.0;   // tangential drag
     double drag_coeff_normal_ = 10.0;   // normal drag (anisotropic for low Re)
     double speed_ = 0.0;             // current locomotion speed (mm/s)
