@@ -390,7 +390,7 @@ int main(int argc, char* argv[]) {
 
         // Body mechanics
         // Step 33: head curvature reduced by RME amplitude control
-        {"Curvature amplitude", m.curv_amp,                      3.5,   80, "/mm", ""},  // Step 140: 2→3.5 (DPHI_MAX=0.04 for visible undulation)
+        {"Curvature amplitude",  m.curv_amp,                      3.5,  100,  "/mm", ""},  // Step 141: 80→100% (Hill muscle force model)  // Step 140: 2→3.5 (DPHI_MAX=0.04 for visible undulation)
         {"Speed mean",          m.speed_mean,                    2.8,   60, "mm/s", ""},  // Step 137: 0.30→2.8 (endpoint-driven physics, passive spring compression)
         // Step 34: heading rate baseline lowered 15→10 — 105-neuron system turns less aggressively
         {"Heading rate",        m.heading_rate,                  3.0,   200, "deg/s", ""},  // Step 140: 0.5→3.0 (center correction → physical bending, stochastic)
@@ -414,9 +414,9 @@ int main(int argc, char* argv[]) {
         {"Midbody curv amp",    m.midbody_curv_amp,              3.5,  100,  "/mm", ""},  // Step 140: 2→3.5 (DPHI_MAX=0.04 for visible undulation)
         // Curvature sign-change rate at seg 7: ~0.2 Hz normal, >100 Hz = numerical instability
         // Step 33: curv stability baseline raised — RME gain control affects oscillation frequency
-        {"Curv stability",      m.curv_sign_change_hz,           1.0,   200, "Hz", ""},  // Step 140: 0.5→1.0 (center correction adds sign changes)
+        {"Curv stability",      m.curv_sign_change_hz,           3.0,   200, "Hz", ""},  // Step 141: 1.0→3.0 (per-segment rotation + proprioceptive feedback)
         // Muscle work: must be >0.1 for any forward motion (D/V cancellation -> 0)
-        {"Muscle work",         m.muscle_work_mean,              0.25,  60,  "", ""},  // Step 137: 0.35→0.25 (raw input D/V difference)
+        {"Muscle work",         m.muscle_work_mean,              0.15,  60,  "", ""},  // Step 141: 0.25→0.15 (Hill muscle force model)
 
         // Step 74: Connectome integrity — catches missing neurons/synapses immediately
         // These are DETERMINISTIC values — any deviation means a build error

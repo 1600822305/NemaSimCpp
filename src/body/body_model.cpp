@@ -51,6 +51,13 @@ void BodyModel::compute_rest_lengths() {
         double vd_x = r1.dx() - r0.vx();
         double vd_y = r1.dy() - r0.vy();
         rest_len_diag_vd_[i] = std::sqrt(vd_x * vd_x + vd_y * vd_y);
+
+        // Boyle 2012: L_min depends on local radii
+        // scale = 0.65 * (R[i] + R[i+1]) / D, where D = max diameter = 2*R_MAX
+        double scale = 0.65 * (r0.radius + r1.radius) / (2.0 * R_MAX);
+        double L0_avg = 0.5 * (rest_len_dorsal_[i] + rest_len_ventral_[i]);
+        L_min_[i] = (1.0 - scale) * L0_avg;
+        L0_minus_Lmin_[i] = L0_avg - L_min_[i];
     }
 }
 
@@ -124,6 +131,8 @@ BodyModel::SpringForce BodyModel::spring_damper(
 
 // ================================================================
 // Lateral passive forces (cuticle) — endpoint-driven
+// Uses spring_damper: f = K*(L-L0) + D*v_along
+//   f > 0 → attraction (restoring stretch), f < 0 → repulsion (restoring compression)
 // ================================================================
 void BodyModel::apply_lateral_forces(int seg, double* fdx, double* fdy, double* fvx, double* fvy) {
     const auto& r0 = rods_[seg];
@@ -147,6 +156,82 @@ void BodyModel::apply_lateral_forces(int seg, double* fdx, double* fdy, double* 
         K_PE, D_PE, rest_len_ventral_[seg]);
     fvx[seg]   += sf_v.fx0; fvy[seg]   += sf_v.fy0;
     fvx[seg+1] += sf_v.fx1; fvy[seg+1] += sf_v.fy1;
+}
+
+// ================================================================
+// Active muscle forces — Hill-type, parallel to lateral springs.
+// Boyle 2012: muscle activation shortens rest length → contraction force.
+// Convention: same as spring_damper (f > 0 = attraction = contraction)
+// F_muscle = K_AE * A * (L - L0_AE) + A * D_AE * v_along
+// where L0_AE = L0 - A * (L0 - L_min) < L0
+// At rest (L=L0), F_muscle = K_AE * A * (L0 - L0_AE) > 0 → contraction ✓
+// ================================================================
+void BodyModel::apply_muscle_forces(int seg, double* fdx, double* fdy, double* fvx, double* fvy) {
+    const auto& r0 = rods_[seg];
+    const auto& r1 = rods_[seg + 1];
+    const auto& p0 = prev_rods_[seg];
+    const auto& p1 = prev_rods_[seg + 1];
+    double inv_dt = 1.0e4;
+
+    const auto& m = muscles_[seg];
+    double A_d = std::max(m.dorsal_activation, 0.0);
+    double A_v = std::max(m.ventral_activation, 0.0);
+
+    // Track per-segment D/V force magnitudes for rotation computation
+    double f_d_mag = 0.0, f_v_mag = 0.0;
+
+    // ---- Dorsal muscle ----
+    if (A_d > 1e-6) {
+        double dx = r1.dx() - r0.dx();
+        double dy = r1.dy() - r0.dy();
+        double L = std::sqrt(dx * dx + dy * dy);
+        if (L < 1e-15) L = 1e-15;
+        double ux = dx / L, uy = dy / L;
+
+        double vdx0 = (r0.dx() - p0.dx()) * inv_dt;
+        double vdy0 = (r0.dy() - p0.dy()) * inv_dt;
+        double vdx1 = (r1.dx() - p1.dx()) * inv_dt;
+        double vdy1 = (r1.dy() - p1.dy()) * inv_dt;
+        double v_along = (vdx1 - vdx0) * ux + (vdy1 - vdy0) * uy;
+
+        // Activation-dependent rest length (shorter = more contraction)
+        double L0 = rest_len_dorsal_[seg];
+        double L0_AE = L0 - A_d * L0_minus_Lmin_[seg];
+
+        // Muscle spring + damping (same convention as spring_damper: f>0 = attraction)
+        double f = K_AE * A_d * (L - L0_AE) + A_d * D_AE * v_along;
+        f_d_mag = f;
+
+        fdx[seg]   += f * ux;   fdy[seg]   += f * uy;
+        fdx[seg+1] -= f * ux;   fdy[seg+1] -= f * uy;
+    }
+
+    // ---- Ventral muscle ----
+    if (A_v > 1e-6) {
+        double dx = r1.vx() - r0.vx();
+        double dy = r1.vy() - r0.vy();
+        double L = std::sqrt(dx * dx + dy * dy);
+        if (L < 1e-15) L = 1e-15;
+        double ux = dx / L, uy = dy / L;
+
+        double vvx0 = (r0.vx() - p0.vx()) * inv_dt;
+        double vvy0 = (r0.vy() - p0.vy()) * inv_dt;
+        double vvx1 = (r1.vx() - p1.vx()) * inv_dt;
+        double vvy1 = (r1.vy() - p1.vy()) * inv_dt;
+        double v_along = (vvx1 - vvx0) * ux + (vvy1 - vvy0) * uy;
+
+        double L0 = rest_len_ventral_[seg];
+        double L0_AE = L0 - A_v * L0_minus_Lmin_[seg];
+
+        double f = K_AE * A_v * (L - L0_AE) + A_v * D_AE * v_along;
+        f_v_mag = f;
+
+        fvx[seg]   += f * ux;   fvy[seg]   += f * uy;
+        fvx[seg+1] -= f * ux;   fvy[seg+1] -= f * uy;
+    }
+
+    // Store per-segment D/V force difference for rotation computation
+    seg_torque_[seg] += f_d_mag - f_v_mag;
 }
 
 // ================================================================
@@ -176,15 +261,6 @@ void BodyModel::apply_diagonal_forces(int seg, double* fdx, double* fdy, double*
     fdx[seg+1] += sf_vd.fx1; fdy[seg+1] += sf_vd.fy1;
 }
 
-// ================================================================
-// Active muscle forces — handled by phi-drive + center correction
-// (see curvature drive block in update_physics).
-// Endpoint force approach cannot produce oscillating bending because
-// passive spring restoring (agar drag) locks the body shape.
-// ================================================================
-void BodyModel::apply_muscle_forces(int /*seg*/, double* /*fdx*/, double* /*fdy*/, double* /*fvx*/, double* /*fvy*/) {
-    // Muscle bending handled by phi-drive + local center correction.
-}
 
 // ================================================================
 // Self-collision repulsion — applied to both endpoints equally
@@ -252,9 +328,9 @@ void BodyModel::update_muscle_activations(double dt) {
         double d_in = std::clamp(m.dorsal_input / INPUT_SCALE, 0.0, 1.0);
         double v_in = std::clamp(m.ventral_input / INPUT_SCALE, 0.0, 1.0);
 
-        // Fast leaky integrator (tau=20ms for responsive bending)
-        constexpr double TAU_FAST = 0.02;
-        double alpha = dt / TAU_FAST;
+        // Boyle 2012: tau=100ms for muscle low-pass filter
+        double alpha = dt / TAU_MUSCLE;
+        // TAU_MUSCLE = 0.1s defined in BodyParams
         if (alpha > 1.0) alpha = 1.0;
 
         m.dorsal_activation  += alpha * (-m.dorsal_activation + d_in);
@@ -290,6 +366,9 @@ void BodyModel::update_physics(double dt_seconds) {
         double fdx[NBAR] = {}, fdy[NBAR] = {};
         double fvx[NBAR] = {}, fvy[NBAR] = {};
 
+        // Zero per-segment torque array (accumulated by force functions)
+        seg_torque_.fill(0.0);
+
         // Elastic + muscle forces at endpoints
         for (int s = 0; s < NSEG; ++s) {
             apply_lateral_forces(s, fdx, fdy, fvx, fvy);
@@ -305,10 +384,8 @@ void BodyModel::update_physics(double dt_seconds) {
             double bias_f = curvature_bias_ * K_PE * R_MAX * 2.0;
             for (int i = 0; i < std::min(6, NBAR); ++i) {
                 double w = 1.0 - static_cast<double>(i) / 6.0;
-                // Perpendicular to rod: push dorsal one way, ventral the other
                 double cos_phi = std::cos(rods_[i].phi);
                 double sin_phi = std::sin(rods_[i].phi);
-                // Force along rod direction (dorsal→ventral): perpendicular to body
                 double bf = bias_f * w;
                 fdx[i] +=  bf * cos_phi; fdy[i] +=  bf * sin_phi;
                 fvx[i] += -bf * cos_phi; fvy[i] += -bf * sin_phi;
@@ -318,8 +395,10 @@ void BodyModel::update_physics(double dt_seconds) {
         // Save current state for next velocity computation
         prev_rods_ = rods_;
 
-        // Endpoint-driven semi-implicit Euler
-        // For each point: decompose force into tangential/normal, apply anisotropic drag
+        // Per-endpoint integration with anisotropic drag
+        // Bending forces from muscle D/V asymmetry are already in the
+        // force arrays (applied as perpendicular force couples in
+        // apply_muscle_forces). Diagonal springs provide natural restoring.
         for (int i = 0; i < NBAR; ++i) {
             // Local body tangent at rod i
             double tx, ty;
@@ -336,25 +415,23 @@ void BodyModel::update_physics(double dt_seconds) {
             double tlen = std::sqrt(tx*tx + ty*ty);
             if (tlen < 1e-15) { tx = 1.0; ty = 0.0; }
             else { tx /= tlen; ty /= tlen; }
-
-            // Normal direction (perpendicular to tangent)
             double nx = -ty, ny = tx;
 
-            // --- Dorsal point ---
+            // Dorsal point
             double ft_d = fdx[i] * tx + fdy[i] * ty;
             double fn_d = fdx[i] * nx + fdy[i] * ny;
-            double vt_d = ft_d / std::max(ct_pt, 1e-15);
-            double vn_d = fn_d / std::max(cn_pt, 1e-15);
-            double vdx = vt_d * tx + vn_d * nx;
-            double vdy = vt_d * ty + vn_d * ny;
+            double vdx = (ft_d / std::max(ct_pt, 1e-15)) * tx
+                       + (fn_d / std::max(cn_pt, 1e-15)) * nx;
+            double vdy = (ft_d / std::max(ct_pt, 1e-15)) * ty
+                       + (fn_d / std::max(cn_pt, 1e-15)) * ny;
 
-            // --- Ventral point ---
+            // Ventral point
             double ft_v = fvx[i] * tx + fvy[i] * ty;
             double fn_v = fvx[i] * nx + fvy[i] * ny;
-            double vt_v = ft_v / std::max(ct_pt, 1e-15);
-            double vn_v = fn_v / std::max(cn_pt, 1e-15);
-            double vvx = vt_v * tx + vn_v * nx;
-            double vvy = vt_v * ty + vn_v * ny;
+            double vvx = (ft_v / std::max(ct_pt, 1e-15)) * tx
+                       + (fn_v / std::max(cn_pt, 1e-15)) * nx;
+            double vvy = (ft_v / std::max(ct_pt, 1e-15)) * ty
+                       + (fn_v / std::max(cn_pt, 1e-15)) * ny;
 
             // Clamp velocities
             constexpr double V_MAX = 0.01;  // 10 mm/s
@@ -377,6 +454,40 @@ void BodyModel::update_physics(double dt_seconds) {
                 rods_[i] = prev_rods_[i];
             }
         }
+
+        // Per-SEGMENT rotation from D/V force asymmetry
+        // Each segment’s D/V force difference (from muscles) creates a
+        // bending moment. Diagonal springs provide restoring torque.
+        // This is the Boyle-style rotation that the per-rod endpoint
+        // integration cannot capture (forces cancel on interior rods).
+        for (int s = 0; s < NSEG; ++s) {
+            double delta_f = seg_torque_[s];
+            if (std::abs(delta_f) < 1e-15) continue;
+
+            double R_avg = 0.5 * (rods_[s].radius + rods_[s + 1].radius);
+            double dphi = rods_[s].phi - rods_[s + 1].phi;
+            while (dphi >  PI) dphi -= 2.0 * PI;
+            while (dphi < -PI) dphi += 2.0 * PI;
+
+            // Muscle driving torque minus diagonal restoring torque
+            double tau_drive   = delta_f * R_avg;
+            double tau_restore = 2.0 * K_DE * R_avg * R_avg * dphi;
+            double tau_net = tau_drive - tau_restore;
+
+            // Rotational drag (Boyle 2012): γ = cn_seg × 2π × R²
+            // cn_seg ≈ 2×cn_pt, so γ = 4π × cn_pt × R²
+            double gamma_rot = 4.0 * PI * cn_pt * R_avg * R_avg;
+            double omega_seg = tau_net / std::max(gamma_rot, 1e-15);
+
+            // Hard clamp on dphi to prevent runaway curvature
+            constexpr double DPHI_MAX = 0.04;  // ~1.9 /mm
+            double new_dphi = dphi + omega_seg * dt_sub;
+            new_dphi = std::clamp(new_dphi, -DPHI_MAX, DPHI_MAX);
+            double actual_omega = (new_dphi - dphi) / dt_sub;
+
+            rods_[s].phi     += actual_omega * dt_sub * 0.5;
+            rods_[s + 1].phi -= actual_omega * dt_sub * 0.5;
+        }
     }
 
     // Compute speed BEFORE phi-drive and center correction,
@@ -387,88 +498,6 @@ void BodyModel::update_physics(double dt_seconds) {
         double dy_mm = new_head.y - prev_head_pos_.y;
         speed_ = std::sqrt(dx_mm * dx_mm + dy_mm * dy_mm) / (dt_seconds > 0 ? dt_seconds : 1.0);
         prev_head_pos_ = new_head;
-    }
-
-    // ================================================================
-    // Phi-drive: muscle D/V difference → rod angle adjustment
-    // Neural input drives phi; passive springs can't oscillate cx/cy
-    // fast enough, so we control angles directly from motor neurons.
-    // ================================================================
-    {
-        constexpr double K_DRIVE   = 0.15;   // rad/s per unit raw diff
-        constexpr double K_RESTORE = 5.0;    // restoring toward straight (1/s)
-        constexpr double DPHI_MAX  = 0.04;   // hard clamp (~1.9 /mm, visible undulation)
-
-        for (int s = 0; s < NSEG; ++s) {
-            const auto& m = muscles_[s];
-            double diff = m.dorsal_input - m.ventral_input;
-            double gradient = 0.7 * (1.0 - 0.6 * static_cast<double>(s) / NSEG);
-            diff *= gradient;
-
-            double dphi = rods_[s].phi - rods_[s + 1].phi;
-            while (dphi >  PI) dphi -= 2.0 * PI;
-            while (dphi < -PI) dphi += 2.0 * PI;
-
-            double dphi_rate = K_DRIVE * diff - K_RESTORE * dphi;
-            double dphi_adj = dphi_rate * dt_seconds;
-            double new_dphi = std::clamp(dphi + dphi_adj, -DPHI_MAX, DPHI_MAX);
-            double actual_adj = new_dphi - dphi;
-
-            rods_[s].phi     += actual_adj * 0.5;
-            rods_[s + 1].phi -= actual_adj * 0.5;
-        }
-    }
-
-    // ================================================================
-    // Local center correction: nudge cx/cy toward phi-consistent
-    // positions WITHOUT head-to-tail cascade.
-    // For each adjacent pair, compute the direction they SHOULD have
-    // (from avg phi) and blend the current direction toward it.
-    // This makes cx/cy track the phi-driven bending, enabling
-    // physical heading changes through asymmetric RFT drag.
-    // ================================================================
-    {
-        constexpr double BLEND = 0.3;   // fraction per frame (phi-based proprioception → no feedback)
-
-        // Compute ALL corrections from ORIGINAL positions (no in-frame cascade)
-        double cx_adj[NBAR] = {}, cy_adj[NBAR] = {};
-        for (int i = 0; i < NSEG; ++i) {
-            double avg_phi = 0.5 * (rods_[i].phi + rods_[i + 1].phi);
-            double tangent = avg_phi - PI * 0.5;
-            double dx_target = -seg_len_ * std::cos(tangent);
-            double dy_target = -seg_len_ * std::sin(tangent);
-
-            double dx_cur = rods_[i + 1].cx - rods_[i].cx;
-            double dy_cur = rods_[i + 1].cy - rods_[i].cy;
-
-            double corr_x = BLEND * (dx_target - dx_cur) * 0.5;
-            double corr_y = BLEND * (dy_target - dy_cur) * 0.5;
-            cx_adj[i]     -= corr_x;
-            cy_adj[i]     -= corr_y;
-            cx_adj[i + 1] += corr_x;
-            cy_adj[i + 1] += corr_y;
-        }
-        // Zero net center-of-mass shift: center correction must only
-        // change body SHAPE, not translate it. Otherwise the asymmetric
-        // head/tail curvature creates systematic lateral drift.
-        double mean_cx = 0, mean_cy = 0;
-        for (int i = 0; i < NBAR; ++i) { mean_cx += cx_adj[i]; mean_cy += cy_adj[i]; }
-        mean_cx /= NBAR; mean_cy /= NBAR;
-        for (int i = 0; i < NBAR; ++i) { cx_adj[i] -= mean_cx; cy_adj[i] -= mean_cy; }
-
-        // Apply all at once, with per-rod magnitude limit
-        constexpr double MAX_ADJ = 0.5;  // max fraction of seg_len per frame
-        double adj_limit = MAX_ADJ * seg_len_;
-        for (int i = 0; i < NBAR; ++i) {
-            double mag = std::sqrt(cx_adj[i] * cx_adj[i] + cy_adj[i] * cy_adj[i]);
-            if (mag > adj_limit && mag > 1e-15) {
-                double scale = adj_limit / mag;
-                cx_adj[i] *= scale;
-                cy_adj[i] *= scale;
-            }
-            rods_[i].cx += cx_adj[i];
-            rods_[i].cy += cy_adj[i];
-        }
     }
 
     // Sync backward-compat segments (speed already computed above)

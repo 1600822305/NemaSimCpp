@@ -23,23 +23,25 @@ namespace BodyParams {
     constexpr double R_MAX       = 40.0e-6;        // 40 μm max radius
     constexpr double R_MIN_RATIO = 0.3;            // min radius = 30% of R_MAX [engineering]
 
-    // Passive lateral (cuticle)
-    constexpr double K_PE  = 10.0e-3;             // N/m per rod
-    constexpr double D_PE  = 5.0e-4;              // N·s/m per rod
+    // Passive lateral (cuticle) — already calibrated for 48-seg model
+    constexpr double K_PE  = 10.0e-3;               // N/m per rod
+    constexpr double D_PE  = 0.025 * K_PE;           // = 2.5e-4 N·s/m per rod
 
-    // Diagonal (internal pressure) — reduced from Boyle 350×K_PE
-    // 350× prevents ALL bending (diagonal restoring >> muscle force).
-    // 5× allows bending while maintaining body width.
-    constexpr double K_DE  = 5.0 * K_PE;          // = 0.05 N/m
-    constexpr double D_DE  = 0.01  * K_DE;        // = 0.0005 N·s/m
+    // Diagonal (internal pressure)
+    // Boyle 2012: 350×K_PE for 24-seg model. Our 48-seg model has
+    // R/seg_len=1.92 (vs 0.96), so diagonal restoring is ~4× stiffer.
+    // Combined with low neural A≈0.3 (vs Boyle A≈1.0), K_DE must be lower.
+    constexpr double K_DE  = 25.0 * K_PE;             // = 0.25 N/m
+    constexpr double D_DE  = 0.01  * K_DE;            // = 0.0025 N·s/m
 
-    // Active muscle
-    constexpr double K_AE  = 20.0 * K_PE;         // = 0.2 N/m
-    constexpr double D_AE  = 5.0 * 20.0 * D_PE;   // = 0.05 N·s/m
+    // Active muscle — scaled from Boyle 20×K_PE for our activation levels
+    // D_AE kept at Boyle original (NOT scaled with K_AE) to avoid over-damping
+    constexpr double K_AE  = 20.0 * K_PE;             // = 0.2 N/m (Boyle original)
+    constexpr double D_AE  = 5.0 * 20.0 * D_PE;       // = 0.025 N·s/m (Boyle original)
 
     // Muscle dynamics
-    constexpr double TAU_MUSCLE   = 0.1;           // 100 ms in seconds
-    constexpr double L_MIN_RATIO  = 0.6;           // min muscle length ratio
+    constexpr double TAU_MUSCLE   = 0.1;             // 100 ms in seconds
+    constexpr double L_MIN_RATIO  = 0.6;             // min muscle length ratio (fallback)
 
     // RFT drag coefficients (total body)
     constexpr double CN_WATER = 5.2e-6;            // kg/s normal (water)
@@ -144,6 +146,9 @@ private:
     std::array<double, BodyParams::NSEG> rest_len_ventral_;  // lateral ventral
     std::array<double, BodyParams::NSEG> rest_len_diag_dv_;  // diagonal D_i → V_{i+1}
     std::array<double, BodyParams::NSEG> rest_len_diag_vd_;  // diagonal V_i → D_{i+1}
+    std::array<double, BodyParams::NSEG> L_min_;             // min muscle length (Boyle 2012)
+    std::array<double, BodyParams::NSEG> L0_minus_Lmin_;     // L0_P - L_min (cached)
+    std::array<double, BodyParams::NSEG> seg_torque_;        // per-seg D/V force diff (ALL forces)
 
     // Backward-compat
     std::array<BodySegment, NUM_BODY_SEGMENTS> segments_;

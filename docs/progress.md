@@ -1035,6 +1035,17 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **结果**: heading_rate ≈ 1.7-3.5 deg/s ✓, curv ≈ 1.6-2.0 /mm ✓, 10/10 runs 20/20 pass
 - **验证**: Regtest 20/20 pass ✅ (10 连续运行全部通过)
 
+### Step 141: Hill 型肌肉力 + Boyle 式 per-segment 旋转 ✅ (2026-02-14)
+> 详细文档: [steps/step141_hill_muscle_forces.md](steps/step141_hill_muscle_forces.md)
+
+- **核心成就**: 纯物理涌现的肌肉力驱动身体弯曲和波传播 — 无 phi-drive，无 center correction
+- **实现**: Hill 型肌肉端点力 (`apply_muscle_forces`) + per-segment Boyle 式旋转（D/V 力矩 - 对角恢复）
+- **关键发现**: 2D 端点力在内部杆上完全抵消（几何对称性），必须用 per-segment 力矩分解
+- **旋转拖拽修正**: Boyle 公式 γ_rot = 4π·cn_pt·R²（之前少了 2π 因子导致高频振荡）
+- **参数**: K_AE=20×K_PE, K_DE=25×K_PE, DPHI_MAX=0.04, TAU_MUSCLE=0.1s
+- **结果**: 曲率 1.1-6.8 /mm, 中体曲率 2.6-6.5 /mm（波传播涌现）, 速度 2.8 mm/s
+- **验证**: Regtest 10/10 runs 全部 20/20 pass ✅
+
 ---
 
 ## 当前系统状态
@@ -1057,7 +1068,7 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
   FLP-11 源: RIS (睡眠) — DMSR-1→AVA/AVB(-20)/MC(-18)/head_MN(-28)/body_MN(-42, 胆碱能only)/SPEED(-0.95) + FRPR-8→RIS(-8, 自抑制)
 离子通道: 14 种 (EGL-19/UNC-2/CCA-1/SHL-1/KQT-3/SLO-1/NCA/MEC + EGL-36/IRK/TWK/SLO-2/OSM-9/EXP-2)
 神经元模型: 单隔室 HH 分级电位 (L2) + 多隔室 (RIA) + 钙动力学
-身体: 2D 弹性杆 48 段, 91 个运动神经元-肌肉映射, 体节间曲率扩散(弹性耦合)
+身体: 2D 弹性杆 48 段, Hill型肌肉力(Boyle 2012) + per-segment旋转, 91个MN-肌肉映射, 纯物理涌现弯曲(无phi-drive)
 环境: 50×50 mm, 4化学场(food_odor+soluble+repellent+pheromone) + 线性温度梯度 (0.5°C/mm) + O₂场(food派生) + 光场(高斯σ=8mm) + 渗透压环(Step 118)
 内部状态: satiety_(泵驱动), sickness_(有毒食物), food_memory_(双通路ARS), fatigue_(睡眠驱动), dauer_signal_(DAF-7/DAF-28整合, Step 122)
 学习: 盐学习(ASER w_mod) + 病原体学习(AWC翻转+WV反向+厌食) + 温度学习(Tc适应+AWC饥饿中断) + 联想条件学习(AWC→AIY w_mod双向, Step 117) + STP习惯化 + FLP-20/RID交叉模态敏化(Step 119) + 睡眠巩固(Step 62) + INS-1厌食(Step 63)
