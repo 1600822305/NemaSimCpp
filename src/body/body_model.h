@@ -85,28 +85,28 @@ public:
 
 private:
     std::array<BodySegment, NUM_BODY_SEGMENTS> segments_;
-    double body_length_ = 1.0;       // mm
-    double segment_length_ = 0.0;    // mm per segment
-    double D_ = 80e-3;               // body diameter (mm) = 80 μm
+    double body_length_ = 1.0;       // mm (external)
+    double segment_length_ = 0.0;    // mm per segment (external)
 
-    // Step 135: Boyle 2012 force-based muscle mechanics (worm.cc lines 46-72)
-    // All parameters from Boyle 2012, converted to mm units
-    // Horizontal elements: passive elastic (PE) + active elastic (AE) + damping
-    double k_PE_ = 2.0e-2;           // passive elastic stiffness (mN/mm) [Boyle: 10e-3*(NSEG/24) N/m]
-    double D_PE_ = 5.0e-4;           // passive damping (mN·s/mm) [Boyle: 0.025*k_PE]
-    double AE_PE_ratio_ = 20.0;      // active/passive stiffness ratio
-    double k_AE_ = 4.0e-1;           // active elastic stiffness (mN/mm) [= AE_PE_ratio * k_PE]
-    double D_AE_ = 5.0e-2;           // active damping (mN·s/mm) [Boyle: 5*AE_PE_ratio*D_PE]
-    // Diagonal elements: prevent shearing
-    double k_DE_ = 0.1;              // diagonal stiffness (mN/mm) [Boyle: 350*k_PE, reduced for explicit Euler stability]
-    double D_DE_ = 1.0e-3;           // diagonal damping (mN·s/mm) [Boyle: 0.01*k_DE]
-    // Muscle time constant (low-pass filter)
-    double T_muscle_ = 0.1;          // seconds [Boyle worm.cc:72]
-    // NMJ weight gradient (Boyle worm.cc:377)
-    // Decreasing from head to tail: w(i) = 0.7*(1 - i*0.6/NSEG)
+    // ============================================================
+    // Step 135: Semi-implicit curvature ODE
+    //
+    // Physics: dκ/dt = (τ_muscle - k_bend × κ - D_bend × dκ/dt) / C_rot
+    // Semi-implicit: κ_new = (κ_old + dt × τ_muscle/C_rot) / (1 + dt × k_bend/C_rot)
+    // → Unconditionally stable for ANY parameter values.
+    //
+    // All effective parameters derived from Boyle 2012 worm.cc:
+    //   k_PE=0.02 N/m, k_AE=0.4 N/m, k_DE=7.0 N/m
+    //   R_mid=40μm, L_seg=20.8μm
+    //
+    // Per-segment arrays precomputed in constructor.
+    // ============================================================
+    static constexpr double T_muscle_ = 0.1;  // muscle LPF time constant (s) [worm.cc:72]
     double nmj_weight_[NUM_BODY_SEGMENTS];
-    // Elliptical body radius per rod (Boyle worm.cc:180)
-    double rod_radius_[NBAR];
+    // Per-segment precomputed (SI units internally, see constructor)
+    double tau_coeff_[NUM_BODY_SEGMENTS];  // muscle torque coefficient (1/s per unit ΔV)
+    double k_ratio_[NUM_BODY_SEGMENTS];    // k_bend / C_rot (1/s)
+    double d_ratio_[NUM_BODY_SEGMENTS];    // D_bend / C_rot (dimensionless)
     // Step 134-135: RFT drag coefficients — medium-dependent (Boyle 2012)
     // Absolute values from Boyle 2012 worm.cc lines 75-78 (per rod, SI units):
     //   Water: C_T=3.3e-6/(2*NBAR), C_N=5.2e-6/(2*NBAR)

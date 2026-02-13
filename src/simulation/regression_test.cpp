@@ -390,8 +390,8 @@ int main(int argc, char* argv[]) {
 
         // Body mechanics
         // Step 33: head curvature reduced by RME amplitude control
-        {"Curvature amplitude", m.curv_amp,                      1.1,   60, "/mm", ""},  // Step 131: 0.06→1.1 (muscle_gain 0.3→8.0, biological curvature ~3-5/mm)
-        {"Speed mean",          m.speed_mean,                    0.20,  40, "mm/s", ""},  // Step 94: 0.30→0.20 (backward wave proprioception now correct → more A-class activation during reversal)
+        {"Curvature amplitude", m.curv_amp,                      3.3,   60, "/mm", ""},  // Step 135: 1.1→3.3 (semi-implicit curvature ODE, Boyle 2012 SI params)
+        {"Speed mean",          m.speed_mean,                    0.30,  60, "mm/s", ""},  // Step 135: 0.20→0.30 (force-based body model, RFT speed from curvature wave)
         // Step 34: heading rate baseline lowered 15→10 — 105-neuron system turns less aggressively
         {"Heading rate",        m.heading_rate,                  8.0,   60, "deg/s", ""},  // Step 66: 5→8 (emergent reversals + omega turns increase turning)
 
