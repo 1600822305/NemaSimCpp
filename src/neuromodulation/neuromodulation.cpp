@@ -107,8 +107,9 @@ void NeuromodulationManager::update(
                 break;
 
             case ModulationEffect::SPEED_SCALE:
-                // Global speed modulation (neuron_id=-1 for global)
-                speed_scale_ *= (1.0 + effect);
+                // Step 136: additive accumulation (was multiplicative → compounding collapse)
+                // Final speed_scale_ = 1.0 + sum(effects), applied after loop
+                speed_scale_ += effect;
                 break;
 
             case ModulationEffect::REVERSAL_RATE:

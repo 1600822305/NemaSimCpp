@@ -271,6 +271,24 @@ void VisApp2::render_menu_bar() {
                 sim_paused_ = !sim_paused_;
             }
             ImGui::SliderInt(u8"\u6bcf\u5e27\u6b65\u6570", &steps_per_frame_, 1, 200);
+
+            // Real-time ratio display and sync button
+            // Use monitor refresh rate (fixed) instead of fluctuating ImGui FPS
+            GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+            const GLFWvidmode* mode = monitor ? glfwGetVideoMode(monitor) : nullptr;
+            int refresh_hz = (mode && mode->refreshRate > 0) ? mode->refreshRate : 60;
+            double wall_ms_per_frame = 1000.0 / refresh_hz;
+            double sim_ms_per_frame = steps_per_frame_ * engine_.dt();
+            double realtime_ratio = sim_ms_per_frame / wall_ms_per_frame;
+            int realtime_steps = (int)(wall_ms_per_frame / engine_.dt() + 0.5);
+            if (realtime_steps < 1) realtime_steps = 1;
+            if (realtime_steps > 200) realtime_steps = 200;
+
+            ImGui::Text(u8"\u5b9e\u65f6\u6bd4: %.2f\u00d7 (1.0=\u73b0\u5b9e\u901f\u5ea6)", realtime_ratio);
+            ImGui::Text(u8"\u663e\u793a\u5668: %d Hz  dt=%.1f ms", refresh_hz, engine_.dt());
+            if (ImGui::MenuItem(u8"\u21bb \u540c\u6b65\u73b0\u5b9e\u65f6\u95f4 (1\u00d7)")) {
+                steps_per_frame_ = realtime_steps;
+            }
             ImGui::EndMenu();
         }
 

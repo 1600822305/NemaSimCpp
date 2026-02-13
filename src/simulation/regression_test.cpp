@@ -390,7 +390,7 @@ int main(int argc, char* argv[]) {
 
         // Body mechanics
         // Step 33: head curvature reduced by RME amplitude control
-        {"Curvature amplitude", m.curv_amp,                      3.3,   60, "/mm", ""},  // Step 135: 1.1→3.3 (semi-implicit curvature ODE, Boyle 2012 SI params)
+        {"Curvature amplitude", m.curv_amp,                      5.0,   60, "/mm", ""},  // Step 136: 3.3→5.0 (additive speed_scale → stronger effective drive)
         {"Speed mean",          m.speed_mean,                    0.30,  60, "mm/s", ""},  // Step 135: 0.20→0.30 (force-based body model, RFT speed from curvature wave)
         // Step 34: heading rate baseline lowered 15→10 — 105-neuron system turns less aggressively
         {"Heading rate",        m.heading_rate,                  8.0,   60, "deg/s", ""},  // Step 66: 5→8 (emergent reversals + omega turns increase turning)
