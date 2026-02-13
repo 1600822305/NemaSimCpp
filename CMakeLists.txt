@@ -139,6 +139,7 @@ if(CELEGANS_BUILD_VIS)
     add_executable(celegans_vis
         src/visualization/vis_main.cpp
         src/visualization/vis_app.cpp
+        src/visualization/worm_renderer_3d.cpp
     )
     target_link_libraries(celegans_vis PRIVATE
         celegans_simulation

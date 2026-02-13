@@ -119,6 +119,12 @@ bool VisApp::initialize(int width, int height) {
     auto head = engine_.body().get_head_position();
     trajectory_.push_back({head.x, head.y, 0.0});
 
+    // Step 130: Initialize 3D body renderer
+    worm3d_initialized_ = worm3d_.initialize(400, 400);
+    if (worm3d_initialized_) {
+        LOG_INFO("3D worm body renderer initialized");
+    }
+
     LOG_INFO("Visualization initialized: ", width, "x", height);
     return true;
 }
@@ -305,9 +311,14 @@ void VisApp::render_frame() {
     ImGui::SetNextWindowSize(ImVec2(col1_w, full_h * 0.6f));
     render_trajectory_panel();
 
+    // Step 130: 3D body view replaces chemical field in bottom-left
     ImGui::SetNextWindowPos(ImVec2(0, full_h * 0.6f));
     ImGui::SetNextWindowSize(ImVec2(col1_w, full_h * 0.4f));
-    render_chemical_field();
+    if (worm3d_initialized_) {
+        render_3d_body_panel();
+    } else {
+        render_chemical_field();
+    }
 
     // Column 2: All waveforms (SMD, Command, Sensory, Heading)
     ImGui::SetNextWindowPos(ImVec2(col1_w, 0));
@@ -725,6 +736,20 @@ void VisApp::render_control_panel() {
     ImGui::Text(u8"\u7a81\u89e6: %d \u5316\u5b66 + %d \u7535\u7a81\u89e6",
         engine_.connectome().num_synapses(),
         engine_.connectome().num_gap_junctions());
+
+    ImGui::End();
+}
+
+// ================================================================
+// Step 130: 3D body panel — real-time OpenGL rendering of the worm body
+// Driven by the ACTUAL 302-neuron simulation, NOT pre-recorded data
+// ================================================================
+void VisApp::render_3d_body_panel() {
+    ImGui::Begin(u8"\u867e\u4f53 (\u5b9e\u65f6 302\u795e\u7ecf\u5143\u9a71\u52a8)", nullptr,
+        ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
+
+    // Draw worm body using ImGui DrawList (no OpenGL extensions needed)
+    worm3d_.draw(engine_.body().segments());
 
     ImGui::End();
 }

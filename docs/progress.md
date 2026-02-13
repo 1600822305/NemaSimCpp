@@ -937,6 +937,14 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **CLI**: `--body-3d` 诊断模式
 - **REF**: Boyle 2012 Front Comput Neurosci, Park 2008 PNAS, Padmanabhan 2012
 
+### Step 130: 实时虫体可视化 ✅ (2026-02-13)
+> 详细文档: [steps/step130_3d_body_visualization.md](steps/step130_3d_body_visualization.md)
+
+- **渲染**: ImGui DrawList — 俯视图(身体轮廓+椭球渐缩) + 曲率图(48段柱状图)
+- **着色**: 背侧肌肉=橙红，腹侧肌肉=蓝青，实时随仿真变化
+- **驱动**: 真实 302 神经元 SimulationEngine，非预录回放
+- **集成**: 替换左下角化学场面板，零额外依赖
+
 ---
 
 ## 当前系统状态

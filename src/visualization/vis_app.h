@@ -1,6 +1,7 @@
 #pragma once
 
 #include "simulation/simulation_engine.h"
+#include "visualization/worm_renderer_3d.h"
 #include <vector>
 #include <string>
 
@@ -24,6 +25,7 @@ private:
     void render_control_panel();
     void render_tuning_panel();
     void render_chemical_field();
+    void render_3d_body_panel();
 
     void sim_step_batch(int steps);
 
@@ -79,6 +81,10 @@ private:
 
     int window_width_ = 1400;
     int window_height_ = 900;
+
+    // Step 130: 3D body renderer
+    WormRenderer3D worm3d_;
+    bool worm3d_initialized_ = false;
 };
 
 } // namespace celegans
