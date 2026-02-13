@@ -95,7 +95,10 @@ Boyle 2012 的核心发现:
 ```
 R_i = R × |sin(acos(s_i))|
 s_i = (i - M/2) / (M/2 + 0.2)    // +0.2 避免端点零半径
+R_i = max(R_i, 0.3 × R)          // 最小 12μm，防止端点退化
 ```
+注意: 不加下限时 i=0 处 R_0 ≈ 5μm，对角弹簧退化为侧向元件，丧失横向约束。
+下限 30% R_max 保证所有杆的横截面都有效。
 
 ### 2.2 被动体力: 角质层 + 内部压力
 
@@ -104,12 +107,12 @@ s_i = (i - M/2) / (M/2 + 0.2)    // +0.2 避免端点零半径
 连接同侧相邻点 x_{i,k} 和 x_{i+1,k}:
 
 ```
-F_lateral = -κ_L × (|L| - L0_L) × L̂ - β_L × (dL/dt · L̂) × L̂
+F_lateral = -κ_PE × (|L| - L0_L) × L̂ - β_PE × (dL/dt · L̂) × L̂
 
-其中:
-  κ_L = 40.0 × k_PE_scale    N/m  (被动弹簧常数)
-  β_L = 2 × D_PE_scale       N·s/m (被动阻尼)
-  L0_L = segment_rest_length  (因椭圆半径而变)
+其中 (直接使用 Boyle 2012 Table 1 SI 值，不加任何 scale factor):
+  κ_PE = 10e-3 N/m per rod     (被动弹簧常数)
+  β_PE = 5e-4 N·s/m per rod    (被动阻尼)
+  L0_L = segment_rest_length    (因椭圆半径而变)
 ```
 
 #### 对角弹性元件 (Diagonal Elements) — 内部压力
@@ -117,15 +120,27 @@ F_lateral = -κ_L × (|L| - L0_L) × L̂ - β_L × (dL/dt · L̂) × L̂
 连接对角相邻点 x_{i,k} 和 x_{i+1,k̄}:
 
 ```
-F_diagonal = -κ_D × (|D| - L0_D) × D̂ - β_D × (dD/dt · D̂) × D̂
+F_diagonal = -κ_DE × (|D| - L0_D) × D̂ - β_DE × (dD/dt · D̂) × D̂
 
 其中:
-  κ_D = 400.0 × k_DE_scale   N/m  (对角弹簧常数)
-  β_D = 2 × D_DE_scale       N·s/m
+  κ_DE = 350 × κ_PE = 3.5 N/m  (对角弹簧常数)
+  β_DE = 0.01 × κ_DE = 35e-3 N·s/m
   L0_D = sqrt(segment_length² + (2R_i)²)
 ```
 
-#### Boyle 2012 Table 1 参数 (SI 单位):
+#### Boyle 2012 Table 1 参数 (全部 SI 单位, 直接引用):
+
+```cpp
+// 直接用论文值，不加任何 scale factor
+constexpr double K_PE  = 10e-3;          // N/m per rod (被动侧向)
+constexpr double D_PE  = 5e-4;           // N·s/m per rod
+constexpr double K_DE  = 350.0 * K_PE;   // = 3.5 N/m (对角/内压)
+constexpr double D_DE  = 0.01 * K_DE;    // = 0.035 N·s/m
+constexpr double K_AE  = 20.0 * K_PE;    // = 0.2 N/m (主动肌肉)
+constexpr double D_AE  = 5.0 * 20.0 * D_PE; // = 0.05 N·s/m
+constexpr double TAU_MUSCLE = 100.0;     // ms (肌肉响应时间)
+constexpr double L_MIN_RATIO = 0.6;      // 最小肌肉长度比
+```
 
 | 参数 | 符号 | 值 | 说明 |
 |------|------|-----|------|
@@ -209,6 +224,21 @@ F_drag = -C_∥ × v_tangential - C_⊥ × v_normal
 - 端点位置从中点+角度+半径重建
 - 运动方程直接写在中点坐标上
 
+### 2.7 自碰撞排斥力 (Omega 转弯)
+
+Omega 转弯时身体弯成 Ω 形 (曲率 >30/mm)，需要防止自交叉:
+```
+对非相邻杆 i,j (|i-j| > 3):
+  d = distance(midpoint[i], midpoint[j])
+  if d < 2 × R_max:
+    F_repulsion = K_contact × (2×R_max - d) × (midpoint[i] - midpoint[j]) / d
+    force[i] += F_repulsion
+    force[j] -= F_repulsion
+
+K_contact = 10 × κ_PE  (排斥力比被动弹簧强一个量级)
+```
+仅在非相邻杆距离小于身体直径时激活，计算开销很小 (O(N²) 但 N=49)。
+
 ---
 
 ## 3. 神经肌肉接口 — 零作弊
@@ -221,11 +251,41 @@ F_drag = -C_∥ × v_tangential - C_⊥ × v_normal
 - SMD×4, RME×2 (头部运动)
 - URA×4, SAA×4, SIA×4, SIB×4 (头部辅助)
 
-### 3.2 运动神经元 → 肌肉映射 (NMJ)
+### 3.2 头部运动神经元 → 肌肉映射 (起振点)
 
-每个运动神经元通过 NMJ 驱动一组连续的体壁肌肉:
+头部前 5-6 根杆 **不受 VNC 运动神经元控制** — 由头部运动神经元驱动。
+这是 **整个运动的起振点**: SMD 振荡产生头部弯曲 → 本体感觉 → 波传播。
 
 ```
+头部映射 (杆 0-5):
+  SMDDL/SMDDR → 背侧肌肉 杆 0-3 (ACh 兴奋, 主要头部弯曲驱动)
+  SMDVL/SMDVR → 腹侧肌肉 杆 0-3 (ACh 兴奋, 主要头部弯曲驱动)
+  RMED         → 背侧肌肉 杆 0-5 (GABA 抑制, 对称化)
+  RMEV         → 腹侧肌肉 杆 0-5 (GABA 抑制, 对称化)
+  RMDDL/RMDDR  → 背侧肌肉 杆 0-2 (ACh 兴奋, 精细头部定向)
+  RMDVL/RMDVR  → 腹侧肌肉 杆 0-2 (ACh 兴奋, 精细头部定向)
+  RMDL/RMDR    → 杆 0-2 (侧向偏转, 非背腹平面)
+
+SMD 起振机制:
+  SMD 接收 RIA (头方向) + AIY (趋化) 输入
+  SMD 具有 CCA-1 Ca²⁺通道 → 内源振荡 ~49mV (Nicoletti 2019)
+  SMD D/V 半中心互抑 → 背腹交替弯曲 → 触发头部本体感觉
+```
+
+### 3.3 VNC 运动神经元 → 肌肉映射 (NMJ)
+
+每个 VNC 运动神经元通过 NMJ 驱动一组连续的体壁肌肉:
+
+```
+VNC 映射 (杆 4-47, 每个 MN 覆盖 ~4 个肌肉段):
+  DB01 → 背侧杆 4-7,  DB02 → 背侧杆 8-11, ..., DB07 → 背侧杆 44-47
+  VB01 → 腹侧杆 4-7,  VB02 → 腹侧杆 8-11, ..., VB11 → 腹侧杆 44-47
+  DA01 → 背侧杆 4-7,  DA02 → 背侧杆 8-11, ..., DA09 → 背侧杆 44-47
+  VA01 → 腹侧杆 4-7,  VA02 → 腹侧杆 8-11, ..., VA12 → 腹侧杆 44-47
+  DD01 → 腹侧杆 4-11, DD02 → 腹侧杆 12-19, ..., DD06 → 腹侧杆 44-47  (抑制!)
+  VD01 → 背侧杆 4-7,  VD02 → 背侧杆 8-11, ..., VD13 → 背侧杆 44-47  (抑制!)
+  AS01 → 背侧杆 4-7,  AS02 → 背侧杆 8-11, ..., AS11 → 背侧杆 44-47
+
 肌肉激活电流 I_m:
   I_m = Σ (w_NMJ,n × S_n × γ_m)
 
@@ -242,7 +302,7 @@ F_drag = -C_∥ × v_tangential - C_⊥ × v_normal
 A_m ∈ [0, 1]
 ```
 
-### 3.3 本体感觉反馈 → 运动神经元
+### 3.4 本体感觉反馈 → 运动神经元
 
 B 类和 A 类运动神经元接收来自 **局部和后方** 体节的拉伸信号:
 
@@ -259,14 +319,14 @@ I_stretch,n = G_SR,n × Σ_{m=local}^{posterior} w_SR × f(L_m - L0_m)
   N_SR ≈ 6-8 段 (对应后向轴突长度)
 ```
 
-### 3.4 命令神经元 → 运动状态
+### 3.5 命令神经元 → 运动状态
 
 **已有实现** (不需修改):
 - AVB 活跃 → 前进 (通过间隙连接驱动 B 类)
 - AVA 活跃 → 后退 (通过间隙连接驱动 A 类)
 - 反转/前进切换从 AVA-AVB 互抑制涌现
 
-### 3.5 D 类交叉抑制机制
+### 3.6 D 类交叉抑制机制
 
 ```
 VB_n → VD_n (兴奋) → 背侧肌肉 (抑制)
@@ -276,6 +336,18 @@ DB_n → DD_n (兴奋) → 腹侧肌肉 (抑制)
   VD_n → VB_n (神经抑制, 仅腹侧, Chen 2006)
   — 这条连接在游泳中至关重要: 重置 VB 状态
 ```
+
+### 3.7 相邻运动神经元间隙连接 (波传播辅助)
+
+已在连接组中确认存在 (Step 87-89):
+```
+VB01↔VB02↔VB03↔...↔VB11  (10 对间隙连接, w=2)
+DB01↔DB02↔DB03↔...↔DB07  (6 对间隙连接, w=2)
+VA01↔VA02↔VA03↔...↔VA12  (11 对间隙连接, w=2)
+DA01↔DA02↔DA03↔...↔DA09  (8 对间隙连接, w=2)
+```
+本体感觉是波传播的主导机制 (Wen 2012)，但这些间隙连接提供辅助相位同步。
+无需新增连接 — 已全部在现有 247 个间隙连接中。
 
 ---
 
@@ -379,7 +451,27 @@ MuscleCell:
 保留的合法接口:
 - ✅ `set_medium(0-1)` → 改变 RFT 拖曳系数 (物理上正确)
 - ✅ `set_omega_mode()` → 仅标记状态, 不改变物理
-- ✅ `perturb_heading()` → 头部角度扰动 (pirouette 后重定向)
+
+删除的非物理接口:
+- ❌ `perturb_heading()` → 在刚性杆模型中直接旋转头部杆角度会瞬间
+  破坏与相邻杆的弹性约束，产生非物理巨大恢复力
+
+替代方案 — pirouette 后重定向通过电流注入实现:
+```cpp
+// 向头部运动神经元注入瞬时电流脉冲 (持续 ~200ms)
+// direction > 0: 背侧收缩 (SMDD); < 0: 腹侧 (SMDV)
+void inject_reorientation_current(double direction, double magnitude) {
+    double I = magnitude * 20.0; // pA
+    if (direction > 0) {
+        neurons_["SMDDL"].inject_current(I);
+        neurons_["SMDDR"].inject_current(I);
+    } else {
+        neurons_["SMDVL"].inject_current(-I);
+        neurons_["SMDVR"].inject_current(-I);
+    }
+}
+```
+这样重定向也是从神经元涌现的，不违反零作弊原则。
 
 ---
 
