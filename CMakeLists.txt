@@ -102,6 +102,7 @@ add_library(celegans_simulation STATIC
     src/simulation/apply_sensory_systems.cpp
     src/simulation/apply_motor_control.cpp
     src/simulation/setup_gpu_stp.cpp
+    src/simulation/multi_worm_simulation.cpp
 )
 target_link_libraries(celegans_simulation PUBLIC
     celegans_connectome

@@ -44,6 +44,23 @@ public:
     }
     double get_body_length() const { return body_length_; }
 
+    // Step 128: Multi-worm simulation support
+    void set_position(double x, double y) {
+        segments_[0].position = {x, y};
+        prev_head_pos_ = {x, y};
+    }
+    void set_heading(double angle) {
+        segments_[0].angle = angle;
+    }
+    void nudge_position(double dx, double dy) {
+        for (auto& seg : segments_) {
+            seg.position.x += dx;
+            seg.position.y += dy;
+        }
+        prev_head_pos_.x += dx;
+        prev_head_pos_.y += dy;
+    }
+
     // Forward/reverse state from command neuron balance
     // forward_drive: AVB release rate, reverse_drive: AVA release rate
     void set_locomotion_state(double forward_drive, double reverse_drive) {

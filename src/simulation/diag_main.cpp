@@ -1,4 +1,5 @@
 #include "simulation/simulation_engine.h"
+#include "simulation/multi_worm_simulation.h"
 #include "compute/compute_backend.h"
 #include "core/logger.h"
 #include <iostream>
@@ -152,6 +153,7 @@ int main(int argc, char* argv[]) {
     double cli_light_x = 25.0, cli_light_y = 25.0, cli_light_intensity = 1.0;
     bool cli_osm = false;  // Step 118: osmotic barrier
     bool cli_exo_5ht = false;  // Step 126: exogenous 5-HT (egg-laying induction)
+    int cli_multi_worm = 0;    // Step 128: multi-worm simulation (0=disabled)
     bool cli_fitness = false;
     int cli_nseeds = 1;
     int cli_jobs = std::min(8, (int)std::thread::hardware_concurrency());
@@ -176,6 +178,7 @@ int main(int argc, char* argv[]) {
         else if (arg == "--light") cli_light = true;
         else if (arg == "--osm") cli_osm = true;
         else if (arg == "--exo-5ht" || arg == "--exo_5ht") cli_exo_5ht = true;
+        else if ((arg == "--multi-worm" || arg == "--multi_worm") && i+1 < argc) cli_multi_worm = std::atoi(argv[++i]);
         else if (arg == "--light_x" && i+1 < argc) { cli_light = true; cli_light_x = std::atof(argv[++i]); }
         else if (arg == "--light_y" && i+1 < argc) { cli_light = true; cli_light_y = std::atof(argv[++i]); }
         else if (arg == "--light_intensity" && i+1 < argc) { cli_light = true; cli_light_intensity = std::atof(argv[++i]); }
@@ -215,7 +218,8 @@ int main(int argc, char* argv[]) {
                       << "  --pheromone_x/y <f>   Pheromone source position\n"
                       << "  --pheromone_intensity <f>  Pheromone intensity 0-1 (default: 0.8)\n"
                       << "  --ablate <name>       Ablate neuron (e.g. AVA, ASE, AIB; repeatable)\n"
-                      << "  --exo-5ht             Apply exogenous serotonin (egg-laying induction, Step 126)\n";
+                      << "  --exo-5ht             Apply exogenous serotonin (egg-laying induction, Step 126)\n"
+                      << "  --multi-worm <N>      Multi-worm simulation with N worms (Step 128)\n";
             return 0;
         }
     }
@@ -383,6 +387,70 @@ int main(int argc, char* argv[]) {
                       << "  " << std::setw(5) << m.omegas
                       << "  " << std::setprecision(1) << std::setw(5) << m.near_food_pct << std::endl;
         }
+        return 0;
+    }
+
+    // === MULTI-WORM SIMULATION MODE (Step 128) ===
+    if (cli_multi_worm > 1) {
+        std::cout << "========================================" << std::endl;
+        std::cout << "  MULTI-WORM SIMULATION (Step 128)" << std::endl;
+        std::cout << "  " << cli_multi_worm << " worms, "
+                  << cli_duration / 1000.0 << "s" << std::endl;
+        std::cout << "========================================\n" << std::endl;
+
+        celegans::MultiWormSimulation mws(cli_multi_worm, cli_seed);
+        if (cli_npr1 > -900.0) mws.set_npr1(cli_npr1);
+        mws.initialize();
+
+        // Set up food for all worms (same food source at 35,25)
+        for (int w = 0; w < mws.num_worms(); ++w) {
+            auto& env = mws.worm_mut(w).environment();
+            env.chemical_field().add_point_source({35.0, 25.0}, 1.0, 100.0);
+            env.soluble_field().add_point_source({35.0, 25.0}, 0.8, 100.0);
+            if (!cli_no_toxin) {
+                env.repellent_field().add_point_source({35.0, 25.0}, 0.8, 25.0);
+            }
+        }
+
+        // Run with periodic stats output
+        double report_interval = 10000.0;  // every 10s
+        int total_steps = static_cast<int>(cli_duration / 0.5);
+        int report_steps = static_cast<int>(report_interval / 0.5);
+
+        std::cout << "  Time(s)  Clusters  ClusterFrac  MeanNN(mm)  MeanSpeed(mm/s)" << std::endl;
+        std::cout << "  -------  --------  -----------  ----------  ---------------" << std::endl;
+
+        for (int s = 0; s < total_steps; ++s) {
+            mws.step();
+            if ((s + 1) % report_steps == 0) {
+                auto stats = mws.compute_stats();
+                double t = mws.current_time() / 1000.0;
+                std::cout << "  " << std::setw(7) << std::setprecision(1) << std::fixed << t
+                          << "  " << std::setw(8) << stats.num_clusters
+                          << "  " << std::setw(11) << std::setprecision(3) << stats.cluster_fraction
+                          << "  " << std::setw(10) << std::setprecision(2) << stats.mean_nearest_neighbor
+                          << "  " << std::setw(15) << std::setprecision(3) << stats.mean_speed
+                          << std::endl;
+            }
+        }
+
+        auto final_stats = mws.compute_stats();
+        std::cout << "\n  FINAL STATS:" << std::endl;
+        std::cout << "   Worms: " << final_stats.num_worms << std::endl;
+        std::cout << "   Clusters: " << final_stats.num_clusters << std::endl;
+        std::cout << "   Cluster fraction: " << std::setprecision(3) << final_stats.cluster_fraction << std::endl;
+        std::cout << "   Mean nearest neighbor: " << std::setprecision(2) << final_stats.mean_nearest_neighbor << " mm" << std::endl;
+        std::cout << "   Mean speed: " << std::setprecision(3) << final_stats.mean_speed << " mm/s" << std::endl;
+        std::cout << "   Total eggs: " << final_stats.total_eggs << std::endl;
+
+        // Print final positions
+        std::cout << "\n  WORM POSITIONS:" << std::endl;
+        for (int w = 0; w < mws.num_worms(); ++w) {
+            auto pos = mws.worm(w).body().get_head_position();
+            std::cout << "   Worm " << w << ": (" << std::setprecision(1) << pos.x
+                      << ", " << pos.y << ")" << std::endl;
+        }
+
         return 0;
     }
 

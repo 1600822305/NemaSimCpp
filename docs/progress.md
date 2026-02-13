@@ -919,6 +919,14 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **恢复**: 气味移除 → EGL-4 核退出(60s) → 响应恢复
 - **REF**: L'Etoile 2002 Neuron, O'Halloran 2010 PNAS
 
+### Step 128: 多虫群体仿真 (Multi-Worm Simulation) ✅ (2026-02-13)
+> 详细文档: [steps/step128_multi_worm_simulation.md](steps/step128_multi_worm_simulation.md)
+
+- **新框架**: MultiWormSimulation — N 个独立 302 神经元系统并行仿真
+- **交互**: 虫间 ascaroside 信息素场 + 物理碰撞 + 密度信号
+- **CLI**: `--multi-worm N` + `--npr1 0` (社交) / `--npr1 -15` (独居)
+- **REF**: Ding 2019 eLife, de Bono 1998, Macosko 2009
+
 ---
 
 ## 当前系统状态
