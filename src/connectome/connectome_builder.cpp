@@ -202,6 +202,12 @@ void build_neurons(CB& b) {
     //      Bargmann & Horvitz 1991 — ASK amphid sensory neuron
     b.neuron("ASKL", NT::SENSORY, NTT::GLUTAMATE);
     b.neuron("ASKR", NT::SENSORY, NTT::GLUTAMATE);
+    // Step 113: ASG — amphid sensory neuron (L/R pair)
+    // Community 3 (Chemosensation); daf-7/TGF-β source
+    // Senses dauer pheromone; modulates dauer entry/exit
+    // REF: White 1986, Ren 1996, Emmons 2024
+    b.neuron("ASGL", NT::SENSORY, NTT::GLUTAMATE);
+    b.neuron("ASGR", NT::SENSORY, NTT::GLUTAMATE);
     // Step 61: AVM — anterior gentle touch neuron (single, unpaired)
     // Completes mechanosensory circuit: AVM + ALM = anterior touch, PLM = posterior
     // AVM born post-embryonically (L1), migrates to mid-body ventral
@@ -417,6 +423,25 @@ void build_neurons(CB& b) {
     // REF: White 1986, Cook 2019, Emmons 2024 PLOS Biology
     b.neuron("AINL", NT::INTER, NTT::GLUTAMATE);
     b.neuron("AINR", NT::INTER, NTT::GLUTAMATE);
+    // Step 113: ADA — amphid interneuron (L/R pair)
+    // Community 3 (Chemosensation); receives amphid sensory input
+    // Inputs: ASE, ADL → ADA; output to AVJ, RIR
+    // REF: White 1986, Emmons 2024
+    b.neuron("ADAL", NT::INTER, NTT::GLUTAMATE);
+    b.neuron("ADAR", NT::INTER, NTT::GLUTAMATE);
+    // Step 113: RIF — ring interneuron (L/R pair)
+    // "nexus of sexual signals and somatic signals" (Emmons 2024)
+    // Input: AIA (somatic) + AVF (sexual) + HSN (hermaphrodite)
+    // Expresses PDF and nematocin receptors
+    // REF: White 1986, Emmons 2024
+    b.neuron("RIFL", NT::INTER, NTT::GLUTAMATE);
+    b.neuron("RIFR", NT::INTER, NTT::GLUTAMATE);
+    // Step 113: RIR — ring interneuron (single, unpaired)
+    // Community 3; layer 4 in hierarchical network
+    // "triangular pathways between sensory neurons and their targets" (like RIC)
+    // Gap junctions to BAG; receives AVH input; reciprocal with DVA/PVP
+    // REF: White 1986, Emmons 2024
+    b.neuron("RIR",  NT::INTER, NTT::GLUTAMATE);
     // Step 111: PVQ — ventral cord pioneer interneuron (L/R pair)
     // "AVF and PVQ are two pairs of interneurons involved in sexual circuits" (Emmons 2024)
     // ASJ/ASK→PVQ: light/pheromone sensory pathway
@@ -1872,6 +1897,37 @@ void build_ventral_cord_integrators(CB& b) {
     b.syn("RICL", "AIML", 1); b.syn("RICR", "AIMR", 1);
     // AIM↔AIM: L/R gap junction (coordinate bilateral)
     b.gj("AIML", "AIMR", 2);
+
+    // Step 113: ASG — amphid sensory (dauer pheromone)
+    // ASG→AIA: chemosensory → primary amphid interneuron
+    b.syn("ASGL", "AIAL", 1); b.syn("ASGR", "AIAR", 1);
+    // ASG→AIB: chemosensory → pirouette interneuron
+    b.syn("ASGL", "AIBL", 1); b.syn("ASGR", "AIBR", 1);
+
+    // Step 113: ADA — amphid interneuron
+    // ASE→ADA, ADL→ADA: amphid sensory input
+    b.syn("ASEL", "ADAL", 1); b.syn("ASER", "ADAR", 1);
+    b.syn("ADLL", "ADAL", 1); b.syn("ADLR", "ADAR", 1);
+    // ADA→AVJ: output to ventral cord integrator (Emmons 2024)
+    b.syn("ADAL", "AVJL", 1); b.syn("ADAR", "AVJR", 1);
+
+    // Step 113: RIF — sexual/somatic nexus
+    // AIA→RIF: somatic chemosensory relay (Emmons 2024)
+    b.syn("AIAL", "RIFL", 1); b.syn("AIAR", "RIFR", 1);
+    // AVF→RIF: sexual pathway (Emmons 2024)
+    b.syn("AVFL", "RIFL", 1); b.syn("AVFR", "RIFR", 1);
+    // HSN→RIF: egg-laying drive → sexual nexus (hermaphrodite)
+    b.syn("HSNL", "RIFL", 1); b.syn("HSNR", "RIFR", 1);
+
+    // Step 113: RIR — triangular relay (like RIC)
+    // AVH→RIR: ventral cord input (Emmons 2024)
+    b.syn("AVHL", "RIR", 1); b.syn("AVHR", "RIR", 1);
+    // RIR↔DVA: reciprocal gap junction (proprioceptive network)
+    b.gj("RIR", "DVA", 2);
+    // RIR↔BAG: gap junction (O₂/CO₂ integration, Emmons 2024)
+    b.gj("RIR", "BAGL", 1); b.gj("RIR", "BAGR", 1);
+    // RIR↔PVP: reciprocal gap junction (VNC integration)
+    b.gj("RIR", "PVPL", 1); b.gj("RIR", "PVPR", 1);
 
     // Step 112: VC1-3, VC6 — remaining vulval motor neurons
     // HSN→VC: serotonergic drive to all VCs (egg-laying active state)

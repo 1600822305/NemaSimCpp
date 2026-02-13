@@ -802,17 +802,25 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **VC 完成**: 6/6 外阴运动神经元全部就位
 - **diag 验证**: VC1 S=0.444, SABD S=0.194 — 全部活跃
 
+### Step 113: ASG + ADA + RIF + RIR — 双侧嗅觉/环状中间 ✅ (2026-02-13)
+> 详细文档: [steps/step113_asg_ada_rif_rir.md](steps/step113_asg_ada_rif_rir.md)
+
+- **+7 神经元**: ASG(2) dauer + ADA(2) 双侧中间 + RIF(2) 性汇聚 + RIR 三角中继 (268→275)
+- **+18 突触 +5 间隙**: ASG→AIA/AIB + ASE/ADL→ADA + AIA/AVF/HSN→RIF + AVH→RIR
+- **RIF 实现**: Emmons 2024 "nexus of sexual and somatic signals"
+- **diag 验证**: ASGL S=0.122, ADAL S=0.307, RIFL S=0.398, RIR S=0.329 — 全部活跃
+
 ---
 
 ## 当前系统状态
 
 ```
 架构: 8 层 (环境/躯体/感知/神经元/连接组/神经调质/运动/行为)
-神经元: 268 个 MVP 子集 (302 全集待扩展)
-  感觉: 77 (ASE/AWC/AWA/ASH/ALM/PLM/NSM/ADE/PDE/AFD/ADF/ASJ/ASK/ASI/ADL/FLP/PHB/PHA/URX/BAG/PVD L/R + CEP 4× + OLQ 4× + IL1 4× + IL2 4× + URY 4× + OLL L/R + PHC L/R + AVM + PVM + AQR + PQR + SDQR + ALN L/R + PLN L/R)
-  中间: 69 (AIA/AIB/AIY/AIZ/RIA/RIB/RIM/RIC/AVA/AVB/AVD/AVE/PVC/AVF/AUA/AVK/AVJ/AVH/PVP/AIN/LUA/I1/RIP L/R + SAA 4× + RIS + RIH + RMG L/R + DVA + DVC + PVT + PVR + RIG + ALA + URB L/R + BDU L/R + AVG + PVQ L/R + AIM L/R)
+神经元: 275 个 MVP 子集 (302 全集待扩展)
+  感觉: 79 (ASE/AWC/AWA/ASH/ALM/PLM/NSM/ADE/PDE/AFD/ADF/ASJ/ASK/ASI/ADL/FLP/PHB/PHA/URX/BAG/PVD L/R + CEP 4× + OLQ 4× + IL1 4× + IL2 4× + URY 4× + OLL L/R + PHC L/R + AVM + PVM + AQR + PQR + SDQR + ALN L/R + PLN L/R)
+  中间: 74 (AIA/AIB/AIY/AIZ/RIA/RIB/RIM/RIC/AVA/AVB/AVD/AVE/PVC/AVF/AUA/AVK/AVJ/AVH/PVP/AIN/LUA/I1/RIP L/R + SAA 4× + RIS + RIH + RMG L/R + DVA + DVC + PVT + PVR + RIG + ALA + URB L/R + BDU L/R + AVG + PVQ L/R + AIM L/R + ADA L/R + RIF L/R + RIR)
   运动: 122 (SMD 4 + RMD 4 + URA 4 + SIA 4 + SIB 4 + SMB 4 + SAB 3 + RMH 2 + RMF 2 + PVN 2 + RIV 2 + RMED/RMEV 2 + RID + AS01-11(11) + DA01-09(9) + DB01-07(7) + VA01-12(12) + VB01-11(11) + DD01-06(6) + VD01-13(13) + MC 2 + M3 2 + M4 + HSN 2 + VC1-6 + AVL + DVB)
-突触: 653 化学 + 229 间隙连接 (全部带 Tsodyks-Markram STP, 支持分数 sections)
+突触: 671 化学 + 234 间隙连接 (全部带 Tsodyks-Markram STP, 支持分数 sections)
   Step 42: Cook 2019 校准 (+8 RIA↔RIV, -2 AVE→RIV) + RIV↔RIV gap
   Step 84-91: VNC MN 完整互连 (交叉抑制/本体感觉波/后退波 全部完成)
 神经调质: 7 种 (5-HT, DA, OA, TA, NLP-12, PDF, FLP-11) — volume transmission + 饱食度(泵驱动)
