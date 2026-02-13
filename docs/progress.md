@@ -997,6 +997,13 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **效果**: CI -0.528 → +0.315, Omega 0→19次 (33%), 距食物 10→6.9mm, AWC→AIY w_mod 保持 1.0
 - **验证**: regtest **20/20 pass**, Heading rate 7.0 deg/s, 曲率/速度/波传播正常
 
+### Step 137: 清理 Three.js 查看器残留 ✅ (2026-02-13)
+> 详细文档: [steps/step137_cleanup_threejs_viewer.md](steps/step137_cleanup_threejs_viewer.md)
+
+- **清理**: 删除 `vis/` 目录 (worm3d.html + worm3d_anim.json)、根目录残留日志 (vis_crash.log, vis_err.log, worm3d_anim.json)
+- **代码**: 删除 diag_main.cpp 中 Three.js 动画导出代码块 (~60 行)，保留 BodyModel3D 诊断输出
+- **验证**: Release 编译零错误，三个 exe 均成功生成
+
 ---
 
 ## 当前系统状态

@@ -475,68 +475,6 @@ int main(int argc, char* argv[]) {
         std::cout << "  Physics: Hill muscle + cuticle elasticity + hydrostatic pressure" << std::endl;
         std::cout << "  Drag: Resistive Force Theory (anisotropic)" << std::endl;
 
-        // === Export animation JSON for Three.js viewer ===
-        {
-            // Re-run simulation and capture frames
-            celegans::BodyModel3D body_export;
-            body_export.initialize({0.5, 0.5, 0.04}, 0.0);
-
-            std::ofstream json("worm3d_anim.json");
-            json << std::setprecision(6) << std::fixed;
-            json << "{\n\"body_length\": " << body_export.get_body_length();
-            json << ",\n\"num_nodes\": " << celegans::NUM_3D_NODES;
-            json << ",\n\"num_muscles\": " << body_export.num_muscles();
-            json << ",\n\"radii\": [";
-            for (int i = 0; i < celegans::NUM_3D_NODES; ++i) {
-                if (i > 0) json << ",";
-                json << body_export.nodes()[i].radius;
-            }
-            json << "],\n\"frames\": [\n";
-
-            int export_steps = static_cast<int>(sim_time / sim_dt);
-            int frame_interval = 100;  // every 50ms
-            bool first_frame = true;
-
-            for (int s = 0; s < export_steps; ++s) {
-                double t = s * sim_dt;
-                double freq = 0.5;
-                for (int seg = 0; seg < celegans::NUM_BODY_SEGMENTS; ++seg) {
-                    double phase = 2.0 * celegans::PI * freq * t * 0.001
-                                 - 2.0 * celegans::PI * seg / celegans::NUM_BODY_SEGMENTS;
-                    double wave = std::sin(phase);
-                    body_export.set_dorsal_ventral_activation(seg, true, std::max(0.0, wave) * 0.6);
-                    body_export.set_dorsal_ventral_activation(seg, false, std::max(0.0, -wave) * 0.6);
-                }
-                body_export.update_physics(sim_dt);
-
-                if (s % frame_interval == 0) {
-                    if (!first_frame) json << ",\n";
-                    first_frame = false;
-                    json << "{\"t\":" << t / 1000.0 << ",\"nodes\":[";
-                    for (int i = 0; i < celegans::NUM_3D_NODES; ++i) {
-                        auto& n = body_export.nodes()[i];
-                        if (i > 0) json << ",";
-                        json << "[" << n.pos.x << "," << n.pos.y << "," << n.pos.z << "]";
-                    }
-                    json << "],\"dv\":[";
-                    for (int i = 0; i < celegans::NUM_3D_NODES; ++i) {
-                        auto& n = body_export.nodes()[i];
-                        if (i > 0) json << ",";
-                        json << "[" << n.dorsal.x << "," << n.dorsal.y << "," << n.dorsal.z << "]";
-                    }
-                    json << "],\"curv\":[";
-                    for (int i = 0; i < celegans::NUM_3D_NODES; ++i) {
-                        if (i > 0) json << ",";
-                        json << body_export.nodes()[i].curvature_dv;
-                    }
-                    json << "]}";
-                }
-            }
-            json << "\n]\n}\n";
-            json.close();
-            std::cout << "\n  Exported " << (export_steps / frame_interval) << " frames to worm3d_anim.json" << std::endl;
-        }
-
         return 0;
     }
 

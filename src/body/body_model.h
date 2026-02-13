@@ -127,6 +127,7 @@ private:
         }
     }
     double speed_ = 0.0;             // current locomotion speed (mm/s)
+    double smooth_speed_ = 0.0;        // Step 137: LPF of RFT speed (body inertia, τ=50ms)
 public:
     void set_speed_scale(double s) { speed_scale_ = s; }
     // Set medium: 0.0=water (swimming), 1.0=agar (crawling)

@@ -239,8 +239,15 @@ void BodyModel::compute_forces_and_integrate(double dt) {
     }
 
     double head_tx = std::cos(theta[0]), head_ty = std::sin(theta[0]);
-    double forward_speed = (Vx * head_tx + Vy * head_ty) * speed_scale_;
-    forward_speed = std::clamp(forward_speed, -1.0, 1.0);
+    double raw_speed = (Vx * head_tx + Vy * head_ty) * speed_scale_;
+    raw_speed = std::clamp(raw_speed, -1.0, 1.0);
+
+    // Step 137: Low-pass filter RFT speed (τ=50ms) to simulate body inertia.
+    // Raw dkappa/dt at dt=0.5ms is very noisy → speed jumps → jerky body.
+    // Real C. elegans body mass smooths velocity fluctuations.
+    constexpr double tau_speed = 0.05;  // 50ms time constant
+    smooth_speed_ += (raw_speed - smooth_speed_) * dt / tau_speed;
+    double forward_speed = smooth_speed_;
 
     // --- 4. Direction from command neurons ---
     smooth_fwd_ += (forward_drive_ - smooth_fwd_) * dt / 0.1;
