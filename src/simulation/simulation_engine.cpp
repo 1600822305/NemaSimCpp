@@ -478,6 +478,31 @@ void SimulationEngine::step() {
             if (id >= 0 && id < nn)
                 neurons_[id]->add_synaptic_current(npr1_rmg_);
         }
+        // Step 128: Multi-worm density-dependent behavior (Ding 2019 eLife)
+        // RMG drive: each neighbor → +10pA (spoke gap junction amplification)
+        if (neighbor_density_ > 0) {
+            double rmg_density = 10.0 * std::min(neighbor_density_, 5);
+            for (int id : nids("RMG")) {
+                if (id >= 0 && id < nn)
+                    neurons_[id]->add_synaptic_current(rmg_density);
+            }
+        }
+        // Rule 1 (Ding 2019): Cluster-edge reversal
+        // When density DROPS (worm leaving cluster) → AVA burst → reverse back
+        // Gated by NPR-1: Hawaiian (npr1=0) → strong reversal; N2 (npr1=-20) → weak
+        // prev_neighbor_density_ updated by set_neighbor_density() every 200ms
+        if (prev_neighbor_density_ > 0 && neighbor_density_ < prev_neighbor_density_) {
+            int density_drop = prev_neighbor_density_ - neighbor_density_;
+            double rmg_net = 10.0 * prev_neighbor_density_ + npr1_rmg_;
+            if (rmg_net > 0) {
+                // AVA reversal pulse proportional to density drop × RMG activity
+                double ava_edge = 15.0 * density_drop * rmg_net / (rmg_net + 10.0);
+                for (int id : nids("AVA")) {
+                    if (id >= 0 && id < nn)
+                        neurons_[id]->add_synaptic_current(ava_edge);
+                }
+            }
+        }
     }
 
     // Step 43: ADF sickness 5-HT → MOD-1 ⊣ AIY/AIZ (direct current injection)
@@ -615,6 +640,19 @@ void SimulationEngine::step() {
     // Step 71: DMP speed modulation now EMERGENT (P0-5 fix)
     // AVL/DVB fire during DMP → GABA inhibits B-class MN → speed reduction
     // Removed: effective_speed *= dmp_speed_factor_
+
+    // Step 128: Density-dependent speed modulation (Ding 2019 Rule 2)
+    // Applied HERE so it's not overwritten by motor control speed calculation
+    // Hawaiian (npr1=0): high density → RMG active → slowing up to 50%
+    // N2 (npr1=-20): RMG suppressed → no density effect
+    if (neighbor_density_ > 0) {
+        double rmg_density = 10.0 * std::min(neighbor_density_, 5);
+        double rmg_net = rmg_density + npr1_rmg_;
+        if (rmg_net > 0) {
+            double slow_factor = 1.0 - 0.5 * rmg_net / (rmg_net + 15.0);
+            effective_speed *= slow_factor;
+        }
+    }
 
     if (effective_speed > 3.0) effective_speed = 3.0;
     if (effective_speed < 0.1) effective_speed = 0.1;

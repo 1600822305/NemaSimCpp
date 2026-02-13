@@ -20,6 +20,7 @@
 #include <vector>
 #include <memory>
 #include <functional>
+#include <thread>
 
 namespace celegans {
 
@@ -34,7 +35,7 @@ struct MultiWormStats {
 
 class MultiWormSimulation {
 public:
-    MultiWormSimulation(int num_worms, unsigned int base_seed = 42);
+    MultiWormSimulation(int num_worms, unsigned int base_seed = 42, int num_threads = 0);
 
     // Initialize all worms with default config
     void initialize();
@@ -69,6 +70,7 @@ private:
     double dt_ = 0.5;  // ms
     int step_count_ = 0;
     double npr1_override_ = -999.0;  // no override by default
+    int num_threads_ = 4;
     StepCallback step_callback_;
 
     // Shared pheromone field (ascaroside deposited by all worms)

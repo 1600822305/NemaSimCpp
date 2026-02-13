@@ -14,8 +14,11 @@ namespace celegans {
 //   3. Local density signals (neighbor count → NPR-1/RMG modulation)
 // ================================================================
 
-MultiWormSimulation::MultiWormSimulation(int num_worms, unsigned int base_seed)
+MultiWormSimulation::MultiWormSimulation(int num_worms, unsigned int base_seed, int num_threads)
     : num_worms_(num_worms), base_seed_(base_seed) {
+    num_threads_ = (num_threads <= 0)
+        ? std::min(num_worms, (int)std::thread::hardware_concurrency())
+        : num_threads;
     worms_.reserve(num_worms);
     for (int i = 0; i < num_worms; ++i) {
         worms_.push_back(std::make_unique<SimulationEngine>());
@@ -50,9 +53,23 @@ void MultiWormSimulation::step() {
     // 2. Update worm density signals for each worm
     update_worm_density_signals();
 
-    // 3. Step all worms independently
-    for (auto& worm : worms_) {
-        worm->step();
+    // 3. Step all worms in parallel (thread pool)
+    if (num_threads_ > 1 && num_worms_ > 1) {
+        auto worker = [&](int start, int end) {
+            for (int i = start; i < end; ++i)
+                worms_[i]->step();
+        };
+        int chunk = (num_worms_ + num_threads_ - 1) / num_threads_;
+        std::vector<std::thread> threads;
+        for (int t = 0; t < num_threads_; ++t) {
+            int s = t * chunk;
+            int e = std::min(s + chunk, num_worms_);
+            if (s < e) threads.emplace_back(worker, s, e);
+        }
+        for (auto& th : threads) th.join();
+    } else {
+        for (auto& worm : worms_)
+            worm->step();
     }
 
     // 4. Apply physical worm-worm interactions (collision avoidance)
@@ -79,8 +96,9 @@ void MultiWormSimulation::run(double duration_ms) {
 // REF: Srinivasan 2008 — ascarosides as water-soluble social signals
 // ================================================================
 void MultiWormSimulation::update_shared_pheromone() {
-    // Every 1000ms (2000 steps), update pheromone sources in all worms' environments
-    if (step_count_ % 2000 != 0) return;
+    // Every 200ms (400 steps), update pheromone sources in all worms' environments
+    // More frequent than 1s to track worm movement (0.2mm/s × 0.2s = 0.04mm)
+    if (step_count_ % 400 != 0) return;
 
     for (int i = 0; i < num_worms_; ++i) {
         auto& env_i = worms_[i]->environment();
@@ -90,9 +108,11 @@ void MultiWormSimulation::update_shared_pheromone() {
         for (int j = 0; j < num_worms_; ++j) {
             if (j == i) continue;  // don't sense own pheromone
             Vector2d pos_j = worms_[j]->body().get_head_position();
-            // Each worm deposits pheromone (intensity 0.5, σ²=4mm²)
-            // Smaller σ than CLI pheromone (36mm²) — local worm signal
-            env_i.pheromone_field().add_point_source(pos_j, 0.5, 4.0);
+            // Each worm deposits pheromone (intensity 1.5, σ²=2mm²)
+            // Strong local signal: at 1mm distance → 1.5×exp(-0.25) = 1.17
+            // At 2mm → 1.5×exp(-1.0) = 0.55 → ADL drive = 40×0.55/0.75 = 29pA
+            // REF: Srinivasan 2008 — ascarosides are water-soluble, local
+            env_i.pheromone_field().add_point_source(pos_j, 1.5, 2.0);
         }
         // Mark pheromone as present if there are other worms
         if (num_worms_ > 1) {
@@ -108,7 +128,7 @@ void MultiWormSimulation::update_shared_pheromone() {
 // REF: Ding 2019 eLife — density-dependent speed switching
 // ================================================================
 void MultiWormSimulation::update_worm_density_signals() {
-    // Every 200ms (400 steps), update density
+    // Every 200ms (400 steps), update density count for each worm
     if (step_count_ % 400 != 0) return;
 
     for (int i = 0; i < num_worms_; ++i) {
@@ -121,16 +141,13 @@ void MultiWormSimulation::update_worm_density_signals() {
             double dx = pos_i.x - pos_j.x;
             double dy = pos_i.y - pos_j.y;
             double dist = std::sqrt(dx * dx + dy * dy);
-            if (dist < 3.0) {  // 3mm neighbor radius
-                neighbor_count++;
-            }
+            if (dist < 3.0) neighbor_count++;  // 3mm neighbor radius
         }
 
-        // Inject density signal as pheromone intensity scaling
-        // More neighbors → stronger pheromone → ADL activation → AVA reversal
-        // This creates cluster-edge reversals (rule 1 from Ding 2019)
-        // NPR-1/RMG circuit already handles speed modulation (rule 2)
-        // Pheromone gradient provides taxis (rule 3)
+        // Set density via public API → SimulationEngine applies RMG drive internally
+        // Rule 2 (Ding 2019): density-dependent speed modulation
+        // NPR-1 gating happens inside SimulationEngine::step()
+        worms_[i]->set_neighbor_density(neighbor_count);
     }
 }
 

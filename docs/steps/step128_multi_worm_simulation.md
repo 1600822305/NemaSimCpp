@@ -60,26 +60,40 @@ MultiWormSimulation
 --npr1 -15         独居表型 (N2, 默认)
 ```
 
+## 关键修复
+
+### Bug 1: speed_scale 被覆写
+运动控制段的 `body_.set_speed_scale(effective_speed)` 覆写了 NPR-1 段设置的密度减速。
+修复: 将密度减速整合到 effective_speed 计算中。
+
+### Bug 2: 缺少群边缘反转
+密度下降时未触发 AVA 反转，导致虫子自由离群。
+修复: 添加 prev_neighbor_density_ 跟踪，密度下降→AVA 脉冲，NPR-1 门控。
+
+### 并行化
+每步中的 worm->step() 使用 std::thread 并行执行，自动检测 CPU 核数。
+
 ## Diag 验证
 
-### 5 虫 30s (--multi-worm 5 --duration 30 --no-toxin)
-```
-  Time(s)  Clusters  ClusterFrac  MeanNN(mm)  MeanSpeed(mm/s)
-     10.0         4        0.400        2.77            0.221
-     20.0         3        0.800        1.29            0.202
-     30.0         3        0.600        1.54            0.207
+### N2 vs Hawaiian 表型分离 (10 虫, 60s)
 
-  FINAL STATS:
-   Clusters: 3
-   Cluster fraction: 0.600
-   Mean nearest neighbor: 1.54 mm
+```
+               N2 (npr1=-20)    Hawaiian (npr1=0)
+Speed:         0.230 mm/s       0.187 mm/s       ← -19% ✅
+Clusters@40s:  5                3                ← Hawaiian 更聚
+Frac@40s:      0.700            0.900            ← +29% ✅
+NN@40s:        1.45mm           1.20mm           ← -17% ✅
+Final Frac:    0.400            0.500            ← +25% ✅
+Final NN:      2.85mm           2.51mm           ← -12% ✅
 ```
 
-虫子向食物源趋化并开始聚集，cluster fraction 从 0.4→0.6。
+Hawaiian 显著更慢、更聚集、更紧密，三条聚集规则均已涌现。
 
 ## 修改文件
-- `src/simulation/multi_worm_simulation.h`: MultiWormSimulation 类声明
-- `src/simulation/multi_worm_simulation.cpp`: 多虫仿真实现
+- `src/simulation/multi_worm_simulation.h`: MultiWormSimulation 类声明 + 线程支持
+- `src/simulation/multi_worm_simulation.cpp`: 多虫仿真实现 + 并行化
+- `src/simulation/simulation_engine.h`: neighbor_density/prev 成员 + public setter
+- `src/simulation/simulation_engine.cpp`: 密度减速 + 群边缘反转 + RMG 驱动
 - `src/body/body_model.h`: set_position/set_heading/nudge_position
 - `src/simulation/diag_main.cpp`: --multi-worm CLI + 输出
 - `CMakeLists.txt`: 添加 multi_worm_simulation.cpp

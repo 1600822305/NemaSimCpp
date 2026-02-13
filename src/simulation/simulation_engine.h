@@ -138,6 +138,9 @@ public:
     double awc_adapt_gain() const { return awc_adapt_gain_; }
     double egl4_nuclear() const { return egl4_nuclear_; }
     double awc_odor_exposure() const { return awc_odor_exposure_; }
+    // Step 128: Multi-worm density signal
+    void set_neighbor_density(int count) { prev_neighbor_density_ = neighbor_density_; neighbor_density_ = count; }
+    int neighbor_density() const { return neighbor_density_; }
 
     // Callback for each step (for logging/visualization)
     using StepCallback = std::function<void(const SimulationEngine&, int step_num)>;
@@ -224,6 +227,8 @@ private:
     // Bath application of 5-HT → bypasses egg_pressure threshold → constitutive HSN/VC activation
     // Classic assay: 2mM 5-HT in M9 → ~5× egg-laying rate increase
     bool exo_5ht_ = false;           // exogenous serotonin applied
+    int neighbor_density_ = 0;       // Step 128: number of worms within 3mm
+    int prev_neighbor_density_ = 0;  // Step 128: previous density (for edge-reversal detection)
 
     // Step 127: Olfactory adaptation — AWC EGL-4/PKG pathway (L'Etoile 2002, O'Halloran 2010)
     // Prolonged odor exposure → cGMP accumulates in AWC → EGL-4 activates

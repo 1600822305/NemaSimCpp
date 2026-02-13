@@ -1,0 +1,33 @@
+========================================
+  MULTI-WORM SIMULATION (Step 128)
+  10 worms, 60s
+========================================
+
+  Time(s)  Clusters  ClusterFrac  MeanNN(mm)  MeanSpeed(mm/s)
+  -------  --------  -----------  ----------  ---------------
+     10.0         9        0.200        2.29            0.155
+     20.0         4        0.700        1.55            0.140
+     30.0         3        0.800        1.26            0.143
+     40.0         3        0.900        1.20            0.152
+     50.0         7        0.500        1.79            0.166
+     60.0         7        0.500        2.51            0.187
+
+  FINAL STATS:
+   Worms: 10
+   Clusters: 7
+   Cluster fraction: 0.500
+   Mean nearest neighbor: 2.51 mm
+   Mean speed: 0.187 mm/s
+   Total eggs: 0
+
+  WORM POSITIONS:
+   Worm 0: (31.3, 23.2)
+   Worm 1: (35.3, 21.1)
+   Worm 2: (38.6, 23.1)
+   Worm 3: (38.5, 21.0)
+   Worm 4: (36.4, 22.3)
+   Worm 5: (35.5, 32.0)
+   Worm 6: (40.1, 26.8)
+   Worm 7: (30.5, 28.3)
+   Worm 8: (30.6, 22.7)
+   Worm 9: (29.8, 24.4)
