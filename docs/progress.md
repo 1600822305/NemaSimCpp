@@ -927,6 +927,16 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **CLI**: `--multi-worm N` + `--npr1 0` (社交) / `--npr1 -15` (独居)
 - **REF**: Ding 2019 eLife, de Bono 1998, Macosko 2009
 
+### Step 129: 3D 生物力学身体模型 ✅ (2026-02-13)
+> 详细文档: [steps/step129_3d_body_model.md](steps/step129_3d_body_model.md)
+
+- **新模型**: BodyModel3D — 49 节点 + 95 块体壁肌肉 (DL/DR/VL/VR 四象限)
+- **物理**: 曲率驱动公式 (半隐式 Euler, 天然稳定) + 椭球渐缩 + 地面约束
+- **参数**: Boyle 2012 RFT 阻力系数 (C_t=3.2e-3, C_n=128e-3 kg/s, K=40)
+- **验证**: 速度 0.116 mm/s (文献 ~0.15), DV 曲率 ±0.209/mm, 周期稳定
+- **CLI**: `--body-3d` 诊断模式
+- **REF**: Boyle 2012 Front Comput Neurosci, Park 2008 PNAS, Padmanabhan 2012
+
 ---
 
 ## 当前系统状态
@@ -1017,7 +1027,7 @@ P0/P1 违规全部修复:
   src/core/            — 7 文件 (types/config/fast_math/logger .h/.cpp)
   src/neuron/          — 10 文件 (ion_channel/calcium/single_compartment/multi_compartment/factory .h/.cpp)
   src/connectome/      — 10 文件 (chemical_synapse/gap_junction/connectome/connectome_builder/connectome_loader .h/.cpp)
-  src/body/            — 4 文件 (body_model/muscle_system .h/.cpp)
+  src/body/            — 6 文件 (body_model/body_model_3d/muscle_system .h/.cpp)
   src/motor/           — 2 文件 (motor_controller .h/.cpp)
   src/environment/     — 5 文件 (environment/chemical_field .h/.cpp + sensory_transducer.h)
   src/pharynx/         — 1 文件 (pharyngeal_pump.h)
@@ -1031,5 +1041,5 @@ P0/P1 违规全部修复:
 参考项目对标:
   OpenWorm: Sibernetic (SPH 物理) + c302 (NeuroML 神经元) + Geppetto (可视化)
   BAAIWorm: 多隔室 HH + 3D 物理 + 全脑钙成像拟合 (Nature Comput Sci 2024)
-  本项目: 单隔室 HH (MVP) → 多隔室 (Phase 3) + 弹性杆 (MVP) → SPH (Phase 4)
+  本项目: 单隔室 HH (MVP) → 多隔室 (Phase 3) + 弹性杆 (MVP) → 3D 曲率驱动 (Step 129)
 ```

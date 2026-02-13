@@ -59,6 +59,7 @@ target_link_libraries(celegans_connectome PUBLIC celegans_neuron)
 # Body library
 add_library(celegans_body STATIC
     src/body/body_model.cpp
+    src/body/body_model_3d.cpp
     src/body/muscle_system.cpp
 )
 target_link_libraries(celegans_body PUBLIC celegans_core)

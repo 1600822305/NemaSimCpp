@@ -1,5 +1,6 @@
 #include "simulation/simulation_engine.h"
 #include "simulation/multi_worm_simulation.h"
+#include "body/body_model_3d.h"
 #include "compute/compute_backend.h"
 #include "core/logger.h"
 #include <iostream>
@@ -154,6 +155,7 @@ int main(int argc, char* argv[]) {
     bool cli_osm = false;  // Step 118: osmotic barrier
     bool cli_exo_5ht = false;  // Step 126: exogenous 5-HT (egg-laying induction)
     int cli_multi_worm = 0;    // Step 128: multi-worm simulation (0=disabled)
+    bool cli_body_3d = false;  // Step 129: 3D body model diagnostic
     bool cli_fitness = false;
     int cli_nseeds = 1;
     int cli_jobs = std::min(8, (int)std::thread::hardware_concurrency());
@@ -179,6 +181,7 @@ int main(int argc, char* argv[]) {
         else if (arg == "--osm") cli_osm = true;
         else if (arg == "--exo-5ht" || arg == "--exo_5ht") cli_exo_5ht = true;
         else if ((arg == "--multi-worm" || arg == "--multi_worm") && i+1 < argc) cli_multi_worm = std::atoi(argv[++i]);
+        else if (arg == "--body-3d" || arg == "--body_3d") cli_body_3d = true;
         else if (arg == "--light_x" && i+1 < argc) { cli_light = true; cli_light_x = std::atof(argv[++i]); }
         else if (arg == "--light_y" && i+1 < argc) { cli_light = true; cli_light_y = std::atof(argv[++i]); }
         else if (arg == "--light_intensity" && i+1 < argc) { cli_light = true; cli_light_intensity = std::atof(argv[++i]); }
@@ -387,6 +390,90 @@ int main(int argc, char* argv[]) {
                       << "  " << std::setw(5) << m.omegas
                       << "  " << std::setprecision(1) << std::setw(5) << m.near_food_pct << std::endl;
         }
+        return 0;
+    }
+
+    // === 3D BODY MODEL DIAGNOSTIC (Step 129) ===
+    if (cli_body_3d) {
+        std::cout << "========================================" << std::endl;
+        std::cout << "  3D BODY MODEL DIAGNOSTIC (Step 129)" << std::endl;
+        std::cout << "  Boyle 2012 + Palyanov 2018 framework" << std::endl;
+        std::cout << "========================================\n" << std::endl;
+
+        celegans::BodyModel3D body3d;
+        body3d.initialize({25.0, 25.0, 0.04}, 0.0);
+
+        std::cout << "  Geometry:" << std::endl;
+        std::cout << "   Nodes: " << celegans::NUM_3D_NODES << std::endl;
+        std::cout << "   Muscles: " << body3d.num_muscles() << " (95 BWM cells)" << std::endl;
+        std::cout << "   Body length: " << body3d.get_body_length() << " mm" << std::endl;
+        std::cout << "   Segment length: " << std::setprecision(4)
+                  << body3d.get_body_length() / celegans::NUM_BODY_SEGMENTS << " mm" << std::endl;
+
+        // Show tapering radii
+        std::cout << "\n  Prolate ellipsoid radii (um):" << std::endl;
+        std::cout << "   ";
+        for (int i = 0; i < celegans::NUM_3D_NODES; i += 6) {
+            std::cout << "n" << i << "=" << std::setprecision(1) << std::fixed
+                      << body3d.nodes()[i].radius * 1000.0 << " ";
+        }
+        std::cout << std::endl;
+
+        // Simulate with sinusoidal dorsal-ventral activation (crawling wave)
+        double sim_dt = 0.5;  // ms
+        double sim_time = std::min(cli_duration, 10000.0);  // max 10s
+        int steps = static_cast<int>(sim_time / sim_dt);
+
+        std::cout << "\n  Simulating " << sim_time / 1000.0 << "s crawling..." << std::endl;
+        std::cout << "  Time(s)  HeadX(mm)  HeadY(mm)  HeadZ(mm)  Speed(mm/s)  DV_curv" << std::endl;
+        std::cout << "  ------   --------   --------   --------   ----------   -------" << std::endl;
+
+        for (int s = 0; s < steps; ++s) {
+            double t = s * sim_dt;  // ms
+            double freq = 0.5;  // Hz (crawling frequency)
+
+            // Generate propagating sinusoidal muscle activation
+            for (int seg = 0; seg < celegans::NUM_BODY_SEGMENTS; ++seg) {
+                double phase = 2.0 * celegans::PI * freq * t * 0.001
+                             - 2.0 * celegans::PI * seg / celegans::NUM_BODY_SEGMENTS;
+                double wave = std::sin(phase);
+                double dorsal_a = std::max(0.0, wave) * 0.6;
+                double ventral_a = std::max(0.0, -wave) * 0.6;
+                body3d.set_dorsal_ventral_activation(seg, true, dorsal_a);
+                body3d.set_dorsal_ventral_activation(seg, false, ventral_a);
+            }
+
+            body3d.update_physics(sim_dt);
+
+            // Report every 1s
+            if ((s + 1) % 2000 == 0) {
+                auto hp = body3d.get_head_position_3d();
+                double curv = body3d.get_local_curvature(celegans::NUM_3D_NODES / 2);
+                std::cout << "  " << std::setw(6) << std::setprecision(1) << t / 1000.0
+                          << "   " << std::setw(8) << std::setprecision(3) << hp.x
+                          << "   " << std::setw(8) << hp.y
+                          << "   " << std::setw(8) << hp.z
+                          << "   " << std::setw(10) << std::setprecision(4) << body3d.get_speed()
+                          << "   " << std::setw(7) << std::setprecision(3) << curv
+                          << std::endl;
+            }
+        }
+
+        // Final 3D body shape
+        std::cout << "\n  FINAL 3D BODY SHAPE (every 6th node):" << std::endl;
+        for (int i = 0; i < celegans::NUM_3D_NODES; i += 6) {
+            auto p = body3d.nodes()[i].pos;
+            std::cout << "   Node " << std::setw(2) << i
+                      << ": (" << std::setprecision(4) << p.x
+                      << ", " << p.y << ", " << p.z << ")"
+                      << "  R=" << std::setprecision(1) << body3d.nodes()[i].radius * 1000.0 << "um"
+                      << std::endl;
+        }
+
+        std::cout << "\n  Muscle quadrants: DL=24 DR=24 VL=24 VR=23 = 95 total" << std::endl;
+        std::cout << "  Physics: Hill muscle + cuticle elasticity + hydrostatic pressure" << std::endl;
+        std::cout << "  Drag: Resistive Force Theory (anisotropic)" << std::endl;
+
         return 0;
     }
 

@@ -43,6 +43,38 @@ struct Vector2d {
 
 inline Vector2d operator*(double s, const Vector2d& v) { return v * s; }
 
+// Step 129: 3D vector for body model
+struct Vector3d {
+    double x = 0.0;
+    double y = 0.0;
+    double z = 0.0;
+
+    Vector3d() = default;
+    Vector3d(double x, double y, double z) : x(x), y(y), z(z) {}
+
+    Vector3d operator+(const Vector3d& o) const { return {x + o.x, y + o.y, z + o.z}; }
+    Vector3d operator-(const Vector3d& o) const { return {x - o.x, y - o.y, z - o.z}; }
+    Vector3d operator*(double s) const { return {x * s, y * s, z * s}; }
+    Vector3d operator/(double s) const { return {x / s, y / s, z / s}; }
+    Vector3d& operator+=(const Vector3d& o) { x += o.x; y += o.y; z += o.z; return *this; }
+    Vector3d& operator-=(const Vector3d& o) { x -= o.x; y -= o.y; z -= o.z; return *this; }
+    Vector3d& operator*=(double s) { x *= s; y *= s; z *= s; return *this; }
+
+    double norm() const { return std::sqrt(x * x + y * y + z * z); }
+    double norm_sq() const { return x * x + y * y + z * z; }
+    Vector3d normalized() const {
+        double n = norm();
+        return (n > 1e-12) ? Vector3d{x / n, y / n, z / n} : Vector3d{0, 0, 0};
+    }
+    double dot(const Vector3d& o) const { return x * o.x + y * o.y + z * o.z; }
+    Vector3d cross(const Vector3d& o) const {
+        return {y * o.z - z * o.y, z * o.x - x * o.z, x * o.y - y * o.x};
+    }
+    Vector2d xy() const { return {x, y}; }
+};
+
+inline Vector3d operator*(double s, const Vector3d& v) { return v * s; }
+
 enum class NeuronType : uint8_t {
     SENSORY,
     INTER,
