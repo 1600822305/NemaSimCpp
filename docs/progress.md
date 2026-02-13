@@ -989,6 +989,14 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **改进**: Curvature 1.1→4.2, Midbody 0.5→3.5, Speed 0.2→0.3, rft_gain_ 不再需要
 - **验证**: regtest **20/20 pass**, 曲率/速度均在生物学范围内
 
+### Step 136: 趋化行为修复 — Weathervane 符号 + Omega 恢复 ✅ (2026-02-13)
+> 详细文档: [steps/step136_chemotaxis_fix.md](steps/step136_chemotaxis_fix.md)
+
+- **根因**: Weathervane SMD 电流符号反转 — 食物在左时抑制 SMDD（应激活），导致虫体转向远离食物
+- **修复**: SMD 符号交换 + as_factor 2.8→1.5 + omega_threshold 0.5→0.35 + 负条件化门控
+- **效果**: CI -0.528 → +0.315, Omega 0→19次 (33%), 距食物 10→6.9mm, AWC→AIY w_mod 保持 1.0
+- **验证**: regtest **20/20 pass**, Heading rate 7.0 deg/s, 曲率/速度/波传播正常
+
 ---
 
 ## 当前系统状态

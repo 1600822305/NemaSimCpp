@@ -210,9 +210,20 @@ void SimulationEngine::update_odor_conditioning() {
     // learn_signal: positive when food present, negative when absent
     double learn_signal = food_signal - 0.5;
 
-    // INS-1 amplifies conditioning (starvation enhances aversive learning,
-    // Lin 2010: ins-1 mutants are defective in benzaldehyde-starvation plasticity)
-    double ins1_amp = 1.0 + ins1_conc_ * 2.0;
+    // Step 136: Negative conditioning requires prior food experience.
+    // Biology: "benzaldehyde + starvation" aversion requires prior odor-food pairing.
+    // A naive worm that has never encountered food cannot form aversion memory.
+    // Without this gate, worms develop runaway aversion (w_mod→0) and lose chemotaxis.
+    if (learn_signal < 0.0 && peak_satiety_ < 0.05) return;
+
+    // INS-1 amplifies conditioning:
+    // Step 136: INS-1 only amplifies NEGATIVE conditioning when SICK (Lin 2010
+    // is specifically about pathogen-related starvation, not naive starvation).
+    // Positive conditioning always gets baseline rate.
+    double ins1_amp = 1.0;
+    if (learn_signal < 0.0 && sickness_ > 0.1) {
+        ins1_amp = 1.0 + ins1_conc_ * 2.0;
+    }
 
     // Sleep boosts learning (Chouhan 2023)
     double sleep_factor = is_sleeping_ ? sleep_learn_boost_ : 1.0;
@@ -226,15 +237,20 @@ void SimulationEngine::update_odor_conditioning() {
 
         double V_pre = neurons_[pre]->get_membrane_potential();
         // S_awc: AWC must be active (odor present) for conditioning to occur
-        // This gates learning: no odor → no AWC activity → no plasticity
         double S_awc = 1.0 / (1.0 + fast_exp(-(V_pre - (-35.0)) / 5.0));
-        if (S_awc < 0.05) continue; // skip if AWC silent
+        // Step 136: raise threshold for negative conditioning (need strong odor,
+        // not just background gradient)
+        double s_thresh = (learn_signal < 0.0) ? 0.3 : 0.05;
+        if (S_awc < s_thresh) continue;
 
         // Bidirectional plasticity:
         // food + odor → learn_signal > 0 → w_mod↑ (positive conditioning)
         // no food + odor → learn_signal < 0 → w_mod↓ (negative conditioning)
         double dw = lr * learn_signal * S_awc;
         syn.adjust_weight_mod(dw);
+
+        // Step 136: clamp w_mod minimum to 0.4 — preserve basic chemotaxis
+        if (syn.weight_mod() < 0.4) syn.set_weight_mod(0.4);
     }
 
     update_awc_pref_cache();

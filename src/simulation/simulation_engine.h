@@ -43,9 +43,9 @@ public:
         float sensory_gain    = 1.0f;    // chemosensory transducer gain multiplier
         float bias_clamp      = 30.0f;   // Step 93: 12→30 pA. 20pA still saturating. 30pA allows full steering + aversion range.
         // Step 32: Runtime-tunable parameters (avoid recompile for parameter sweeps)
-        float as_factor       = 2.8f;    // AS dorsal resistance factor (Step 93: 1.7→2.8, DD/VD cross-inhibition lowered dorsal tone → 96% omega)
+        float as_factor       = 1.5f;    // Step 136: 2.8→1.5 (dorsal tone ~0.3 × 2.8=0.84 blocked all omega; 0.3×1.5=0.45 allows ~60%)
         float pulse_amp       = 50.0f;   // RIV post-reversal pulse amplitude (Step 42C: 80→50, RIA↔RIV provides base drive)
-        float omega_threshold = 0.5f;    // RIV release threshold for omega mode
+        float omega_threshold = 0.35f;   // Step 136: 0.5→0.35 (RIV peak ~0.88, need effective_riv > threshold after AS resistance)
         float riv_tonic       = 1.0f;    // RIV baseline tonic drive (pA)
     };
     TuningParams params;
@@ -317,6 +317,7 @@ private:
 
     // Satiety internal state (Step 20c → Step 24: now driven by pharyngeal pumping)
     double satiety_ = 0.0;             // [0,1] — 0=hungry, 1=full
+    double peak_satiety_ = 0.0;          // Step 136: max satiety ever reached (food experience gate)
     double satiety_tau_deplete_ = 40000.0; // ms to get hungry (40s off food)
     void update_satiety();              // called each step (now uses pharynx pump rate)
 
@@ -369,7 +370,7 @@ private:
     // Mechanism: INS-1 from ASI/AIA → DAF-2 in AWC → AGE-1/PI3K
     // Cell-autonomous in AWC: food_signal gates plasticity direction
     // REF: Kauffman 2010 PNAS, Lin 2010 JNeurosci, Cho 2016 Neuron
-    double odor_cond_lr_ = 0.0008;       // learning rate (simulation timescale compressed)
+    double odor_cond_lr_ = 0.0003;       // Step 136: 0.0008→0.0003 (slower to prevent runaway aversion)
     void update_odor_conditioning();     // AWC→AIY w_mod bidirectional plasticity
 
     // Step 63: INS-1 insulin signaling (Lin 2010 JNeurosci, Comm Bio 2022)

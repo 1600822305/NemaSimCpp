@@ -25,6 +25,8 @@ void SimulationEngine::update_satiety() {
     satiety_ -= satiety_ * dt_ * depletion_rate / satiety_tau_deplete_;
     if (satiety_ < 0.0) satiety_ = 0.0;
     if (satiety_ > 1.0) satiety_ = 1.0;
+    // Step 136: track max satiety for food experience gating
+    if (satiety_ > peak_satiety_) peak_satiety_ = satiety_;
 
     int n = static_cast<int>(neurons_.size());
 

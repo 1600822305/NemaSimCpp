@@ -195,14 +195,14 @@ void SimulationEngine::apply_weathervane() {
         double smd_wv_scale = 0.7 + 0.3 * std::max(0.0, 1.0 - sht_conc_wv / 0.7);
         if (smd_wv_scale > 1.0) smd_wv_scale = 1.0;
         double smd_drive = bias_current * smd_wv_scale;
-        // Sign: positive grad_normal (food to left) → positive smd_drive
-        // SMDD gets -drive: suppress dorsal → extend ventral phase → curve LEFT toward food
-        // SMDV gets +drive: enhance ventral → same effect
-        // (Inverted vs naive expectation because SMD→muscle→curvature chain has sign inversion)
-        if (nid("SMDDL") >= 0 && nid("SMDDL") < n) neurons_[nid("SMDDL")]->add_synaptic_current(-smd_drive);
-        if (nid("SMDDR") >= 0 && nid("SMDDR") < n) neurons_[nid("SMDDR")]->add_synaptic_current(-smd_drive);
-        if (nid("SMDVL") >= 0 && nid("SMDVL") < n) neurons_[nid("SMDVL")]->add_synaptic_current( smd_drive);
-        if (nid("SMDVR") >= 0 && nid("SMDVR") < n) neurons_[nid("SMDVR")]->add_synaptic_current( smd_drive);
+        // Step 136: Sign fix — positive grad_normal (food to left) → positive smd_drive
+        // Need POSITIVE curvature (dorsal > ventral) for counterclockwise turn (LEFT toward food)
+        // SMDD gets +drive: excite dorsal → more dorsal activation → positive curvature → LEFT
+        // SMDV gets -drive: inhibit ventral → less ventral activation → same effect
+        if (nid("SMDDL") >= 0 && nid("SMDDL") < n) neurons_[nid("SMDDL")]->add_synaptic_current( smd_drive);
+        if (nid("SMDDR") >= 0 && nid("SMDDR") < n) neurons_[nid("SMDDR")]->add_synaptic_current( smd_drive);
+        if (nid("SMDVL") >= 0 && nid("SMDVL") < n) neurons_[nid("SMDVL")]->add_synaptic_current(-smd_drive);
+        if (nid("SMDVR") >= 0 && nid("SMDVR") < n) neurons_[nid("SMDVR")]->add_synaptic_current(-smd_drive);
     }
 
     // Step 65: Zero curvature_bias during non-omega forward locomotion
