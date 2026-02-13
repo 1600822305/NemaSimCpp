@@ -29,7 +29,8 @@ REF: Altun & Hall WormAtlas; WormBook (Lehmann 2024); White 1986; Waterston 1988
 
 ### 1.2 运动神经元回路
 
-腹侧神经索 (VNC) 包含 **113 个运动神经元**，分为以下功能类：
+腹侧神经索 (VNC) 包含 **69 个运动型神经元** (另有 VC×6 卵产神经元, 共 75 个 VNC 运动神经元)，
+运动型分为以下 7 个功能类：
 
 | 类 | 数量 | 递质 | 功能 | 靶侧 |
 |----|------|------|------|------|
@@ -53,7 +54,8 @@ REF: White 1986; Chen 2006; Haspel & O'Donovan 2011; Wen 2012; Olivares 2021
 
 运动波传播的核心机制 (Wen 2012 实验验证):
 
-- B 类和 A 类运动神经元的 **长后向无突触突起** 被假设为拉伸感受器
+- B 类运动神经元的 **长后向无突触突起** 被假设为拉伸感受器
+- A 类运动神经元的 **长前向无突触突起** 被假设为拉伸感受器
 - 当身体弯曲时，局部段的 **长度变化** 被这些突起感知
 - 本体感觉反馈在运动神经元内部耦合 → 从头到尾传播弯曲波
 - **不需要中枢模式发生器 (CPG)** — 弯曲波是反射链驱动的
@@ -95,7 +97,7 @@ Boyle 2012 的核心发现:
 ```
 R_i = R × |sin(acos(s_i))|
 s_i = (i - M/2) / (M/2 + 0.2)    // +0.2 避免端点零半径
-R_i = max(R_i, 0.3 × R)          // 最小 12μm，防止端点退化
+R_i = max(R_i, 0.3 × R)          // 最小 12μm，防止端点退化 [本项目工程选择, 非 Boyle 2012 原参数]
 ```
 注意: 不加下限时 i=0 处 R_0 ≈ 5μm，对角弹簧退化为侧向元件，丧失横向约束。
 下限 30% R_max 保证所有杆的横截面都有效。
@@ -268,7 +270,8 @@ K_contact = 10 × κ_PE  (排斥力比被动弹簧强一个量级)
 
 SMD 起振机制:
   SMD 接收 RIA (头方向) + AIY (趋化) 输入
-  SMD 具有 CCA-1 Ca²⁺通道 → 内源振荡 ~49mV (Nicoletti 2019)
+  SMDD 表达 TRP-1/TRP-2 TRPC 通道 → 本体感觉拉伸感受 (Yeon 2018 PLoS Biol)
+  SMD 是必要且充分的头部转向本体感觉神经元 (Yeon 2018 激光消融 + 光遗传学证明)
   SMD D/V 半中心互抑 → 背腹交替弯曲 → 触发头部本体感觉
 ```
 
@@ -304,30 +307,35 @@ A_m ∈ [0, 1]
 
 ### 3.4 本体感觉反馈 → 运动神经元
 
-本体感觉方向是波传播的关键 (Wen 2012):
-- B 类 MN 具有长的无突触 **前向 (anterior)** 突起 → 感知前方拉伸
-- A 类 MN 具有长的无突触 **后向 (posterior)** 突起 → 感知后方拉伸
+本体感觉方向是波传播的关键 (Wen 2012; Boyle 2012):
+- B 类 MN 具有长的 **后向 (posteriorly directed)** 无突触突起 → 感知本地+后方拉伸 (White 1986; Boyle 2012)
+- A 类 MN 具有长的 **前向 (anteriorly directed)** 无突触突起 → 感知本地+前方拉伸 (White 1986)
+
+注: Boyle 2012 原文: "Each DB (VB) neuron integrates stretch-receptor currents from the
+dorsal (ventral) side, both locally and **posteriorly**, along its axon." 波传播主要依赖
+力学耦合: 当前段弯曲 → 弹性体拉动相邻段 → 相邻段 MN 感知本地形变 → 激活 → 波传播。
 
 ```
 B 类 (前进波, 头→尾传播):
-  每个 B 类 MN 感知其 NMJ 覆盖区 + 前方 (anterior) N_SR 个段的拉伸
-  I_stretch = G_SR × Σ_{m=local-N_SR}^{local} w_SR × f(ΔL_m)
-  前方弯曲 → 激活当前 MN → 波向后传播 ✓
+  每个 B 类 MN 感知其 NMJ 覆盖区 + 后方 (posterior) N_SR 个段的拉伸
+  I_stretch = G_SR × Σ_{m=local}^{local+N_SR} w_SR × f(ΔL_m)
+  本地弯曲 → 激活当前 MN → 力学耦合传至后方段 → 波向后传播 ✓
 
 A 类 (后退波, 尾→头传播):
-  每个 A 类 MN 感知其 NMJ 覆盖区 + 后方 (posterior) N_SR 个段的拉伸
-  I_stretch = G_SR × Σ_{m=local}^{local+N_SR} w_SR × f(ΔL_m)
-  后方弯曲 → 激活当前 MN → 波向前传播 ✓
+  每个 A 类 MN 感知其 NMJ 覆盖区 + 前方 (anterior) N_SR 个段的拉伸
+  I_stretch = G_SR × Σ_{m=local-N_SR}^{local} w_SR × f(ΔL_m)
+  本地弯曲 → 激活当前 MN → 力学耦合传至前方段 → 波向前传播 ✓
 
 其中:
   G_SR,n = 拉伸受体电导 (从头到尾线性增加, 补偿振幅梯度)
   w_SR = 段权重 (1/感知段数)
   f(ΔL) = ΔL / L0  (线性拉伸函数)
-  N_SR ≈ 6-8 段 (对应前/后向轴突长度)
+  N_SR ≈ 6-8 段 (对应后/前向轴突长度)
 ```
 
-REF: Wen 2012 “B-type motor neurons have long asynaptic anterior processes
-hypothesized to function as proprioceptive stretch receptors”
+REF: White 1986 "long, posteriorly directed undifferentiated processes on which
+no synapses are found"; Boyle 2012 stretch receptor implementation;
+Wen 2012 proprioceptive coupling experimental validation
 
 ### 3.5 命令神经元 → 运动状态
 
@@ -395,8 +403,8 @@ MuscleCell:
 
 ```
 改造现有 proprio_mappings_:
-  - B 类: 感知 NMJ 区 + 后方 6-8 段的拉伸
-  - A 类: 同上 (用于后退)
+  - B 类: 感知 NMJ 区 (本地) + 后方 (posterior) 6-8 段的拉伸 (Boyle 2012)
+  - A 类: 感知 NMJ 区 (本地) + 前方 (anterior) 6-8 段的拉伸 (用于后退)
   - 拉伸信号 → 电流注入运动神经元
   - G_SR 从头到尾线性增加
 ```
@@ -514,3 +522,8 @@ void inject_reorientation_current(double direction, double magnitude) {
 7. **BAAIWorm 2024** — "An integrative data-driven model simulating C. elegans brain, body and environment interactions", Nature Comput. Sci.
    - 最新全脑+全身集成模型
    - 基于 Boyle 2012 体模型 + 多隔室 HH 神经元
+
+8. **Yeon et al. 2018** — "A sensory-motor neuron type mediates proprioceptive coordination of steering in C. elegans via two TRPC channels", PLoS Biol. 16(6):e2004929
+   - SMD 是必要且充分的头部转向本体感觉神经元
+   - TRP-1/TRP-2 TRPC 通道: SMDD 中的拉伸感受分子基础
+   - 激光消融 SMDD → 腹侧画圈; 消融 SMDV → 背侧画圈

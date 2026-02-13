@@ -1013,6 +1013,15 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **目的**: 为完整重新实现虫体物理模型做准备
 - **验证**: Release 编译零错误，celegans_diag.exe + celegans_sim.exe 均成功生成
 
+### Step 139: 直接曲率驱动修复 ✅ (2026-02-13)
+> 详细文档: [steps/step139_curvature_drive_fix.md](steps/step139_curvature_drive_fix.md)
+
+- **修复 6 个 bug**: set_muscle_activation_direct 覆盖、K_DE 过高、max()→+=累加、d/(d+v)归一化压缩、端点力抵消、phi vs cx/cy 曲率测量不一致
+- **核心方案**: 直接曲率驱动 — dphi/dt = K_DRIVE×(d_input-v_input)×gradient - K_RESTORE×dphi + DPHI_MAX 硬钳位
+- **为何端点力失败**: 笔直/近直体上背侧/腹侧弹簧力沿体轴，内部杆从左右段收到反向力完美抵消；弯矩力同样抵消
+- **结果**: 曲率振幅 2.8 /mm ✓, 中体曲率 3.5 /mm ✓, 肌肉做功 0.3 ✓, 曲率稳定性 0.0 Hz ✓
+- **验证**: Regtest 20/20 pass ✅, baselines 已更新匹配新物理模型
+
 ---
 
 ## 当前系统状态

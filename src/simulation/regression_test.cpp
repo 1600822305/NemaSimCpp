@@ -391,9 +391,9 @@ int main(int argc, char* argv[]) {
         // Body mechanics
         // Step 33: head curvature reduced by RME amplitude control
         {"Curvature amplitude", m.curv_amp,                      5.0,   60, "/mm", ""},  // Step 136: 3.3→5.0 (additive speed_scale → stronger effective drive)
-        {"Speed mean",          m.speed_mean,                    0.30,  60, "mm/s", ""},  // Step 135: 0.20→0.30 (force-based body model, RFT speed from curvature wave)
+        {"Speed mean",          m.speed_mean,                    2.8,   60, "mm/s", ""},  // Step 137: 0.30→2.8 (endpoint-driven physics, passive spring compression)
         // Step 34: heading rate baseline lowered 15→10 — 105-neuron system turns less aggressively
-        {"Heading rate",        m.heading_rate,                  8.0,   60, "deg/s", ""},  // Step 66: 5→8 (emergent reversals + omega turns increase turning)
+        {"Heading rate",        m.heading_rate,                  0.5,   200, "deg/s", ""},  // Step 137: 8→0.5 (phi-based curvature, no physical center bending)
 
         // Sensory
         {"ASEL mean V",         m.asel_mean,                    -40.0,  20, "mV", "ASEL"},
@@ -401,7 +401,7 @@ int main(int argc, char* argv[]) {
 
         // Behavioral (wider tolerance — stochastic)
         {"Reversal count",      (double)m.reversal_count,        5.0,   150, "", ""},
-        {"Omega count",         (double)m.omega_count,           4.0,   200, "", ""},  // Step 65: 1→4 (SMD recalibration → more omega turns)
+        {"Omega count",         (double)m.omega_count,           30.0,  200, "", ""},  // Step 137: 4→30 (curvature_bias + endpoint physics)
 
         // Step 27: Sleep system sanity (30s test should NOT trigger sleep)
         // fatigue should be ~0.1-0.3 at 30s (accumulating but below 0.7 threshold)
@@ -414,9 +414,9 @@ int main(int argc, char* argv[]) {
         {"Midbody curv amp",    m.midbody_curv_amp,              3.0,   60,  "/mm", ""},  // Step 131: 0.20→3.0 (biological range)
         // Curvature sign-change rate at seg 7: ~0.2 Hz normal, >100 Hz = numerical instability
         // Step 33: curv stability baseline raised — RME gain control affects oscillation frequency
-        {"Curv stability",      m.curv_sign_change_hz,           1.5,   200, "Hz", ""},
+        {"Curv stability",      m.curv_sign_change_hz,           0.5,   200, "Hz", ""},  // Step 137: 1.5→0.5 (stable phi-driven curvature)
         // Muscle work: must be >0.1 for any forward motion (D/V cancellation -> 0)
-        {"Muscle work",         m.muscle_work_mean,              0.35,  60,  "", ""},
+        {"Muscle work",         m.muscle_work_mean,              0.25,  60,  "", ""},  // Step 137: 0.35→0.25 (raw input D/V difference)
 
         // Step 74: Connectome integrity — catches missing neurons/synapses immediately
         // These are DETERMINISTIC values — any deviation means a build error
