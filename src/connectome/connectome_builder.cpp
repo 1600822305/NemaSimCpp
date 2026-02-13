@@ -226,6 +226,8 @@ void build_neurons(CB& b) {
     // Process runs laterally along body; possible stretch/O2 dual function
     // REF: White 1986, Emmons 2024 (PMC10983851)
     b.neuron("SDQR", NT::SENSORY, NTT::GLUTAMATE);
+    // Step 114: SDQL — left body-side sensory (completing SDQL/R pair)
+    b.neuron("SDQL", NT::SENSORY, NTT::GLUTAMATE);
     // Step 108: ALN — tail-spike sensory neurons (L/R pair)
     // Processes extend into tailspike; implicated in O2 sensation
     // Receive phasmid (PHA) input; contribute 20% of SAA chemical input
@@ -298,6 +300,9 @@ void build_neurons(CB& b) {
     b.neuron("IL1DR", NT::SENSORY, NTT::GLUTAMATE);
     b.neuron("IL1VL", NT::SENSORY, NTT::GLUTAMATE);
     b.neuron("IL1VR", NT::SENSORY, NTT::GLUTAMATE);
+    // Step 114: IL1 lateral pair (completing 6/6)
+    b.neuron("IL1L",  NT::SENSORY, NTT::GLUTAMATE);
+    b.neuron("IL1R",  NT::SENSORY, NTT::GLUTAMATE);
 
     // Step 96: IL2 — inner labial type 2 sensory neurons (6 total, adding 4 quadrant)
     // Ciliated sensory endings at nose tip; detect environmental conditions
@@ -308,6 +313,9 @@ void build_neurons(CB& b) {
     b.neuron("IL2DR", NT::SENSORY, NTT::ACETYLCHOLINE);
     b.neuron("IL2VL", NT::SENSORY, NTT::ACETYLCHOLINE);
     b.neuron("IL2VR", NT::SENSORY, NTT::ACETYLCHOLINE);
+    // Step 114: IL2 lateral pair (completing 6/6)
+    b.neuron("IL2L",  NT::SENSORY, NTT::ACETYLCHOLINE);
+    b.neuron("IL2R",  NT::SENSORY, NTT::ACETYLCHOLINE);
 
     // Step 105: URA — inner labial motor neurons (4 quadrant)
     // Community 2 (Foraging): same module as IL1/IL2
@@ -449,6 +457,13 @@ void build_neurons(CB& b) {
     // REF: White 1986, Emmons 2024
     b.neuron("PVQL", NT::INTER, NTT::GLUTAMATE);
     b.neuron("PVQR", NT::INTER, NTT::GLUTAMATE);
+    // Step 114: PVW — posterior ventral cord interneuron (L/R pair)
+    b.neuron("PVWL", NT::INTER, NTT::ACETYLCHOLINE);
+    b.neuron("PVWR", NT::INTER, NTT::ACETYLCHOLINE);
+    // Step 114: CAN — canal-associated neuron (L/R pair, no chemical synapses)
+    // Essential for larval survival; express inx-7/inx-13 innexins
+    b.neuron("CANL", NT::INTER, NTT::UNKNOWN);
+    b.neuron("CANR", NT::INTER, NTT::UNKNOWN);
     // Step 111: PVN — ventral cord motor neuron (L/R pair)
     // "BDU, a gap junction target of touch neurons, to PVN" (Emmons 2024)
     // Cholinergic motor neuron (Pereira 2015 eLife)
@@ -696,6 +711,13 @@ void build_neurons(CB& b) {
     // REF: White 1986, Huang 2016 eLife, Jorgensen 2005 WormBook
     b.neuron("RMED", NT::MOTOR, NTT::GABA);
     b.neuron("RMEV", NT::MOTOR, NTT::GABA);
+    // Step 114: RMEL/RMER — ring motor lateral (completing 4/4 RME)
+    b.neuron("RMEL", NT::MOTOR, NTT::GABA);
+    b.neuron("RMER", NT::MOTOR, NTT::GABA);
+    // Step 114: PDA — tail motor neuron (single, dorsal)
+    b.neuron("PDA",  NT::MOTOR, NTT::ACETYLCHOLINE);
+    // Step 114: PDB — tail motor neuron (single, dorsal)
+    b.neuron("PDB",  NT::MOTOR, NTT::ACETYLCHOLINE);
     // Step 24: Pharyngeal nervous system (independent CPG)
     // 20 neurons total, 14 types; we implement the 5 essential types (9 neurons)
     // REF: Albertson & Thomson 1976, Avery (WormBook 2012)
@@ -1897,6 +1919,22 @@ void build_ventral_cord_integrators(CB& b) {
     b.syn("RICL", "AIML", 1); b.syn("RICR", "AIMR", 1);
     // AIM↔AIM: L/R gap junction (coordinate bilateral)
     b.gj("AIML", "AIMR", 2);
+
+    // Step 114: IL1 lateral — same connectivity as D/V pairs
+    b.syn("IL1L", "RMDDL", 1); b.syn("IL1R", "RMDDR", 1);
+    b.gj("IL1L", "IL1R", 1);
+    // Step 114: IL2 lateral — RMG hub-and-spoke
+    b.gj("IL2L", "RMGL", 1); b.gj("IL2R", "RMGR", 1);
+    // Step 114: SDQL — mirror of SDQR connections
+    b.syn("SDQL", "RMHL", 2); b.syn("SDQL", "RMHR", 2);
+    // Step 114: RMEL/RMER — lateral head motor (gap junction to RMED/RMEV)
+    b.gj("RMEL", "RMED", 1); b.gj("RMER", "RMEV", 1);
+    // Step 114: PDA/PDB — tail motor (AVA/AVB input)
+    b.syn("AVAL", "PDA", 1); b.syn("AVBL", "PDB", 1);
+    b.syn("AVAR", "PDA", 1); b.syn("AVBR", "PDB", 1);
+    // Step 114: PVW — posterior ventral cord
+    b.syn("PVWL", "AVAL", 1); b.syn("PVWR", "AVAR", 1);
+    b.gj("PVWL", "PVWR", 1);
 
     // Step 113: ASG — amphid sensory (dauer pheromone)
     // ASG→AIA: chemosensory → primary amphid interneuron
