@@ -421,9 +421,9 @@ int main(int argc, char* argv[]) {
         // Step 74: Connectome integrity — catches missing neurons/synapses immediately
         // These are DETERMINISTIC values — any deviation means a build error
         // Step 75: 171 neurons (162 + FLP(2) + IL1(4) + RIH(1) + RMG(2))
-        {"Neuron count",        (double)m.neuron_count,          299.0,  1,  "", ""},  // Step 115: +11 pharyngeal (I2-6, M1/2/5, MI)
-        {"Synapse count",       (double)m.synapse_count,         692.0,  1,  "", ""},  // Step 115: +11 pharyngeal
-        {"Gap junction count",  (double)m.gap_junction_count,    242.0,  1,  "", ""},  // Step 115: +2 (M2↔M2, I2↔I2)
+        {"Neuron count",        (double)m.neuron_count,          302.0,  1,  "", ""},  // Step 116: +3 (RIG→RIGL/R, RMDL/R) → 302/302!
+        {"Synapse count",       (double)m.synapse_count,         697.0,  1,  "", ""},  // Step 116: +5
+        {"Gap junction count",  (double)m.gap_junction_count,    247.0,  1,  "", ""},  // Step 116: +5 (RIG gj, RMD lat gj)
     };
 
     // ---- Check each metric ----

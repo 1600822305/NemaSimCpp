@@ -482,7 +482,8 @@ void build_neurons(CB& b) {
     // Community 4 (Emmons 2024): navigation/head motor
     // Bridges ventral cord information processing to head navigation circuit
     // REF: Emmons 2024 PLOS Biology, Cook 2019
-    b.neuron("RIG",  NT::INTER, NTT::GLUTAMATE);
+    b.neuron("RIGL", NT::INTER, NTT::GLUTAMATE);
+    b.neuron("RIGR", NT::INTER, NTT::GLUTAMATE);
     // Step 75: RMG — social/pathogen hub interneuron (reclassified from motor, Cook 2019)
     // Hub of hub-and-spoke gap junction network for aggregation (NPR-1 modulated)
     // Pathogen aversion: AWB→RMG→AVA/AVD drives reflexive backward locomotion
@@ -569,6 +570,9 @@ void build_neurons(CB& b) {
     b.neuron("SMDDR", NT::MOTOR, NTT::ACETYLCHOLINE);
     b.neuron("RMDVL", NT::MOTOR, NTT::ACETYLCHOLINE);
     b.neuron("RMDVR", NT::MOTOR, NTT::ACETYLCHOLINE);
+    // Step 116: RMDL/RMDR — ring motor lateral pair (completing 6/6 RMD)
+    b.neuron("RMDL",  NT::MOTOR, NTT::ACETYLCHOLINE);
+    b.neuron("RMDR",  NT::MOTOR, NTT::ACETYLCHOLINE);
     b.neuron("RMDDL", NT::MOTOR, NTT::ACETYLCHOLINE);
     b.neuron("RMDDR", NT::MOTOR, NTT::ACETYLCHOLINE);
     // Step 102: SIA — head motor neurons (4 quadrant, sublateral)
@@ -1844,20 +1848,20 @@ void build_ventral_cord_integrators(CB& b) {
     // Emmons 2024: "DVC and PVT share chemical output to... RIG"
     // RIG bridges ventral cord information processing to head navigation circuit
     // DVC→RIG: stretch receptor/proprioceptive integrator (Emmons 2024)
-    b.syn("DVC", "RIG", 2);
+    b.syn("DVC", "RIGL", 1); b.syn("DVC", "RIGR", 1);
     // PVT→RIG: neuropeptide hub integrator (Emmons 2024)
-    b.syn("PVT", "RIG", 2);
+    b.syn("PVT", "RIGL", 1); b.syn("PVT", "RIGR", 1);
     // RIG→AIY: modulates forward drive (navigation relay)
-    b.syn("RIG", "AIYL", 1); b.syn("RIG", "AIYR", 1);
+    b.syn("RIGL", "AIYL", 1); b.syn("RIGR", "AIYR", 1);
     // RIG→AIZ: modulates turning behavior
-    b.syn("RIG", "AIZL", 1); b.syn("RIG", "AIZR", 1);
+    b.syn("RIGL", "AIZL", 1); b.syn("RIGR", "AIZR", 1);
     // RIG→RIA: head motor modulation
-    b.syn("RIG", "RIAL", 1); b.syn("RIG", "RIAR", 1);
+    b.syn("RIGL", "RIAL", 1); b.syn("RIGR", "RIAR", 1);
     // RIG→AVK: turn circuit integrator (Emmons 2024: "AVK receives... from RIG")
-    b.syn("RIG", "AVKL", 1); b.syn("RIG", "AVKR", 1);
+    b.syn("RIGL", "AVKL", 1); b.syn("RIGR", "AVKR", 1);
     // AVH→RIG: sensory bridge pathway (Emmons 2024 community analysis)
     // Creates ASK→AVH→RIG→AIZ/RIA pathway
-    b.syn("AVHL", "RIG", 1); b.syn("AVHR", "RIG", 1);
+    b.syn("AVHL", "RIGL", 1); b.syn("AVHR", "RIGR", 1);
 
     // Step 106: PVM — posterior ventral gentle touch
     // PVM→PVC: posterior touch → promote forward (escape from posterior stimulus)
@@ -1874,7 +1878,7 @@ void build_ventral_cord_integrators(CB& b) {
     // "SDQR targets the RMH head motor neurons" (Emmons 2024) — but RMH not yet added
     // Use RIG as intermediate target (RIG→RMD/RIA pathways exist)
     // REF: Emmons 2024 community analysis
-    b.syn("SDQR", "RIG", 2);
+    b.syn("SDQR", "RIGL", 1); b.syn("SDQR", "RIGR", 1);
     // SDQR→AVB: O₂ sensing → forward drive modulation
     b.syn("SDQR", "AVBL", 1); b.syn("SDQR", "AVBR", 1);
 
@@ -1962,6 +1966,14 @@ void build_ventral_cord_integrators(CB& b) {
     b.syn("RICL", "AIML", 1); b.syn("RICR", "AIMR", 1);
     // AIM↔AIM: L/R gap junction (coordinate bilateral)
     b.gj("AIML", "AIMR", 2);
+
+    // Step 116: RIGL↔RIGR gap junction (bilateral coordination)
+    b.gj("RIGL", "RIGR", 2);
+    // Step 116: RMDL/RMDR — lateral head motor (gap junction to D/V quadrants)
+    b.gj("RMDL", "RMDDL", 1); b.gj("RMDR", "RMDDR", 1);
+    b.gj("RMDL", "RMDVL", 1); b.gj("RMDR", "RMDVR", 1);
+    // IL1→RMDL/R: nose touch → lateral head withdrawal
+    b.syn("IL1L", "RMDL", 1); b.syn("IL1R", "RMDR", 1);
 
     // Step 114: IL1 lateral — same connectivity as D/V pairs
     b.syn("IL1L", "RMDDL", 1); b.syn("IL1R", "RMDDR", 1);

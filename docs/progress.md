@@ -824,17 +824,24 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **咽部完成**: 20/20 (100%)
 - **diag 验证**: I2L S=0.360, M1 S=0.219 — 全部活跃
 
+### Step 116: 302/302 完成 — RIG→RIGL/RIGR + RMDL/RMDR ✅ (2026-02-13)
+> 详细文档: [steps/step116_final_302.md](steps/step116_final_302.md)
+
+- **+3 神经元**: RIG→RIGL/RIGR(双侧化) + RMDL/RMDR(侧对) = **302/302 (100%)**
+- **里程碑**: 全部 118 类 302 个雌雄同体神经元完整注册
+- **diag 验证**: RIGL S=0.405, RMDL S=0.014 — 全部活跃
+
 ---
 
 ## 当前系统状态
 
 ```
 架构: 8 层 (环境/躯体/感知/神经元/连接组/神经调质/运动/行为)
-神经元: 299 个 (302 全集差 3) (302 全集待扩展)
+神经元: 302 个 (118类, 全集完成!) (302 全集待扩展)
   感觉: 84 (ASE/AWC/AWA/ASH/ALM/PLM/NSM/ADE/PDE/AFD/ADF/ASJ/ASK/ASI/ADL/FLP/PHB/PHA/URX/BAG/PVD L/R + CEP 4× + OLQ 4× + IL1 4× + IL2 4× + URY 4× + OLL L/R + PHC L/R + AVM + PVM + AQR + PQR + SDQR + ALN L/R + PLN L/R)
   中间: 78 (AIA/AIB/AIY/AIZ/RIA/RIB/RIM/RIC/AVA/AVB/AVD/AVE/PVC/AVF/AUA/AVK/AVJ/AVH/PVP/AIN/LUA/I1/RIP L/R + SAA 4× + RIS + RIH + RMG L/R + DVA + DVC + PVT + PVR + RIG + ALA + URB L/R + BDU L/R + AVG + PVQ L/R + AIM L/R + ADA L/R + RIF L/R + RIR)
   运动: 126 (SMD 4 + RMD 4 + RME 4 + URA 4 + SIA 4 + SIB 4 + SMB 4 + SAB 3 + RMH 2 + RMF 2 + PVN 2 + RIV 2 + RID + PDA + PDB + AS01-11(11) + DA01-09(9) + DB01-07(7) + VA01-12(12) + VB01-11(11) + DD01-06(6) + VD01-13(13) + MC 2 + M3 2 + M4 + HSN 2 + VC1-6 + AVL + DVB)
-突触: 692 化学 + 242 间隙连接 (全部带 Tsodyks-Markram STP, 支持分数 sections)
+突触: 697 化学 + 247 间隙连接 (全部带 Tsodyks-Markram STP, 支持分数 sections)
   Step 42: Cook 2019 校准 (+8 RIA↔RIV, -2 AVE→RIV) + RIV↔RIV gap
   Step 84-91: VNC MN 完整互连 (交叉抑制/本体感觉波/后退波 全部完成)
 神经调质: 7 种 (5-HT, DA, OA, TA, NLP-12, PDF, FLP-11) — volume transmission + 饱食度(泵驱动)
