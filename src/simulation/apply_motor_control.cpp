@@ -135,6 +135,44 @@ void SimulationEngine::apply_weathervane() {
     // Temperature weathervane gain: 30 pA per °C/mm
     // At 0.5°C/mm gradient, fed(×2.0): 30×0.25×2.0 = 15 pA (competes with chemo ~5-20 pA)
     double temp_bias = 30.0 * temp_sign * temp_grad_normal * thermo_wv_gain;
+
+    // Step 121: Isothermal tracking — active near Tc (|T - Tc| < 2°C)
+    // Ryu & Samuel 2002: distinct from migration-toward-Tc (which modulates run duration).
+    // Isothermal tracking modulates run ORIENTATION to follow isotherms.
+    // Near Tc, worm orients perpendicular to gradient (along isotherm),
+    // with high-gain correction to maintain deviation < 0.1°C.
+    // Requires AFD and AIY (Mori & Ohshima 1995, Gomez 2001).
+    // REF: Hedgecock & Russell 1975, Ryu & Samuel 2002, Luo 2014
+    double dT = temp_at_head - tc;
+    double abs_dT = std::abs(dT);
+    double iso_threshold = 2.0;  // °C, isothermal tracking activation zone
+    if (abs_dT < iso_threshold && thermo_wv_gain > 0.1) {
+        // iso_weight: 1.0 at Tc, 0.0 at threshold — smooth transition
+        double iso_weight = 1.0 - abs_dT / iso_threshold;
+        iso_weight *= iso_weight;  // quadratic: sharper near Tc
+
+        // Tangent bias: steer along isotherm (perpendicular to gradient)
+        // gradient = (gx, gy), tangent = (-gy, gx) [right-hand perpendicular]
+        // Project tangent onto the normal-to-heading direction
+        double tangent_normal = -sin_h * (-tgrad.y) + cos_h * tgrad.x;
+        double grad_mag = std::sqrt(tgrad.x * tgrad.x + tgrad.y * tgrad.y);
+        if (grad_mag > 1e-6) tangent_normal /= grad_mag;  // normalize
+
+        // Tangent drive: push worm along isotherm (constant direction)
+        // 10 pA × iso_weight × sat_gain → strong drive at Tc, zero at threshold
+        double tangent_drive = 10.0 * tangent_normal * iso_weight * thermo_wv_gain;
+
+        // Error correction: high-gain proportional feedback on dT
+        // When worm drifts from Tc, correct by steering back
+        // 40 pA/°C × dT × grad_normal: much higher gain than normal weathervane (30)
+        // This maintains ±0.1°C precision on the isotherm
+        double correction = -40.0 * dT * temp_grad_normal * iso_weight * thermo_wv_gain;
+
+        // Near Tc: blend from toward-Tc (temp_bias) to isothermal tracking
+        // At Tc: 100% isothermal, at threshold: 100% toward-Tc
+        temp_bias = temp_bias * (1.0 - iso_weight) + (tangent_drive + correction);
+    }
+
     bias_current += temp_bias;
 
     // Clamp to ±bias_clamp pA (should not overwhelm the half-center oscillator)

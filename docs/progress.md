@@ -863,6 +863,14 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **diag**: sat_gate=0.038 (THREAT-TOLERANT, 正确)
 - **REF**: Ghosh 2016 Neuron
 
+### Step 121: 等温线追踪 (Isothermal Tracking) ✅ (2026-02-13)
+> 详细文档: [steps/step121_isothermal_tracking.md](steps/step121_isothermal_tracking.md)
+
+- **新行为**: 近 Tc 时沿等温线移动 (切线驱动 + 高增益校正)
+- **机制**: AFD/AIY → 温度 weathervane 模式切换 (向Tc→沿等温线)
+- **激活条件**: |T-Tc| < 2°C + 饱食状态
+- **REF**: Ryu & Samuel 2002, Hedgecock & Russell 1975
+
 ---
 
 ## 当前系统状态

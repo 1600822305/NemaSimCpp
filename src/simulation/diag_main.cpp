@@ -1494,6 +1494,18 @@ int main(int argc, char* argv[]) {
                   << " → chemo×" << std::setprecision(2) << chemo_g
                   << " thermo×" << std::setprecision(2) << thermo_g
                   << (sat > 0.5 ? " [TEMP mode]" : " [FOOD mode]") << std::endl;
+        // Step 121: Isothermal tracking diagnostic
+        double dT_iso = temp_now - tc_learned;
+        double abs_dT_iso = std::abs(dT_iso);
+        bool iso_active = (abs_dT_iso < 2.0 && thermo_g > 0.1);
+        double iso_weight = iso_active ? (1.0 - abs_dT_iso / 2.0) : 0.0;
+        if (iso_active) iso_weight *= iso_weight;
+        std::cout << "   Isothermal tracking (Step 121): " 
+                  << (iso_active ? "ACTIVE" : "INACTIVE")
+                  << "  |T-Tc|=" << std::setprecision(2) << abs_dT_iso << "°C"
+                  << "  iso_weight=" << std::setprecision(3) << iso_weight
+                  << (iso_active ? " (following isotherm)" : " (too far from Tc)")
+                  << std::endl;
         // Step 24: Pharyngeal pumping diagnostics
         std::cout << "   Pharynx: pump_rate=" << std::setprecision(1) << sim.pump_rate_hz() << " Hz"
                   << "  total_pumps=" << sim.total_pumps()
