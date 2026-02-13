@@ -397,7 +397,7 @@ void BodyModel::update_physics(double dt_seconds) {
     {
         constexpr double K_DRIVE   = 0.15;   // rad/s per unit raw diff
         constexpr double K_RESTORE = 5.0;    // restoring toward straight (1/s)
-        constexpr double DPHI_MAX  = 0.015;  // hard clamp (~0.72 /mm)
+        constexpr double DPHI_MAX  = 0.04;   // hard clamp (~1.9 /mm, visible undulation)
 
         for (int s = 0; s < NSEG; ++s) {
             const auto& m = muscles_[s];
@@ -428,7 +428,7 @@ void BodyModel::update_physics(double dt_seconds) {
     // physical heading changes through asymmetric RFT drag.
     // ================================================================
     {
-        constexpr double BLEND = 0.15;  // fraction per frame (no feedback → safe to increase)
+        constexpr double BLEND = 0.3;   // fraction per frame (phi-based proprioception → no feedback)
 
         // Compute ALL corrections from ORIGINAL positions (no in-frame cascade)
         double cx_adj[NBAR] = {}, cy_adj[NBAR] = {};
@@ -448,6 +448,14 @@ void BodyModel::update_physics(double dt_seconds) {
             cx_adj[i + 1] += corr_x;
             cy_adj[i + 1] += corr_y;
         }
+        // Zero net center-of-mass shift: center correction must only
+        // change body SHAPE, not translate it. Otherwise the asymmetric
+        // head/tail curvature creates systematic lateral drift.
+        double mean_cx = 0, mean_cy = 0;
+        for (int i = 0; i < NBAR; ++i) { mean_cx += cx_adj[i]; mean_cy += cy_adj[i]; }
+        mean_cx /= NBAR; mean_cy /= NBAR;
+        for (int i = 0; i < NBAR; ++i) { cx_adj[i] -= mean_cx; cy_adj[i] -= mean_cy; }
+
         // Apply all at once, with per-rod magnitude limit
         constexpr double MAX_ADJ = 0.5;  // max fraction of seg_len per frame
         double adj_limit = MAX_ADJ * seg_len_;

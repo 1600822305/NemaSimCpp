@@ -390,7 +390,7 @@ int main(int argc, char* argv[]) {
 
         // Body mechanics
         // Step 33: head curvature reduced by RME amplitude control
-        {"Curvature amplitude", m.curv_amp,                      2.0,   80, "/mm", ""},  // Step 140: 5→2.0 (phi-based curvature, DPHI_MAX=0.015)
+        {"Curvature amplitude", m.curv_amp,                      3.5,   80, "/mm", ""},  // Step 140: 2→3.5 (DPHI_MAX=0.04 for visible undulation)
         {"Speed mean",          m.speed_mean,                    2.8,   60, "mm/s", ""},  // Step 137: 0.30→2.8 (endpoint-driven physics, passive spring compression)
         // Step 34: heading rate baseline lowered 15→10 — 105-neuron system turns less aggressively
         {"Heading rate",        m.heading_rate,                  3.0,   200, "deg/s", ""},  // Step 140: 0.5→3.0 (center correction → physical bending, stochastic)
@@ -411,7 +411,7 @@ int main(int argc, char* argv[]) {
 
         // Step 29: Wave propagation & curvature stability
         // Mid-body curvature amplitude: wave must propagate past head (seg 10 amp > 0.05)
-        {"Midbody curv amp",    m.midbody_curv_amp,              2.0,  100,  "/mm", ""},  // Step 140: 3→2.0 (phi-based curvature, stable)
+        {"Midbody curv amp",    m.midbody_curv_amp,              3.5,  100,  "/mm", ""},  // Step 140: 2→3.5 (DPHI_MAX=0.04 for visible undulation)
         // Curvature sign-change rate at seg 7: ~0.2 Hz normal, >100 Hz = numerical instability
         // Step 33: curv stability baseline raised — RME gain control affects oscillation frequency
         {"Curv stability",      m.curv_sign_change_hz,           1.0,   200, "Hz", ""},  // Step 140: 0.5→1.0 (center correction adds sign changes)
