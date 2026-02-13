@@ -570,6 +570,7 @@ void SimulationEngine::step() {
     // 5b5c. Step 122: Dauer formation decision (Golden & Riddle 1984)
     update_dauer_decision();     // integrate food/pheromone/temp → dauer_signal_
     apply_dauer_effects();       // dauer → suppress feeding/locomotion
+    apply_nictation();           // Step 124: IL2→RIG nictation in dauer state
 
     // 5b6. Step 27: Sleep / Quiescence (Lethargus)
     update_fatigue();            // fatigue accumulation → RIS activation

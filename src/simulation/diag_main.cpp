@@ -1172,6 +1172,10 @@ int main(int argc, char* argv[]) {
         std::cout << "   Inputs: food=" << std::setprecision(2) << sim.satiety()
                   << "  pheromone=" << (sim.environment().has_pheromone() ? "present" : "absent")
                   << std::endl;
+        // Step 124: Nictation diagnostic
+        std::cout << "   Nictation (Step 124): "
+                  << (sim.is_dauer() ? (sim.nictation_waving() ? "WAVING" : "STANDING") : "inactive (not dauer)")
+                  << std::endl;
     }
 
     // Step 120: Multisensory threat-reward decision diagnostic

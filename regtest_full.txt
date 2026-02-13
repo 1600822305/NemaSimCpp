@@ -3,16 +3,16 @@
   [CLI] as_factor=2.8 pulse_amp=50
 ========================================
 
-  [OK] SMDDL V swing             47.6 mV
-  [OK] SMDVL V swing             30.4 mV
-  [OK] SMD diff amplitude        63.3 mV
-  [OK] SMDDL |I_syn| max         16.5 pA
+  [OK] SMDDL V swing             49.8 mV
+  [OK] SMDVL V swing             32.0 mV
+  [OK] SMD diff amplitude        78.4 mV
+  [OK] SMDDL |I_syn| max         10.5 pA
   [OK] SMDDL I_ext                3.0 pA
   [OK] Curvature amplitude        0.0 /mm
   [OK] Speed mean                 0.2 mm/s
-  [OK] Heading rate               5.3 deg/s
-  [OK] ASEL mean V              -41.3 mV
-  [OK] ASER mean V              -46.5 mV
+  [OK] Heading rate               4.8 deg/s
+  [OK] ASEL mean V              -40.9 mV
+  [OK] ASER mean V              -46.6 mV
   [OK] Reversal count             6.0 
   [OK] Omega count                0.0 
   [OK] Fatigue @30s               0.1 

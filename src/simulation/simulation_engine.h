@@ -126,6 +126,8 @@ public:
     bool is_dauer() const { return dauer_signal_ > 0.8; }
     // Step 123: Arousal threshold
     double arousal_threshold() const { return arousal_threshold_; }
+    // Step 124: Nictation state
+    bool nictation_waving() const { return nictation_waving_; }
 
     // Callback for each step (for logging/visualization)
     using StepCallback = std::function<void(const SimulationEngine&, int step_num)>;
@@ -367,6 +369,16 @@ private:
     double daf28_level_ = 1.0;           // [0,1] DAF-28/insulin from ASI (food→high, no food→low)
     void update_dauer_decision();         // integrate environmental signals → dauer_signal_
     void apply_dauer_effects();           // behavioral changes when in dauer state
+
+    // Step 124: Nictation — Dauer-specific dispersal behavior (Lee 2011 Nat Neurosci)
+    // IL2 sensory neurons → RIG interneurons → enhanced head waving + periodic pauses
+    // Dauer-only: standing on tail, waving head for host-finding/dispersal
+    // In 2D simulation: large-amplitude head oscillation + intermittent locomotion pauses
+    // REF: Lee 2011 Nat Neurosci, Yim 2024, Cassada & Russell 1975
+    double nictation_timer_ = 0.0;       // ms, timer for nictation bout cycling
+    double nictation_period_ = 8000.0;   // ms, 8s wave-pause cycle
+    bool nictation_waving_ = false;      // currently in waving phase
+    void apply_nictation();              // IL2→RIG→motor nictation pattern
 
     // Step 62: Sleep-dependent memory consolidation (Chouhan 2023 Cell)
     // "Sleep is required to consolidate odor memory and remodel olfactory synapses"

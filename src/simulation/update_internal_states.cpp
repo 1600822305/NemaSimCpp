@@ -408,6 +408,74 @@ void SimulationEngine::apply_ins1_modulation() {
 }
 
 // ================================================================
+// Step 124: Nictation — Dauer-specific dispersal behavior (Lee 2011 Nat Neurosci)
+// IL2 sensory neurons → RIG interneurons → cholinergic motor output
+// Dauer worms stand on tail and wave head for host-finding/dispersal.
+// In 2D: periodic bouts of enhanced head oscillation + locomotion pauses.
+// Cycle: 4s waving (large SMD amplitude) + 4s pause (AVB suppressed)
+// REF: Lee 2011 Nat Neurosci — IL2 ablation reduces nictation
+//      Yim 2024 — RIG downstream of IL2, dauer-specific rewiring
+//      Cassada & Russell 1975 — dauer locomotion characteristics
+// ================================================================
+void SimulationEngine::apply_nictation() {
+    if (!is_dauer()) return;  // nictation is dauer-specific
+
+    int n = static_cast<int>(neurons_.size());
+
+    // Update nictation cycle timer
+    nictation_timer_ += dt_;
+    if (nictation_timer_ > nictation_period_) {
+        nictation_timer_ -= nictation_period_;
+    }
+    // First half: waving phase; second half: pause/standing phase
+    nictation_waving_ = (nictation_timer_ < nictation_period_ * 0.5);
+
+    // 1. IL2 activation during dauer (dauer-specific cilia arborization)
+    // IL2 neurons become mechanosensitive in dauer via OSM-9
+    // Periodic bursting pattern drives nictation bouts
+    double il2_drive = nictation_waving_ ? 12.0 : 3.0;  // waving: 12pA, pause: 3pA
+    for (int id : nids("IL2")) {
+        if (id >= 0 && id < n)
+            neurons_[id]->add_synaptic_current(il2_drive);
+    }
+
+    // 2. RIG activation (downstream of IL2, dauer-strengthened connection)
+    // RIG integrates IL2 input → drives head motor output
+    int rigl = nid("RIGL");
+    int rigr = nid("RIGR");
+    if (nictation_waving_) {
+        double rig_drive = 8.0;
+        if (rigl >= 0 && rigl < n) neurons_[rigl]->add_synaptic_current(rig_drive);
+        if (rigr >= 0 && rigr < n) neurons_[rigr]->add_synaptic_current(rig_drive);
+    }
+
+    // 3. Motor effects
+    if (nictation_waving_) {
+        // Waving phase: enhance head oscillation (increase SMD drive amplitude)
+        // This creates large-amplitude head waving (scanning for hosts)
+        double smd_boost = 6.0;
+        for (int id : nids("SMD")) {
+            if (id >= 0 && id < n)
+                neurons_[id]->add_synaptic_current(smd_boost);
+        }
+    } else {
+        // Pause/standing phase: suppress forward locomotion
+        // Worm "stands" — no forward movement, just maintains position
+        double avb_pause = -12.0;
+        for (int id : nids("AVB")) {
+            if (id >= 0 && id < n)
+                neurons_[id]->add_synaptic_current(avb_pause);
+        }
+        // Also suppress AVA to prevent reversals during standing
+        double ava_pause = -5.0;
+        for (int id : nids("AVA")) {
+            if (id >= 0 && id < n)
+                neurons_[id]->add_synaptic_current(ava_pause);
+        }
+    }
+}
+
+// ================================================================
 // Step 123: Arousal threshold modulation (Schwarz 2011 Cell Rep)
 // FLP-11 concentration determines arousal threshold during sleep.
 // Multilevel circuit depression: ASH dampened + AVA/AVD desynchronized.

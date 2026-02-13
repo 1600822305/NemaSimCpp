@@ -888,6 +888,14 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **文献**: Schwarz 2011 Cell Rep — 多层级回路抑制
 - **REF**: Schwarz 2011, Raizen 2008
 
+### Step 124: Nictation (Dauer 摆动散布) ✅ (2026-02-13)
+> 详细文档: [steps/step124_nictation.md](steps/step124_nictation.md)
+
+- **新行为**: IL2→RIG→SMD Dauer 特异 nictation 运动模式
+- **周期**: 4s 摆动(SMD增强) + 4s 站立(AVB/AVA抑制)
+- **条件**: dauer_signal > 0.8 (Step 122)
+- **REF**: Lee 2011 Nat Neurosci, Yim 2024
+
 ---
 
 ## 当前系统状态
