@@ -719,6 +719,14 @@ void SimulationEngine::apply_touch_stimulus() {
         double hsn_sigmoid = 1.0 / (1.0 + fast_exp(-(egg_pressure_ - egg_threshold_) / 0.05));
         double I_hsn = hsn_egg_gain_ * hsn_sigmoid;
 
+        // Step 126: Exogenous 5-HT protocol (Trent 1983, Schafer 2006)
+        // Bath 5-HT → bypasses egg_pressure threshold → constitutive HSN activation
+        // 2mM exogenous 5-HT → ~5× egg-laying rate (Schafer 2006 review)
+        if (exo_5ht_) {
+            I_hsn = std::max(I_hsn, hsn_egg_gain_ * 0.8);  // force 80% of max drive
+            hsn_sigmoid = std::max(hsn_sigmoid, 0.8);        // ensure active state triggers
+        }
+
         // Tyramine inhibition on HSN via LGC-55 (same receptor as RIV/SMD)
         // REF: Collins 2016 — uv1 tyramine → LGC-55 → HSN hyperpolarization
         double ta_conc = neuromod_.get_concentration("TA");
@@ -746,7 +754,8 @@ void SimulationEngine::apply_touch_stimulus() {
                 }
             }
             // Egg laid at end of active state
-            if (current_time_ + dt_ >= egg_active_end_ && egg_pressure_ > egg_threshold_) {
+            // Step 126: exo-5ht bypasses egg_pressure threshold
+            if (current_time_ + dt_ >= egg_active_end_ && (egg_pressure_ > egg_threshold_ || exo_5ht_)) {
                 egg_laid_count_ += 1;
                 egg_pressure_ = 0.1;  // reset (not zero — some eggs remain)
             }

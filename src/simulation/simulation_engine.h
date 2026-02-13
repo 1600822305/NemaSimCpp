@@ -131,6 +131,9 @@ public:
     // Step 125: Molting/lethargus state
     double molt_hormone() const { return molt_hormone_; }
     bool in_lethargus() const { return in_lethargus_; }
+    // Step 126: Exogenous 5-HT protocol
+    void set_exo_5ht(bool on) { exo_5ht_ = on; }
+    bool exo_5ht() const { return exo_5ht_; }
 
     // Callback for each step (for logging/visualization)
     using StepCallback = std::function<void(const SimulationEngine&, int step_num)>;
@@ -213,6 +216,10 @@ private:
     double egg_pressure_ = 0.0;    // 0-1, egg accumulation pressure (slow ramp)
     double egg_tau_fill_ = 120000.0;  // ms (120s) to fill — eggs accumulate ~10min/egg
     double egg_threshold_ = 0.7;   // egg_pressure threshold for HSN activation
+    // Step 126: Exogenous 5-HT protocol (Trent 1983, Schafer 2006)
+    // Bath application of 5-HT → bypasses egg_pressure threshold → constitutive HSN/VC activation
+    // Classic assay: 2mM 5-HT in M9 → ~5× egg-laying rate increase
+    bool exo_5ht_ = false;           // exogenous serotonin applied
     double hsn_egg_gain_ = 30.0;   // pA, max HSN drive from egg pressure
     double egg_laid_count_ = 0;    // total eggs laid
     double egg_active_end_ = 0.0;  // end time of current active state (ms)

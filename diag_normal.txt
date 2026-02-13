@@ -1,0 +1,340 @@
+========================================
+  COMPUTE DEVICES
+========================================
+
+  [0] gfx1036 (GPU)
+      Advanced Micro Devices, Inc. | OpenCL 2.0 AMD-APP (3640.0)
+      12455 MB | 1 CUs | WG 256
+  [1] gfx1030 (GPU)
+      Advanced Micro Devices, Inc. | OpenCL 2.0 AMD-APP (3640.0)
+      16368 MB | 40 CUs | WG 256
+
+  GPU available: YES
+
+
+========================================
+  SIGNAL CHAIN DIAGNOSTIC (60s run)
+========================================
+
+1. GRADIENT at head:
+   magnitude: mean=0.03588  range=[0.01988, 0.04905] /mm
+
+2. GRADIENT NORMAL (perp to heading):
+   mean=-0.02526  range=[-0.03365, -0.00032]
+
+3. WEATHERVANE BIAS CURRENT:
+   mean=-12.631 pA  range=[-16.823, -0.162] pA  (gain=500.000, clamp=30.000)
+
+4. SENSORY NEURONS (ASEL vs ASER):
+   ASEL: mean=-45.25 mV  range=[-52.25, -37.20]
+   ASER: mean=-46.52 mV  range=[-52.55, -35.25]
+   L-R diff: 1.272 mV
+
+5. SMD DIFFERENTIAL (SMDDL - SMDVL):
+   SMDDL V: [-91.751, -53.650] swing=38.101 mV
+   SMDVL V: [-75.103, -31.340] swing=43.763 mV
+   SMDDL I_syn: [-38.576, 13.493] pA
+   SMDDL I_ext: [0.181, 3.000] pA
+   mean=-13.217 mV  range=[-42.434, 5.296]  amplitude=47.73 mV
+
+6. HEAD CURVATURE:
+   mean=-0.0012  range=[-0.0313, 0.0074] /mm  amplitude=0.0387
+
+7. SPEED:
+   mean=0.1715  range=[0.0002, 0.3379] mm/s
+
+8. HEADING:
+   range=[-59.3, 36.3] deg  total_sweep=95.6 deg
+   avg |dtheta/dt|=4.717 deg/s
+   pirouettes (=reversals): 19 (0.16 Hz)
+
+10. TOUCH AVOIDANCE:
+   reversals: 19
+   omega turns: 0
+   wall proximity samples: 0 / 1200
+
+20. RIV OMEGA TURN (Step 31):
+   RIVL: V=[-47.2, -27.4] mV  mean=-42.9 mV  S(release)=0.170
+   RIVR: V=[-47.2, -24.1] mV  mean=-42.8 mV  S(release)=0.173
+   omega/reversal ratio: 0.00 (0/19)
+   avg omega duration: 0 ms
+   TA at trace end: 0.301
+   AS01: V mean=-40.9 mV  S(release)=0.237
+   dorsal tone (seg0-5): mean=0.397  range=[0.227, 0.574]
+
+21. RME HEAD CONTROL (Step 33):
+   RMED: V mean=-49.1 mV  S(release)=0.056
+   RMEV: V mean=-49.1 mV  S(release)=0.057
+   head curv D/V ratio: 0.24 (target ~1.0, was 3.6 pre-RME)
+   OLQDL: V mean=-47.2 mV  S(release)=0.080
+
+22. O2 SENSING (Step 34):
+   O2 at head: mean=16.4%  range=[11.1, 20.4]%
+   URXL: V mean=-49.0 mV  S(release)=0.058
+   AQR:  V mean=-45.8 mV  S(release)=0.104
+   AUAL: V mean=-51.1 mV  S(release)=0.038
+
+23. CO2 SENSING (Step 35):
+   CO2 at head: mean=1.09%  range=[0.17, 2.33]%
+   BAGL: V mean=-42.8 mV  S(release)=0.172
+
+24. PROPRIOCEPTION (Step 36):
+   mean |curv|: mean=0.044 /mm  range=[0.001, 0.071]
+   DVA:  V mean=-36.8 mV  S(release)=0.413
+   PVDL: V mean=-46.6 mV  S(release)=0.090
+
+25. EGG-LAYING (Step 38):
+   egg_pressure: final=0.632  range=[0.001, 0.632]
+   eggs_laid: 0
+   HSNL: V mean=-42.6 mV  S(release)=0.178
+   VC4:  V mean=-42.3 mV  S(release)=0.188
+
+26. DEFECATION MOTOR PROGRAM (Step 56):
+   DMP cycles: 1  (max ~3 at 45s period, adjusted for 33% on food: ~0.9)
+   AVL:  V=-42.6 mV  S(release)=0.180
+   DVB:  V=-39.7 mV  S(release)=0.279
+
+27. NOSE TOUCH CIRCUIT (Step 73/74):
+   FLPL:  V mean=-47.4 mV  S(release)=0.078
+   RIH:   V mean=-41.6 mV  S(release)=0.210
+   IL1DL: V mean=-44.8 mV  S(release)=0.125
+   RMDDL: V mean=-53.6 mV  S(release)=0.024
+   nose_touch_active: 0.0% (0/1200 samples)
+   connectome: 302 neurons, 697 synapses, 247 gap junctions
+
+38. DAUER FORMATION (Step 122, Golden & Riddle 1984):
+   dauer_signal=0.203  is_dauer=no  (threshold=0.8)
+   DAF-7/TGF-b: HIGH (reproductive)  DAF-2/DAF-16: DAF-16 cytoplasmic (growth)
+   Inputs: food=0.10  pheromone=absent
+   Nictation (Step 124): inactive (not dauer)
+
+37. MULTISENSORY DECISION (Step 120, Ghosh 2016):
+   satiety=0.096  sat_gate=0.025 (THREAT-TOLERANT: hungry, ASH normal)
+   RIM鈫扐SH TYRA-2 top-down: satiety gates threat sensitivity
+   Fed: TA脳sat鈫扵YRA-2鈫扐SH鈫?(avoid danger)
+   Hungry: pathway suppressed (cross barrier for food)
+
+36. CROSS-MODAL SENSITIZATION (Step 119, Chew 2018):
+   sensitization=0.444
+   RID: V=-41.7 mV  S(release)=0.209
+   FLP-20鈫扚RPR-3鈫扲ID: touch neurons鈫抧europeptide鈫抧euroendocrine
+   RID鈫扐SH boost: 5.3 pA (cross-modal)
+
+28. PATHOGEN AVERSION (Step 75, AWB鈫扐UA/RMG鈫扐VA):
+   RMGL:  V mean=-55.0 mV  S(release)=0.018
+   AWBL:  V final=-42.8 mV  S(release)=0.173
+   AUAL:  V final=-49.8 mV  S(release)=0.050
+   sickness: 1.000
+
+29. ENHANCED SLOWING RESPONSE (Step 76, Sawin 2000):
+   satiety: 0.096  hunger: 0.904  esr_receptor: 0.636
+   5-HT: 0.119  esr_current: -0.60 pA
+   speed_scale: 0.199
+
+31. TAP HABITUATION (Step 78, Rankin 1990):
+   taps delivered: 12
+   tap#  pool    sens   reversal
+     1   0.983  1.000   YES
+     2   0.983  1.000   YES
+     3   0.983  1.000   YES
+     4   0.983  1.000   YES
+     5   0.983  1.000   YES
+     6   0.983  1.000   YES
+     7   0.983  1.000   YES
+     8   0.983  1.000   YES
+     9   0.983  1.000   YES
+    10   0.982  0.864   no
+    11   0.980  0.620   no
+    12   0.979  0.444   no
+   first 5 taps: 5/5 reversals (1e+02%)
+   last  5 taps: 2/5 reversals (4e+01%)
+   pool first=0.983 last=0.979 (螖=-0.4%)
+
+9. DISTANCE TO FOOD:
+   initial=10  final=7.7 mm
+   CI=0.227
+   time_near_food(<5mm): 3e+01% (4e+01s / 1e+02s)
+   reversal_rate: 0.16 /s (19 total, target ~0.1/s)
+
+35. O2 SPATIAL DISTRIBUTION (Step 97, Chang 2006):
+   Lawn center (<5mm): 3e+01%
+   Lawn border (5-1e+01mm): 7e+01%
+   Open field (>1e+01mm): 0%
+   (Compare --npr1 0 for Hawaiian: expect more open-field time)
+
+11. PIROUETTE SIGNAL CHAIN:
+   AWC (OFF): L=-46  R=-47 mV
+   AIA:       L=-40  R=-39 mV
+   AIB:       L=-39  R=-39 mV
+   AIY:       L=-52  R=-55 mV
+   RIA:       L=-37  R=-36 mV
+   AVA:       L=-36 mV
+   Release rates (S = sigmoid(V)):
+     ASEL=0.114  ASER=0.0908  AWCL=0.0915  AWCR=0.0893
+     AIAL=0.289  AIAR=0.312  AIBL=0.324  AIBR=0.317
+     AVAL=0.433
+
+12. NEUROMODULATION (Layer 6):
+   5-HT: conc=0.1186  sources=4  targets=20
+   DA: conc=0.03515  sources=8  targets=27
+   OA: conc=0.2944  sources=2  targets=3
+   TA: conc=0.3007  sources=2  targets=14
+   NLP-12: conc=0.005408  sources=1  targets=6
+   PDF: conc=0.1187  sources=4  targets=6
+   FLP-11: conc=0.8543  sources=1  targets=57
+   speed_scale=0.199  (effective=0.398)
+   NSM (5-HT source): V mean=-4e+01 range=[-5e+01, -3e+01] mV
+     S(release) mean=0.451 max=0.88  threshold=0.25  above=0.201  est_drive=0.269
+     satiety=0.096  (Step 45: NSM not suppressed by satiety 鈥?Randi 2018)
+   Time series (every 20s):
+     t(s)  dist   x_pos  y_pos  r_dist ASH_I  5-HT   sat   sick  fmem  fatg  slp  speed
+       20    6.6  3e+01  3e+01      7  3e+01  0.576  0.0337  0.196  0.634  0.0841    0  0.2241  ->Fd
+       40      4  3e+01  3e+01      4  5e+01  0.456  0.115  0.595  0.562  0.193    0  0.2262  ->Fd
+       60    3.3  4e+01  3e+01      3  5e+01  0.122  0.178      1  0.402  0.333    0  0.3279  ->Fd
+       80    6.5  4e+01  3e+01      6  4e+01  0.113  0.188      1  0.288  0.496    0  0.1836  ->Fd
+      100    7.7  4e+01  2e+01      8  3e+01  0.119  0.135      1  0.207    0.3    0  0.0006268  ->Fd
+      120    7.7  4e+01  2e+01      8  3e+01  0.119  0.0961      1  0.148    0.1    0  0.003461  ->Fd
+
+14. THERMOTAXIS (Step 23):
+   Temperature at head: 11.2 C  Tc(initial)=22.5  Tc(learned)=21.29 C  dTc=-1.21
+   Temp gradient: 0.500 C/mm (dir: -0.50, 0.00)  Tc target: x~30mm (LEFT)
+   AFD: L=-45.00 mV  R=-45.60 mV  S(release)=0.119
+   Signal strength: AFD_S=0.119 vs ASE_S=0.0698 (ratio=1.7)
+   Satiety gain: sat=0.096 鈫?chemo脳0.99 thermo脳0.23 [FOOD mode]
+   Isothermal tracking (Step 121): INACTIVE  |T-Tc|=10掳C  iso_weight=0 (too far from Tc)
+   Pharynx: pump_rate=0.6 Hz  total_pumps=167  V_muscle=-5e+01 mV  phase=REST
+   MC=-8e+01mV  M3=-4e+01mV  M4=-4e+01mV  5-HT鈫扢C: +2pA  OA鈫扢C: -3pA
+   X displacement: 17.6 mm -> FOOD wins  (food@right x=35, Tc@left x=20)
+
+32. TAIL CHEMOSENSATION (Step 81):
+   Tail pos: (4e+01, 2e+01)  rep@tail=0.2945  food@tail=0.21
+   PHBL: -3e+01 mV  PHAL: -4e+01 mV
+
+16. NOCICEPTION (Step 25):
+   Repellent source: (4e+01, 2e+01)
+   Repellent at head: 0.2437  dist_to_repellent=8 mm
+   ASHL: -3e+01 mV  I_ext=29 pA
+   AIBL: -4e+01 mV  I_syn=1.1 pA
+
+17. PATHOGEN LEARNING (Step 26):
+   sickness=1
+   ADFL: -2e+01 mV  I_ext=30 pA
+   AWCL->AIBL: w_mod=1.274
+   AWCL->AIYL: w_mod=0.8252
+
+30. SALT CHEMOTAXIS LEARNING (Step 21c/77):
+   ASER->AIAR: w_mod=0.9508 (weight=0.6)
+   ASER->AIBL: w_mod=0.9508 (weight=0.3)
+   ASER->AIBR: w_mod=0.9508 (weight=0.3)
+   satiety=0.0961  learn_signal=-0.404
+
+35. ASSOCIATIVE ODOR CONDITIONING (Step 117):
+   AWCL->AIYL: w_mod=0.8252
+   AWCR->AIYR: w_mod=0.827
+   AWC->AIY mean w_mod=0.8261 (NEGATIVE conditioning: learned aversion)
+   INS-1=1  satiety=0.0961
+
+18. SLEEP / QUIESCENCE (Step 27):
+   fatigue=0.1  is_sleeping=NO
+   RIS: -4e+01 mV  I_ext=1.7 pA  FLP-11=0.129
+   Sleep episodes: 6  total_sleep=3e+01s (2e+01%)
+   Molting cycle (Step 125): hormone=0.282  lethargus=YES
+   Arousal threshold (Step 123): 0.759 DEEP (strong stimulus needed)
+   Fatigue range: [0.000358, 0.6]
+
+15. SYNAPTIC PLASTICITY (Step 21):
+   vesicle_pool: mean=0.898  min=0.354  (1.0=full, 0.01=depleted)
+   ASER->AIAR: n=0.96 p=0.526 w_mod=0.951
+   ASER->AIYR: n=0.96 p=0.526 w_mod=0.951
+   SMDDL->SMDVL: n=1 p=0.6 w_mod=1
+
+19. WAVE PROPAGATION (Step 29):
+   Curvature at seg  2 (head): range=[-0.0314, 0.00738]  amp=0.0387 /mm
+   Curvature at seg  7 (mid1): range=[-0.0905, 0.019]  amp=0.11 /mm
+   Curvature at seg 15 (mid2): range=[-0.0141, 0.00861]  amp=0.0227 /mm
+   Seg 7 sign-change rate: 0.008 Hz  (normal: 0.5-5, unstable: >100)
+   Muscle work: mean=0.172  range=[0.00234, 0.284]
+   Wave quality: GOOD (propagates to tail)
+
+33. ROAMING/DWELLING STATES (Step 95, Flavell 2013):
+   Roaming:  6e+01% of awake time (1 bouts, speed=0.231 mm/s, 5-HT=0.14)
+   Dwelling: 4e+01% of awake time (1 bouts, speed=0.196 mm/s, 5-HT=0.514)
+   Sleep:    2e+01% of total time
+   5-HT final=0.119  PDF final=0.119
+   [OK] Bistable: 2 R鈫擠 transitions, speed ratio=1.2x (awake 9e+01s)
+
+34. SOCIAL/SOLITARY BEHAVIOR (Step 96, Macosko 2009):
+   NPR-1 on RMG: -2e+01 pA (N2=-15, Hawaiian=0)
+   RMGL: V=-5e+01 mV, S=0.0193
+   RMGR: V=-6e+01 mV, S=0.011
+   [OK] Solitary phenotype (RMG hub suppressed, N2-like)
+
+36. HEAD MOTOR & MISC NEURONS (Step 102-106):
+   SIA head motor:
+     SIADL: V mean=-4e+01 mV  S(release)=0.276
+     SIBDL: V mean=-4e+01 mV  S(release)=0.28
+   SAA turn circuit:
+     SAADL: V mean=-4e+01 mV  S(release)=0.498
+     SMBDL: V mean=-4e+01 mV  S(release)=0.28
+   URA inner labial motor:
+     URADL: V mean=-4e+01 mV  S(release)=0.236
+   Misc neurons:
+     PVM:   V mean=-4e+01 mV  S(release)=0.122
+     SDQR:  V mean=-4e+01 mV  S(release)=0.121
+     ALA:   V mean=-4e+01 mV  S(release)=0.324
+   Inner labial circuit (Step 107):
+     URBL:  V mean=-4e+01 mV  S(release)=0.35
+     URYDL: V mean=-4e+01 mV  S(release)=0.129
+   Tail-spike & body cavity (Step 108):
+     ALNL:  V mean=-4e+01 mV  S(release)=0.155
+     PLNL:  V mean=-4e+01 mV  S(release)=0.139
+     BDUL:  V mean=-4e+01 mV  S(release)=0.275
+   Outer labial + tail + VNC (Step 109):
+     OLLL:  V mean=-5e+01 mV  S(release)=0.104
+     PHCL:  V mean=-4e+01 mV  S(release)=0.124
+     AVG:   V mean=-4e+01 mV  S(release)=0.284
+   Head motor & RID (Step 110):
+     RMHL:  V mean=-4e+01 mV  S(release)=0.3
+     RMFL:  V mean=-4e+01 mV  S(release)=0.19
+     RID:   V mean=-4e+01 mV  S(release)=0.262
+   VNC + sexual (Step 111):
+     PVQL:  V mean=-4e+01 mV  S(release)=0.309
+     PVNL:  V mean=-4e+01 mV  S(release)=0.193
+     AIML:  V mean=-4e+01 mV  S(release)=0.347
+   Vulval + sublateral (Step 112):
+     VC1:   V mean=-4e+01 mV  S(release)=0.209
+     SABD:  V mean=-4e+01 mV  S(release)=0.196
+   Amphid + ring (Step 113):
+     ASGL:  V mean=-4e+01 mV  S(release)=0.123
+     ADAL:  V mean=-4e+01 mV  S(release)=0.311
+     RIFL:  V mean=-4e+01 mV  S(release)=0.396
+     RIR:   V mean=-4e+01 mV  S(release)=0.339
+   Batch fill (Step 114):
+     IL1L:  V mean=-4e+01 mV  S(release)=0.121
+     SDQL:  V mean=-4e+01 mV  S(release)=0.123
+     RMEL:  V mean=-4e+01 mV  S(release)=0.18
+     PDA:   V mean=-4e+01 mV  S(release)=0.272
+     PVWL:  V mean=-4e+01 mV  S(release)=0.287
+   Pharyngeal (Step 115):
+     I2L:   V mean=-4e+01 mV  S(release)=0.356
+     M1:    V mean=-4e+01 mV  S(release)=0.221
+   Final 302 (Step 116):
+     RIGL:  V mean=-4e+01 mV  S(release)=0.404
+     RMDL:  V mean=-6e+01 mV  S(release)=0.0161
+   [OK] All new neurons receiving input (V > -60 mV)
+
+========================================
+  BOTTLENECK ANALYSIS
+========================================
+
+  [OK] Gradient magnitude adequate
+  [OK] Bias current adequate
+  [OK] SMD differential 47.7 mV
+  [!!] CURVATURE too small (0.0387 /mm)
+       -> Check muscle_gain in body_model or synapse_scale
+  [OK] Speed 0.171 mm/s
+  [OK] Heading rate 4.72 deg/s
+  [..] CI=0.227 (expected negative with sickness=1)
+  [OK] Curvature stability 0.008 Hz
+  [OK] Muscle work 0.172
+

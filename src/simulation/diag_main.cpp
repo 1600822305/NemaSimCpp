@@ -151,6 +151,7 @@ int main(int argc, char* argv[]) {
     bool cli_light = false;
     double cli_light_x = 25.0, cli_light_y = 25.0, cli_light_intensity = 1.0;
     bool cli_osm = false;  // Step 118: osmotic barrier
+    bool cli_exo_5ht = false;  // Step 126: exogenous 5-HT (egg-laying induction)
     bool cli_fitness = false;
     int cli_nseeds = 1;
     int cli_jobs = std::min(8, (int)std::thread::hardware_concurrency());
@@ -174,6 +175,7 @@ int main(int argc, char* argv[]) {
         else if (arg == "--no-food" || arg == "--no_food") cli_no_food = true;
         else if (arg == "--light") cli_light = true;
         else if (arg == "--osm") cli_osm = true;
+        else if (arg == "--exo-5ht" || arg == "--exo_5ht") cli_exo_5ht = true;
         else if (arg == "--light_x" && i+1 < argc) { cli_light = true; cli_light_x = std::atof(argv[++i]); }
         else if (arg == "--light_y" && i+1 < argc) { cli_light = true; cli_light_y = std::atof(argv[++i]); }
         else if (arg == "--light_intensity" && i+1 < argc) { cli_light = true; cli_light_intensity = std::atof(argv[++i]); }
@@ -212,7 +214,8 @@ int main(int argc, char* argv[]) {
                       << "  --pheromone           Enable pheromone source at (15,25) (Step 64)\n"
                       << "  --pheromone_x/y <f>   Pheromone source position\n"
                       << "  --pheromone_intensity <f>  Pheromone intensity 0-1 (default: 0.8)\n"
-                      << "  --ablate <name>       Ablate neuron (e.g. AVA, ASE, AIB; repeatable)\n";
+                      << "  --ablate <name>       Ablate neuron (e.g. AVA, ASE, AIB; repeatable)\n"
+                      << "  --exo-5ht             Apply exogenous serotonin (egg-laying induction, Step 126)\n";
             return 0;
         }
     }
@@ -437,6 +440,11 @@ int main(int argc, char* argv[]) {
     if (cli_no_food) {
         sim.environment().chemical_field().clear();
         sim.environment().soluble_field().clear();
+    }
+
+    // Step 126: Exogenous 5-HT (egg-laying induction)
+    if (cli_exo_5ht) {
+        sim.set_exo_5ht(true);
     }
 
     // Step 118: Osmotic barrier (glycerol ring assay)

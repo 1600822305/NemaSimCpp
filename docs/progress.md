@@ -904,6 +904,13 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **效应**: RIS(+15pA) + ALA(+10pA) + MC(-20pA) + 强制睡眠
 - **REF**: Raizen 2008 Nature, Monsalve 2011, Katz 2018
 
+### Step 126: 外源 5-HT 诱导产卵 (Exogenous 5-HT Egg-Laying) ✅ (2026-02-13)
+> 详细文档: [steps/step126_exogenous_5ht.md](steps/step126_exogenous_5ht.md)
+
+- **新协议**: `--exo-5ht` CLI → HSN 强制激活 + 绕过卵压力阈值
+- **结果**: 产卵率 0→59/120s, HSN release 0.18→0.70
+- **REF**: Trent 1983, Schafer 2006, Collins 2016
+
 ---
 
 ## 当前系统状态
