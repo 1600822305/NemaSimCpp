@@ -560,6 +560,7 @@ void SimulationEngine::step() {
     // 5b5. Step 26: Pathogen avoidance learning (Zhang 2005 Nature)
     update_sickness();           // accumulate sickness from toxic food
     update_pathogen_learning();  // AWC synapse plasticity flip
+    update_odor_conditioning();  // Step 117: associative odor-food conditioning
     apply_synaptic_forgetting(); // Step 62: slow w_mod→1.0 drift (sleep suppresses)
 
     // 5b5b. Step 63: INS-1 insulin signaling (Lin 2010 JNeurosci)

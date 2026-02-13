@@ -169,4 +169,75 @@ void SimulationEngine::apply_synaptic_forgetting() {
     update_awc_pref_cache();
 }
 
+// ================================================================
+// Step 117: Associative Odor-Food Conditioning
+//
+// Biology: C. elegans forms bidirectional odor-food associations:
+//   Positive: butanone + food → enhanced attraction (Kauffman 2010 PNAS)
+//   Negative: benzaldehyde + starvation → learned aversion (Lin 2010 JNeurosci)
+//
+// Mechanism (cell-autonomous in AWC, Cho 2016 Neuron):
+//   INS-1 from ASI/AIA → DAF-2 in AWC → AGE-1 (PI3K) pathway
+//   Food present + AWC active → PI3K strengthens AWC→AIY output (w_mod↑)
+//   Food absent + AWC active → PI3K weakens AWC→AIY output (w_mod↓)
+//   INS-1 concentration modulates learning rate (starvation signal)
+//
+// Implementation:
+//   learn_signal = food_at_head - 0.5 (positive=fed, negative=starved)
+//   Δw = lr × S_awc × learn_signal × (1 + ins1_conc) × sleep_factor
+//   S_awc: AWC activity (sigmoid of V)
+//   INS-1 amplifies both positive and negative conditioning
+//   Sleep boosts learning (Chouhan 2023 Cell)
+//
+// REF: Kauffman 2010 PNAS — positive butanone conditioning
+//      Lin 2010 JNeurosci — INS-1/DAF-2 in benzaldehyde-starvation plasticity
+//      Cho 2016 Neuron — CREB/CRH-1 in AWC for long-term memory
+//      Wen 2012 Neuron — AWC→AIY synapse is site of plasticity
+// ================================================================
+void SimulationEngine::update_odor_conditioning() {
+    // Only update every 100ms (not every 0.5ms step)
+    if (static_cast<int>(current_time_ / dt_) % 200 != 0) return;
+
+    int n = static_cast<int>(neurons_.size());
+    auto& synapses = connectome_.synapses_mut();
+
+    // Food signal at head position: >0.5 = food present, <0.5 = no food
+    Vector2d head_pos = body_.get_head_position();
+    double food_here = environment_.sample_food_density(head_pos);
+    // Sigmoid food detection threshold (>0.1 = food detected)
+    double food_signal = 1.0 / (1.0 + fast_exp(-20.0 * (food_here - 0.1)));
+
+    // learn_signal: positive when food present, negative when absent
+    double learn_signal = food_signal - 0.5;
+
+    // INS-1 amplifies conditioning (starvation enhances aversive learning,
+    // Lin 2010: ins-1 mutants are defective in benzaldehyde-starvation plasticity)
+    double ins1_amp = 1.0 + ins1_conc_ * 2.0;
+
+    // Sleep boosts learning (Chouhan 2023)
+    double sleep_factor = is_sleeping_ ? sleep_learn_boost_ : 1.0;
+    double lr = odor_cond_lr_ * ins1_amp * sleep_factor;
+
+    // Modify AWC→AIY synapses (the site of plasticity, Wen 2012 Neuron)
+    for (size_t idx : awc_aiy_syn_indices_) {
+        auto& syn = synapses[idx];
+        int pre = syn.pre_id();
+        if (pre < 0 || pre >= n) continue;
+
+        double V_pre = neurons_[pre]->get_membrane_potential();
+        // S_awc: AWC must be active (odor present) for conditioning to occur
+        // This gates learning: no odor → no AWC activity → no plasticity
+        double S_awc = 1.0 / (1.0 + fast_exp(-(V_pre - (-35.0)) / 5.0));
+        if (S_awc < 0.05) continue; // skip if AWC silent
+
+        // Bidirectional plasticity:
+        // food + odor → learn_signal > 0 → w_mod↑ (positive conditioning)
+        // no food + odor → learn_signal < 0 → w_mod↓ (negative conditioning)
+        double dw = lr * learn_signal * S_awc;
+        syn.adjust_weight_mod(dw);
+    }
+
+    update_awc_pref_cache();
+}
+
 } // namespace celegans

@@ -1577,6 +1577,36 @@ int main(int argc, char* argv[]) {
                   << "  learn_signal=" << std::setprecision(3) << (sim.satiety() - 0.5) << std::endl;
     }
 
+    // Step 117: Associative odor-food conditioning diagnostic
+    std::cout << "\n35. ASSOCIATIVE ODOR CONDITIONING (Step 117):" << std::endl;
+    {
+        const auto& syns = sim.connectome().synapses();
+        const auto& ni = sim.connectome().neuron_infos();
+        int nn = (int)sim.neurons().size();
+        double wmod_sum = 0.0; int wmod_n = 0;
+        for (size_t i = 0; i < syns.size(); ++i) {
+            int pre = syns[i].pre_id(), post = syns[i].post_id();
+            if (pre < 0 || pre >= nn || post < 0 || post >= nn) continue;
+            const std::string& pn = ni[pre].name;
+            const std::string& qn = ni[post].name;
+            if ((pn == "AWCL" || pn == "AWCR") && (qn == "AIYL" || qn == "AIYR")) {
+                std::cout << "   " << pn << "->" << qn << ": w_mod="
+                          << std::setprecision(4) << syns[i].weight_mod() << std::endl;
+                wmod_sum += syns[i].weight_mod(); wmod_n++;
+            }
+        }
+        if (wmod_n > 0) {
+            double avg = wmod_sum / wmod_n;
+            std::cout << "   AWC->AIY mean w_mod=" << std::setprecision(4) << avg;
+            if (avg > 1.05) std::cout << " (POSITIVE conditioning: enhanced attraction)";
+            else if (avg < 0.95) std::cout << " (NEGATIVE conditioning: learned aversion)";
+            else std::cout << " (neutral: no significant conditioning)";
+            std::cout << std::endl;
+        }
+        std::cout << "   INS-1=" << std::setprecision(3) << sim.ins1_conc()
+                  << "  satiety=" << std::setprecision(3) << sim.satiety() << std::endl;
+    }
+
     // Step 27: Sleep / Quiescence diagnostic
     std::cout << "\n18. SLEEP / QUIESCENCE (Step 27):" << std::endl;
     std::cout << "   fatigue=" << std::setprecision(4) << sim.fatigue()

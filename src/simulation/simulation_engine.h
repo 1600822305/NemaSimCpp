@@ -314,6 +314,15 @@ private:
     void update_sickness();              // accumulate sickness from toxic food intake
     void update_pathogen_learning();     // AWC→AIY w_mod↓, AWC→AIB w_mod↑
 
+    // Step 117: Associative odor-food conditioning (Kauffman 2010, Lin 2010 JNeurosci)
+    // Positive: butanone + food → AWC→AIY strengthens (enhanced attraction)
+    // Negative: benzaldehyde + starvation → AWC→AIY weakens (aversion)
+    // Mechanism: INS-1 from ASI/AIA → DAF-2 in AWC → AGE-1/PI3K
+    // Cell-autonomous in AWC: food_signal gates plasticity direction
+    // REF: Kauffman 2010 PNAS, Lin 2010 JNeurosci, Cho 2016 Neuron
+    double odor_cond_lr_ = 0.0008;       // learning rate (simulation timescale compressed)
+    void update_odor_conditioning();     // AWC→AIY w_mod bidirectional plasticity
+
     // Step 63: INS-1 insulin signaling (Lin 2010 JNeurosci, Comm Bio 2022)
     // INS-1 released from ASI/AIA as starvation/sickness signal.
     // Acts via DAF-2 on AWC (attraction→avoidance switch), AIA, AIY (reduce chemotaxis).
