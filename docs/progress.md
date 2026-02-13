@@ -855,6 +855,14 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **diag**: RID V=-39.3mV, S=0.298, ASH boost=12pA
 - **REF**: Chew 2018 Neuron
 
+### Step 120: 多感觉整合 — RIM→ASH 饥饿依赖 Top-Down 威胁-奖赏决策 ✅ (2026-02-13)
+> 详细文档: [steps/step120_multisensory_integration.md](steps/step120_multisensory_integration.md)
+
+- **新机制**: RIM→TA→TYRA-2→ASH 饥饿依赖 top-down 感觉调制
+- **行为**: 饱食→威胁敏感(ASH↑) / 饥饿→威胁耐受(穿越屏障找食物)
+- **diag**: sat_gate=0.038 (THREAT-TOLERANT, 正确)
+- **REF**: Ghosh 2016 Neuron
+
 ---
 
 ## 当前系统状态

@@ -80,6 +80,32 @@ void SimulationEngine::apply_sensory_input() {
         neurons_[nm.neuron_id]->set_external_current(I_noci);
     }
 
+    // Step 120: Multisensory threat-reward decision — RIM→ASH top-down modulation
+    // Ghosh 2016 Neuron: RIM releases tyramine → TYRA-2 on ASH → increases ASH
+    // sensitivity to aversive stimuli (osmotic, nociceptive).
+    // Key: HUNGER SUPPRESSES this pathway → starved worms tolerate more danger.
+    // Well-fed: RIM active → TA→TYRA-2→ASH↑ → threat-sensitive (avoid danger)
+    // Hungry: RIM suppressed → less TA → ASH normal → threat-tolerant (cross barrier)
+    // PDF-2/PDFR-1 autocrine in RIM stabilizes fed/hungry decision states.
+    // This is SEPARATE from TYRA-3 (Step 30, phasic escape) — TYRA-2 is tonic/slow.
+    // REF: Ghosh 2016 Neuron, Wragg 2007, Rex 2005
+    {
+        double ta_conc = neuromod_.get_concentration("TA");
+        // Satiety-gated top-down: well-fed → strong ASH boost, hungry → weak
+        // Sigmoid switch at satiety=0.4 (sharper than thermo switch at 0.5)
+        double sat_gate = 1.0 / (1.0 + fast_exp(-12.0 * (satiety_ - 0.4)));
+        // TYRA-2 tonic modulation: slow, proportional to TA × satiety
+        // Max boost ~8pA when well-fed + high TA (during/after reversals)
+        // This stacks with TYRA-3's 5pA but on different timescale
+        double tyra2_boost = 8.0 * ta_conc * sat_gate;
+        if (tyra2_boost > 0.5) {  // only apply if meaningful
+            for (int id : nids("ASH")) {
+                if (id >= 0 && id < n)
+                    neurons_[id]->add_synaptic_current(tyra2_boost);
+            }
+        }
+    }
+
     // Step 118: Osmotic avoidance — ASH + ADL sense high osmolarity via OSM-9/TRPV
     // Glycerol ring assay: ASH fires on contact with high osmolarity → reversal
     // OSM-9 (TRPV) channel is primary transducer in ASH (Colbert 1997)

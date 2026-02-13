@@ -1160,6 +1160,21 @@ int main(int argc, char* argv[]) {
               << conn.num_synapses() << " synapses, "
               << conn.num_gap_junctions() << " gap junctions" << std::endl;
 
+    // Step 120: Multisensory threat-reward decision diagnostic
+    std::cout << "\n37. MULTISENSORY DECISION (Step 120, Ghosh 2016):" << std::endl;
+    {
+        double sat = sim.satiety();
+        double sat_gate = 1.0 / (1.0 + std::exp(-12.0 * (sat - 0.4)));
+        std::cout << "   satiety=" << std::setprecision(3) << sat
+                  << "  sat_gate=" << std::setprecision(3) << sat_gate;
+        if (sat_gate > 0.5) std::cout << " (THREAT-SENSITIVE: well-fed, ASH boosted)";
+        else std::cout << " (THREAT-TOLERANT: hungry, ASH normal)";
+        std::cout << std::endl;
+        std::cout << "   RIM→ASH TYRA-2 top-down: satiety gates threat sensitivity" << std::endl;
+        std::cout << "   Fed: TA×sat→TYRA-2→ASH↑ (avoid danger)"  << std::endl;
+        std::cout << "   Hungry: pathway suppressed (cross barrier for food)" << std::endl;
+    }
+
     // Step 119: FLP-20/RID cross-modal sensitization diagnostic
     std::cout << "\n36. CROSS-MODAL SENSITIZATION (Step 119, Chew 2018):" << std::endl;
     {
