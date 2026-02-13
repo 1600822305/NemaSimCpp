@@ -71,8 +71,36 @@ void WormRenderer3D::draw(const std::array<BodySegment, NUM_BODY_SEGMENTS>& segm
         if (ext > max_extent) max_extent = ext;
     }
 
-    float scale = (std::min(panel_w, view_h) * 0.38f) / (max_extent + 0.05f);
     float body_radius_mm = 0.04f;
+
+    // Step 136: Reconstruct body shape with visual curvature amplification.
+    // Real C. elegans curvature (~4/mm on 1mm body) produces only ~0.025mm
+    // lateral displacement — invisible at screen scale. Amplify 3× for display.
+    constexpr float VIS_CURV_AMP = 3.0f;
+    float ds_mm = 1.0f / NUM_BODY_SEGMENTS;  // segment length in mm
+    // Reconstruct amplified body positions from head
+    struct AmpPos { float x, y, angle; };
+    AmpPos amp[NUM_BODY_SEGMENTS];
+    amp[0].x = (float)segments[0].position.x;
+    amp[0].y = (float)segments[0].position.y;
+    amp[0].angle = (float)segments[0].angle;
+    for (int i = 1; i < NUM_BODY_SEGMENTS; i++) {
+        float curv = (float)segments[i].curvature * VIS_CURV_AMP;
+        amp[i].angle = amp[i-1].angle - curv * ds_mm;
+        amp[i].x = amp[i-1].x - cosf(amp[i].angle) * ds_mm;
+        amp[i].y = amp[i-1].y - sinf(amp[i].angle) * ds_mm;
+    }
+    // Recompute center and extent from amplified positions
+    float acx = 0, acy = 0;
+    for (int i = 0; i < NUM_BODY_SEGMENTS; i++) { acx += amp[i].x; acy += amp[i].y; }
+    acx /= NUM_BODY_SEGMENTS; acy /= NUM_BODY_SEGMENTS;
+    float amp_extent = 0.05f;
+    for (int i = 0; i < NUM_BODY_SEGMENTS; i++) {
+        float dx = amp[i].x - acx, dy = amp[i].y - acy;
+        float ext = sqrtf(dx*dx + dy*dy);
+        if (ext > amp_extent) amp_extent = ext;
+    }
+    float scale = (std::min(panel_w, view_h) * 0.38f) / (amp_extent + 0.05f);
 
     // ========================================
     // TOP VIEW — smooth tubular body with 3D shading
@@ -97,15 +125,15 @@ void WormRenderer3D::draw(const std::array<BodySegment, NUM_BODY_SEGMENTS>& segm
                 dl->AddLine(ImVec2(wpos.x, gy), ImVec2(wpos.x + panel_w, gy), IM_COL32(25, 30, 40, 60));
         }
 
-        // Pre-compute screen positions and radii
+        // Pre-compute screen positions and radii (using amplified body shape)
         struct NodeInfo { float x, y, nx, ny, r; float d_act, v_act; };
         NodeInfo nodes[NUM_BODY_SEGMENTS];
         for (int i = 0; i < NUM_BODY_SEGMENTS; i++) {
             float s = (float)i / (NUM_BODY_SEGMENTS - 1);
             float taper = sqrtf(1.0f - (2.0f * s - 1.0f) * (2.0f * s - 1.0f) * 0.96f);
-            nodes[i].x = ox + ((float)segments[i].position.x - cx) * scale;
-            nodes[i].y = oy - ((float)segments[i].position.y - cy) * scale;
-            float a = (float)segments[i].angle;
+            nodes[i].x = ox + (amp[i].x - acx) * scale;
+            nodes[i].y = oy - (amp[i].y - acy) * scale;
+            float a = amp[i].angle;
             nodes[i].nx = -sinf(a);
             nodes[i].ny = cosf(a);
             nodes[i].r = body_radius_mm * taper * scale;
