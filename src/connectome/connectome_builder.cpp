@@ -417,6 +417,26 @@ void build_neurons(CB& b) {
     // REF: White 1986, Cook 2019, Emmons 2024 PLOS Biology
     b.neuron("AINL", NT::INTER, NTT::GLUTAMATE);
     b.neuron("AINR", NT::INTER, NTT::GLUTAMATE);
+    // Step 111: PVQ — ventral cord pioneer interneuron (L/R pair)
+    // "AVF and PVQ are two pairs of interneurons involved in sexual circuits" (Emmons 2024)
+    // ASJ/ASK→PVQ: light/pheromone sensory pathway
+    // Ventral cord pioneer (like AVG, PVP); glutamatergic
+    // REF: White 1986, Emmons 2024
+    b.neuron("PVQL", NT::INTER, NTT::GLUTAMATE);
+    b.neuron("PVQR", NT::INTER, NTT::GLUTAMATE);
+    // Step 111: PVN — ventral cord motor neuron (L/R pair)
+    // "BDU, a gap junction target of touch neurons, to PVN" (Emmons 2024)
+    // Cholinergic motor neuron (Pereira 2015 eLife)
+    // REF: White 1986, Pereira 2015, Emmons 2024
+    b.neuron("PVNL", NT::MOTOR, NTT::ACETYLCHOLINE);
+    b.neuron("PVNR", NT::MOTOR, NTT::ACETYLCHOLINE);
+    // Step 111: AIM — ring interneuron (L/R pair)
+    // "AIM, another interneuron implicated in sexual regulation" (Emmons 2024)
+    // AIM→AVF: input to egg-laying forward burst circuit
+    // Cholinergic (Pereira 2015 eLife)
+    // REF: White 1986, Pereira 2015, Emmons 2024
+    b.neuron("AIML", NT::INTER, NTT::ACETYLCHOLINE);
+    b.neuron("AIMR", NT::INTER, NTT::ACETYLCHOLINE);
     // Step 82: RIG — single unpaired ring interneuron, ventral cord→navigation relay
     // Receives DVC/PVT (ventral cord integrators) → outputs to AIY/AIZ/RIA/AVK
     // Community 4 (Emmons 2024): navigation/head motor
@@ -1813,6 +1833,29 @@ void build_ventral_cord_integrators(CB& b) {
     b.gj("AVG", "PVT", 2);
     // AVG→DVA: weak chemical output (scattered, body sensing network)
     b.syn("AVG", "DVA", 1);
+
+    // Step 111: PVQ — light/pheromone sensory relay
+    // ASJ→PVQ, ASK→PVQ: amphid light/pheromone → ventral cord (Emmons 2024)
+    b.syn("ASJL", "PVQL", 1); b.syn("ASJR", "PVQR", 1);
+    b.syn("ASKL", "PVQL", 1); b.syn("ASKR", "PVQR", 1);
+    // PVQ↔AVF: gap junction — sexual/locomotion coordination
+    b.gj("PVQL", "AVFL", 2); b.gj("PVQR", "AVFR", 2);
+    // PVQ↔PHA: gap junction — tail sensory integration
+    b.gj("PVQL", "PHAL", 1); b.gj("PVQR", "PHAR", 1);
+
+    // Step 111: PVN — ventral cord motor
+    // BDU→PVN: gap junction (Emmons 2024: "BDU... to PVN")
+    b.gj("BDUL", "PVNL", 2); b.gj("BDUR", "PVNR", 2);
+    // PVN→AVA: motor output → backward command
+    b.syn("PVNL", "AVAL", 1); b.syn("PVNR", "AVAR", 1);
+
+    // Step 111: AIM — sexual regulation interneuron
+    // AIM→AVF: input to egg-laying forward burst (Emmons 2024)
+    b.syn("AIML", "AVFL", 1); b.syn("AIMR", "AVFR", 1);
+    // RIC→AIM: octopaminergic hub → sexual modulation
+    b.syn("RICL", "AIML", 1); b.syn("RICR", "AIMR", 1);
+    // AIM↔AIM: L/R gap junction (coordinate bilateral)
+    b.gj("AIML", "AIMR", 2);
 
     // Step 110: RMH — head motor (Community 2, Foraging)
     // SDQR→RMH: "SDQR targets the RMH head motor neurons" (Emmons 2024)

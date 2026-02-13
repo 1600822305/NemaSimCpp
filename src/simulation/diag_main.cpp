@@ -523,6 +523,9 @@ int main(int argc, char* argv[]) {
     int rmhl_id  = conn.get_neuron_id("RMHL");     // Step 110: RMH head motor
     int rmfl_id  = conn.get_neuron_id("RMFL");     // Step 110: RMF head motor
     int rid_id   = conn.get_neuron_id("RID");       // Step 110: RID dorsal motor
+    int pvql_id  = conn.get_neuron_id("PVQL");     // Step 111: PVQ ventral cord
+    int pvnl_id  = conn.get_neuron_id("PVNL");     // Step 111: PVN ventral cord motor
+    int aiml_id  = conn.get_neuron_id("AIML");     // Step 111: AIM sexual regulation
 
     // Accumulators
     std::vector<double> grad_mags, grad_normals, biases;
@@ -570,6 +573,7 @@ int main(int argc, char* argv[]) {
     std::vector<double> alnl_v_vs, plnl_v_vs, bdul_v_vs;
     std::vector<double> olll_v_vs, phcl_v_vs, avg_v_vs;
     std::vector<double> rmhl_v_vs, rmfl_v_vs, rid_v_vs;
+    std::vector<double> pvql_v_vs, pvnl_v_vs, aiml_v_vs;
     // Step 78: Tap habituation tracking
     int prev_tap_count = 0;          // track tap count changes
     double tap_onset_time = -1.0;    // when current tap started
@@ -886,6 +890,9 @@ int main(int argc, char* argv[]) {
             rmhl_v_vs.push_back(getV(rmhl_id));
             rmfl_v_vs.push_back(getV(rmfl_id));
             rid_v_vs.push_back(getV(rid_id));
+            pvql_v_vs.push_back(getV(pvql_id));
+            pvnl_v_vs.push_back(getV(pvnl_id));
+            aiml_v_vs.push_back(getV(aiml_id));
 
             // Store
             grad_mags.push_back(grad_mag);
@@ -1795,6 +1802,14 @@ int main(int argc, char* argv[]) {
                   << " mV  S(release)=" << std::setprecision(3) << release(mean(rmfl_v_vs)) << std::endl;
         std::cout << "     RID:   V mean=" << std::setprecision(1) << mean(rid_v_vs)
                   << " mV  S(release)=" << std::setprecision(3) << release(mean(rid_v_vs)) << std::endl;
+        // VNC + sexual regulation (Step 111)
+        std::cout << "   VNC + sexual (Step 111):" << std::endl;
+        std::cout << "     PVQL:  V mean=" << std::setprecision(1) << mean(pvql_v_vs)
+                  << " mV  S(release)=" << std::setprecision(3) << release(mean(pvql_v_vs)) << std::endl;
+        std::cout << "     PVNL:  V mean=" << std::setprecision(1) << mean(pvnl_v_vs)
+                  << " mV  S(release)=" << std::setprecision(3) << release(mean(pvnl_v_vs)) << std::endl;
+        std::cout << "     AIML:  V mean=" << std::setprecision(1) << mean(aiml_v_vs)
+                  << " mV  S(release)=" << std::setprecision(3) << release(mean(aiml_v_vs)) << std::endl;
         // Check for dead neurons (resting at -65mV with no input)
         auto check_alive = [](const std::string& name, double v_mean) {
             if (v_mean < -60.0) {
@@ -1823,6 +1838,9 @@ int main(int argc, char* argv[]) {
         all_alive &= check_alive("RMHL", mean(rmhl_v_vs));
         all_alive &= check_alive("RMFL", mean(rmfl_v_vs));
         all_alive &= check_alive("RID", mean(rid_v_vs));
+        all_alive &= check_alive("PVQL", mean(pvql_v_vs));
+        all_alive &= check_alive("PVNL", mean(pvnl_v_vs));
+        all_alive &= check_alive("AIML", mean(aiml_v_vs));
         if (all_alive) {
             std::cout << "   [OK] All new neurons receiving input (V > -60 mV)" << std::endl;
         }
