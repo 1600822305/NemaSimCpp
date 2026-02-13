@@ -537,6 +537,8 @@ int main(int argc, char* argv[]) {
     int rmel_id  = conn.get_neuron_id("RMEL");     // Step 114: RME lateral
     int pda_id   = conn.get_neuron_id("PDA");       // Step 114: tail motor
     int pvwl_id  = conn.get_neuron_id("PVWL");     // Step 114: PVW
+    int i2l_id   = conn.get_neuron_id("I2L");       // Step 115: pharyngeal
+    int m1_id    = conn.get_neuron_id("M1");        // Step 115: pharyngeal motor
 
     // Accumulators
     std::vector<double> grad_mags, grad_normals, biases;
@@ -588,6 +590,7 @@ int main(int argc, char* argv[]) {
     std::vector<double> vc1_v_vs, sabd_v_vs;
     std::vector<double> asgl_v_vs, adal_v_vs, rifl_v_vs, rir_v_vs;
     std::vector<double> il1l_v_vs, sdql_v_vs, rmel_v_vs, pda_v_vs, pvwl_v_vs;
+    std::vector<double> i2l_v_vs, m1_v_vs;
     // Step 78: Tap habituation tracking
     int prev_tap_count = 0;          // track tap count changes
     double tap_onset_time = -1.0;    // when current tap started
@@ -918,6 +921,8 @@ int main(int argc, char* argv[]) {
             rmel_v_vs.push_back(getV(rmel_id));
             pda_v_vs.push_back(getV(pda_id));
             pvwl_v_vs.push_back(getV(pvwl_id));
+            i2l_v_vs.push_back(getV(i2l_id));
+            m1_v_vs.push_back(getV(m1_id));
 
             // Store
             grad_mags.push_back(grad_mag);
@@ -1863,6 +1868,12 @@ int main(int argc, char* argv[]) {
                   << " mV  S(release)=" << std::setprecision(3) << release(mean(pda_v_vs)) << std::endl;
         std::cout << "     PVWL:  V mean=" << std::setprecision(1) << mean(pvwl_v_vs)
                   << " mV  S(release)=" << std::setprecision(3) << release(mean(pvwl_v_vs)) << std::endl;
+        // Pharyngeal fill (Step 115)
+        std::cout << "   Pharyngeal (Step 115):" << std::endl;
+        std::cout << "     I2L:   V mean=" << std::setprecision(1) << mean(i2l_v_vs)
+                  << " mV  S(release)=" << std::setprecision(3) << release(mean(i2l_v_vs)) << std::endl;
+        std::cout << "     M1:    V mean=" << std::setprecision(1) << mean(m1_v_vs)
+                  << " mV  S(release)=" << std::setprecision(3) << release(mean(m1_v_vs)) << std::endl;
         // Check for dead neurons (resting at -65mV with no input)
         auto check_alive = [](const std::string& name, double v_mean) {
             if (v_mean < -60.0) {
@@ -1905,6 +1916,8 @@ int main(int argc, char* argv[]) {
         all_alive &= check_alive("RMEL", mean(rmel_v_vs));
         all_alive &= check_alive("PDA", mean(pda_v_vs));
         all_alive &= check_alive("PVWL", mean(pvwl_v_vs));
+        all_alive &= check_alive("I2L", mean(i2l_v_vs));
+        all_alive &= check_alive("M1", mean(m1_v_vs));
         if (all_alive) {
             std::cout << "   [OK] All new neurons receiving input (V > -60 mV)" << std::endl;
         }

@@ -747,6 +747,27 @@ void build_neurons(CB& b) {
     //      Konietzka 2020 Nat Commun — RIS also functions as locomotion stop neuron
     //      Maluck 2023 PLOS Genetics — RIS promotes survival independently of sleep
     b.neuron("RIS",  NT::INTER, NTT::GABA);
+    // Step 115: remaining pharyngeal neurons (completing 20/20)
+    // I2: pharyngeal interneuron, receives I1 input
+    b.neuron("I2L",  NT::INTER, NTT::GLUTAMATE);
+    b.neuron("I2R",  NT::INTER, NTT::GLUTAMATE);
+    // I3: pharyngeal interneuron (single)
+    b.neuron("I3",   NT::INTER, NTT::GLUTAMATE);
+    // I4: pharyngeal interneuron (single)
+    b.neuron("I4",   NT::INTER, NTT::GLUTAMATE);
+    // I5: pharyngeal interneuron (single), involved in isthmus peristalsis
+    b.neuron("I5",   NT::INTER, NTT::ACETYLCHOLINE);
+    // I6: pharyngeal interneuron (single), inhibitory
+    b.neuron("I6",   NT::INTER, NTT::ACETYLCHOLINE);
+    // M1: pharyngeal motor neuron (single), anterior isthmus
+    b.neuron("M1",   NT::MOTOR, NTT::ACETYLCHOLINE);
+    // M2: pharyngeal motor neuron (L/R pair), metacorpus
+    b.neuron("M2L",  NT::MOTOR, NTT::ACETYLCHOLINE);
+    b.neuron("M2R",  NT::MOTOR, NTT::ACETYLCHOLINE);
+    // M5: pharyngeal motor neuron (single), terminal bulb
+    b.neuron("M5",   NT::MOTOR, NTT::ACETYLCHOLINE);
+    // MI: pharyngeal motor/interneuron (single)
+    b.neuron("MI",   NT::MOTOR, NTT::ACETYLCHOLINE);
 
     // Step 110: RMH — head motor neurons (L/R pair)
     // Community 2 (Foraging): "SDQR targets the RMH head motor neurons" (Emmons 2024)
@@ -1561,6 +1582,28 @@ void build_pharynx(CB& b) {
     b.gj("M3L", "M3R", 2);
     // RIP ↔ I1: the SOLE bridge between somatic and pharyngeal nervous systems
     b.gj("RIPL", "I1L", 2); b.gj("RIPR", "I1R", 2);
+
+    // Step 115: remaining pharyngeal connections
+    // I1→I2: relay chain (Albertson & Thomson 1976)
+    b.syn("I1L", "I2L", 2); b.syn("I1R", "I2R", 2);
+    // I2→I3: interneuron chain
+    b.syn("I2L", "I3", 1); b.syn("I2R", "I3", 1);
+    // M1→I3: motor→interneuron feedback
+    b.syn("M1", "I3", 1);
+    // I4→M4: interneuron→isthmus motor
+    b.syn("I4", "M4", 1);
+    // I5→M5: interneuron→terminal bulb motor
+    b.syn("I5", "M5", 1);
+    // I6→M1: inhibitory interneuron→motor
+    b.syn("I6", "M1", 1);
+    // MC→M2: pacemaker→metacorpus motor
+    b.syn("MCL", "M2L", 1); b.syn("MCR", "M2R", 1);
+    // MI→I4: motor/interneuron→interneuron
+    b.syn("MI", "I4", 1);
+    // M2↔M2: L/R gap junction
+    b.gj("M2L", "M2R", 2);
+    // I2↔I2: L/R gap junction
+    b.gj("I2L", "I2R", 1);
 }
 
 // ================================================================
