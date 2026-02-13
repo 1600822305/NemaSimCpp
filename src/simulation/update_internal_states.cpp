@@ -408,6 +408,88 @@ void SimulationEngine::apply_ins1_modulation() {
 }
 
 // ================================================================
+// Step 127: Olfactory adaptation — AWC EGL-4/PKG pathway
+// Prolonged odor → cGMP → EGL-4 activation → TAX-2 phosphorylation (short-term)
+//                                            → nuclear translocation (long-term)
+// Two-phase model:
+//   Phase 1 (short-term, ~30s): EGL-4 cytoplasmic activation → AWC gain ×0.5
+//   Phase 2 (long-term, ~90s): EGL-4 nuclear entry → AWC gain ×0.15
+// Recovery: odor removal → EGL-4 nuclear exit (slow, ~60s) → gain recovery
+//
+// REF: L'Etoile 2002 Neuron — EGL-4 required for olfactory adaptation
+//      O'Halloran 2010 PNAS — EGL-4 nuclear translocation instructs long-term
+//      Colbert & Bargmann 1995 — odor-specific adaptation in AWC
+// ================================================================
+void SimulationEngine::update_olfactory_adaptation() {
+    int n = static_cast<int>(neurons_.size());
+
+    // 1. Measure AWC activity (proxy for odor stimulation)
+    double awc_activity = 0.0;
+    int awc_count = 0;
+    for (int id : nids("AWC")) {
+        if (id >= 0 && id < n) {
+            double v = neurons_[id]->get_membrane_potential();
+            awc_activity += 1.0 / (1.0 + fast_exp(-(v - (-35.0)) / 5.0));
+            awc_count++;
+        }
+    }
+    if (awc_count > 0) awc_activity /= awc_count;
+
+    // 2. Accumulate odor exposure (cGMP buildup in AWC)
+    // Rises when AWC is active (odor present), decays when inactive
+    double exposure_tau_rise = 15000.0;   // 15s to build up (compressed from ~10min)
+    double exposure_tau_decay = 30000.0;  // 30s to clear (compressed from ~60min)
+    if (awc_activity > 0.3) {
+        awc_odor_exposure_ += (awc_activity - awc_odor_exposure_) * dt_ / exposure_tau_rise;
+    } else {
+        awc_odor_exposure_ -= awc_odor_exposure_ * dt_ / exposure_tau_decay;
+    }
+    if (awc_odor_exposure_ < 0.0) awc_odor_exposure_ = 0.0;
+    if (awc_odor_exposure_ > 1.0) awc_odor_exposure_ = 1.0;
+
+    // 3. EGL-4 dynamics: cytoplasmic → nuclear translocation
+    // Short-term: cytoplasmic EGL-4 activates when exposure > 0.3
+    // Long-term: nuclear entry when exposure > 0.6 (sustained stimulation)
+    double nuclear_rate = 0.0;
+    if (awc_odor_exposure_ > 0.6) {
+        // High sustained exposure → EGL-4 enters nucleus
+        nuclear_rate = (awc_odor_exposure_ - 0.6) / 0.4;  // 0→1 as exposure 0.6→1.0
+        double tau_nuclear_entry = 30000.0;  // 30s (compressed from 60-90min)
+        egl4_nuclear_ += nuclear_rate * (1.0 - egl4_nuclear_) * dt_ / tau_nuclear_entry;
+        egl4_cytoplasmic_ = 1.0 - egl4_nuclear_;
+    } else if (awc_odor_exposure_ < 0.2) {
+        // Low exposure → EGL-4 exits nucleus (recovery)
+        double tau_nuclear_exit = 60000.0;  // 60s recovery (compressed from hours)
+        egl4_nuclear_ -= egl4_nuclear_ * dt_ / tau_nuclear_exit;
+        if (egl4_nuclear_ < 0.0) egl4_nuclear_ = 0.0;
+        egl4_cytoplasmic_ = 1.0 - egl4_nuclear_;
+    }
+
+    // 4. Compute AWC adaptation gain
+    // Short-term: cytoplasmic EGL-4 phosphorylates TAX-2 → moderate reduction
+    double short_term_factor = 1.0;
+    if (awc_odor_exposure_ > 0.3) {
+        // TAX-2 phosphorylation: gain drops to ~0.5 at full short-term
+        double st_strength = std::min(1.0, (awc_odor_exposure_ - 0.3) / 0.3);
+        short_term_factor = 1.0 - 0.5 * st_strength;  // 1.0 → 0.5
+    }
+    // Long-term: nuclear EGL-4 → further reduction
+    double long_term_factor = 1.0 - 0.7 * egl4_nuclear_;  // 1.0 → 0.3 at full nuclear
+
+    awc_adapt_gain_ = short_term_factor * long_term_factor;
+    if (awc_adapt_gain_ < 0.1) awc_adapt_gain_ = 0.1;  // never fully zero
+
+    // 5. Apply gain modulation to AWC neurons
+    // Hyperpolarize AWC proportional to adaptation (reduce responsiveness)
+    double adapt_current = -12.0 * (1.0 - awc_adapt_gain_);  // 0 to -10.8pA
+    for (int id : nids("AWC")) {
+        if (id >= 0 && id < n) {
+            neurons_[id]->add_synaptic_current(adapt_current);
+        }
+    }
+}
+
+// ================================================================
 // Step 125: Molting quiescence / Lethargus (Raizen 2008, Monsalve 2011)
 // LIN-42/Period oscillator → ecdysone-like steroid hormone → RIS/ALA activation → lethargus
 // Lethargus occurs before each molt: locomotion+feeding suppressed, arousal reduced.

@@ -567,6 +567,9 @@ void SimulationEngine::step() {
     update_ins1();               // compute INS-1 from satiety + sickness
     apply_ins1_modulation();     // INS-1 → DAF-2 ⊣ AWC/AIA/AIY
 
+    // 5b5c2. Step 127: Olfactory adaptation (L'Etoile 2002)
+    update_olfactory_adaptation();  // AWC EGL-4/PKG → odor-specific gain reduction
+
     // 5b5c. Step 122: Dauer formation decision (Golden & Riddle 1984)
     update_dauer_decision();     // integrate food/pheromone/temp → dauer_signal_
     apply_dauer_effects();       // dauer → suppress feeding/locomotion

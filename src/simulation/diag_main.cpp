@@ -1634,6 +1634,18 @@ int main(int argc, char* argv[]) {
         }
     }
 
+    // Step 127: Olfactory adaptation diagnostic
+    std::cout << "\n39. OLFACTORY ADAPTATION (Step 127, L'Etoile 2002):" << std::endl;
+    {
+        std::cout << "   AWC odor_exposure=" << std::setprecision(3) << sim.awc_odor_exposure()
+                  << "  EGL-4 nuclear=" << std::setprecision(3) << sim.egl4_nuclear()
+                  << "  AWC gain=" << std::setprecision(3) << sim.awc_adapt_gain();
+        if (sim.awc_adapt_gain() < 0.3) std::cout << " LONG-TERM ADAPTED";
+        else if (sim.awc_adapt_gain() < 0.7) std::cout << " SHORT-TERM ADAPTED";
+        else std::cout << " NAIVE";
+        std::cout << std::endl;
+    }
+
     // Step 77: Salt chemotaxis learning diagnostic (ASER w_mod)
     std::cout << "\n30. SALT CHEMOTAXIS LEARNING (Step 21c/77):" << std::endl;
     {

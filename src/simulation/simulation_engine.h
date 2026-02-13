@@ -134,6 +134,10 @@ public:
     // Step 126: Exogenous 5-HT protocol
     void set_exo_5ht(bool on) { exo_5ht_ = on; }
     bool exo_5ht() const { return exo_5ht_; }
+    // Step 127: Olfactory adaptation
+    double awc_adapt_gain() const { return awc_adapt_gain_; }
+    double egl4_nuclear() const { return egl4_nuclear_; }
+    double awc_odor_exposure() const { return awc_odor_exposure_; }
 
     // Callback for each step (for logging/visualization)
     using StepCallback = std::function<void(const SimulationEngine&, int step_num)>;
@@ -220,6 +224,18 @@ private:
     // Bath application of 5-HT → bypasses egg_pressure threshold → constitutive HSN/VC activation
     // Classic assay: 2mM 5-HT in M9 → ~5× egg-laying rate increase
     bool exo_5ht_ = false;           // exogenous serotonin applied
+
+    // Step 127: Olfactory adaptation — AWC EGL-4/PKG pathway (L'Etoile 2002, O'Halloran 2010)
+    // Prolonged odor exposure → cGMP accumulates in AWC → EGL-4 activates
+    // Short-term (30s): EGL-4 phosphorylates TAX-2 → reduces cGMP channel conductance
+    // Long-term (90s): EGL-4 translocates to nucleus → lasting dampening
+    // Recovery: odor removal → EGL-4 exits nucleus → responsiveness returns
+    // REF: L'Etoile 2002 Neuron, O'Halloran 2010 PNAS, Colbert & Bargmann 1995
+    double awc_odor_exposure_ = 0.0;   // [0,1] cumulative AWC odor stimulation
+    double egl4_cytoplasmic_ = 1.0;    // [0,1] EGL-4 in cytoplasm (active kinase)
+    double egl4_nuclear_ = 0.0;        // [0,1] EGL-4 in nucleus (long-term adaptation)
+    double awc_adapt_gain_ = 1.0;      // [0,1] current AWC sensitivity (1=full, 0=fully adapted)
+    void update_olfactory_adaptation(); // EGL-4 dynamics + AWC gain modulation
     double hsn_egg_gain_ = 30.0;   // pA, max HSN drive from egg pressure
     double egg_laid_count_ = 0;    // total eggs laid
     double egg_active_end_ = 0.0;  // end time of current active state (ms)

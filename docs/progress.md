@@ -911,6 +911,14 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **结果**: 产卵率 0→59/120s, HSN release 0.18→0.70
 - **REF**: Trent 1983, Schafer 2006, Collins 2016
 
+### Step 127: 嗅觉适应 (Olfactory Adaptation) ✅ (2026-02-13)
+> 详细文档: [steps/step127_olfactory_adaptation.md](steps/step127_olfactory_adaptation.md)
+
+- **新通路**: AWC EGL-4/PKG cGMP 依赖性蜂觉适应
+- **两阶段**: 短期(TAX-2磷酸化, gain×0.5) + 长期(EGL-4核转位, gain×0.15)
+- **恢复**: 气味移除 → EGL-4 核退出(60s) → 响应恢复
+- **REF**: L'Etoile 2002 Neuron, O'Halloran 2010 PNAS
+
 ---
 
 ## 当前系统状态
