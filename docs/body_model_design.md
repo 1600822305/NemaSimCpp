@@ -304,20 +304,30 @@ A_m ∈ [0, 1]
 
 ### 3.4 本体感觉反馈 → 运动神经元
 
-B 类和 A 类运动神经元接收来自 **局部和后方** 体节的拉伸信号:
+本体感觉方向是波传播的关键 (Wen 2012):
+- B 类 MN 具有长的无突触 **前向 (anterior)** 突起 → 感知前方拉伸
+- A 类 MN 具有长的无突触 **后向 (posterior)** 突起 → 感知后方拉伸
 
 ```
-I_stretch,n = G_SR,n × Σ_{m=local}^{posterior} w_SR × f(L_m - L0_m)
+B 类 (前进波, 头→尾传播):
+  每个 B 类 MN 感知其 NMJ 覆盖区 + 前方 (anterior) N_SR 个段的拉伸
+  I_stretch = G_SR × Σ_{m=local-N_SR}^{local} w_SR × f(ΔL_m)
+  前方弯曲 → 激活当前 MN → 波向后传播 ✓
+
+A 类 (后退波, 尾→头传播):
+  每个 A 类 MN 感知其 NMJ 覆盖区 + 后方 (posterior) N_SR 个段的拉伸
+  I_stretch = G_SR × Σ_{m=local}^{local+N_SR} w_SR × f(ΔL_m)
+  后方弯曲 → 激活当前 MN → 波向前传播 ✓
 
 其中:
   G_SR,n = 拉伸受体电导 (从头到尾线性增加, 补偿振幅梯度)
-  w_SR = 段权重 (1/段数)
+  w_SR = 段权重 (1/感知段数)
   f(ΔL) = ΔL / L0  (线性拉伸函数)
-
-感知范围:
-  每个 B/A 类神经元感知其 NMJ 覆盖区 + 后方 N_SR 个段
-  N_SR ≈ 6-8 段 (对应后向轴突长度)
+  N_SR ≈ 6-8 段 (对应前/后向轴突长度)
 ```
+
+REF: Wen 2012 “B-type motor neurons have long asynaptic anterior processes
+hypothesized to function as proprioceptive stretch receptors”
 
 ### 3.5 命令神经元 → 运动状态
 
@@ -461,13 +471,13 @@ MuscleCell:
 // 向头部运动神经元注入瞬时电流脉冲 (持续 ~200ms)
 // direction > 0: 背侧收缩 (SMDD); < 0: 腹侧 (SMDV)
 void inject_reorientation_current(double direction, double magnitude) {
-    double I = magnitude * 20.0; // pA
+    double I = std::abs(magnitude) * 20.0; // pA, always positive
     if (direction > 0) {
-        neurons_["SMDDL"].inject_current(I);
+        neurons_["SMDDL"].inject_current(I);  // 兴奋背侧 → 背弯
         neurons_["SMDDR"].inject_current(I);
     } else {
-        neurons_["SMDVL"].inject_current(-I);
-        neurons_["SMDVR"].inject_current(-I);
+        neurons_["SMDVL"].inject_current(I);  // 兴奋腹侧 → 腹弯
+        neurons_["SMDVR"].inject_current(I);
     }
 }
 ```
