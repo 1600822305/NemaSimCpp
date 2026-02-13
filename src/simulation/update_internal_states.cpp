@@ -408,6 +408,76 @@ void SimulationEngine::apply_ins1_modulation() {
 }
 
 // ================================================================
+// Step 125: Molting quiescence / Lethargus (Raizen 2008, Monsalve 2011)
+// LIN-42/Period oscillator → ecdysone-like steroid hormone → RIS/ALA activation → lethargus
+// Lethargus occurs before each molt: locomotion+feeding suppressed, arousal reduced.
+// Real cycle: ~6-8hr per larval stage. Compressed: 200s cycle in simulation.
+// Hormone peaks → RIS drive + ALA drive → FLP-11 + FLP-13 → global quiescence
+// Lethargus phase: ~20% of cycle (40s out of 200s, matching ~1-2hr of 8hr)
+//
+// REF: Monsalve 2011 — LIN-42/Period controls molting timing + quiescence
+//      Raizen 2008 — lethargus satisfies all criteria for sleep
+//      Katz 2018 — CEPsh glia modulate ALA→AVE during lethargus
+//      Singh 2011 — Notch signaling in larval molting quiescence
+// ================================================================
+void SimulationEngine::update_molting_cycle() {
+    // LIN-42/Period oscillator: advances phase at constant rate
+    double omega = 2.0 * 3.14159265 / molt_period_;
+    molt_phase_ += omega * dt_;
+    if (molt_phase_ > 2.0 * 3.14159265) molt_phase_ -= 2.0 * 3.14159265;
+
+    // Ecdysone-like steroid hormone: peaks just before molt
+    // Modeled as sharp peak near phase=0 (using cos²)
+    // Lethargus occupies ~20% of cycle centered on phase=0
+    double cos_phase = std::cos(molt_phase_);
+    double hormone_raw = (cos_phase > 0.8) ? (cos_phase - 0.8) / 0.2 : 0.0;  // narrow peak
+    molt_hormone_ += (hormone_raw - molt_hormone_) * dt_ / 3000.0;  // 3s smoothing
+    if (molt_hormone_ < 0.0) molt_hormone_ = 0.0;
+    if (molt_hormone_ > 1.0) molt_hormone_ = 1.0;
+
+    // Lethargus entry/exit based on hormone level
+    if (!in_lethargus_ && molt_hormone_ > 0.4) {
+        in_lethargus_ = true;
+    } else if (in_lethargus_ && molt_hormone_ < 0.1) {
+        in_lethargus_ = false;
+    }
+
+    if (!in_lethargus_) return;
+
+    int n = static_cast<int>(neurons_.size());
+
+    // 1. Drive RIS (sleep neuron) via molting hormone
+    // Hormone → RIS activation → FLP-11 release → systemic quiescence
+    double ris_molt_drive = 15.0 * molt_hormone_;
+    if (nid("RIS") >= 0 && nid("RIS") < n) {
+        neurons_[nid("RIS")]->add_synaptic_current(ris_molt_drive);
+    }
+
+    // 2. Drive ALA (stress-sleep neuron) — also active during lethargus
+    // ALA → AVE inhibition → locomotion suppression (Katz 2018)
+    double ala_molt_drive = 10.0 * molt_hormone_;
+    for (int id : nids("ALA")) {
+        if (id >= 0 && id < n)
+            neurons_[id]->add_synaptic_current(ala_molt_drive);
+    }
+
+    // 3. Suppress pharyngeal pumping during lethargus
+    // Feeding is suppressed during molt (pharynx remodeling)
+    double mc_suppress = -20.0 * molt_hormone_;
+    for (int id : nids("MC")) {
+        if (id >= 0 && id < n)
+            neurons_[id]->add_synaptic_current(mc_suppress);
+    }
+
+    // 4. Force sleep state if hormone is high enough
+    // Lethargus is obligatory sleep — overrides normal fatigue threshold
+    if (molt_hormone_ > 0.5) {
+        is_sleeping_ = true;
+        fatigue_ = std::max(fatigue_, 0.6);
+    }
+}
+
+// ================================================================
 // Step 124: Nictation — Dauer-specific dispersal behavior (Lee 2011 Nat Neurosci)
 // IL2 sensory neurons → RIG interneurons → cholinergic motor output
 // Dauer worms stand on tail and wave head for host-finding/dispersal.

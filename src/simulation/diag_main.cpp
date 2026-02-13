@@ -1705,6 +1705,11 @@ int main(int argc, char* argv[]) {
         std::cout << "   Sleep episodes: " << sleep_episodes
                   << "  total_sleep=" << std::setprecision(1) << total_sleep_time << "s"
                   << " (" << std::setprecision(1) << sleep_pct << "%)" << std::endl;
+        // Step 125: Molting cycle / Lethargus
+        std::cout << "   Molting cycle (Step 125): hormone="
+                  << std::setprecision(3) << sim.molt_hormone()
+                  << "  lethargus=" << (sim.in_lethargus() ? "YES" : "no")
+                  << std::endl;
         // Step 123: Arousal threshold modulation
         double arous = sim.arousal_threshold();
         std::cout << "   Arousal threshold (Step 123): " << std::setprecision(3) << arous;

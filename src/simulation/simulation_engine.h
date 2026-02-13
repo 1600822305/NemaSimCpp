@@ -128,6 +128,9 @@ public:
     double arousal_threshold() const { return arousal_threshold_; }
     // Step 124: Nictation state
     bool nictation_waving() const { return nictation_waving_; }
+    // Step 125: Molting/lethargus state
+    double molt_hormone() const { return molt_hormone_; }
+    bool in_lethargus() const { return in_lethargus_; }
 
     // Callback for each step (for logging/visualization)
     using StepCallback = std::function<void(const SimulationEngine&, int step_num)>;
@@ -379,6 +382,19 @@ private:
     double nictation_period_ = 8000.0;   // ms, 8s wave-pause cycle
     bool nictation_waving_ = false;      // currently in waving phase
     void apply_nictation();              // IL2→RIG→motor nictation pattern
+
+    // Step 125: Molting quiescence / Lethargus (Raizen 2008, Monsalve 2011)
+    // LIN-42/Period oscillator drives molting cycle → steroid hormone rises → RIS/ALA activation
+    // Lethargus: periodic developmental sleep preceding each molt (4× per larval development)
+    // Compressed timescale: real ~6-8hr cycle → simulation ~200s cycle
+    // REF: Monsalve 2011 Curr Biol — LIN-42/Period controls molting timing
+    //      Raizen 2008 Nature — lethargus is sleep
+    //      Katz 2018 Cell Rep — CEPsh glia modulate ALA→AVE during lethargus
+    double molt_phase_ = 3.14159265;     // [0, 2π] start at π (mid-cycle, away from lethargus)
+    double molt_period_ = 200000.0;      // ms, 200s compressed cycle (~6-8hr real)
+    double molt_hormone_ = 0.0;          // [0,1] ecdysone-like steroid hormone level
+    bool in_lethargus_ = false;          // currently in lethargus (pre-molt quiescence)
+    void update_molting_cycle();          // LIN-42 oscillator → hormone → lethargus
 
     // Step 62: Sleep-dependent memory consolidation (Chouhan 2023 Cell)
     // "Sleep is required to consolidate odor memory and remodel olfactory synapses"

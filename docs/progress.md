@@ -896,6 +896,14 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **条件**: dauer_signal > 0.8 (Step 122)
 - **REF**: Lee 2011 Nat Neurosci, Yim 2024
 
+### Step 125: 蜓皮静息 / Lethargus (Molting Quiescence) ✅ (2026-02-13)
+> 详细文档: [steps/step125_molting_quiescence.md](steps/step125_molting_quiescence.md)
+
+- **新系统**: LIN-42/Period 振荡器 → 类固醇激素 → RIS/ALA 驱动的周期性 lethargus
+- **周期**: 200s 压缩周期，~40s lethargus 相位
+- **效应**: RIS(+15pA) + ALA(+10pA) + MC(-20pA) + 强制睡眠
+- **REF**: Raizen 2008 Nature, Monsalve 2011, Katz 2018
+
 ---
 
 ## 当前系统状态

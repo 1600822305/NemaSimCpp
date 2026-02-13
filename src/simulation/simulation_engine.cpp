@@ -572,6 +572,9 @@ void SimulationEngine::step() {
     apply_dauer_effects();       // dauer → suppress feeding/locomotion
     apply_nictation();           // Step 124: IL2→RIG nictation in dauer state
 
+    // 5b5d. Step 125: Molting cycle / Lethargus (Monsalve 2011)
+    update_molting_cycle();      // LIN-42 oscillator → hormone → RIS/ALA lethargus
+
     // 5b6. Step 27: Sleep / Quiescence (Lethargus)
     update_fatigue();            // fatigue accumulation → RIS activation
     apply_sleep_effects();       // FLP-11 → global motor inhibition
