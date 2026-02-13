@@ -379,6 +379,16 @@ void BodyModel::update_physics(double dt_seconds) {
         }
     }
 
+    // Compute speed BEFORE phi-drive and center correction,
+    // so speed reflects only force-integrated locomotion.
+    {
+        Vector2d new_head = get_head_position();
+        double dx_mm = new_head.x - prev_head_pos_.x;
+        double dy_mm = new_head.y - prev_head_pos_.y;
+        speed_ = std::sqrt(dx_mm * dx_mm + dy_mm * dy_mm) / (dt_seconds > 0 ? dt_seconds : 1.0);
+        prev_head_pos_ = new_head;
+    }
+
     // ================================================================
     // Phi-drive: muscle D/V difference → rod angle adjustment
     // Neural input drives phi; passive springs can't oscillate cx/cy
@@ -453,13 +463,7 @@ void BodyModel::update_physics(double dt_seconds) {
         }
     }
 
-    // Sync backward-compat segments + compute speed
-    Vector2d new_head = get_head_position();
-    double dx_mm = new_head.x - prev_head_pos_.x;
-    double dy_mm = new_head.y - prev_head_pos_.y;
-    speed_ = std::sqrt(dx_mm * dx_mm + dy_mm * dy_mm) / (dt_seconds > 0 ? dt_seconds : 1.0);
-    prev_head_pos_ = new_head;
-
+    // Sync backward-compat segments (speed already computed above)
     sync_segments_from_rods();
 }
 
