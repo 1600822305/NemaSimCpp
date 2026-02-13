@@ -129,17 +129,29 @@ endif()
 add_executable(celegans_regtest src/simulation/regression_test.cpp)
 target_link_libraries(celegans_regtest PRIVATE celegans_simulation)
 
-# Visualization executable (Dear ImGui + ImPlot + SDL2 + OpenGL)
+# Visualization (Dear ImGui + ImPlot + GLFW + OpenGL)
 if(CELEGANS_BUILD_VIS)
     find_package(imgui CONFIG REQUIRED)
     find_package(implot CONFIG REQUIRED)
     find_package(glfw3 CONFIG REQUIRED)
     find_package(OpenGL REQUIRED)
 
+    # === V2 Modular Visualization (new, 10-panel architecture) ===
     add_executable(celegans_vis
-        src/visualization/vis_main.cpp
-        src/visualization/vis_app.cpp
+        src/visualization_v2/vis_main2.cpp
+        src/visualization_v2/vis_app2.cpp
+        src/visualization_v2/data_bus.cpp
         src/visualization/worm_renderer_3d.cpp
+        src/visualization_v2/panels/arena_panel.cpp
+        src/visualization_v2/panels/neuron_browser_panel.cpp
+        src/visualization_v2/panels/neuron_heatmap_panel.cpp
+        src/visualization_v2/panels/neuromod_panel.cpp
+        src/visualization_v2/panels/behavior_panel.cpp
+        src/visualization_v2/panels/motor_array_panel.cpp
+        src/visualization_v2/panels/worm_body_panel.cpp
+        src/visualization_v2/panels/control_panel.cpp
+        src/visualization_v2/panels/stats_panel.cpp
+        src/visualization_v2/panels/pharynx_panel.cpp
     )
     target_link_libraries(celegans_vis PRIVATE
         celegans_simulation

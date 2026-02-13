@@ -89,9 +89,10 @@ public:
     // Determine if excitatory based on neurotransmitter type
     bool is_excitatory() const {
         switch (nt_) {
-            case NeurotransmitterType::ACETYLCHOLINE: return true;
-            case NeurotransmitterType::GLUTAMATE:     return true;
-            case NeurotransmitterType::GABA:          return false;
+            case NeurotransmitterType::ACETYLCHOLINE:        return true;
+            case NeurotransmitterType::GLUTAMATE:            return true;
+            case NeurotransmitterType::GLUTAMATE_INHIBITORY: return false; // GluCl Cl⁻
+            case NeurotransmitterType::GABA:                 return false;
             default: return true;
         }
     }
@@ -99,9 +100,10 @@ public:
     // Get default reversal potential for neurotransmitter type
     static double default_reversal(NeurotransmitterType nt) {
         switch (nt) {
-            case NeurotransmitterType::ACETYLCHOLINE: return -10.0;  // excitatory
-            case NeurotransmitterType::GLUTAMATE:     return -10.0;  // excitatory
-            case NeurotransmitterType::GABA:          return -70.0;  // inhibitory
+            case NeurotransmitterType::ACETYLCHOLINE:        return -10.0;  // excitatory
+            case NeurotransmitterType::GLUTAMATE:            return -10.0;  // excitatory (GLR-1/AMPA)
+            case NeurotransmitterType::GLUTAMATE_INHIBITORY: return -70.0;  // inhibitory (GluCl Cl⁻)
+            case NeurotransmitterType::GABA:                 return -70.0;  // inhibitory
             default: return -10.0;
         }
     }

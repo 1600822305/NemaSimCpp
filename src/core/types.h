@@ -86,7 +86,8 @@ enum class NeuronType : uint8_t {
 enum class NeurotransmitterType : uint8_t {
     ACETYLCHOLINE,   // ACh - excitatory
     GABA,            // inhibitory
-    GLUTAMATE,       // excitatory/inhibitory
+    GLUTAMATE,       // excitatory (via GLR-1/AMPA, mGluR)
+    GLUTAMATE_INHIBITORY, // inhibitory via GluCl (avr-14, avr-15, glc-1, glc-3)
     DOPAMINE,        // modulatory
     SEROTONIN,       // modulatory (5-HT)
     TYRAMINE,        // modulatory

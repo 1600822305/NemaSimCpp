@@ -49,78 +49,59 @@ void BodyModel::set_muscle_activation_direct(int segment, bool dorsal, double ac
 
 void BodyModel::compute_curvatures(double dt) {
     // ===================================================================
-    // Step 132: Proprioceptive body wave propagation (Boyle & Cohen 2012)
+    // Step 132: Proprioceptive body wave (Boyle & Cohen 2012)
     //
-    // KEY MECHANISM: B-class motor neurons have stretch receptors that
-    // sense anterior body bending. When anterior segments bend, the
-    // stretch receptor current in posterior B-neurons crosses threshold,
-    // causing them to fire and bend their local segments. This creates
-    // an anterior→posterior curvature wave.
+    // MECHANISM: B-class motor neurons are independently bistable.
+    // Stretch receptors sense anterior bending → trigger local B-neuron
+    // → full muscle activation → full curvature. The stretch receptor
+    // determines TIMING (phase), not AMPLITUDE. So the wave propagates
+    // without amplitude decay.
     //
     // Implementation:
-    //   Head (seg 0-3): driven by SMD muscle activation (direct neural control)
-    //   Body (seg 4-47): proprioceptive coupling from anterior segment
-    //                     modulated by local muscle activation amplitude
+    //   Head (seg 0-3): SMD-driven oscillation (wave source)
+    //   Body (seg 4-47): exponential tracking of anterior curvature
+    //     - No amplitude loss (each segment reaches full curvature)
+    //     - Phase delay τ_prop per segment (~60ms → ~0.65 body wavelength)
+    //     - Amplitude gated by local muscle activity (DB/VB must be active)
     //
     // REF: Boyle & Cohen 2012, Front Comput Neurosci
-    //      Wen et al. 2012, Neuron (proprioceptive coupling in B-type MNs)
-    //      Fang-Yen et al. 2010, JNeuro (crawling dynamics)
+    //      Wen et al. 2012, Neuron
+    //      Fang-Yen 2010: crawl λ ≈ 0.65 body lengths, f ≈ 0.5 Hz
     // ===================================================================
 
     for (int i = 0; i < NUM_BODY_SEGMENTS; ++i) {
         auto& seg = segments_[i];
 
-        // Muscle-driven target curvature
-        double muscle_diff = seg.dorsal_activation - seg.ventral_activation;
-        double muscle_target = muscle_gain_ * muscle_diff;
-
-        // Muscle amplitude (total activity, modulates proprioceptive gain)
-        double muscle_amp = seg.dorsal_activation + seg.ventral_activation;
-
-        double target_curvature;
-
         if (i < 4) {
-            // HEAD SEGMENTS: directly driven by SMD oscillation
-            // No proprioceptive modification — SMD is the wave source
-            target_curvature = muscle_target;
+            // HEAD: driven by SMD muscle differential (wave source)
+            double muscle_diff = seg.dorsal_activation - seg.ventral_activation;
+            double target = muscle_gain_ * muscle_diff;
+
+            // Semi-implicit integration
+            double denom = 1.0 + (stiffness_ + damping_) * dt;
+            seg.curvature = (seg.curvature + dt * stiffness_ * target) / denom;
         } else {
-            // BODY SEGMENTS: proprioceptive wave propagation
-            // The anterior segment's curvature drives this segment via
-            // stretch receptor → B-neuron → muscle pathway
-            //
-            // prop_drive = anterior_curvature (what the stretch receptor senses)
-            // amplitude modulation: more muscle activity → stronger bending
-            //   (AVB active → DB/VB tonically active → muscles "ready to bend")
-            //   (AVA active → DA/VA active → reverse wave)
+            // BODY: proprioceptive wave — track anterior curvature
+            // Exponential filter: curv += (anterior - curv) * (dt / τ)
+            // This gives ZERO steady-state error (no amplitude decay)
             double anterior_curv = segments_[i - 1].curvature;
 
-            // Amplitude modulation: muscle activity gates the proprioceptive response
-            // Without muscle activity (muscle_amp ≈ 0), segments are passive
-            // With muscle activity (muscle_amp > 0), segments actively follow anterior
-            double amp_gate = std::min(1.0, muscle_amp * 2.0);  // saturates at 0.5 total activation
+            // Muscle gating: DB/VB must be active for segment to respond
+            double muscle_amp = seg.dorsal_activation + seg.ventral_activation;
+            double gate = std::min(1.0, muscle_amp * 2.5);
 
-            // Proprioceptive target: follow anterior curvature, gated by muscle activity
-            double prop_target = anterior_curv * amp_gate;
+            // Direct muscle bias (for omega turns, reversal wave direction)
+            double muscle_diff = seg.dorsal_activation - seg.ventral_activation;
+            double muscle_bias = muscle_gain_ * muscle_diff * 0.15;
 
-            // Blend: proprioception dominates, but muscle differential adds bias
-            // (e.g., during omega turn, direct muscle drive can override wave)
-            target_curvature = prop_target + muscle_target * 0.3;
+            // Proprioceptive tracking with phase delay
+            double alpha = dt / prop_tau_ * gate;  // tracking rate, gated
+            seg.curvature += (anterior_curv - seg.curvature) * alpha + muscle_bias * dt;
         }
 
-        // Elastic coupling (gentle, prevents sharp kinks)
-        double curv_left  = (i > 0) ? segments_[i - 1].curvature : seg.curvature;
-        double curv_right = (i < NUM_BODY_SEGMENTS - 1) ? segments_[i + 1].curvature : seg.curvature;
-        double diffusion = curvature_diffusion_ * (curv_left - 2.0 * seg.curvature + curv_right);
-
-        // Semi-implicit Euler with proprioceptive coupling strength
-        double effective_stiffness = (i < 4) ? stiffness_ : prop_coupling_;
-        double denom = 1.0 + (effective_stiffness + damping_) * dt;
-        seg.curvature = (seg.curvature + dt * (effective_stiffness * target_curvature + diffusion)) / denom;
-
-        // Clamp curvature: normal locomotion ~5/mm, omega turn ~15/mm (Gray 2005)
+        // Clamp: crawling ~5/mm, omega ~15/mm
         double max_curv = (omega_mode_ && i < 4) ? 15.0 : 5.0;
-        if (seg.curvature > max_curv) seg.curvature = max_curv;
-        if (seg.curvature < -max_curv) seg.curvature = -max_curv;
+        seg.curvature = std::clamp(seg.curvature, -max_curv, max_curv);
     }
 }
 

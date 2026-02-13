@@ -90,7 +90,7 @@ private:
     // B-class motor neurons sense anterior bending via stretch receptors
     // → posterior segments follow anterior curvature with muscle-time-constant delay
     double prop_coupling_ = 12.0;    // anterior→posterior coupling strength (proprioceptive gain)
-    double prop_tau_ = 0.1;          // muscle integration time constant (100ms, Boyle 2012 Table 3)
+    double prop_tau_ = 0.03;         // proprioceptive delay per segment (30ms → λ≈0.65 body lengths at 0.5Hz)
     double drag_coeff_tangent_ = 1.0;   // tangential drag
     double drag_coeff_normal_ = 10.0;   // normal drag (anisotropic for low Re)
     double speed_ = 0.0;             // current locomotion speed (mm/s)

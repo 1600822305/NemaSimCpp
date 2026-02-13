@@ -37,6 +37,7 @@ NeurotransmitterType ConnectomeLoader::parse_nt_type(const std::string& s) {
     if (lower == "ach" || lower == "acetylcholine") return NeurotransmitterType::ACETYLCHOLINE;
     if (lower == "gaba") return NeurotransmitterType::GABA;
     if (lower == "glu" || lower == "glutamate") return NeurotransmitterType::GLUTAMATE;
+    if (lower == "glucl" || lower == "glu_inh" || lower == "glutamate_inhibitory") return NeurotransmitterType::GLUTAMATE_INHIBITORY;
     if (lower == "da" || lower == "dopamine") return NeurotransmitterType::DOPAMINE;
     if (lower == "5ht" || lower == "serotonin" || lower == "5-ht") return NeurotransmitterType::SEROTONIN;
     if (lower == "ta" || lower == "tyramine") return NeurotransmitterType::TYRAMINE;

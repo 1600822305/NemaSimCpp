@@ -61,6 +61,7 @@ public:
     const Connectome& connectome() const { return connectome_; }
     Connectome& connectome_mut() { return connectome_; }
     const std::vector<std::unique_ptr<Neuron>>& neurons() const { return neurons_; }
+    std::vector<std::unique_ptr<Neuron>>& neurons_mut() { return neurons_; }
     const NeuromodulationManager& neuromodulation() const { return neuromod_; }
 
     // Step 41: Reset chemosensory transducers after environment changes

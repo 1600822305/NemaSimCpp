@@ -959,6 +959,14 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **实现**: 头段(0-3)=SMD直驱, 体段(4-47)=前段曲率×肌肉门控+弱直驱
 - **效果**: 体中曲率 3.0→3.7/mm, S 形体波传播, 速度 0.2mm/s 不变
 
+### Step 133: GluCl 抑制性谷氨酸受体 ✅ (2026-02-13)
+> 详细文档: [steps/step133_glucl_inhibitory_receptor.md](steps/step133_glucl_inhibitory_receptor.md)
+
+- **修复**: 新增 `GLUTAMATE_INHIBITORY` 枚举值 + `glu_inh()` 辅助方法，区分 GluCl(Cl⁻) vs GLR-1(AMPA)
+- **范围**: 19 个 `inh()` → `glu_inh()` (零功能变化，仅 NT 标签修正) + 1 个极性修复 (M3→MC)
+- **文献**: avr-14 (Dent 2000), avr-15/M3 (Avery 1993), glc-3/AIB (Kuramochi 2018), glc-3/AIY (Ohnishi 2011)
+- **验证**: 编译零错误, regtest 19/20 pass (Midbody curv amp 预先存在), 突触计数 697 不变
+
 ---
 
 ## 当前系统状态

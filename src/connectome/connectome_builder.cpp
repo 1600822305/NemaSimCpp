@@ -64,6 +64,24 @@ struct CB {
         }
     }
 
+    // Step 133: GluCl inhibitory glutamate synapse
+    // Presynaptic neuron releases glutamate → postsynaptic GluCl (Cl⁻ channel)
+    // E_rev = -70mV (same as GABA), but NT correctly labeled as glutamate
+    // REF: Dent 2000 (avr-14), Kuramochi 2018 (glc-3 on AIB),
+    //      Ohnishi 2011 (glc-3 on AIY), Pemberton 2001 (avr-15 pharynx)
+    void glu_inh(const char* pre, const char* post, double sections) {
+        auto pre_it = name_to_id.find(pre);
+        auto post_it = name_to_id.find(post);
+        if (pre_it != name_to_id.end() && post_it != name_to_id.end()) {
+            SynapseInfo s;
+            s.pre_neuron_id = pre_it->second;
+            s.post_neuron_id = post_it->second;
+            s.num_sections = sections;
+            s.neurotransmitter = NeurotransmitterType::GLUTAMATE_INHIBITORY;
+            synapses.push_back(s);
+        }
+    }
+
     // Step 28: compartment-targeted synapse (for multi-compartment neurons)
     void comp(const char* pre, const char* post, double sections, int post_comp) {
         auto pre_it = name_to_id.find(pre);
@@ -846,11 +864,11 @@ void build_chemotaxis(CB& b) {
     // AIA AND-gate: requires AWA gap junction excitation AND glutamatergic disinhibition
     // ASEL inhibition provides gain control, prevents AIA over-activation
     // REF: Kakaria 2019 eLife, Cook 2019
-    b.inh("ASEL", "AIAL", 3); b.syn("ASEL", "AIYL", 3);
+    b.glu_inh("ASEL", "AIAL", 3); b.syn("ASEL", "AIYL", 3);
     // ASER→AIA/AIY: INHIBITORY (eLife 2024, Matsumoto et al.)
     // ASER releases glutamate → GLC-3 (Cl⁻ channel) on AIY → inhibitory
     // Fixes pirouette modulation: C↓ → ASER↑ → AIA↓ → AIB↑(disinhibited) → more pirouettes
-    b.inh("ASER", "AIAR", 2); b.inh("ASER", "AIYR", 2);
+    b.glu_inh("ASER", "AIAR", 2); b.glu_inh("ASER", "AIYR", 2);
     // Step 72: ASE→AIB DIRECT klinokinesis pathway (Kuramochi 2018)
     // ASER→AIB: EXCITATORY (GLR-1 AMPA + mGluR, proximal to AIB soma)
     // C↓ → ASER active → AIB directly excited → reversals (FAST, direct)
@@ -860,7 +878,7 @@ void build_chemotaxis(CB& b) {
     // Cook 2019: ASEL→AIB ~3 EM sections; scaled to 2
     // REF: Kuramochi 2018 Front Mol Neurosci, Suzuki 2008 Nature, Cook 2019
     b.syn("ASER", "AIBL", 1); b.syn("ASER", "AIBR", 1);
-    b.inh("ASEL", "AIBL", 1); b.inh("ASEL", "AIBR", 1);
+    b.glu_inh("ASEL", "AIBL", 1); b.glu_inh("ASEL", "AIBR", 1);
     b.syn("AWCL", "AIBL", 4); b.syn("AWCL", "AIYL", 6);
     b.syn("AWCR", "AIBR", 4); b.syn("AWCR", "AIYR", 6);
     // Step 72: AWA→AIA via GAP JUNCTIONS (Kakaria 2019 eLife)
@@ -877,7 +895,7 @@ void build_chemotaxis(CB& b) {
     // This is the disinhibition half of the AIA AND-gate
     // Removing glutamate from AWC+ASE (eat-4 excision) → AIA responds like unc-18 mutants
     // REF: Kakaria 2019 eLife Figure 4F-G
-    b.inh("AWCL", "AIAL", 2); b.inh("AWCR", "AIAR", 2);
+    b.glu_inh("AWCL", "AIAL", 2); b.glu_inh("AWCR", "AIAR", 2);
     // Step 82: AIN — parallel chemotaxis relay (White 1986, Cook 2019)
     // Creates ASE→AIN→AIY pathway parallel to direct ASE→AIY
     // Strengthens chemotaxis signal; AIN loss reduces CI efficiency
@@ -917,10 +935,10 @@ void build_touch_nociception(CB& b) {
     // Conservative: 1→2 (full Cook scaling overdrives AVA tonic level)
     b.syn("AVDL", "AVAL", 2); b.syn("AVDR", "AVAR", 2);
     // ALM ⊣ AVB: anterior touch inhibits forward (antagonist)
-    b.inh("ALML", "AVBL", 3); b.inh("ALMR", "AVBR", 3);
+    b.glu_inh("ALML", "AVBL", 3); b.glu_inh("ALMR", "AVBR", 3);
     // PLM ⊣ AVA/AVD: posterior touch inhibits backward (antagonist)
-    b.inh("PLML", "AVAL", 3); b.inh("PLMR", "AVAR", 3);
-    b.inh("PLML", "AVDL", 2); b.inh("PLMR", "AVDR", 2);
+    b.glu_inh("PLML", "AVAL", 3); b.glu_inh("PLMR", "AVAR", 3);
+    b.glu_inh("PLML", "AVDL", 2); b.glu_inh("PLMR", "AVDR", 2);
     // ALM → AVD: anterior touch excites backward interneuron (gap junction)
     b.gj("ALML", "AVDL", 4); b.gj("ALMR", "AVDR", 4);
 
@@ -1058,7 +1076,7 @@ void build_touch_nociception(CB& b) {
     // PHB glutamate → GLC-3 Cl⁻ channel on AVA (inhibitory, like ASEL→AIA)
     // Cook 2019: PHBL→AVAL ~4 EM sections, PHBR→AVAR ~4 EM sections
     // REF: Hilliard 2002 Curr Biol, Cook 2019
-    b.inh("PHBL", "AVAL", 3); b.inh("PHBR", "AVAR", 3);
+    b.glu_inh("PHBL", "AVAL", 3); b.glu_inh("PHBR", "AVAR", 3);
     // PHB → PVC: tail repellent promotes forward locomotion (escape forward)
     // Cook 2019: PHB→PVC ~2 EM sections
     b.syn("PHBL", "PVCL", 2); b.syn("PHBR", "PVCR", 2);
@@ -1538,7 +1556,7 @@ void build_gas_sensing(CB& b) {
 
     // Step 35: CO₂ sensing circuit (Hallem 2008, Bretscher 2011, Carrillo 2013)
     // BAG ⊣ AIY: CO₂ high → suppress forward drive (via RIG/GluCl, inhibitory)
-    b.inh("BAGL", "AIYL", 1); b.inh("BAGR", "AIYR", 1);
+    b.glu_inh("BAGL", "AIYL", 1); b.glu_inh("BAGR", "AIYR", 1);
     // BAG → AIB: CO₂ high → promote turning/reversal (excitatory)
     b.syn("BAGL", "AIBL", 1); b.syn("BAGR", "AIBR", 1);
     // BAG → RIA: head turning modulation
@@ -1576,8 +1594,10 @@ void build_pharynx(CB& b) {
     b.syn("I1L", "MCL", 3); b.syn("I1R", "MCR", 3);
     // MC → M3: MC activity → muscle contraction → M3 proprioceptive firing
     b.syn("MCL", "M3L", 2); b.syn("MCR", "M3R", 2);
-    // M3 → MC: weak inhibitory feedback (glutamate → Cl⁻)
-    b.syn("M3L", "MCL", 1); b.syn("M3R", "MCR", 1);
+    // M3 → MC: inhibitory feedback via AVR-15 GluCl (glutamate → Cl⁻)
+    // REF: Avery 1993 — M3 fires during pump, triggers muscle relaxation
+    //      Dent 1997 — AVR-15 GluCl mediates M3 IPSPs on pharyngeal muscle
+    b.glu_inh("M3L", "MCL", 1); b.glu_inh("M3R", "MCR", 1);
     // MC → M4: MC pumping activates M4 for isthmus peristalsis
     b.syn("MCL", "M4", 2); b.syn("MCR", "M4", 2);
     // Pharyngeal gap junctions
@@ -1616,7 +1636,7 @@ void build_pharynx(CB& b) {
 void build_egg_laying(CB& b) {
     // Step 38: Egg-laying circuit (Collins 2016 eLife, Schafer 2006)
     // PLM ⊣ HSN: gentle touch inhibits egg laying (safety mechanism)
-    b.inh("PLML", "HSNL", 1); b.inh("PLMR", "HSNR", 1);
+    b.glu_inh("PLML", "HSNL", 1); b.glu_inh("PLMR", "HSNR", 1);
     // VC → VB: egg-laying slows locomotion (weak inhibition)
     b.inh("VC4", "VB01", 0.5); b.inh("VC5", "VB02", 0.5);
     // HSN ↔ VC gap junction — synchronize egg-laying motor output
