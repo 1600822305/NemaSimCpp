@@ -53,7 +53,8 @@ void BodyModel::compute_curvatures(double dt) {
         // Curvature driven by differential muscle activation:
         // dorsal > ventral -> positive curvature (dorsal bend)
         // ventral > dorsal -> negative curvature (ventral bend)
-        double target_curvature = muscle_gain_ * (seg.dorsal_activation - seg.ventral_activation);
+        double target_curvature = muscle_gain_ * (seg.dorsal_activation - seg.ventral_activation)
+                               + curvature_drive_[i];
 
         // Step 29: Passive elastic coupling between adjacent segments
         // REF: Boyle 2012 — body continuity allows curvature to spread
@@ -67,9 +68,11 @@ void BodyModel::compute_curvatures(double dt) {
         // curv_new*(1 + (stiffness+damping)*dt) = curv + dt*(stiffness*target + diffusion)
         double denom = 1.0 + (stiffness_ + damping_) * dt;
         seg.curvature = (seg.curvature + dt * (stiffness_ * target_curvature + diffusion)) / denom;
-        // Clamp curvature: normal locomotion ~3/mm, omega turn ~15/mm (Gray 2005)
-        // Head segments (0-3) get higher clamp during omega for deep ventral bend
-        double max_curv = (omega_mode_ && i < 4) ? 15.0 : 3.0;
+        // Clamp curvature to physical limit: ~15/mm (head touching body in omega)
+        // During normal crawling, muscle_gain limits curvature to ~0.3/mm (never hits clamp)
+        // During omega, curvature_drive_[] pushes curvature to ~10-12/mm
+        // REF: Gray 2005 PNAS — omega turn curvature ~15/mm
+        double max_curv = 15.0;
         if (seg.curvature > max_curv) seg.curvature = max_curv;
         if (seg.curvature < -max_curv) seg.curvature = -max_curv;
     }
@@ -115,12 +118,13 @@ void BodyModel::update_positions(double dt) {
     // REF: Padmanabhan 2012 — body with curvature κ moving at speed v turns at v·κ
     // During reversal (direction=-1): heading change reverses, consistent with
     // tail-first locomotion where the same curvature produces opposite turning
-    double head_curv = segments_[0].curvature + curvature_bias_;
+    double head_curv = segments_[0].curvature;
     double dtheta = forward_speed * direction * head_curv * dt;
-    // Clamp heading change rate
-    // Run regime: 50°/s = 0.87 rad/s (Pierce-Shimomura 1999)
-    // Omega turn: 300°/s = 5.24 rad/s (deep ventral bend, Gray 2005)
-    double max_dtheta = (omega_mode_ ? 5.24 : 0.87) * dt;
+    // Clamp heading change rate to physical limit
+    // Normal crawling: v×κ ≈ 0.2×0.3 = 0.06 rad/s (never hits clamp)
+    // Omega turn: v×κ ≈ 0.15×12 = 1.8 rad/s (within limit)
+    // REF: Gray 2005 PNAS — omega turn angular velocity ~300°/s
+    double max_dtheta = 5.24 * dt;
     if (dtheta > max_dtheta) dtheta = max_dtheta;
     if (dtheta < -max_dtheta) dtheta = -max_dtheta;
     segments_[0].angle += dtheta;
@@ -157,6 +161,20 @@ void BodyModel::update_positions(double dt) {
 void BodyModel::update_physics(double dt) {
     compute_curvatures(dt);
     update_positions(dt);
+}
+
+void BodyModel::set_curvature_drive(int seg, double drive) {
+    if (seg >= 0 && seg < NUM_BODY_SEGMENTS)
+        curvature_drive_[seg] = drive;
+}
+
+void BodyModel::add_curvature_drive(int seg, double drive) {
+    if (seg >= 0 && seg < NUM_BODY_SEGMENTS)
+        curvature_drive_[seg] += drive;
+}
+
+void BodyModel::clear_curvature_drives() {
+    curvature_drive_.fill(0.0);
 }
 
 Vector2d BodyModel::get_head_position() const {

@@ -167,12 +167,7 @@ void SimulationEngine::apply_weathervane() {
         if (nid("SMDVR") >= 0 && nid("SMDVR") < n) neurons_[nid("SMDVR")]->add_synaptic_current( smd_drive);
     }
 
-    // Step 65: Zero curvature_bias during non-omega forward locomotion
-    // Only RIV omega turn sets curvature_bias now (apply_riv_omega)
-    // SMB neck bias (apply_smb_neck_bias) adds small offsets afterward
-    if (!riv_omega_active_) {
-        body_.set_curvature_bias(0.0);
-    }
+    // curvature_drive_[] cleared at step start; RIV omega / SMB add per-segment forces
 }
 
 void SimulationEngine::apply_smb_neck_bias() {
@@ -233,13 +228,13 @@ void SimulationEngine::apply_smb_neck_bias() {
     if (curvature_offset > max_bias) curvature_offset = max_bias;
     if (curvature_offset < -max_bias) curvature_offset = -max_bias;
 
-    // Don't override RIV-driven omega curvature_bias (Step 31)
-    // ADD to base curvature_bias (0.0 during forward, set by apply_weathervane Step 65)
-    // Step 65: weathervane no longer uses curvature_bias (SMD duty cycle instead),
-    // so SMB adds to the zero base. Small RIA Ca²⁺ signal (±0.5 max) provides
-    // neural klinotaxis modulation on top of SMD weathervane steering.
+    // Inject klinotaxis curvature force into head segments (0-5) via physics integrator
+    // Small RIA Ca²⁺ signal (±0.5 max) provides neural klinotaxis modulation
+    // Skip during omega: RIV drive (±12) dominates, SMB offset (±0.5) irrelevant
     if (!riv_omega_active_) {
-        body_.set_curvature_bias(body_.get_curvature_bias() + curvature_offset);
+        for (int seg = 0; seg < 6; ++seg) {
+            body_.add_curvature_drive(seg, curvature_offset);
+        }
     }
 }
 
@@ -316,7 +311,7 @@ void SimulationEngine::apply_riv_omega() {
     //
     // Direction: RIVL vs RIVR asymmetry from upstream gradient signals
     //   gradient from right → ASER→AIB→RIVR stronger → RIVR burst > RIVL
-    //   → curvature_bias direction set by dominant RIV
+    //   → curvature_drive direction set by dominant RIV
     //
     // REF: Gray 2005 PNAS — RIV specifies ventral bias of omega turns
     //      Donnelly 2013 — TA gates omega timing via LGC-55 on RIV
@@ -357,7 +352,6 @@ void SimulationEngine::apply_riv_omega() {
             if (effective_riv > static_cast<double>(params.omega_threshold)) {
                 riv_omega_active_ = true;
                 riv_omega_start_ = current_time_;
-                body_.set_omega_mode(true);
             }
         }
     }
@@ -372,13 +366,18 @@ void SimulationEngine::apply_riv_omega() {
             bias = omega_curv_gain * rivl_rel;
         else if (rivr_rel >= rivl_rel && bias > -omega_curv_gain * 0.3)
             bias = -omega_curv_gain * rivr_rel;
-        body_.set_curvature_bias(bias);
+        // Inject omega curvature force into head segments (0-5) via physics integrator
+        // Goes through stiffness/damping/elastic coupling — not a direct heading bypass
+        for (int seg = 0; seg < 6; ++seg) {
+            // Taper: full force at head (seg 0), 50% at seg 5
+            double taper = 1.0 - 0.5 * (seg / 5.0);
+            body_.set_curvature_drive(seg, bias * taper);
+        }
 
         // Termination: min 400ms, then end when RIV drops below threshold
         double omega_elapsed = current_time_ - riv_omega_start_;
         if (omega_elapsed > 400.0 && riv_max < static_cast<double>(params.omega_threshold)) {
             riv_omega_active_ = false;
-            body_.set_omega_mode(false);
         }
     }
 }

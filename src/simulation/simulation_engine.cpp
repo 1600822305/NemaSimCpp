@@ -411,6 +411,7 @@ void SimulationEngine::step() {
     // 0. Sync tuning params to subsystems
     connectome_.set_synapse_scale(static_cast<double>(params.synapse_scale));
     body_.set_speed_scale(static_cast<double>(params.speed_scale));
+    body_.clear_curvature_drives();  // reset per-step neural curvature forces
 
     // 1. Environment update
     environment_.step(dt_ * 0.001);
@@ -509,7 +510,7 @@ void SimulationEngine::step() {
     apply_tail_chemosensation();
 
     // 2d. Step 31: RIV-driven omega turn (emergent from TA gating)
-    // RIV burst → curvature_bias + omega_mode (replaces hardcoded Step 18)
+    // RIV burst → curvature_drive_[] per-segment force (through body physics)
     apply_riv_omega();
 
     // Step 15/19: Weathervane — gradient ⊥ heading → SMD bias (Iino & Yoshida 2009)

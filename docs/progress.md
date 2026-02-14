@@ -819,6 +819,16 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **性能剖析**: 108 us/step, 9236 steps/sec, 4.6x 实时, 突触计算占 37%
 - **参数扫描**: synapse_scale 灵敏度 — speed R²=0.91, 最优 CI 在 1.5
 
+### Step 115: curvature_bias/omega_mode 旁路移除 — 曲率力通过物理积分器 ✅ (2026-02-14)
+> 详细文档: [steps/step115_curvature_bias_removal.md](steps/step115_curvature_bias_removal.md)
+
+- **P0 旁路移除**: `curvature_bias_`(直接航向操纵) + `omega_mode_`(行为开关控制物理参数)
+- **新机制**: `curvature_drive_[]` 每段力输入 → 通过 stiffness/damping/elastic coupling 物理积分器
+- **RIV omega**: set_curvature_drive(seg 0-5, taper 100%→50%) 替代 set_curvature_bias
+- **SMB klinotaxis**: add_curvature_drive(seg 0-5) 替代 curvature_bias 叠加
+- **max_curv/max_dtheta**: 统一为物理极限(15.0/mm, 5.24 rad/s)，非行为开关
+- **regtest**: 20/20 PASS, omega=39/30s
+
 ---
 
 ## 当前系统状态

@@ -278,9 +278,9 @@ int main(int argc, char* argv[]) {
     }
     
     if (broken_connections == 0) {
-        std::cout << "  ✓ All connections present (" << active_connections << "/" << connections.size() << ")\n";
+        std::cout << "  [OK] All connections present (" << active_connections << "/" << connections.size() << ")\n";
     } else {
-        std::cout << "  ✗ Broken connections: " << broken_connections << "/" << connections.size() << "\n";
+        std::cout << "  [FAIL] Broken connections: " << broken_connections << "/" << connections.size() << "\n";
     }
     
     // 检查信号是否沿路径传递
@@ -293,13 +293,13 @@ int main(int argc, char* argv[]) {
             *std::min_element(nodes[i].voltage_trace.begin(), nodes[i].voltage_trace.end());
         
         if (prev_activity > 0.1 && curr_swing < 1.0) {
-            std::cout << "  ✗ Signal blocked at: " << nodes[i-1].name << " -> " << nodes[i].name << "\n";
+            std::cout << "  [FAIL] Signal blocked at: " << nodes[i-1].name << " -> " << nodes[i].name << "\n";
             signal_flows = false;
         }
     }
     
     if (signal_flows) {
-        std::cout << "  ✓ Signal propagates through entire circuit\n";
+        std::cout << "  [OK] Signal propagates through entire circuit\n";
     }
     
     std::cout << "\n";

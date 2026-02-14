@@ -35,9 +35,11 @@ public:
     double get_local_stretch(int segment) const;
     Vector2d get_segment_position(int segment) const;
     double get_speed() const { return speed_; }
-    void set_curvature_bias(double b) { curvature_bias_ = b; }
-    double get_curvature_bias() const { return curvature_bias_; }
-    void set_omega_mode(bool on) { omega_mode_ = on; }
+    // Per-segment curvature drive: RIV omega / SMB klinotaxis inject force
+    // into physics integrator (replaces old curvature_bias_ heading bypass)
+    void set_curvature_drive(int seg, double drive);
+    void add_curvature_drive(int seg, double drive);
+    void clear_curvature_drives();
     // Step 41: Post-pirouette heading perturbation (Pierce-Shimomura 1999)
     void perturb_heading(double dtheta) {
         segments_[0].angle += dtheta;
@@ -76,8 +78,7 @@ public:
     void set_speed_scale(double s) { speed_scale_ = s; }
 private:
     double speed_scale_ = 1.0;       // runtime speed multiplier
-    double curvature_bias_ = 0.0;    // direct curvature bias from weathervane (1/mm)
-    bool omega_mode_ = false;        // omega turn: raise max_dtheta for deep bend
+    std::array<double, NUM_BODY_SEGMENTS> curvature_drive_{}; // per-segment neural curvature force (1/mm)
     Vector2d prev_head_pos_;
     double forward_drive_ = 0.5;     // AVB release rate (instantaneous)
     double reverse_drive_ = 0.0;     // AVA release rate (instantaneous)

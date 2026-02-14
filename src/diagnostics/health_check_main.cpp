@@ -150,10 +150,10 @@ int main(int argc, char* argv[]) {
     
     // 健康状态
     if (dead_neurons.empty() && anomalous_neurons.empty()) {
-        std::cout << "  ✓ Status: HEALTHY\n";
+        std::cout << "  [PASS] Status: HEALTHY\n";
         std::cout << "    All neurons alive, no anomalies detected.\n\n";
     } else {
-        std::cout << "  ✗ Status: ISSUES DETECTED\n\n";
+        std::cout << "  [WARN] Status: ISSUES DETECTED\n\n";
         
         if (!dead_neurons.empty()) {
             std::cout << "  Dead Neurons (" << dead_neurons.size() << "):\n";
