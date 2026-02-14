@@ -25,21 +25,22 @@ namespace celegans {
 
 struct MuscleCell {
     double activation = 0.0;
-    double excitatory_input = 0.0;
-    double inhibitory_input = 0.0;
+    double excitatory_input = 0.0;  // max semantics (normal MNs)
+    double boost_input = 0.0;       // sum semantics (specialized MNs: RIV, SMB)
+    double inhibitory_input = 0.0;  // sum semantics (D-class GABAergic)
 
     static constexpr double TAU = 30.0;  // ms — contraction time constant
 
     void step(double dt_ms) {
-        double drive = excitatory_input - inhibitory_input;
+        double drive = excitatory_input + boost_input - inhibitory_input;
         if (drive < 0.0) drive = 0.0;
-        if (drive > 1.0) drive = 1.0;
         activation += (drive - activation) * dt_ms / TAU;
         if (activation < 0.0) activation = 0.0;
     }
 
     void reset_inputs() {
         excitatory_input = 0.0;
+        boost_input = 0.0;
         inhibitory_input = 0.0;
     }
 };
@@ -64,6 +65,7 @@ public:
     // --- Neural input (called by MotorController) ---
     void reset_inputs();
     void add_excitatory(int segment, bool dorsal, double input);
+    void add_boost(int segment, bool dorsal, double input);
     void add_inhibitory(int segment, bool dorsal, double input);
 
     // --- Dynamics ---
@@ -77,7 +79,11 @@ public:
     // force = activation × neuromod_gain
     double get_dorsal_force(int seg) const;
     double get_ventral_force(int seg) const;
-    double get_force_differential(int seg) const;  // dorsal - ventral
+    // Curvature depends on D/V contraction ratio, not absolute force
+    // neuromod_gain affects speed (mean_abs_force) but NOT curvature direction
+    double get_force_differential(int segment) const {
+        return dorsal_[segment].activation - ventral_[segment].activation;
+    }
     double get_mean_abs_force() const;              // for speed calculation
 
     // --- Raw activation (for diagnostics/visualization) ---

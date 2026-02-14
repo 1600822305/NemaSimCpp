@@ -167,7 +167,7 @@ void SimulationEngine::apply_weathervane() {
         if (nid("SMDVR") >= 0 && nid("SMDVR") < n) neurons_[nid("SMDVR")]->add_synaptic_current( smd_drive);
     }
 
-    // curvature_drive_[] cleared at step start; RIV omega / SMB add per-segment forces
+    // Step 117: curvature_drive removed — RIV/SMB now drive muscles directly
 }
 
 void SimulationEngine::apply_smb_neck_bias() {
@@ -228,12 +228,19 @@ void SimulationEngine::apply_smb_neck_bias() {
     if (curvature_offset > max_bias) curvature_offset = max_bias;
     if (curvature_offset < -max_bias) curvature_offset = -max_bias;
 
-    // Inject klinotaxis curvature force into head segments (0-5) via physics integrator
-    // Small RIA Ca²⁺ signal (±0.5 max) provides neural klinotaxis modulation
-    // Skip during omega: RIV drive (±12) dominates, SMB offset (±0.5) irrelevant
+    // Step 117: Inject klinotaxis signal into head muscles via boost channel
+    // RIA Ca²⁺ → curvature_offset → asymmetric muscle boost → curvature emerges
+    // Goes through muscle dynamics (30ms tau) + physics integrator
+    // Skip during omega: RIV dominates head muscles
     if (!riv_omega_active_) {
+        // Convert curvature offset (/mm) to muscle force via boost
+        // Gain calibrated so ±0.5/mm offset → force_diff ~1.5 → curvature ~0.45/mm
+        double smb_muscle_gain = 3.0;
+        double dorsal_boost = curvature_offset > 0 ? curvature_offset * smb_muscle_gain : 0.0;
+        double ventral_boost = curvature_offset < 0 ? -curvature_offset * smb_muscle_gain : 0.0;
         for (int seg = 0; seg < 6; ++seg) {
-            body_.add_curvature_drive(seg, curvature_offset);
+            body_.muscles().add_boost(seg, true,  dorsal_boost);
+            body_.muscles().add_boost(seg, false, ventral_boost);
         }
     }
 }
@@ -301,17 +308,20 @@ void SimulationEngine::apply_proprioceptive_stretch() {
 }
 
 void SimulationEngine::apply_riv_omega() {
-    // Step 31: RIV-driven omega turn (fully emergent from TA gating)
+    // Step 117: RIV-driven omega turn — fully through muscles
     //
     // Mechanism:
     //   During reversal: AVA active → RIM→TA→LGC-55→RIV(-20pA) = suppressed
     //   Reversal ends:   AVA quiet → TA decays (τ=2s) → RIV released → burst
-    //   RIV burst → ventral muscle activation (seg 0-7) → deep head bend → omega
+    //   RIV burst → motor_controller (NMJ gain 40x) → head muscles → deep bend
     //   Burst self-terminates via Ca²⁺→SLO-1 adaptation (same as SMD)
     //
     // Direction: RIVL vs RIVR asymmetry from upstream gradient signals
-    //   gradient from right → ASER→AIB→RIVR stronger → RIVR burst > RIVL
-    //   → curvature_drive direction set by dominant RIV
+    //   RIVL → ventral head muscles (L→V in 2D), RIVR → dorsal head muscles (R→D)
+    //   REF: RIV innervates ventral muscles (Gray 2005). 2D: L→V, R→D.
+    //
+    // This function only manages omega STATE (for weathervane/klinotaxis suppression).
+    // The actual muscle drive comes from motor_controller automatically.
     //
     // REF: Gray 2005 PNAS — RIV specifies ventral bias of omega turns
     //      Donnelly 2013 — TA gates omega timing via LGC-55 on RIV
@@ -323,55 +333,34 @@ void SimulationEngine::apply_riv_omega() {
     double rivr_rel = neurons_[nid("RIVR")]->get_transmitter_release_rate();
     double riv_max = std::max(rivl_rel, rivr_rel);
 
-    // Step 32: AS dorsal resistance — pre-reversal snapshot gating
-    // Biological mechanism: AS provides continuous dorsal body wall tension.
-    // RIV ventral force must overcome AS dorsal tone for omega initiation.
-    //
-    // KEY INSIGHT: Use dorsal tone recorded at REVERSAL START (pre_rev_dorsal_tone_),
-    // NOT the tone at RIV burst peak. During reversal, TA via LGC-55 suppresses
-    // SMD (-25pA) → dorsal tone drops → burst peak ALWAYS sees low tone → 100% omega.
-    // Pre-reversal tone captures random SMD phase (before TA suppression) →
-    // P(tone_high) ≈ 30-40% → omega blocked → natural 60-70% omega/reversal.
-    //
-    // This models: the body's dorsal posture at escape onset determines whether
-    // the subsequent omega can override the dorsal muscle tension.
-
     // --- Omega INITIATION: peak detection + pre-reversal AS resistance ---
     double prev_max = riv_prev_max_;
     riv_prev_max_ = riv_max;
 
     if (!riv_omega_active_) {
-        // Detect RIV burst peak: release was rising, now falling, and crossed threshold
         bool at_peak = (riv_max < prev_max && prev_max > static_cast<double>(params.omega_threshold));
         if (at_peak) {
-            // At burst peak: evaluate AS resistance using PRE-REVERSAL dorsal tone
-            // Factor 1.5: omega when pre_rev_tone < (peak - 0.5) / 1.5
-            //   spike peak ~1.0, tone < 0.33 → omega ✓ (P ≈ 60-70%)
-            //   spike peak ~1.0, tone > 0.33 → blocked ✗ (P ≈ 30-40%)
             double effective_riv = prev_max - pre_rev_dorsal_tone_ * static_cast<double>(params.as_factor);
             if (effective_riv > static_cast<double>(params.omega_threshold)) {
                 riv_omega_active_ = true;
                 riv_omega_start_ = current_time_;
+                // Latch peak release for sustained omega curvature
+                // Models muscle Ca²⁺ maintaining contraction after neural burst
+                riv_omega_peak_l_ = rivl_rel;
+                riv_omega_peak_r_ = rivr_rel;
             }
         }
     }
 
-    // --- Omega CONTINUATION: curvature bias while active ---
+    // --- Omega EXECUTION + TERMINATION ---
     if (riv_omega_active_) {
-        double omega_curv_gain = 12.0;
-        // Direction: dominant RIV determines turn direction
-        double bias = (rivl_rel - rivr_rel) * omega_curv_gain;
-        // Ensure minimum bias in dominant direction for deep bend
-        if (rivl_rel > rivr_rel && bias < omega_curv_gain * 0.3)
-            bias = omega_curv_gain * rivl_rel;
-        else if (rivr_rel >= rivl_rel && bias > -omega_curv_gain * 0.3)
-            bias = -omega_curv_gain * rivr_rel;
-        // Inject omega curvature force into head segments (0-5) via physics integrator
-        // Goes through stiffness/damping/elastic coupling — not a direct heading bypass
+        // Inject latched RIV burst force into head muscles via boost channel
+        // Uses peak release (not declining current value) for sustained deep bend
+        double omega_nmj_gain = 300.0;
         for (int seg = 0; seg < 6; ++seg) {
-            // Taper: full force at head (seg 0), 50% at seg 5
-            double taper = 1.0 - 0.5 * (seg / 5.0);
-            body_.set_curvature_drive(seg, bias * taper);
+            double taper = 1.0 - 0.5 * (seg / 5.0);  // 100% at head, 50% at seg 5
+            body_.muscles().add_boost(seg, false, riv_omega_peak_l_ * omega_nmj_gain * taper);
+            body_.muscles().add_boost(seg, true,  riv_omega_peak_r_ * omega_nmj_gain * taper);
         }
 
         // Termination: min 400ms, then end when RIV drops below threshold

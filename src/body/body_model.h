@@ -4,7 +4,6 @@
 #include "body/muscle_system.h"
 #include <array>
 #include <vector>
-#include <random>
 
 namespace celegans {
 
@@ -38,16 +37,6 @@ public:
     Vector2d get_segment_position(int segment) const;
     double get_speed() const { return speed_; }
 
-    // Per-segment curvature drive: RIV omega / SMB klinotaxis inject force
-    // into physics integrator (replaces old curvature_bias_ heading bypass)
-    void set_curvature_drive(int seg, double drive);
-    void add_curvature_drive(int seg, double drive);
-    void clear_curvature_drives();
-
-    // Step 41: Post-pirouette heading perturbation (Pierce-Shimomura 1999)
-    void perturb_heading(double dtheta) {
-        segments_[0].angle += dtheta;
-    }
     double get_body_length() const { return body_length_; }
 
     // Forward/reverse state from command neuron balance
@@ -57,11 +46,13 @@ public:
         reverse_drive_ = reverse_drive;
     }
 
+    // Omega state: heading change uses |direction| during omega (body deformation,
+    // not translation along curved path — direction sign irrelevant)
+    void set_omega_active(bool active) { omega_active_ = active; }
+
     const std::array<BodySegment, NUM_BODY_SEGMENTS>& segments() const { return segments_; }
     std::array<BodySegment, NUM_BODY_SEGMENTS>& segments() { return segments_; }
 
-    // Runtime physics tuning (not a biological pathway)
-    void set_speed_tuning(double t) { speed_tuning_ = t; }
 
 private:
     MuscleSystem muscles_;
@@ -73,11 +64,9 @@ private:
     double damping_ = 0.5;           // damping coefficient
     double curvature_diffusion_ = 0.5; // Step 29: gentle elastic coupling (Boyle 2012)
     double curvature_gain_ = 0.3;    // curvature per unit muscle force differential (1/mm)
-    double locomotion_efficiency_ = 0.6; // propulsive efficiency (low Re undulation)
+    double locomotion_efficiency_ = 0.7; // propulsive efficiency (low Re undulation, calibrated for boost architecture)
     double drag_coefficient_ = 1.0;     // effective drag (low Reynolds number)
-    double speed_tuning_ = 1.0;      // runtime calibration (not biological, physics tuning)
     double speed_ = 0.0;             // current locomotion speed (mm/s)
-    std::array<double, NUM_BODY_SEGMENTS> curvature_drive_{}; // per-segment neural curvature force (1/mm)
     Vector2d prev_head_pos_;
     double forward_drive_ = 0.5;     // AVB release rate (instantaneous)
     double reverse_drive_ = 0.0;     // AVA release rate (instantaneous)
@@ -85,8 +74,7 @@ private:
     double smooth_rev_ = 0.0;        // smoothed reverse drive (100ms tau)
     double mean_rev_ = 0.0;          // running mean of AVA (2s tau, for adaptive threshold)
     bool was_reversing_ = false;     // for detecting reversal transitions
-    std::mt19937 rng_{42};           // RNG for pirouette random reorientation
-    std::uniform_real_distribution<double> angle_dist_{-3.14159, 3.14159}; // ±π
+    bool omega_active_ = false;      // heading uses |direction| during omega
 
     void compute_curvatures(double dt);
     void update_positions(double dt);

@@ -39,7 +39,7 @@ public:
         float weathervane_gain = 500.0f;  // pA per (conc/mm) — gradient → SMD bias
                                           // Step 19: 300→500. At gradient 0.01: bias=5pA.
         float synapse_scale   = 1.0f;    // global synapse weight multiplier
-        float speed_scale     = 2.0f;    // Keep at 2.0 for off-food chemotaxis; 5-HT=-0.80 handles on-food slowing
+        float speed_scale     = 1.0f;    // Step 117: 2.0→1.0 (absorbed into locomotion_efficiency_=1.2)
         float sensory_gain    = 1.0f;    // chemosensory transducer gain multiplier
         float bias_clamp      = 30.0f;   // Step 93: 12→30 pA. 20pA still saturating. 30pA allows full steering + aversion range.
         // Step 32: Runtime-tunable parameters (avoid recompile for parameter sweeps)
@@ -379,6 +379,8 @@ private:
     double pre_rev_dorsal_tone_ = 0.3; // Step 32: dorsal tone snapshot at reversal start
     bool riv_omega_active_ = false;  // Step 31: true when RIV burst drives omega
     double riv_omega_start_ = 0.0;   // timestamp of omega activation (for min duration)
+    double riv_omega_peak_l_ = 0.0;  // latched RIVL release at omega start
+    double riv_omega_peak_r_ = 0.0;  // latched RIVR release at omega start
     double riv_post_rev_time_ = -1e9; // timestamp when last reversal ended (for RIV pulse)
     double riv_post_rev_amp_l_ = 0.0;  // RIVL pulse amplitude (gradient-biased)
     double riv_post_rev_amp_r_ = 0.0;  // RIVR pulse amplitude (gradient-biased)

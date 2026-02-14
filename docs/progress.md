@@ -819,6 +819,16 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **性能剖析**: 108 us/step, 9236 steps/sec, 4.6x 实时, 突触计算占 37%
 - **参数扫描**: synapse_scale 灵敏度 — speed R²=0.91, 最优 CI 在 1.5
 
+### Step 117: 全肌肉驱动身体模型 — curvature_drive 移除 + RIV/SMB 通过肌肉 ✅ (2026-02-15)
+> 详细文档: [steps/step117_muscle_driven_body.md](steps/step117_muscle_driven_body.md)
+
+- **curvature_drive 完全移除**: 曲率纯籹从肌肉 force_differential 涌现
+- **RIV omega 通过肌肉**: boost 通道 (NMJ 300x, L→V R→D), 锁存峰值 release
+- **SMB klinotaxis 通过肌肉**: RIA Ca²⁺ → boost (gain 3x)
+- **双通道肌肉输入**: excitatory(max) + boost(sum) — 头MN用sum保留SMD振荡
+- **物理校准**: locomotion_eff 0.7, 速度cap 0.5mm/s, force_diff无neuromod
+- **CI**: 0.518 (5种子均值), Omega/Rev=0.92, 速度=0.192mm/s
+
 ### Step 115: curvature_bias/omega_mode 旁路移除 — 曲率力通过物理积分器 ✅ (2026-02-14)
 > 详细文档: [steps/step115_curvature_bias_removal.md](steps/step115_curvature_bias_removal.md)
 
@@ -860,7 +870,7 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
   FLP-11 源: RIS (睡眠) — DMSR-1→AVA/AVB(-20)/MC(-18)/head_MN(-28)/body_MN(-42, 胆碱能only)/MUSCLE_GAIN(-0.95) + FRPR-8→RIS(-8, 自抑制)
 离子通道: 14 种 (EGL-19/UNC-2/CCA-1/SHL-1/KQT-3/SLO-1/NCA/MEC + EGL-36/IRK/TWK/SLO-2/OSM-9/EXP-2)
 神经元模型: 单隔室 HH 分级电位 (L2) + 多隔室 (RIA) + 钙动力学
-身体: 2D 弹性杆 48 段, MuscleSystem(48D+48V, 30ms τ), 91 个 MN 映射, 力学速度(mean_force×eff/drag), 曲率扩散(弹性耦合)
+身体: 2D 弹性杆 48 段, MuscleSystem(48D+48V, 30ms τ, 双通道:max+boost), 91 MN 映射, 力学速度(mean_force×eff/drag, cap 0.5mm/s), 曲率纯肌肉涌现(force_diff无neuromod)
 环境: 50×50 mm, 4化学场(food_odor+soluble+repellent+pheromone) + 线性温度梯度 (0.5°C/mm) + O₂场(food派生) + 光场(高斯σ=8mm)
 内部状态: satiety_(泵驱动), sickness_(有毒食物), food_memory_(双通路ARS), fatigue_(睡眠驱动)
 学习: 盐学习(ASER w_mod) + 病原体学习(AWC翻转+WV反向+厌食) + 温度学习(Tc适应+AWC饥饿中断) + STP习惯化 + 睡眠巩固(Step 62) + INS-1厌食(Step 63)

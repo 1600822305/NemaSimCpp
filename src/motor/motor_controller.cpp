@@ -6,10 +6,11 @@ namespace celegans {
 void MotorController::add_mapping(const std::unordered_map<std::string, int>& name_to_id,
                                    const std::string& neuron_name,
                                    int seg_start, int seg_end, bool dorsal,
-                                   bool inhibitory) {
+                                   bool inhibitory, double nmj_gain,
+                                   bool use_boost) {
     auto it = name_to_id.find(neuron_name);
     if (it != name_to_id.end()) {
-        mappings_.push_back({it->second, seg_start, seg_end, dorsal, inhibitory});
+        mappings_.push_back({it->second, seg_start, seg_end, dorsal, inhibitory, nmj_gain, use_boost});
     }
 }
 
@@ -93,44 +94,34 @@ void MotorController::initialize(const std::unordered_map<std::string, int>& nam
     add_mapping(name_to_id, "VD12", 37, 40, true, true);
     add_mapping(name_to_id, "VD13", 40, 42, true, true);
 
-    // Head motor neurons: SMD controls head segments
-    add_mapping(name_to_id, "SMDDL", 0, 4, true);
-    add_mapping(name_to_id, "SMDDR", 0, 4, true);
-    add_mapping(name_to_id, "SMDVL", 0, 4, false);
-    add_mapping(name_to_id, "SMDVR", 0, 4, false);
+    // Head motor neurons: use boost channel (sum semantics)
+    // Sum semantics preserves SMD antiphase D/V oscillation signal.
+    // Max semantics would be masked by SAA/SIA/SIB symmetric baseline (~0.5).
+    add_mapping(name_to_id, "SMDDL", 0, 4, true,  false, 1.0, true);
+    add_mapping(name_to_id, "SMDDR", 0, 4, true,  false, 1.0, true);
+    add_mapping(name_to_id, "SMDVL", 0, 4, false, false, 1.0, true);
+    add_mapping(name_to_id, "SMDVR", 0, 4, false, false, 1.0, true);
 
     // Step 105: URA — inner labial motor neurons (nose positioning)
-    // URA makes NMJs in nerve ring → head body wall muscles
-    // Segments 0-3: nose tip region (more anterior than SMD)
-    // REF: White 1986, Emmons 2024
-    add_mapping(name_to_id, "URADL", 0, 3, true);
-    add_mapping(name_to_id, "URADR", 0, 3, true);
-    add_mapping(name_to_id, "URAVL", 0, 3, false);
-    add_mapping(name_to_id, "URAVR", 0, 3, false);
-    // Step 103: SAA — sublateral interneurons with NMJs (motor-like)
-    // SAA makes neuromuscular junctions similar to sublateral motor neurons
-    // "SAA, SMB, and SMD express genes for known stretch receptors" (Emmons 2024)
-    // Segments 0-5: head/nose region, quadrant innervation
-    // REF: White 1986, Emmons 2024
-    add_mapping(name_to_id, "SAADL", 0, 5, true);
-    add_mapping(name_to_id, "SAADR", 0, 5, true);
-    add_mapping(name_to_id, "SAAVL", 0, 5, false);
-    add_mapping(name_to_id, "SAAVR", 0, 5, false);
-    // Step 102: SIA — head motor neurons (sublateral, parallel to SMD)
-    // SIA innervates head/neck muscles in quadrant pattern
-    // Segments 0-5: overlaps with SMD but weaker (sublateral vs primary)
-    // REF: White 1986 (head muscle innervation), Gray 2005
-    add_mapping(name_to_id, "SIADL", 0, 5, true);
-    add_mapping(name_to_id, "SIADR", 0, 5, true);
-    add_mapping(name_to_id, "SIAVL", 0, 5, false);
-    add_mapping(name_to_id, "SIAVR", 0, 5, false);
-    // Step 102: SIB — head motor neurons (sublateral, parallel to SMB)
-    // SIB innervates head/neck muscles; modulates oscillation amplitude
-    // REF: White 1986, Gray 2005
-    add_mapping(name_to_id, "SIBDL", 0, 5, true);
-    add_mapping(name_to_id, "SIBDR", 0, 5, true);
-    add_mapping(name_to_id, "SIBVL", 0, 5, false);
-    add_mapping(name_to_id, "SIBVR", 0, 5, false);
+    add_mapping(name_to_id, "URADL", 0, 3, true,  false, 1.0, true);
+    add_mapping(name_to_id, "URADR", 0, 3, true,  false, 1.0, true);
+    add_mapping(name_to_id, "URAVL", 0, 3, false, false, 1.0, true);
+    add_mapping(name_to_id, "URAVR", 0, 3, false, false, 1.0, true);
+    // Step 103: SAA — sublateral with NMJs
+    add_mapping(name_to_id, "SAADL", 0, 5, true,  false, 1.0, true);
+    add_mapping(name_to_id, "SAADR", 0, 5, true,  false, 1.0, true);
+    add_mapping(name_to_id, "SAAVL", 0, 5, false, false, 1.0, true);
+    add_mapping(name_to_id, "SAAVR", 0, 5, false, false, 1.0, true);
+    // Step 102: SIA — head motor neurons (sublateral)
+    add_mapping(name_to_id, "SIADL", 0, 5, true,  false, 1.0, true);
+    add_mapping(name_to_id, "SIADR", 0, 5, true,  false, 1.0, true);
+    add_mapping(name_to_id, "SIAVL", 0, 5, false, false, 1.0, true);
+    add_mapping(name_to_id, "SIAVR", 0, 5, false, false, 1.0, true);
+    // Step 102: SIB — head motor neurons (sublateral)
+    add_mapping(name_to_id, "SIBDL", 0, 5, true,  false, 1.0, true);
+    add_mapping(name_to_id, "SIBDR", 0, 5, true,  false, 1.0, true);
+    add_mapping(name_to_id, "SIBVL", 0, 5, false, false, 1.0, true);
+    add_mapping(name_to_id, "SIBVR", 0, 5, false, false, 1.0, true);
 
     // Step 88: AS motor neurons expanded 7→11 (complete complement)
     // AS provides tonic dorsal bias; active during both fwd and bwd locomotion
@@ -148,27 +139,23 @@ void MotorController::initialize(const std::unordered_map<std::string, int>& nam
     add_mapping(name_to_id, "AS10", 36, 39, true);  // near-tail
     add_mapping(name_to_id, "AS11", 39, 42, true);  // tail
 
-    // Step 33: RME head motor neurons — GABAergic amplitude control
-    // RMED innervates VENTRAL head muscles (contralateral! name="Dorsal" but projects ventral)
-    // RMEV innervates DORSAL head muscles (contralateral! name="Ventral" but projects dorsal)
-    // Push-pull with SMD: SMDD excites dorsal + RMED inhibits ventral → clean dorsal bend
-    // RMEV inhibits dorsal → counteracts AS01 dorsal bias → restores D/V symmetry
-    // REF: White 1986, Huang 2016 eLife, Jorgensen 2005 WormBook
-    add_mapping(name_to_id, "RMED", 0, 4, false, true);  // RMED ⊣ ventral seg 0-4
-    add_mapping(name_to_id, "RMEV", 0, 4, true, true);   // RMEV ⊣ dorsal seg 0-4
+    // Step 33: RME head motor neurons — GABAergic amplitude control (boost channel)
+    add_mapping(name_to_id, "RMED", 0, 4, false, true, 1.0, true);  // RMED ⊣ ventral
+    add_mapping(name_to_id, "RMEV", 0, 4, true, true, 1.0, true);   // RMEV ⊣ dorsal
 
-    // Step 31: RIV — omega turn driven via curvature_drive_[] (apply_riv_omega)
-    // NOT mapped to motor controller: muscle_gain (0.3) too weak for omega curvature.
-    // Instead, RIV injects curvature force directly into body physics integrator
-    // (per-segment curvature_drive_[0-5] with taper). Goes through stiffness/damping/
-    // elastic coupling — NOT a heading bypass. Equivalent to strong NMJ activation.
+    // Step 117: RIV — omega via muscles.add_boost() in apply_riv_omega
+    // Step 117: SMB — klinotaxis via muscles.add_boost() in apply_smb_neck_bias
+    // Both use additive boost channel (sum semantics) to stack on normal MN drive,
+    // avoiding max semantics competition with SAA/SIA/SIB baseline.
 
     LOG_INFO("Motor controller initialized with ", mappings_.size(), " mappings");
 }
 
 void MotorController::update(const std::vector<std::unique_ptr<Neuron>>& neurons, BodyModel& body) {
+    // NOTE: muscles.reset_inputs() is called in SimulationEngine::step()
+    // BEFORE motor_controller::update(). This allows apply_riv_omega/apply_smb_neck_bias
+    // to add boost inputs AFTER motor_controller without being cleared.
     auto& muscles = body.muscles();
-    muscles.reset_inputs();
 
     int n_size = static_cast<int>(neurons.size());
 
@@ -180,14 +167,22 @@ void MotorController::update(const std::vector<std::unique_ptr<Neuron>>& neurons
 
         double release = neurons[map.neuron_id]->get_transmitter_release_rate();
 
+        double weighted = release * map.nmj_gain;
+
         if (map.is_inhibitory) {
-            double inhibition = release * 0.8; // GABA inhibition strength
+            double inhibition = weighted * 0.8; // GABA inhibition strength
             for (int seg = map.segment_start; seg < map.segment_end && seg < NUM_BODY_SEGMENTS; ++seg) {
-                muscles.add_inhibitory(seg, map.is_dorsal, inhibition);
+                if (map.use_boost)
+                    muscles.add_boost(seg, map.is_dorsal, -inhibition); // negative boost
+                else
+                    muscles.add_inhibitory(seg, map.is_dorsal, inhibition);
             }
         } else {
             for (int seg = map.segment_start; seg < map.segment_end && seg < NUM_BODY_SEGMENTS; ++seg) {
-                muscles.add_excitatory(seg, map.is_dorsal, release);
+                if (map.use_boost)
+                    muscles.add_boost(seg, map.is_dorsal, weighted);
+                else
+                    muscles.add_excitatory(seg, map.is_dorsal, weighted);
             }
         }
     }

@@ -27,7 +27,7 @@ void BodyModel::compute_curvatures(double dt) {
         // force_diff > 0 → dorsal stronger → positive curvature (dorsal bend)
         // force_diff < 0 → ventral stronger → negative curvature (ventral bend)
         double force_diff = muscles_.get_force_differential(i);
-        double target_curvature = curvature_gain_ * force_diff + curvature_drive_[i];
+        double target_curvature = curvature_gain_ * force_diff;
 
         // Step 29: Passive elastic coupling between adjacent segments
         // REF: Boyle 2012 — body continuity allows curvature to spread
@@ -61,8 +61,13 @@ void BodyModel::update_positions(double dt) {
     // At low Re: F_drag = C × v → v = F_propulsive / C_drag
     // Neuromod gain already applied inside muscles_.get_mean_abs_force()
     double mean_force = muscles_.get_mean_abs_force();
-    double forward_speed = mean_force * locomotion_efficiency_ * speed_tuning_
+    double forward_speed = mean_force * locomotion_efficiency_
                          / drag_coefficient_;
+    // Physical speed limit: adult C. elegans max ~500 μm/s (Fang-Yen 2010)
+    // During omega, head muscle boost inflates mean_force but translational
+    // speed is limited. Heading change (speed*curvature) still large due to
+    // moderate speed × extreme curvature.
+    if (forward_speed > 0.5) forward_speed = 0.5;
 
     // --- 1b. Locomotion direction from command neuron balance ---
     // Step 41: Implement backward locomotion during reversal
@@ -83,8 +88,11 @@ void BodyModel::update_positions(double dt) {
 
     // --- 2. Heading update: dθ/dt = v × direction × κ_head ---
     // REF: Padmanabhan 2012 — body with curvature κ moving at speed v turns at v·κ
+    // During omega: heading change from body deformation, not curved-path translation.
+    // Use |direction| so curvature sign directly determines turn direction.
     double head_curv = segments_[0].curvature;
-    double dtheta = forward_speed * direction * head_curv * dt;
+    double effective_dir = omega_active_ ? std::abs(direction) : direction;
+    double dtheta = forward_speed * effective_dir * head_curv * dt;
     // Clamp heading change rate to physical limit
     // REF: Gray 2005 PNAS — omega turn angular velocity ~300°/s
     double max_dtheta = 5.24 * dt;
@@ -121,9 +129,13 @@ void BodyModel::update_physics(double dt) {
     muscles_.step(dt * 1000.0);  // dt is in seconds, muscles expect ms
 
     // 2. Sync segment activations from muscles (for visualization/diagnostics)
+    // Clamp to [0,1]: raw activation can be >> 1 during omega (RIV NMJ gain 40x)
+    // but segment activation is for display and dorsal_tone snapshot only
     for (int i = 0; i < NUM_BODY_SEGMENTS; ++i) {
-        segments_[i].dorsal_activation = muscles_.get_dorsal_activation(i);
-        segments_[i].ventral_activation = muscles_.get_ventral_activation(i);
+        double da = muscles_.get_dorsal_activation(i);
+        double va = muscles_.get_ventral_activation(i);
+        segments_[i].dorsal_activation = (da > 1.0) ? 1.0 : da;
+        segments_[i].ventral_activation = (va > 1.0) ? 1.0 : va;
     }
 
     // 3. Body physics: curvature from muscle forces, position from kinematics
@@ -131,19 +143,6 @@ void BodyModel::update_physics(double dt) {
     update_positions(dt);
 }
 
-void BodyModel::set_curvature_drive(int seg, double drive) {
-    if (seg >= 0 && seg < NUM_BODY_SEGMENTS)
-        curvature_drive_[seg] = drive;
-}
-
-void BodyModel::add_curvature_drive(int seg, double drive) {
-    if (seg >= 0 && seg < NUM_BODY_SEGMENTS)
-        curvature_drive_[seg] += drive;
-}
-
-void BodyModel::clear_curvature_drives() {
-    curvature_drive_.fill(0.0);
-}
 
 Vector2d BodyModel::get_head_position() const {
     return segments_[0].position;

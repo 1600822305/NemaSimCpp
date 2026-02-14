@@ -27,6 +27,8 @@ private:
         int segment_end;
         bool is_dorsal;
         bool is_inhibitory = false; // D-class: inhibit contralateral side
+        double nmj_gain = 1.0;      // NMJ synaptic weight
+        bool use_boost = false;     // true: sum semantics (head MNs), false: max (body MNs)
     };
 
     std::vector<MotorMapping> mappings_;
@@ -34,7 +36,8 @@ private:
     void add_mapping(const std::unordered_map<std::string, int>& name_to_id,
                      const std::string& neuron_name,
                      int seg_start, int seg_end, bool dorsal,
-                     bool inhibitory = false);
+                     bool inhibitory = false, double nmj_gain = 1.0,
+                     bool use_boost = false);
 };
 
 } // namespace celegans

@@ -12,11 +12,21 @@ void MuscleSystem::reset_inputs() {
 void MuscleSystem::add_excitatory(int segment, bool dorsal, double input) {
     if (segment < 0 || segment >= NUM_BODY_SEGMENTS) return;
     // Max semantics: dominant motor neuron sets activation level
-    // (prevents saturation when multiple neurons innervate same segment)
+    // Prevents saturation when multiple MNs innervate same segment
     if (dorsal)
         dorsal_[segment].excitatory_input = std::max(dorsal_[segment].excitatory_input, input);
     else
         ventral_[segment].excitatory_input = std::max(ventral_[segment].excitatory_input, input);
+}
+
+void MuscleSystem::add_boost(int segment, bool dorsal, double input) {
+    if (segment < 0 || segment >= NUM_BODY_SEGMENTS) return;
+    // Sum semantics: specialized MNs (RIV, SMB) add on top of normal drive
+    // Stacks with excitatory_input (max) in MuscleCell::step()
+    if (dorsal)
+        dorsal_[segment].boost_input += input;
+    else
+        ventral_[segment].boost_input += input;
 }
 
 void MuscleSystem::add_inhibitory(int segment, bool dorsal, double input) {
@@ -40,11 +50,6 @@ double MuscleSystem::get_dorsal_force(int seg) const {
 double MuscleSystem::get_ventral_force(int seg) const {
     if (seg < 0 || seg >= NUM_BODY_SEGMENTS) return 0.0;
     return ventral_[seg].activation * neuromod_gain_;
-}
-
-double MuscleSystem::get_force_differential(int seg) const {
-    if (seg < 0 || seg >= NUM_BODY_SEGMENTS) return 0.0;
-    return (dorsal_[seg].activation - ventral_[seg].activation) * neuromod_gain_;
 }
 
 double MuscleSystem::get_mean_abs_force() const {

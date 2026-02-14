@@ -410,8 +410,6 @@ void SimulationEngine::update_awc_pref_cache() {
 void SimulationEngine::step() {
     // 0. Sync tuning params to subsystems
     connectome_.set_synapse_scale(static_cast<double>(params.synapse_scale));
-    body_.set_speed_tuning(static_cast<double>(params.speed_scale));
-    body_.clear_curvature_drives();  // reset per-step neural curvature forces
 
     // 1. Environment update
     environment_.step(dt_ * 0.001);
@@ -509,18 +507,11 @@ void SimulationEngine::step() {
     // 2c. Step 81: Tail chemosensation — PHB/PHA sample at tail position
     apply_tail_chemosensation();
 
-    // 2d. Step 31: RIV-driven omega turn (emergent from TA gating)
-    // RIV burst → curvature_drive_[] per-segment force (through body physics)
-    apply_riv_omega();
-
     // Step 15/19: Weathervane — gradient ⊥ heading → SMD bias (Iino & Yoshida 2009)
     apply_weathervane();
 
     // Step 19: RIA → SMD neuromodulation via CCA-1 threshold shift
     apply_ria_smd_modulation();
-
-    // Step 19 Phase 2: SMB neck curvature bias (klinotaxis effector)
-    apply_smb_neck_bias();
 
     // 5a2. Step 24: Pharyngeal CPG — MC/M3 drive pump, 5-HT/OA modulate
     apply_pharyngeal_modulation();  // 5-HT→MC excitation, OA→MC inhibition
@@ -599,7 +590,13 @@ void SimulationEngine::step() {
     }
 
     // 7. Motor output: motor neurons → muscle activations
+    body_.muscles().reset_inputs();  // clear all channels before any motor input
     motor_controller_.update(neurons_, body_);
+
+    // 7b. Specialized motor inputs via boost channel (AFTER motor_controller)
+    // These add on top of normal MN drive, not cleared by reset_inputs
+    apply_riv_omega();      // Step 117: RIV burst → head muscle boost (NMJ 40x)
+    apply_smb_neck_bias();  // Step 117: klinotaxis → head muscle boost
 
     // 8. Command neuron balance → locomotion direction (Step 66: SOLE mechanism)
     // AVA dominant → reverse, AVB dominant → forward
@@ -619,6 +616,7 @@ void SimulationEngine::step() {
         if (nid("AVBR") >= 0 && nid("AVBR") < n) avb_rel += neurons_[nid("AVBR")]->get_transmitter_release_rate();
         ava_rel *= 0.5; avb_rel *= 0.5; // average L/R
         body_.set_locomotion_state(avb_rel, ava_rel);
+        body_.set_omega_active(riv_omega_active_);
 
         // Step 66: Detect reversal state from AVA activity (for RIV omega tracking)
         // Schmitt trigger with hysteresis (Roberts 2016: AVA bistable -17/-32 mV)
@@ -641,11 +639,14 @@ void SimulationEngine::step() {
         // Reversal state transitions → RIV omega pulse machinery
         if (is_reversing_ && !was_reversing) {
             reversal_start_time_ = current_time_;
-            double dt_snap = 0.0;
+            // Snapshot head muscle D/V balance at reversal start
+            // force_diff reflects SMD oscillation phase (random at reversal onset)
+            // Positive = dorsal bend, negative = ventral bend
+            double fd_snap = 0.0;
             for (int i = 0; i < 6; ++i) {
-                dt_snap += body_.segments()[i].dorsal_activation;
+                fd_snap += body_.muscles().get_force_differential(i);
             }
-            pre_rev_dorsal_tone_ = dt_snap / 6.0;
+            pre_rev_dorsal_tone_ = fd_snap / 6.0;
         }
         if (!is_reversing_ && was_reversing) {
             reversal_duration_ = current_time_ - reversal_start_time_;
@@ -659,7 +660,7 @@ void SimulationEngine::step() {
                 Vector2d grad = environment_.chemical_field().gradient(body_.get_head_position());
                 double grad_perp = -std::sin(heading) * grad.x + std::cos(heading) * grad.y;
                 double grad_lr = std::tanh(grad_perp * 50.0);
-                double posture_lr = -(pre_rev_dorsal_tone_ - 0.5) * 4.0;
+                double posture_lr = -pre_rev_dorsal_tone_ * 10.0;  // force_diff centered at 0
                 posture_lr = std::tanh(posture_lr);
                 double lr_grad = 0.3 * grad_lr;
                 double lr_posture = 0.3 * posture_lr;
