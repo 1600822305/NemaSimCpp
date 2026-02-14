@@ -1,6 +1,6 @@
 # C. elegans 302 神经元工程复刻 — 开发进度
 
-> 上次更新: 2026-02-11
+> 上次更新: 2026-02-14
 > 蓝图文档: [c_elegans_blueprint.md](c_elegans_blueprint.md)
 
 ### 📋 文档更新规则
@@ -810,6 +810,15 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **RIF 实现**: Emmons 2024 "nexus of sexual and somatic signals"
 - **diag 验证**: ASGL S=0.122, ADAL S=0.307, RIFL S=0.398, RIR S=0.329 — 全部活跃
 
+### Step 114: 模块化诊断工具套件 — 9 个独立分析工具 ✅ (2026-02-14)
+> 详细文档: [steps/step114_diagnostic_tools.md](steps/step114_diagnostic_tools.md)
+
+- **9 个新工具**: health_check, neuron_monitor, circuit_probe, behavior_analyzer, event_logger, causal_analyzer, emergence_detector, perf_profiler, param_sweep
+- **因果分析**: Transfer Entropy + Granger Causality + ablation 干预因果
+- **涌现检测**: Phi(IIT) + 多尺度熵(MSE) + 亚稳态(Kuramoto), Score 4/4
+- **性能剖析**: 108 us/step, 9236 steps/sec, 4.6x 实时, 突触计算占 37%
+- **参数扫描**: synapse_scale 灵敏度 — speed R²=0.91, 最优 CI 在 1.5
+
 ---
 
 ## 当前系统状态
@@ -854,6 +863,16 @@ P0/P1 违规全部修复:
   P0-6: FLP-11 直接注入移除 → NeuromodulationManager DMSR-1 框架 (Step 71)
 行为指标 (300s): CI≈0.44 (naive), CI≈-0.01 (sickness=1, 病原体回避生效), omega/reversal≈57%, reversal_rate≈0.14/s, speed≈0.15mm/s
 工具: celegans_diag.exe (信号链诊断+fitness) + celegans_regtest.exe (回归检测+电流溯源)
+诊断工具套件 (Step 114, 9个独立可执行文件):
+  health_check     — 快速健康扫描 (PASS/WARN/FAIL)
+  neuron_monitor   — 神经元电压/释放率追踪
+  circuit_probe    — 回路信号传播分析
+  behavior_analyzer— 科研级行为分析 (互斥状态/bout/转角)
+  event_logger     — 离散事件时间线 (边沿检测, CSV导出)
+  causal_analyzer  — 因果分析 (Transfer Entropy + Granger + ablation干预)
+  emergence_detector— 涌现检测 (Phi-IIT + 多尺度熵 + 亚稳态)
+  perf_profiler    — 性能剖析 (计时/瓶颈/内存/可扩展性)
+  param_sweep      — 参数扫描 (范围搜索 + 灵敏度分析)
 
 运动驱动 (Step 13 — 生物学机制):
   感觉基线: 12 感觉神经元 × 15pA 自发活动 (Bargmann 2006)
@@ -907,9 +926,10 @@ P0/P1 违规全部修复:
   src/neuromodulation/ — 2 文件 (neuromodulation .h/.cpp)
   src/compute/         — 5 文件 (compute_backend.h + cpu_backend.h + opencl_backend .h/.cpp + kernels.cl)
   src/simulation/      — 12 文件 (simulation_engine .h/.cpp + 7 拆分cpp + main.cpp + diag_main.cpp + regression_test.cpp)
+  src/diagnostics/     — 9 文件 (health_check/neuron_monitor/circuit_probe/behavior_analyzer/event_logger/causal_analyzer/emergence_detector/perf_profiler/param_sweep _main.cpp)
   src/visualization/   — 3 文件 (vis_app .h/.cpp + vis_main.cpp)
   docs/                — blueprint.md + progress.md + steps/ + tools/
-  总计: 62 文件 (CMakeLists.txt + 60 .h/.cpp + kernels.cl + 文档)
+  总计: 71+ 文件 (CMakeLists.txt + .h/.cpp + kernels.cl + 文档)
 
 参考项目对标:
   OpenWorm: Sibernetic (SPH 物理) + c302 (NeuroML 神经元) + Geppetto (可视化)

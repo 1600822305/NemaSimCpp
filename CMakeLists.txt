@@ -35,6 +35,9 @@ add_library(celegans_core STATIC
     src/core/logger.cpp
 )
 target_include_directories(celegans_core PUBLIC ${CMAKE_SOURCE_DIR}/src)
+if(MSVC)
+    target_compile_options(celegans_core PUBLIC /utf-8)
+endif()
 
 # Neuron library
 add_library(celegans_neuron STATIC
@@ -92,6 +95,13 @@ if(CELEGANS_USE_OPENCL)
     target_compile_definitions(celegans_compute PUBLIC CELEGANS_HAS_OPENCL=1)
 endif()
 
+# Diagnostics library (modular analysis tools)
+add_library(celegans_diagnostics STATIC
+    src/diagnostics/diagnostic_tracker.cpp
+    src/diagnostics/output_formatter.cpp
+)
+target_link_libraries(celegans_diagnostics PUBLIC celegans_core celegans_neuron celegans_connectome)
+
 # Simulation engine
 add_library(celegans_simulation STATIC
     src/simulation/simulation_engine.cpp
@@ -112,20 +122,48 @@ target_link_libraries(celegans_simulation PUBLIC
     celegans_compute
 )
 
-# Main executable (headless)
-add_executable(celegans_sim src/simulation/main.cpp)
-target_link_libraries(celegans_sim PRIVATE celegans_simulation)
+# Diagnostic executable (signal chain analysis) - ARCHIVED
+# add_executable(celegans_diag src/simulation/diag_main.cpp)
+# target_link_libraries(celegans_diag PRIVATE celegans_simulation)
+# if(CELEGANS_USE_OPENMP)
+#     target_link_libraries(celegans_diag PRIVATE OpenMP::OpenMP_CXX)
+# endif()
 
-# Diagnostic executable (signal chain analysis)
-add_executable(celegans_diag src/simulation/diag_main.cpp)
-target_link_libraries(celegans_diag PRIVATE celegans_simulation)
-if(CELEGANS_USE_OPENMP)
-    target_link_libraries(celegans_diag PRIVATE OpenMP::OpenMP_CXX)
-endif()
+# Neuron Monitor executable (neural activity monitoring)
+add_executable(neuron_monitor src/diagnostics/neuron_monitor_main.cpp)
+target_link_libraries(neuron_monitor PRIVATE celegans_simulation celegans_diagnostics)
 
-# Regression test executable (automated bug detection + current tracing)
-add_executable(celegans_regtest src/simulation/regression_test.cpp)
-target_link_libraries(celegans_regtest PRIVATE celegans_simulation)
+# Health Check executable (quick neuron health scan)
+add_executable(health_check src/diagnostics/health_check_main.cpp)
+target_link_libraries(health_check PRIVATE celegans_simulation)
+
+# Circuit Probe executable (neural circuit signal tracing)
+add_executable(circuit_probe src/diagnostics/circuit_probe_main.cpp)
+target_link_libraries(circuit_probe PRIVATE celegans_simulation)
+
+# Behavior Analyzer executable (research-grade behavior analysis)
+add_executable(behavior_analyzer src/diagnostics/behavior_analyzer_main.cpp)
+target_link_libraries(behavior_analyzer PRIVATE celegans_simulation)
+
+# Event Logger executable (discrete event recording)
+add_executable(event_logger src/diagnostics/event_logger_main.cpp)
+target_link_libraries(event_logger PRIVATE celegans_simulation)
+
+# Causal Analyzer executable (TE, GC, intervention causality)
+add_executable(causal_analyzer src/diagnostics/causal_analyzer_main.cpp)
+target_link_libraries(causal_analyzer PRIVATE celegans_simulation)
+
+# Emergence Detector executable (Phi, MSE, metastability)
+add_executable(emergence_detector src/diagnostics/emergence_detector_main.cpp)
+target_link_libraries(emergence_detector PRIVATE celegans_simulation)
+
+# Performance Profiler executable (timing, memory, bottleneck analysis)
+add_executable(perf_profiler src/diagnostics/perf_profiler_main.cpp)
+target_link_libraries(perf_profiler PRIVATE celegans_simulation)
+
+# Parameter Sweep executable (automated parameter space search)
+add_executable(param_sweep src/diagnostics/param_sweep_main.cpp)
+target_link_libraries(param_sweep PRIVATE celegans_simulation)
 
 # Visualization executable (Dear ImGui + ImPlot + SDL2 + OpenGL)
 if(CELEGANS_BUILD_VIS)
