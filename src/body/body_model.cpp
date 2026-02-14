@@ -345,104 +345,153 @@ void BodyModel::update_muscle_activations(double dt) {
 }
 
 // ================================================================
-// Main physics update — endpoint-driven semi-implicit Euler
+// Main physics update — Boyle 2012 endpoint-driven force integration
+//
+// REF: Boyle, Berri & Cohen 2012, Front. Comput. Neurosci. 6:10
+//
+// Architecture (fully emergent, zero kinematic shortcuts):
+//   Muscle activation → Hill-type endpoint forces (K_AE, D_AE)
+//   + passive cuticle lateral springs (K_PE, D_PE)
+//   + internal pressure diagonal springs (K_DE, D_DE)
+//   → per-point force accumulation on 98 discrete points
+//   → Resistive Force Theory anisotropic drag (overdamped: F = c·v)
+//   → endpoint velocity → position update → rigid rod reconstruction
+//
+// Forward motion EMERGES from: body wave × (c_n >> c_t) drag anisotropy
+// Bending EMERGES from: D/V muscle force asymmetry vs elastic restoring
+// Wave propagation EMERGES from: proprioceptive coupling (Wen 2012)
 // ================================================================
 void BodyModel::update_physics(double dt_seconds) {
     if (dt_seconds <= 0.0 || !initialized_) return;
 
-    // Per-point drag (total body drag / (2 * N_bar) points)
+    // Per-point RFT drag coefficients
+    // Total body drag / 98 points (2 endpoints × 49 rods)
+    // REF: Boyle 2012 Table 1 — C_n, C_t for water and agar
     double cn_pt = ((1.0 - medium_) * CN_WATER + medium_ * CN_AGAR) / (2.0 * NBAR);
     double ct_pt = ((1.0 - medium_) * CT_WATER + medium_ * CT_AGAR) / (2.0 * NBAR);
     cn_ = cn_pt;
     ct_ = ct_pt;
 
-    // Sub-stepping: 0.1ms body step for stability
+    // Sub-stepping: 0.1ms for semi-implicit Euler stability
     constexpr double DT_BODY = 1.0e-4;
     int n_steps = std::max(1, static_cast<int>(std::ceil(dt_seconds / DT_BODY)));
     double dt_sub = dt_seconds / n_steps;
 
-    // Update muscle activations (once per call, not per sub-step)
+    // Muscle activation leaky integrator (once per outer call)
     update_muscle_activations(dt_seconds);
+
+    // Omega turn: convert curvature_bias to asymmetric muscle activation
+    // Routes omega through muscle→force→RFT pathway (no direct phi manipulation)
+    // curvature_bias set by apply_riv_omega() in simulation engine
+    if (std::abs(curvature_bias_) > 1e-6) {
+        constexpr double OMEGA_GAIN = 0.5;
+        constexpr int OMEGA_SEGS = 8;
+        for (int s = 0; s < std::min(OMEGA_SEGS, NSEG); ++s) {
+            double w = 1.0 - static_cast<double>(s) / OMEGA_SEGS;
+            double extra = std::abs(curvature_bias_) * OMEGA_GAIN * w;
+            if (curvature_bias_ > 0) {
+                muscles_[s].dorsal_activation = std::min(1.0, muscles_[s].dorsal_activation + extra);
+            } else {
+                muscles_[s].ventral_activation = std::min(1.0, muscles_[s].ventral_activation + extra);
+            }
+        }
+    }
 
     for (int step = 0; step < n_steps; ++step) {
         prev_rods_ = rods_;
 
-        // === Clean architecture (Step 143b) ===
-        // Body shape: neural D/V → phi (curvature) → phi-chain (positions)
-        // Translation: body wave intensity × locomotion drive × drag ratio
-        // No spring forces for positions — springs fight neural curvature.
+        // --- 1. Zero force accumulators ---
+        // fdx/fdy: force on dorsal endpoint of each rod
+        // fvx/fvy: force on ventral endpoint of each rod
+        double fdx[NBAR] = {}, fdy[NBAR] = {};
+        double fvx[NBAR] = {}, fvy[NBAR] = {};
+        seg_torque_.fill(0.0);
 
-        // --- 1. Direct phi drive from AC-coupled D/V input ---
-        for (int s = 0; s < NSEG; ++s) {
-            double dphi = rods_[s].phi - rods_[s + 1].phi;
+        // --- 2. Accumulate all endpoint forces ---
+        // Lateral: passive cuticle springs (K_PE, D_PE) — resist stretch/compression
+        // Diagonal: internal pressure springs (K_DE, D_DE) — preserve body volume
+        // Muscle: Hill-type active springs (K_AE, D_AE) — contraction force
+        // Collision: soft repulsion between non-adjacent rods
+        for (int seg = 0; seg < NSEG; ++seg) {
+            apply_lateral_forces(seg, fdx, fdy, fvx, fvy);
+            apply_diagonal_forces(seg, fdx, fdy, fvx, fvy);
+            apply_muscle_forces(seg, fdx, fdy, fvx, fvy);
+        }
+        apply_self_collision(fdx, fdy, fvx, fvy);
+
+        // --- 3. Per-segment rotation (Boyle 2012 force decomposition) ---
+        //
+        // Key insight: 2D endpoint forces on internal rods cancel (geometric symmetry)
+        // Solution: decompose per-segment into CoM translation + rotation
+        //
+        // Rotation dynamics:
+        //   Bending torque: τ_bend = seg_torque × R (D/V force diff × lever arm)
+        //   Diagonal restoring: τ_restore = 2·K_DE·R²·dphi (4 diagonals resist bend)
+        //   Rotation drag: γ_rot = 4π·cn_pt·R² (Boyle 2012 formula)
+        //   Angular velocity: ω = (τ_bend - τ_restore) / γ_rot
+        constexpr double DPHI_MAX = 0.04;  // rad (~1.9 /mm per seg, cuticle limit)
+        for (int seg = 0; seg < NSEG; ++seg) {
+            double R_avg = 0.5 * (rods_[seg].radius + rods_[seg + 1].radius);
+            
+            // Torque from D/V muscle+elastic force difference
+            double tau_bend = seg_torque_[seg] * R_avg;
+            
+            // Current inter-segment angle difference
+            double dphi = rods_[seg].phi - rods_[seg + 1].phi;
             while (dphi >  PI) dphi -= 2.0 * PI;
             while (dphi < -PI) dphi += 2.0 * PI;
-
-            // AC-coupled D/V input: remove static bias (tau=2s)
-            double dv_raw = muscles_[s].dorsal_input - muscles_[s].ventral_input;
-            constexpr double TAU_BIAS = 2.0;
-            double alpha_bias = dt_sub / TAU_BIAS;
-            if (alpha_bias > 1.0) alpha_bias = 1.0;
-            muscles_[s].dv_bias += alpha_bias * (dv_raw - muscles_[s].dv_bias);
-            double dv_ac = dv_raw - muscles_[s].dv_bias;
-
-            // Low-pass filter (tau=50ms, locomotion band)
-            constexpr double TAU_DRIVE = 0.05;
-            double alpha_drive = dt_sub / TAU_DRIVE;
-            if (alpha_drive > 1.0) alpha_drive = 1.0;
-            muscles_[s].dv_drive += alpha_drive * (dv_ac - muscles_[s].dv_drive);
-
-            // Direct phi adjustment (Step 137 proven parameters)
-            double grad = 1.0 - 0.4 * static_cast<double>(s) / NSEG;
-            constexpr double K_DRIVE   = 2.0;   // rad/s per unit D/V diff (realistic curvature ~10/mm)
-            constexpr double K_RESTORE = 5.0;   // 1/s restoration to straight
-            constexpr double DPHI_MAX  = 0.25;  // hard clamp ~12 /mm (biological range ~10-15)
-
-            double ddphi = (K_DRIVE * muscles_[s].dv_drive * grad
-                          - K_RESTORE * dphi) * dt_sub;
-
-            // Omega turn: curvature_bias on head segments
-            if (s < 6 && std::abs(curvature_bias_) > 1e-6) {
-                double w = 1.0 - static_cast<double>(s) / 6.0;
-                ddphi += curvature_bias_ * 0.02 * w * dt_sub;
-            }
-
-            double new_dphi = std::clamp(dphi + ddphi, -DPHI_MAX, DPHI_MAX);
-            double half_delta = (new_dphi - dphi) * 0.5;
-            rods_[s].phi     += half_delta;
-            rods_[s + 1].phi -= half_delta;
+            
+            // Diagonal spring restoring torque (Boyle: 4 diagonals → 2·K_DE·R²)
+            double tau_restore = 2.0 * K_DE * R_avg * R_avg * dphi;
+            
+            // Rotation drag coefficient (Boyle 2012 formula, includes 2π factor)
+            double gamma_rot = 4.0 * PI * cn_pt * R_avg * R_avg;
+            
+            // Angular velocity from torque balance (overdamped: τ = γ·ω)
+            double omega = (tau_bend - tau_restore) / std::max(gamma_rot, 1e-15);
+            double delta_phi = omega * dt_sub;
+            delta_phi = std::clamp(delta_phi, -DPHI_MAX, DPHI_MAX);
+            
+            // Split rotation equally between adjacent rods
+            rods_[seg].phi     += delta_phi * 0.5;
+            rods_[seg + 1].phi -= delta_phi * 0.5;
         }
 
-        // --- 2. Phi-chain body shape reconstruction ---
-        // Rod 0 is the anchor (position from kinematic motion below).
-        // Rods 1..N follow the phi chain → body bends with neural curvature.
-        for (int i = 0; i < NSEG; ++i) {
-            double avg_phi = 0.5 * (rods_[i].phi + rods_[i + 1].phi);
-            double body_dir = avg_phi - PI * 0.5;
-            rods_[i + 1].cx = rods_[i].cx - seg_len_ * std::cos(body_dir);
-            rods_[i + 1].cy = rods_[i].cy - seg_len_ * std::sin(body_dir);
-        }
-
-        // --- 3. Kinematic forward motion ---
-        // Biology: body wave pushes against medium via anisotropic drag.
-        // Speed = K_SPEED × net_locomotion_drive × drag_anisotropy
-        // net_drive > 0 → forward (AVB dominant), < 0 → reverse (AVA dominant)
-        double net_drive = forward_drive_ - reverse_drive_;
-        double drag_ratio = (cn_pt - ct_pt) / std::max(cn_pt + ct_pt, 1e-15);
-        constexpr double K_SPEED = 0.02;  // m/s calibration → ~1-2 mm/s
-        double fwd_speed = K_SPEED * net_drive * drag_ratio;
-
-        // Move entire body along head heading
-        double heading = rods_[0].phi - PI * 0.5;
-        double dx = fwd_speed * std::cos(heading) * dt_sub;
-        double dy = fwd_speed * std::sin(heading) * dt_sub;
+        // --- 4. Per-rod CoM translation with anisotropic RFT drag ---
+        //
+        // CoM forces: sum of D+V endpoint forces
+        // RFT decomposition:
+        //   tangent t̂ = (sin φ, −cos φ), normal n̂ = (cos φ, sin φ)
+        //   v_t = F_t / c_t,  v_n = F_n / c_n
+        //
+        // Key: c_n >> c_t on agar → undulation generates forward thrust (emergent)
+        constexpr double V_MAX = 0.01;  // m/s velocity cap (stability in water)
         for (int i = 0; i < NBAR; ++i) {
-            rods_[i].cx += dx;
-            rods_[i].cy += dy;
+            double phi = rods_[i].phi;
+            double tx = std::sin(phi), ty = -std::cos(phi);
+            double nx = std::cos(phi), ny =  std::sin(phi);
+            
+            // Total CoM force = sum of endpoint forces
+            double fcx = fdx[i] + fvx[i];
+            double fcy = fdy[i] + fvy[i];
+            
+            // Decompose → anisotropic drag → velocity
+            double fc_t = fcx * tx + fcy * ty;
+            double fc_n = fcx * nx + fcy * ny;
+            double vcx = (fc_t / ct_pt) * tx + (fc_n / cn_pt) * nx;
+            double vcy = (fc_t / ct_pt) * ty + (fc_n / cn_pt) * ny;
+            double vc_mag = std::sqrt(vcx * vcx + vcy * vcy);
+            if (vc_mag > V_MAX) {
+                double s = V_MAX / vc_mag;
+                vcx *= s; vcy *= s;
+            }
+            
+            rods_[i].cx += vcx * dt_sub;
+            rods_[i].cy += vcy * dt_sub;
         }
     }
 
-    // Speed from head displacement
+    // Speed from head displacement (mm/s)
     {
         Vector2d new_head = get_head_position();
         double dx_mm = new_head.x - prev_head_pos_.x;

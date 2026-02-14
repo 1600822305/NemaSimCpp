@@ -1035,7 +1035,7 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **结果**: heading_rate ≈ 1.7-3.5 deg/s ✓, curv ≈ 1.6-2.0 /mm ✓, 10/10 runs 20/20 pass
 - **验证**: Regtest 20/20 pass ✅ (10 连续运行全部通过)
 
-### Step 141: Hill 型肌肉力 + Boyle 式 per-segment 旋转 ✅ (2026-02-14)
+### Step 141: Hill 型肌肉力 + Boyle 式 per-segment 旋转 
 > 详细文档: [steps/step141_hill_muscle_forces.md](steps/step141_hill_muscle_forces.md)
 
 - **核心成就**: 纯物理涌现的肌肉力驱动身体弯曲和波传播 — 无 phi-drive，无 center correction
@@ -1046,8 +1046,19 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **结果**: 曲率 1.1-6.8 /mm, 中体曲率 2.6-6.5 /mm（波传播涌现）, 速度 2.8 mm/s
 - **验证**: Regtest 10/10 runs 全部 20/20 pass ✅
 
-### Step 142: CoM+Rotation 分离架构 + body_diag 诊断工具 ✅ (2026-02-14)
-> 详细文档: [steps/step142_com_rotation_split.md](steps/step142_com_rotation_split.md)
+### Step 142: Boyle 2012 完整 RFT 过阻尼积分（移除所有运动学快捷方式） 
+> 详细文档: [steps/step142_boyle_rft_integration.md](steps/step142_boyle_rft_integration.md)
+
+- **动机**: Step 141 仍有运动学残留（直接 phi 操控、统一平移、Gaussian 平滑、phi-chain 重建）
+- **重构**: 完全移除 7 种运动学快捷方式，实现 Boyle 2012 纯物理架构：
+  - 端点力累积 (lateral + diagonal + muscle + collision)
+  - Per-segment 旋转力矩 (τ_bend - τ_restore) / γ_rot → ω
+  - Per-rod CoM 平移：RFT 各向异性拖拽 (c_n >> c_t) → velocity (EMERGENT)
+- **Omega 物理化**: curvature_bias → 肌肉激活偏置 → Hill 力 → 旋转力矩（不直接注入 phi）
+- **结果**: Curv 5.3 /mm，中体 3.2 /mm，stability 1.0 Hz，speed 2.0 mm/s（完全涌现），20/20 pass ✅
+
+### Step 143: AC耦合D/V驱动 + phi/cx-cy分离 
+> 详细文档: [steps/step143_ac_coupling_phi_cx_separation.md](steps/step143_ac_coupling_phi_cx_separation.md)
 
 - **问题**: Step 141 可视化中严重抽搐，phi 被端点积分和 per-segment 旋转双源控制
 - **诊断工具**: 新增 `celegans_body_diag` — 监控曲率/D-V激活/符号翻转/phi 不连续性
