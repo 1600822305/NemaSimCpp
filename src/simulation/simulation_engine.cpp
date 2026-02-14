@@ -181,61 +181,62 @@ void SimulationEngine::initialize_default() {
     //   -> VB02(10-19) -> DB03 senses seg15 -> DB03(20-29)
     // D/V alternation relay: DB01(+curv) -> VB02(-curv) -> DB03(+curv) = S-wave
     // Proprioceptive wave propagation setup
-    auto add_pm = [&](const char* name, int seg, int start, int end, bool dorsal) {
+    auto add_pm = [&](const char* name, int seg, int start, int end, bool dorsal, bool forward) {
         int id = connectome_.get_neuron_id(name);
-        if (id >= 0) proprio_mappings_.push_back({id, seg, start, end, dorsal});
+        if (id >= 0) proprio_mappings_.push_back({id, seg, start, end, dorsal, forward});
     };
     // Step 29/39: B-class FORWARD wave (Wen 2012, Boyle 2012)
     // Each B-neuron senses curvature in ANTERIOR neighbor's territory → HEAD→TAIL wave
-    // Step 39: expanded from 3 to 7 units for continuous coverage
-    add_pm("DB01", 2,  0,  4,  true);   // senses SMD territory (seg 0-3)
-    add_pm("DB02", 6,  4,  9,  true);   // senses DB01 territory
-    add_pm("DB03", 11, 9,  14, true);   // senses DB02 territory
-    add_pm("DB04", 16, 14, 19, true);   // senses DB03 territory
-    add_pm("DB05", 21, 19, 24, true);   // senses DB04 territory
-    add_pm("DB06", 26, 24, 29, true);   // senses DB05 territory
-    add_pm("DB07", 32, 29, 35, true);   // senses DB06 territory
-    add_pm("VB01", 2,  0,  4,  false);
-    add_pm("VB02", 6,  4,  9,  false);
-    add_pm("VB03", 11, 9,  14, false);
-    add_pm("VB04", 16, 14, 19, false);
-    add_pm("VB05", 21, 19, 24, false);
-    add_pm("VB06", 26, 24, 29, false);
-    add_pm("VB07", 32, 29, 35, false);
+    // Step 119: is_forward=true → gated by AVB (Wen 2012: AVB-B synergy)
+    add_pm("DB01", 2,  0,  4,  true,  true);  // senses SMD territory (seg 0-3)
+    add_pm("DB02", 6,  4,  9,  true,  true);  // senses DB01 territory
+    add_pm("DB03", 11, 9,  14, true,  true);  // senses DB02 territory
+    add_pm("DB04", 16, 14, 19, true,  true);  // senses DB03 territory
+    add_pm("DB05", 21, 19, 24, true,  true);  // senses DB04 territory
+    add_pm("DB06", 26, 24, 29, true,  true);  // senses DB05 territory
+    add_pm("DB07", 32, 29, 35, true,  true);  // senses DB06 territory
+    add_pm("VB01", 2,  0,  4,  false, true);
+    add_pm("VB02", 6,  4,  9,  false, true);
+    add_pm("VB03", 11, 9,  14, false, true);
+    add_pm("VB04", 16, 14, 19, false, true);
+    add_pm("VB05", 21, 19, 24, false, true);
+    add_pm("VB06", 26, 24, 29, false, true);
+    add_pm("VB07", 32, 29, 35, false, true);
     // Step 94: VB08-11 forward proprioception (added Step 87, mappings were missing)
-    add_pm("VB08", 27, 25, 29, false);  // senses VB07 territory
-    add_pm("VB09", 30, 29, 32, false);  // senses VB08 territory
-    add_pm("VB10", 34, 32, 36, false);  // senses VB09 territory
-    add_pm("VB11", 37, 36, 39, false);  // senses VB10 territory
+    add_pm("VB08", 27, 25, 29, false, true);  // senses VB07 territory
+    add_pm("VB09", 30, 29, 32, false, true);  // senses VB08 territory
+    add_pm("VB10", 34, 32, 36, false, true);  // senses VB09 territory
+    add_pm("VB11", 37, 36, 39, false, true);  // senses VB10 territory
 
     // Step 94: A-class BACKWARD wave — REVERSED proprioceptive direction
     // Each A-neuron senses curvature in POSTERIOR neighbor's territory → TAIL→HEAD wave
+    // Step 119: is_forward=false → gated by AVA (Gao 2018: AVA-A synergy)
     // REF: Kawano 2011 JNeurosci — backward wave propagates tail to head
     //      Wen 2012 — A-class MNs use same stretch-receptor mechanism as B-class
     //      Gao 2018 eLife — A-class proprioceptive coupling for backward locomotion
     // DA: 9 dorsal A-class, each senses POSTERIOR neighbor
-    add_pm("DA01", 10, 4,  8,  true);   // senses DA02 territory (8-12)
-    add_pm("DA02", 14, 8,  12, true);   // senses DA03 territory (12-16)
-    add_pm("DA03", 18, 12, 16, true);   // senses DA04 territory (16-20)
-    add_pm("DA04", 22, 16, 20, true);   // senses DA05 territory (20-25)
-    add_pm("DA05", 27, 20, 25, true);   // senses DA06 territory (25-29)
-    add_pm("DA06", 31, 25, 29, true);   // senses DA07 territory (29-33)
-    add_pm("DA07", 35, 29, 33, true);   // senses DA08 territory (33-38)
-    add_pm("DA08", 40, 33, 38, true);   // senses DA09 territory (38-42)
-    add_pm("DA09", 44, 38, 42, true);   // senses tail stretch (initiates wave)
+    add_pm("DA01", 10, 4,  8,  true,  false);  // senses DA02 territory (8-12)
+    add_pm("DA02", 14, 8,  12, true,  false);  // senses DA03 territory (12-16)
+    add_pm("DA03", 18, 12, 16, true,  false);  // senses DA04 territory (16-20)
+    add_pm("DA04", 22, 16, 20, true,  false);  // senses DA05 territory (20-25)
+    add_pm("DA05", 27, 20, 25, true,  false);  // senses DA06 territory (25-29)
+    add_pm("DA06", 31, 25, 29, true,  false);  // senses DA07 territory (29-33)
+    add_pm("DA07", 35, 29, 33, true,  false);  // senses DA08 territory (33-38)
+    add_pm("DA08", 40, 33, 38, true,  false);  // senses DA09 territory (38-42)
+    add_pm("DA09", 44, 38, 42, true,  false);  // senses tail stretch (initiates wave)
     // VA: 12 ventral A-class, each senses POSTERIOR neighbor
-    add_pm("VA01", 8,  4,  7,  false);  // senses VA02 territory (7-10)
-    add_pm("VA02", 11, 7,  10, false);  // senses VA03 territory (10-13)
-    add_pm("VA03", 14, 10, 13, false);  // senses VA04 territory (13-16)
-    add_pm("VA04", 17, 13, 16, false);  // senses VA05 territory (16-19)
-    add_pm("VA05", 20, 16, 19, false);  // senses VA06 territory (19-22)
-    add_pm("VA06", 23, 19, 22, false);  // senses VA07 territory (22-25)
-    add_pm("VA07", 27, 22, 25, false);  // senses VA08 territory (25-29)
-    add_pm("VA08", 30, 25, 29, false);  // senses VA09 territory (29-32)
-    add_pm("VA09", 33, 29, 32, false);  // senses VA10 territory (32-35)
-    add_pm("VA10", 37, 32, 35, false);  // senses VA11 territory (35-39)
-    add_pm("VA11", 40, 35, 39, false);  // senses VA12 territory (39-42)
-    add_pm("VA12", 44, 39, 42, false);  // senses tail stretch (initiates wave)
+    add_pm("VA01", 8,  4,  7,  false, false);  // senses VA02 territory (7-10)
+    add_pm("VA02", 11, 7,  10, false, false);  // senses VA03 territory (10-13)
+    add_pm("VA03", 14, 10, 13, false, false);  // senses VA04 territory (13-16)
+    add_pm("VA04", 17, 13, 16, false, false);  // senses VA05 territory (16-19)
+    add_pm("VA05", 20, 16, 19, false, false);  // senses VA06 territory (19-22)
+    add_pm("VA06", 23, 19, 22, false, false);  // senses VA07 territory (22-25)
+    add_pm("VA07", 27, 22, 25, false, false);  // senses VA08 territory (25-29)
+    add_pm("VA08", 30, 25, 29, false, false);  // senses VA09 territory (29-32)
+    add_pm("VA09", 33, 29, 32, false, false);  // senses VA10 territory (32-35)
+    add_pm("VA10", 37, 32, 35, false, false);  // senses VA11 territory (35-39)
+    add_pm("VA11", 40, 35, 39, false, false);  // senses VA12 territory (39-42)
+    add_pm("VA12", 44, 39, 42, false, false);  // senses tail stretch (initiates wave)
 
 
     // Initialize transducers with current concentration at head
@@ -628,8 +629,8 @@ void SimulationEngine::step() {
         } else {
             double rev_elapsed = current_time_ - reversal_start_time_;
             // Exit: AVA drops below low threshold after minimum duration
-            // Also force-exit after 3000ms (max reversal, prevents stuck state)
-            if ((rev_elapsed > 300.0 && ava_rel < 0.15) || rev_elapsed > 3000.0) {
+            // Force-exit after 2000ms (balance: TA buildup for omega + forward time)
+            if ((rev_elapsed > 300.0 && ava_rel < 0.15) || rev_elapsed > 2000.0) {
                 is_reversing_ = false;
             }
         }

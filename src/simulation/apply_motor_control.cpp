@@ -235,7 +235,7 @@ void SimulationEngine::apply_smb_neck_bias() {
     if (!riv_omega_active_) {
         // Convert curvature offset (/mm) to muscle force via boost
         // Gain calibrated so ±0.5/mm offset → force_diff ~1.5 → curvature ~0.45/mm
-        double smb_muscle_gain = 3.0;
+        double smb_muscle_gain = 15.0; // Step 119: 5x increase for RFT torque dilution (head lever arm ~12% of body)
         double dorsal_boost = curvature_offset > 0 ? curvature_offset * smb_muscle_gain : 0.0;
         double ventral_boost = curvature_offset < 0 ? -curvature_offset * smb_muscle_gain : 0.0;
         for (int seg = 0; seg < 6; ++seg) {
@@ -287,10 +287,30 @@ void SimulationEngine::apply_ria_smd_modulation() {
 
 void SimulationEngine::apply_proprioceptive_stretch() {
     // Step 29: Proprioceptive wave propagation (Wen 2012, Boyle 2012)
-    // Each B-class motor neuron senses curvature at its sample_segment.
-    // Wave propagates via neural relay: head oscillation → DB01 → VB02 → DB03...
-    // REF: Wen 2012 Neuron — B-type MNs transduce proprioceptive signal
+    // Each motor neuron senses curvature at its sample_segment.
+    // Step 119: Command neuron gating of proprioceptive coupling
+    // B-class: AVB-gated (Wen 2012 — "AVB-B electrical couplings work
+    //   synergistically with proprioceptive couplings to enhance sequential
+    //   activation and facilitate wave propagation from head to tail")
+    // A-class: AVA-gated (Gao 2018 — AVA-A gap junctions entrain A-class
+    //   oscillators for backward wave propagation)
+    // Without command neuron drive, proprioception alone is insufficient
+    // to sustain the traveling wave → prevents forward wave during reversal
+    // and backward wave during forward locomotion.
     int n = static_cast<int>(neurons_.size());
+
+    // Gate proprioception by neural reversal state (Schmitt trigger latch)
+    // The reversal state captures the AVA flip-flop transition (Roberts 2016).
+    // Using the latched state rather than instantaneous AVA/AVB ratio because:
+    //   - AVA may briefly exceed AVB to trigger reversal, then drop back
+    //   - The Schmitt trigger holds the reversal state for the episode
+    //   - This models AVA-A gap junction persistent drive (Gao 2018):
+    //     once reversal starts, A-class proprioception stays active
+    // Forward: B-class proprioception ON (head→tail wave)
+    // Reverse: A-class proprioception ON (tail→head wave)
+    double avb_gate = is_reversing_ ? 0.0 : 1.0;
+    double ava_gate = is_reversing_ ? 1.0 : 0.0;
+
     for (auto& pm : proprio_mappings_) {
         if (pm.neuron_id < 0 || pm.neuron_id >= n) continue;
 
@@ -299,6 +319,9 @@ void SimulationEngine::apply_proprioceptive_stretch() {
         // Ventral MN: excited by dorsal bend (positive curv)
         double stretch = pm.is_dorsal ? -curv : curv;
         if (stretch < 0.0) stretch = 0.0;
+
+        // Gate by command neuron state
+        stretch *= pm.is_forward ? avb_gate : ava_gate;
 
         auto* scn = dynamic_cast<SingleCompartmentNeuron*>(neurons_[pm.neuron_id].get());
         if (scn) {

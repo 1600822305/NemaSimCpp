@@ -165,6 +165,10 @@ target_link_libraries(perf_profiler PRIVATE celegans_simulation)
 add_executable(param_sweep src/diagnostics/param_sweep_main.cpp)
 target_link_libraries(param_sweep PRIVATE celegans_simulation)
 
+# Wave Analyzer executable (traveling wave & RFT locomotion diagnostics)
+add_executable(wave_analyzer src/diagnostics/wave_analyzer_main.cpp)
+target_link_libraries(wave_analyzer PRIVATE celegans_simulation)
+
 # Visualization executable (Dear ImGui + ImPlot + SDL2 + OpenGL)
 if(CELEGANS_BUILD_VIS)
     find_package(imgui CONFIG REQUIRED)

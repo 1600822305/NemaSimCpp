@@ -186,6 +186,7 @@ private:
         int sense_start;      // Step 29: range start for multi-segment integration
         int sense_end;        // Step 29: range end (exclusive)
         bool is_dorsal;       // true=dorsal (negative curv excites), false=ventral
+        bool is_forward;      // Step 119: true=B-class (AVB-gated), false=A-class (AVA-gated)
     };
     std::vector<ProprioMapping> proprio_mappings_;
 

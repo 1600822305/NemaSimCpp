@@ -819,6 +819,15 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **性能剖析**: 108 us/step, 9236 steps/sec, 4.6x 实时, 突触计算占 37%
 - **参数扫描**: synapse_scale 灵敏度 — speed R²=0.91, 最优 CI 在 1.5
 
+### Step 119: 本体感觉门控 + wave_analyzer 诊断工具 ✅ (2026-02-14)
+> 详细文档: [steps/step119_proprioceptive_gating.md](steps/step119_proprioceptive_gating.md)
+
+- **A/B-class 本体感觉门控**: is_reversing_ 锁存状态控制 MEC 通道 (Wen 2012 + Gao 2018)
+- **SMB klinotaxis gain**: 3→15 补偿 RFT 头部力矩稀释 (~12% vs 体干)
+- **反转时限**: 3000→2000ms (TA 累积/前进时间平衡)
+- **wave_analyzer**: 第10个诊断工具 — 行波方向/门控/曲率分布/klinotaxis有效性
+- **CI**: 0.177 (5种子均值, 从 0 恢复)
+
 ### Step 118: RFT 分布式力学引擎 — direction flag 移除 + 运动方向涌现 ✅ (2026-02-14)
 > 详细文档: [steps/step118_rft_locomotion.md](steps/step118_rft_locomotion.md)
 
@@ -903,7 +912,7 @@ P0/P1 违规全部修复:
   P0-6: FLP-11 直接注入移除 → NeuromodulationManager DMSR-1 框架 (Step 71)
 行为指标 (300s): CI≈0.44 (naive), CI≈-0.01 (sickness=1, 病原体回避生效), omega/reversal≈57%, reversal_rate≈0.14/s, speed≈0.15mm/s
 工具: celegans_diag.exe (信号链诊断+fitness) + celegans_regtest.exe (回归检测+电流溯源)
-诊断工具套件 (Step 114, 9个独立可执行文件):
+诊断工具套件 (Step 114+119, 10个独立可执行文件):
   health_check     — 快速健康扫描 (PASS/WARN/FAIL)
   neuron_monitor   — 神经元电压/释放率追踪
   circuit_probe    — 回路信号传播分析
@@ -913,12 +922,14 @@ P0/P1 违规全部修复:
   emergence_detector— 涌现检测 (Phi-IIT + 多尺度熵 + 亚稳态)
   perf_profiler    — 性能剖析 (计时/瓶颈/内存/可扩展性)
   param_sweep      — 参数扫描 (范围搜索 + 灵敏度分析)
+  wave_analyzer    — 行波传播诊断 (方向/门控/RFT分解/klinotaxis)
 
 运动驱动 (Step 13 — 生物学机制):
   感觉基线: 12 感觉神经元 × 15pA 自发活动 (Bargmann 2006)
   头部tonic: 8 头部运动神经元 × 3pA (上游中间神经元驱动)
   本体感觉: MEC stretch-activated 通道 (body curvature → B类 MN)
-  波传播: B类顺序感知前一单元领地 (Wen 2012) + 体节间曲率扩散 0.5 (Boyle 2012)
+  波传播: B类感知前方(Wen 2012) + A类感知后方(Gao 2018) + 曲率扩散 0.5 (Boyle 2012)
+  本体感觉门控 (Step 119): is_reversing_锁存 → B-class(fwd)/A-class(rev) 互斥切换
   通道噪声: 3pA 高斯噪声 (White 1998, 热涨落)
   头部振荡: CCA-1 burst → Ca²⁺ → SLO-1(BK) 适应 → 复极化 → 周期 ~500ms (Step 65: 振幅 110→49mV)
   半中心CPG: SMD dorsal↔ventral 交叉抑制(3 sections) → 背腹交替 burst (~2Hz)
