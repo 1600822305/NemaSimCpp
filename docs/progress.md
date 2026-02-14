@@ -1055,6 +1055,15 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **结构阻尼**: γ_rot = 2× Boyle 流体拖拽（explicit Euler 稳定性）
 - **结果**: Curv stability 0.0-0.5 Hz（Step 141: 3-6 Hz），10/10 runs 20/20 pass ✅
 
+### Step 143: AC耦合D/V驱动 + phi/cx-cy分离 ✅ (2026-02-14)
+> 详细文档: [steps/step143_ac_coupling_phi_cx_separation.md](steps/step143_ac_coupling_phi_cx_separation.md)
+
+- **问题**: 静态D/V偏置（DA/VA+DB/VB同时活跃）锁死S形，曲率不传播
+- **AC耦合**: dv_bias(tau=2s)去除静态偏置，只保留振荡分量驱动曲率
+- **phi/cx-cy分离**: reconstruct_rod只更新cx/cy（平移），phi由直接神经驱动控制（曲率）
+- **架构**: 恢复Step 137端点力+reconstruct_rod生物学架构，放弃CoM+Rotation/RFT公式方法
+- **结果**: 速度1.9 mm/s, 航向9.8 deg/s, 曲率0.8/2.4 /mm, 无抽搐, 20/20 pass ✅
+
 ---
 
 ## 当前系统状态

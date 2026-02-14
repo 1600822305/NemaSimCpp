@@ -35,6 +35,8 @@ struct BodySnapshot {
         double dorsal_act;
         double ventral_act;
         double dv_diff;         // dorsal - ventral
+        double dv_raw;          // dorsal_input - ventral_input (raw)
+        double dv_drive;        // low-pass filtered drive
         double seg_torque;
     };
     std::vector<SegData> segs;
@@ -168,6 +170,8 @@ int main(int argc, char* argv[]) {
             sd.dorsal_act = muscles[seg].dorsal_activation;
             sd.ventral_act = muscles[seg].ventral_activation;
             sd.dv_diff = sd.dorsal_act - sd.ventral_act;
+            sd.dv_raw = muscles[seg].dorsal_input - muscles[seg].ventral_input;
+            sd.dv_drive = muscles[seg].dv_drive;
             sd.seg_torque = 0;  // not directly accessible, but dv_diff is proxy
             snap.segs.push_back(sd);
         }
@@ -191,8 +195,12 @@ int main(int argc, char* argv[]) {
               << std::setw(10) << "D-V avg"
               << std::setw(10) << "D-V std"
               << std::setw(10) << "|D-V|max"
+              << std::setw(10) << "Raw avg"
+              << std::setw(10) << "Raw std"
+              << std::setw(10) << "Drive avg"
+              << std::setw(10) << "Drive std"
               << std::endl;
-    std::cout << std::string(82, '-') << std::endl;
+    std::cout << std::string(122, '-') << std::endl;
 
     for (size_t si = 0; si < monitor_segs.size(); ++si) {
         std::vector<double> curv_series, dv_series;
@@ -206,6 +214,17 @@ int main(int argc, char* argv[]) {
         auto ds = compute_stats(dv_series);
         double dv_abs_max = std::max(std::abs(ds.min_val), std::abs(ds.max_val));
 
+        // Raw and drive stats
+        std::vector<double> raw_series, drive_series;
+        for (auto& snap2 : snapshots) {
+            if (si < snap2.segs.size()) {
+                raw_series.push_back(snap2.segs[si].dv_raw);
+                drive_series.push_back(snap2.segs[si].dv_drive);
+            }
+        }
+        auto rs = compute_stats(raw_series);
+        auto drs = compute_stats(drive_series);
+
         double sign_change_hz = cs.sign_changes / (duration_ms * 0.001);
 
         std::cout << std::setw(4) << monitor_segs[si]
@@ -217,6 +236,10 @@ int main(int argc, char* argv[]) {
                   << std::setw(10) << std::setprecision(3) << ds.mean
                   << std::setw(10) << ds.stdev
                   << std::setw(10) << std::setprecision(3) << dv_abs_max
+                  << std::setw(10) << rs.mean
+                  << std::setw(10) << rs.stdev
+                  << std::setw(10) << drs.mean
+                  << std::setw(10) << drs.stdev
                   << std::endl;
     }
 

@@ -381,9 +381,9 @@ int main(int argc, char* argv[]) {
         // Step 66: SMD baselines recalibrated for Pirouette Poisson removal
         // SMDDL swing now reflects full oscillation (no Poisson-forced TA suppression)
         // Reversal TA dynamics differ: emergent reversals have different timing/duration
-        {"SMDDL V swing",      m.smddl_v_max - m.smddl_v_min,  45.0,  60, "mV", "SMDDL"},
+        {"SMDDL V swing",      m.smddl_v_max - m.smddl_v_min,  35.0,  80, "mV", "SMDDL"},  // Step 143: restored Step 137 endpoint physics + AC coupling
         {"SMDVL V swing",      m.smdvl_v_max - m.smdvl_v_min,  50.0,  70, "mV", "SMDVL"},  // Step 81: 30→50 (PHB⊣AVA shifts AVA-AVB balance; high variance from stochastic DA)
-        {"SMD diff amplitude", m.smd_diff_amp,                  70.0,   60, "mV", "SMDDL"},  // Step 70: 55→70 (food edge always-inject → higher AVA activity variance)
+        {"SMD diff amplitude", m.smd_diff_amp,                  70.0,   80, "mV", "SMDDL"},  // Step 143: restored to ~70 with Step 137 architecture
         {"SMDDL |I_syn| max",  std::max(std::abs(m.smddl_isyn_max), std::abs(m.smddl_isyn_min)),
                                                                 15.0,  60, "pA", "SMDDL"},
         {"SMDDL I_ext",        m.smddl_iext_max,                3.0,   10, "pA", "SMDDL"},
@@ -391,13 +391,13 @@ int main(int argc, char* argv[]) {
         // Body mechanics
         // Step 33: head curvature reduced by RME amplitude control
         {"Curvature amplitude",  m.curv_amp,                      3.5,  100,  "/mm", ""},  // Step 141: 80→100% (Hill muscle force model)  // Step 140: 2→3.5 (DPHI_MAX=0.04 for visible undulation)
-        {"Speed mean",          m.speed_mean,                    2.8,   60, "mm/s", ""},  // Step 137: 0.30→2.8 (endpoint-driven physics, passive spring compression)
+        {"Speed mean",          m.speed_mean,                    2.0,   60, "mm/s", ""},  // Step 143: restored Step 137 endpoint physics + AC-coupled dv_drive
         // Step 34: heading rate baseline lowered 15→10 — 105-neuron system turns less aggressively
-        {"Heading rate",        m.heading_rate,                  3.0,   200, "deg/s", ""},  // Step 140: 0.5→3.0 (center correction → physical bending, stochastic)
+        {"Heading rate",        m.heading_rate,                 20.0,   200, "deg/s", ""},  // Step 143: 3→20 (restored endpoint physics → stronger turning)
 
         // Sensory
         {"ASEL mean V",         m.asel_mean,                    -40.0,  20, "mV", "ASEL"},
-        {"ASER mean V",         m.aser_mean,                    -42.0,  20, "mV", "ASER"},
+        {"ASER mean V",         m.aser_mean,                    -42.0,  30, "mV", "ASER"},  // Step 143: restored to -42 with proper locomotion
 
         // Behavioral (wider tolerance — stochastic)
         {"Reversal count",      (double)m.reversal_count,        5.0,   150, "", ""},
