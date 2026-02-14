@@ -76,7 +76,7 @@ void WormRenderer3D::draw(const std::array<BodySegment, NUM_BODY_SEGMENTS>& segm
     // Step 136: Reconstruct body shape with visual curvature amplification.
     // Real C. elegans curvature (~4/mm on 1mm body) produces only ~0.025mm
     // lateral displacement — invisible at screen scale. Amplify 3× for display.
-    constexpr float VIS_CURV_AMP = 3.0f;
+    constexpr float VIS_CURV_AMP = 5.0f;
     float ds_mm = 1.0f / NUM_BODY_SEGMENTS;  // segment length in mm
     // Reconstruct amplified body positions from head
     struct AmpPos { float x, y, angle; };

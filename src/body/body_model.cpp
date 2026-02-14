@@ -394,9 +394,9 @@ void BodyModel::update_physics(double dt_seconds) {
 
             // Direct phi adjustment (Step 137 proven parameters)
             double grad = 1.0 - 0.4 * static_cast<double>(s) / NSEG;
-            constexpr double K_DRIVE   = 0.15;  // rad/s per unit D/V diff
+            constexpr double K_DRIVE   = 2.0;   // rad/s per unit D/V diff (realistic curvature ~10/mm)
             constexpr double K_RESTORE = 5.0;   // 1/s restoration to straight
-            constexpr double DPHI_MAX  = 0.04;  // hard clamp ~1.9 /mm
+            constexpr double DPHI_MAX  = 0.25;  // hard clamp ~12 /mm (biological range ~10-15)
 
             double ddphi = (K_DRIVE * muscles_[s].dv_drive * grad
                           - K_RESTORE * dphi) * dt_sub;

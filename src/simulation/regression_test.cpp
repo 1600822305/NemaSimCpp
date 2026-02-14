@@ -390,7 +390,7 @@ int main(int argc, char* argv[]) {
 
         // Body mechanics
         // Step 33: head curvature reduced by RME amplitude control
-        {"Curvature amplitude",  m.curv_amp,                      3.5,  100,  "/mm", ""},  // Step 141: 80→100% (Hill muscle force model)  // Step 140: 2→3.5 (DPHI_MAX=0.04 for visible undulation)
+        {"Curvature amplitude",  m.curv_amp,                      7.0,  100,  "/mm", ""},  // Step 143b: K_DRIVE=2.0, DPHI_MAX=0.25 → realistic curvature
         {"Speed mean",          m.speed_mean,                    2.0,   60, "mm/s", ""},  // Step 143: restored Step 137 endpoint physics + AC-coupled dv_drive
         // Step 34: heading rate baseline lowered 15→10 — 105-neuron system turns less aggressively
         {"Heading rate",        m.heading_rate,                 20.0,   200, "deg/s", ""},  // Step 143: 3→20 (restored endpoint physics → stronger turning)
@@ -411,7 +411,7 @@ int main(int argc, char* argv[]) {
 
         // Step 29: Wave propagation & curvature stability
         // Mid-body curvature amplitude: wave must propagate past head (seg 10 amp > 0.05)
-        {"Midbody curv amp",    m.midbody_curv_amp,              3.5,  100,  "/mm", ""},  // Step 140: 2→3.5 (DPHI_MAX=0.04 for visible undulation)
+        {"Midbody curv amp",    m.midbody_curv_amp,             20.0,  100,  "/mm", ""},  // Step 143b: realistic curvature (~10-15 /mm biological)
         // Curvature sign-change rate at seg 7: ~0.2 Hz normal, >100 Hz = numerical instability
         // Step 33: curv stability baseline raised — RME gain control affects oscillation frequency
         {"Curv stability",      m.curv_sign_change_hz,           3.0,   200, "Hz", ""},  // Step 141: 1.0→3.0 (per-segment rotation + proprioceptive feedback)
