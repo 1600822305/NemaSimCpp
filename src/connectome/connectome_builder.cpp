@@ -1124,6 +1124,22 @@ void build_interneuron(CB& b) {
     b.syn("AIBL", "RIML", 3); b.syn("AIBR", "RIMR", 3);
     // RIB → AVB (additional forward drive)
     b.syn("RIBL", "AVBL", 2); b.syn("RIBR", "AVBR", 2);
+
+    // Step 121: AIA dual output for roaming/dwelling state control
+    // Ji 2021 eLife: AIA correlates with NSM during dwelling and with
+    // forward-active neurons (AVB, AIY, RIB) during roaming.
+    // AIA receives from almost all chemosensory neurons (Larsch 2015).
+    // AIA → AIY: Cook 2019 ~2 EM sections; promotes forward drive (roaming side)
+    // REF: Ji 2021 eLife, Dobosiewicz 2019, Cook 2019
+    b.syn("AIAL", "AIYL", 2); b.syn("AIAR", "AIYR", 2);
+    // AIA → RIB: roaming-active interneuron, sublateral locomotion modulator
+    // Cook 2019 ~1 EM section; weak but functionally significant
+    // REF: Ji 2021 eLife — RIB is forward-active during roaming
+    b.syn("AIAL", "RIBL", 1); b.syn("AIAR", "RIBR", 1);
+    // AIY → RIB: forward drive relay, both roaming-active neurons
+    // Cook 2019 ~2 EM sections; strengthens roaming sub-circuit coherence
+    // REF: Ji 2021 eLife — AIY and RIB are co-active during roaming
+    b.syn("AIYL", "RIBL", 2); b.syn("AIYR", "RIBR", 2);
 }
 
 // ================================================================

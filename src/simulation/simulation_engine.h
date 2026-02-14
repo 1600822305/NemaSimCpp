@@ -83,6 +83,16 @@ public:
     bool is_omega_turning() const { return riv_omega_active_; }
     double reversal_duration() const { return reversal_duration_; }
 
+    // Step 121: Roaming/Dwelling behavioral state (Flavell 2013, Ji 2021 eLife)
+    // Bistable foraging state classifier based on smoothed speed + reversal rate
+    enum class ForagingState { ROAMING, DWELLING };
+    ForagingState foraging_state() const { return foraging_state_; }
+    double roaming_fraction() const { return (roaming_samples_ + dwelling_samples_) > 0 ? (double)roaming_samples_ / (roaming_samples_ + dwelling_samples_) : 0; }
+    double foraging_state_duration_s() const { return foraging_state_duration_ / 1000.0; }
+    int foraging_state_transitions() const { return foraging_transitions_; }
+    double smoothed_speed() const { return smoothed_speed_; }
+    double smoothed_reversal_rate() const { return smoothed_reversal_rate_; }
+
     // Satiety (Step 20c → Step 24: pharyngeal pump-driven)
     double satiety() const { return satiety_; }
     // Sickness (Step 26: learned pathogen avoidance)
@@ -371,6 +381,26 @@ private:
     // Step 71: dmp_speed_factor_ REMOVED (P0-5 fix)
     // Speed reduction now emerges from AVL/DVB GABA → B-class MN inhibition
     void update_defecation();             // called each step
+
+    // Step 121: Roaming/Dwelling state classifier
+    ForagingState foraging_state_ = ForagingState::DWELLING;
+    double smoothed_speed_ = 0.0;          // EMA-filtered speed (tau=5s)
+    double smoothed_reversal_rate_ = 0.0;  // EMA-filtered reversal rate (events/s)
+    double foraging_state_duration_ = 0.0; // ms in current state
+    int roaming_samples_ = 0;
+    int dwelling_samples_ = 0;
+    int foraging_transitions_ = 0;
+    double rev_event_timer_ = 0.0;         // ms since last reversal (for rate calc)
+    int rev_count_window_ = 0;             // reversal count in sliding window
+    double rev_window_start_ = 0.0;        // start of current counting window
+    bool prev_reversing_for_foraging_ = false; // reversal edge detector for rate calc
+    static constexpr double kRoamingSpeedThreshold = 0.08;   // mm/s (Ben Arous 2009)
+    static constexpr double kDwellingSpeedThreshold = 0.04;  // mm/s (hysteresis)
+    static constexpr double kRoamingRevRateThreshold = 0.05; // rev/s (low = roaming)
+    static constexpr double kDwellingRevRateThreshold = 0.12; // rev/s (high = dwelling)
+    static constexpr double kSpeedSmoothTau = 5000.0;        // ms EMA time constant
+    static constexpr double kRevRateWindow = 10000.0;        // ms window for rate calc
+    void update_foraging_state();           // called each step
 
     // Reversal & omega turn tracking
     bool is_reversing_ = false;

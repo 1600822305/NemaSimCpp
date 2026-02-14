@@ -89,9 +89,12 @@ struct BehaviorMetrics {
     double omega_time_pct = 0;
     double pause_time_pct = 0;
     
-    // 神经调质状态 (正交于运动状态)
-    double roaming_time_pct = 0;   // 5-HT < 0.35
-    double dwelling_time_pct = 0;  // 5-HT >= 0.35
+    // Step 121: Roaming/Dwelling 觅食状态 (SimulationEngine 分类器)
+    double roaming_time_pct = 0;
+    double dwelling_time_pct = 0;
+    int foraging_transitions = 0;    // R↔D 状态切换次数
+    double mean_roaming_bout_s = 0;  // 平均 roaming 持续时间
+    double mean_dwelling_bout_s = 0; // 平均 dwelling 持续时间
     
     // Bout 统计
     int forward_bout_count = 0;
@@ -164,6 +167,13 @@ public:
         double forward_time = 0, reverse_time = 0, omega_time = 0, pause_time = 0;
         double roaming_time = 0, dwelling_time = 0;
         double near_target_time = 0;
+
+        // Step 121: Foraging state bout tracking
+        using FS = SimulationEngine::ForagingState;
+        FS prev_foraging = FS::DWELLING;
+        double foraging_bout_start = 0;
+        std::vector<double> roaming_bouts, dwelling_bouts;
+        int foraging_trans = 0;
         
         // Trace: active event tracking
         OmegaTrace active_omega;
@@ -341,13 +351,24 @@ public:
                     case MotionState::PAUSE:   pause_time += dt_sample; break;
                 }
                 
-                // 神经调质状态 (正交于运动状态)
-                double serotonin = sim.neuromodulation().get_concentration("5-HT");
-                if (serotonin < 0.35) {
+                // Step 121: Foraging state from SimulationEngine classifier
+                FS cur_foraging = sim.foraging_state();
+                if (cur_foraging == FS::ROAMING) {
                     roaming_time += dt_sample;
                 } else {
                     dwelling_time += dt_sample;
                 }
+                // Track foraging state transitions and bout durations
+                if (cur_foraging != prev_foraging && t > 3000.0) {
+                    double bout_dur = (t - foraging_bout_start) / 1000.0;
+                    if (bout_dur > 0.5) { // filter very short transients
+                        if (prev_foraging == FS::ROAMING) roaming_bouts.push_back(bout_dur);
+                        else dwelling_bouts.push_back(bout_dur);
+                    }
+                    foraging_trans++;
+                    foraging_bout_start = t;
+                }
+                prev_foraging = cur_foraging;
                 
                 // 目标距离
                 double dx = pt.position.x - target_.x;
@@ -361,7 +382,8 @@ public:
         
         // 计算指标
         compute_metrics(forward_time, reverse_time, omega_time, pause_time,
-                       roaming_time, dwelling_time, near_target_time);
+                       roaming_time, dwelling_time, near_target_time,
+                       foraging_trans, roaming_bouts, dwelling_bouts);
     }
     
     const BehaviorMetrics& metrics() const { return metrics_; }
@@ -436,7 +458,10 @@ private:
     }
     
     void compute_metrics(double forward_time, double reverse_time, double omega_time, double pause_time,
-                        double roaming_time, double dwelling_time, double near_target_time) {
+                        double roaming_time, double dwelling_time, double near_target_time,
+                        int foraging_trans = 0,
+                        const std::vector<double>& roaming_bouts = {},
+                        const std::vector<double>& dwelling_bouts = {}) {
         if (trajectory_.empty()) return;
         
         double total_time = duration_s_ * 1000.0;
@@ -478,11 +503,20 @@ private:
             metrics_.pause_time_pct = 100.0 * pause_time / motion_total;
         }
         
-        // === 神经调质状态 (正交, 总和 = 100%) ===
+        // === Step 121: Roaming/Dwelling 觅食状态 (SimulationEngine 分类器) ===
         double neuromod_total = roaming_time + dwelling_time;
         if (neuromod_total > 0) {
             metrics_.roaming_time_pct = 100.0 * roaming_time / neuromod_total;
             metrics_.dwelling_time_pct = 100.0 * dwelling_time / neuromod_total;
+        }
+        metrics_.foraging_transitions = foraging_trans;
+        if (!roaming_bouts.empty()) {
+            double sum = 0; for (double b : roaming_bouts) sum += b;
+            metrics_.mean_roaming_bout_s = sum / roaming_bouts.size();
+        }
+        if (!dwelling_bouts.empty()) {
+            double sum = 0; for (double b : dwelling_bouts) sum += b;
+            metrics_.mean_dwelling_bout_s = sum / dwelling_bouts.size();
         }
         
         // === Bout 统计 ===
@@ -626,9 +660,15 @@ void print_metrics(const BehaviorMetrics& m, bool verbose) {
     std::cout << "  Omega:              " << m.omega_time_pct << "%\n";
     std::cout << "  Pause:              " << m.pause_time_pct << "%\n\n";
     
-    std::cout << "--- 神经调质状态 (正交, 总和=100%) ---\n";
-    std::cout << "  Roaming (低5-HT):   " << m.roaming_time_pct << "%\n";
-    std::cout << "  Dwelling (高5-HT):  " << m.dwelling_time_pct << "%\n\n";
+    std::cout << "--- \u89c5\u98df\u72b6\u6001 (Step 121: speed+reversal \u53cc\u7a33\u6001\u5206\u7c7b\u5668) ---\n";
+    std::cout << "  Roaming:            " << m.roaming_time_pct << "%\n";
+    std::cout << "  Dwelling:           " << m.dwelling_time_pct << "%\n";
+    std::cout << "  R\u2194D transitions:    " << m.foraging_transitions << "\n";
+    if (m.mean_roaming_bout_s > 0)
+        std::cout << "  Mean roaming bout:  " << std::setprecision(1) << m.mean_roaming_bout_s << " s\n";
+    if (m.mean_dwelling_bout_s > 0)
+        std::cout << "  Mean dwelling bout: " << std::setprecision(1) << m.mean_dwelling_bout_s << " s\n";
+    std::cout << "\n";
     
     std::cout << "--- Bout 统计 ---\n";
     std::cout << "  Forward bouts:      " << m.forward_bout_count 

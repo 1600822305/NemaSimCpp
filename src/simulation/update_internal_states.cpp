@@ -451,4 +451,74 @@ void SimulationEngine::apply_ins1_modulation() {
     }
 }
 
+// ================================================================
+// Step 121: Roaming/Dwelling foraging state classifier
+// Bistable classification based on smoothed speed + reversal rate.
+// Hysteresis thresholds prevent rapid toggling.
+// REF: Ben Arous 2009 PLOS One — speed+curvature clustering
+//      Flavell 2013 Cell — 5-HT/PDF roaming/dwelling
+//      Ji 2021 eLife — mutual inhibition circuit
+// ================================================================
+void SimulationEngine::update_foraging_state() {
+    // Skip early simulation (warmup)
+    if (current_time_ < 3000.0) return;
+
+    // 1. Smooth speed with EMA (tau = 5s)
+    double inst_speed = body_.get_speed();
+    double alpha_speed = dt_ / kSpeedSmoothTau;
+    if (alpha_speed > 1.0) alpha_speed = 1.0;
+    smoothed_speed_ += alpha_speed * (inst_speed - smoothed_speed_);
+
+    // 2. Compute reversal rate in sliding window
+    // Count reversal events (rising edge of is_reversing_)
+    rev_event_timer_ += dt_;
+    if (current_time_ - rev_window_start_ > kRevRateWindow) {
+        // Window expired — compute rate and reset
+        smoothed_reversal_rate_ = rev_count_window_ / (kRevRateWindow * 0.001); // events/s
+        rev_count_window_ = 0;
+        rev_window_start_ = current_time_;
+    }
+    // Detect reversal onset (rising edge of is_reversing_)
+    if (is_reversing_ && !prev_reversing_for_foraging_) {
+        rev_count_window_++;
+    }
+    prev_reversing_for_foraging_ = is_reversing_;
+
+    // 3. Classify with hysteresis (Schmitt trigger)
+    // Roaming: high speed AND low reversal rate
+    // Dwelling: low speed OR high reversal rate
+    ForagingState prev_state = foraging_state_;
+
+    if (foraging_state_ == ForagingState::DWELLING) {
+        // Transition to ROAMING: speed must exceed HIGH threshold
+        // AND reversal rate must be LOW
+        if (smoothed_speed_ > kRoamingSpeedThreshold &&
+            smoothed_reversal_rate_ < kRoamingRevRateThreshold) {
+            foraging_state_ = ForagingState::ROAMING;
+        }
+    } else {
+        // Transition to DWELLING: speed drops below LOW threshold
+        // OR reversal rate exceeds HIGH threshold
+        if (smoothed_speed_ < kDwellingSpeedThreshold ||
+            smoothed_reversal_rate_ > kDwellingRevRateThreshold) {
+            foraging_state_ = ForagingState::DWELLING;
+        }
+    }
+
+    // 4. Track state duration and transitions
+    if (foraging_state_ != prev_state) {
+        foraging_transitions_++;
+        foraging_state_duration_ = 0.0;
+    } else {
+        foraging_state_duration_ += dt_;
+    }
+
+    // 5. Accumulate samples for roaming fraction
+    if (foraging_state_ == ForagingState::ROAMING) {
+        roaming_samples_++;
+    } else {
+        dwelling_samples_++;
+    }
+}
+
 } // namespace celegans

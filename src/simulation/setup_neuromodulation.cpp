@@ -556,7 +556,31 @@ void SimulationEngine::setup_neuromodulation() {
         if (aiyr >= 0) pdf.targets.push_back(
             {aiyr, "PDFR-1", ModulationEffect::EXCITABILITY, 3.0});
 
-        // Step 48: Target 4: PDFR-1 network → NSM inhibition (mutual exclusivity)
+        // Step 121: Target 4: PDFR-1 → RIB excitation (roaming-active interneuron)
+        // RIB is a key forward-active neuron during roaming (Ji 2021 eLife).
+        // RIB expresses PDFR-1 → PDF promotes RIB activity → sublateral locomotion.
+        // RIB→AVB (forward command), RIB→SIA/SIB (head motor coordination).
+        // REF: Ji 2021 eLife — RIB co-active with AVB/AIY during roaming
+        //      Rhoades 2019 — PDFR-1 expression in RIB
+        int ribl = connectome_.get_neuron_id("RIBL");
+        int ribr = connectome_.get_neuron_id("RIBR");
+        if (ribl >= 0) pdf.targets.push_back(
+            {ribl, "PDFR-1", ModulationEffect::EXCITABILITY, 3.0}); // +3 pA
+        if (ribr >= 0) pdf.targets.push_back(
+            {ribr, "PDFR-1", ModulationEffect::EXCITABILITY, 3.0});
+
+        // Step 121: Target 5: PDFR-1 → RIM excitation
+        // RIM expresses PDFR-1. During roaming, PDF promotes RIM activity
+        // which contributes to the reversal-forward switching dynamics.
+        // REF: Rhoades 2019 — PDFR-1 functions in RIM to promote roaming
+        int riml = connectome_.get_neuron_id("RIML");
+        int rimr = connectome_.get_neuron_id("RIMR");
+        if (riml >= 0) pdf.targets.push_back(
+            {riml, "PDFR-1", ModulationEffect::EXCITABILITY, 2.0}); // +2 pA
+        if (rimr >= 0) pdf.targets.push_back(
+            {rimr, "PDFR-1", ModulationEffect::EXCITABILITY, 2.0});
+
+        // Step 48: Target 6: PDFR-1 network → NSM inhibition (mutual exclusivity)
         // KEY FEEDBACK completing the roaming/dwelling bistable switch.
         // Without this, NSM keeps firing on food → 5-HT stays high → permanent dwelling.
         // Mechanism: PDF → PDFR-1 expressing neurons → inhibit NSM (indirect)

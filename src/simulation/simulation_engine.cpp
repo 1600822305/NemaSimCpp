@@ -677,7 +677,11 @@ void SimulationEngine::step() {
     // 9. Body physics update
     body_.update_physics(dt_ * 0.001);
 
-    // 9. Callback
+    // 9b. Step 121: Roaming/Dwelling state classification
+    // Must be AFTER body physics (needs speed), AFTER reversal detection
+    update_foraging_state();
+
+    // 10. Callback
     if (step_callback_) {
         step_callback_(*this, step_count_);
     }

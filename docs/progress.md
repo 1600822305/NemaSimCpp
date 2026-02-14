@@ -876,6 +876,15 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **as_factor 重校准**: 2.8→0.8（param_sweep: SAA/SIA/SIB 抬高 dorsal_tone）
 - **behavior_analyzer**: omega=11(92%), CI=0.898, speed=0.184mm/s, 曲率频率=0.81Hz
 
+### Step 121: Roaming↔Dwelling 觅食状态切换 ✅ (2026-02-15)
+> 详细文档: [steps/step121_roaming_dwelling.md](steps/step121_roaming_dwelling.md)
+
+- **连接组强化**: AIA→AIY(2), AIA→RIB(1), AIY→RIB(2) — roaming 子回路 (Ji 2021 eLife)
+- **PDFR-1 靶点**: PDF→RIB(+3pA) + PDF→RIM(+2pA) — roaming 活跃神经元受 PDF 兴奋
+- **ForagingState 分类器**: speed+reversal_rate 双参数 Schmitt 触发器, EMA 平滑 (τ=5s)
+- **behavior_analyzer**: R/D 指标 (roaming_fraction, foraging_transitions, bout durations)
+- **验证**: Roaming 2-10%, Dwelling 90-98%, 转换~2次, bout~6s (3种子, 60-300s)
+
 ---
 
 ## 当前系统状态
@@ -902,7 +911,7 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
   RFT 分布式力学 (Step 118): 3×3 力平衡求解, C_N/C_T≈1.5, 方向涌现, 无 direction flag
   曲率纯肌肉涌现(force_diff无neuromod), curvature_gain=4.0, max_curv=25, speed_cap=0.8mm/s
 环境: 50×50 mm, 4化学场(food_odor+soluble+repellent+pheromone) + 线性温度梯度 (0.5°C/mm) + O₂场(food派生) + 光场(高斯σ=8mm)
-内部状态: satiety_(泵驱动), sickness_(有毒食物), food_memory_(双通路ARS), fatigue_(睡眠驱动)
+内部状态: satiety_(泵驱动), sickness_(有毒食物), food_memory_(双通路ARS), fatigue_(睡眠驱动), foraging_state_(roaming/dwelling双稳态)
 学习: 盐学习(ASER w_mod) + 病原体学习(AWC翻转+WV反向+厌食) + 温度学习(Tc适应+AWC饥饿中断) + STP习惯化 + 睡眠巩固(Step 62) + INS-1厌食(Step 63)
 仿真: dt=0.5ms, CPU 实时 (10000步 < 1s)
 性能: cache_neuron_ids_and_synapses() 一次性缓存 10 ID + 6 typed 指针 + 3 组突触索引
