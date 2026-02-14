@@ -31,7 +31,7 @@ class Connectome;
 enum class ModulationEffect {
     EXCITABILITY,    // shift leak reversal or add tonic current (pA)
     SYNAPSE_GAIN,    // multiply outgoing synapse weights
-    SPEED_SCALE,     // modify locomotion speed (basal slowing)
+    MUSCLE_GAIN,     // modulate muscle force output (replaces SPEED_SCALE bypass)
     REVERSAL_RATE,   // modify pirouette/reversal probability
 };
 
@@ -93,12 +93,12 @@ public:
     // Call after network warmup to clear initial transients
     void reset_concentrations() {
         for (auto& mod : modulators_) mod.concentration = 0.0;
-        speed_scale_ = 1.0;
+        muscle_gain_ = 1.0;
         reversal_rate_scale_ = 1.0;
     }
 
-    // Global speed modulation from neuromodulators
-    double get_speed_scale() const { return speed_scale_; }
+    // Global muscle force gain from neuromodulators (replaces speed_scale bypass)
+    double get_muscle_gain() const { return muscle_gain_; }
 
     // Global reversal rate modulation
     double get_reversal_rate_scale() const { return reversal_rate_scale_; }
@@ -111,7 +111,7 @@ private:
     std::unordered_map<int, double> synapse_gains_;    // neuron_id → multiplier
 
     // Global effects
-    double speed_scale_ = 1.0;
+    double muscle_gain_ = 1.0;
     double reversal_rate_scale_ = 1.0;
 
     // Deferred name→id resolution

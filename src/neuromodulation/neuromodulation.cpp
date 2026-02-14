@@ -42,7 +42,7 @@ void NeuromodulationManager::update(
     // Clear per-step accumulated effects
     tonic_currents_.clear();
     synapse_gains_.clear();
-    speed_scale_ = 1.0;
+    muscle_gain_ = 1.0;
     reversal_rate_scale_ = 1.0;
 
     for (auto& mod : modulators_) {
@@ -106,9 +106,9 @@ void NeuromodulationManager::update(
                 }
                 break;
 
-            case ModulationEffect::SPEED_SCALE:
-                // Global speed modulation (neuron_id=-1 for global)
-                speed_scale_ *= (1.0 + effect);
+            case ModulationEffect::MUSCLE_GAIN:
+                // Global muscle force gain (neuron_id=-1 for global)
+                muscle_gain_ *= (1.0 + effect);
                 break;
 
             case ModulationEffect::REVERSAL_RATE:

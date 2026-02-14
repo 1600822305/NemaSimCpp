@@ -167,38 +167,28 @@ void MotorController::initialize(const std::unordered_map<std::string, int>& nam
 }
 
 void MotorController::update(const std::vector<std::unique_ptr<Neuron>>& neurons, BodyModel& body) {
-    body.reset_activations();
+    auto& muscles = body.muscles();
+    muscles.reset_inputs();
 
     int n_size = static_cast<int>(neurons.size());
 
-    // First pass: excitatory motor neurons (A/B class, SMD)
+    // Single pass: excitatory neurons add cholinergic input, inhibitory add GABAergic
+    // Multiple neurons innervating the same muscle SUM their contributions
+    // (replaces old max-semantics + two-pass subtract)
     for (auto& map : mappings_) {
-        if (map.is_inhibitory) continue;
         if (map.neuron_id < 0 || map.neuron_id >= n_size) continue;
 
         double release = neurons[map.neuron_id]->get_transmitter_release_rate();
 
-        for (int seg = map.segment_start; seg < map.segment_end && seg < NUM_BODY_SEGMENTS; ++seg) {
-            body.set_muscle_activation(seg, map.is_dorsal, release);
-        }
-    }
-
-    // Second pass: inhibitory D-class neurons reduce contralateral activation
-    // DD inhibits ventral, VD inhibits dorsal
-    for (auto& map : mappings_) {
-        if (!map.is_inhibitory) continue;
-        if (map.neuron_id < 0 || map.neuron_id >= n_size) continue;
-
-        double release = neurons[map.neuron_id]->get_transmitter_release_rate();
-        double inhibition = release * 0.8; // GABA inhibition strength
-
-        for (int seg = map.segment_start; seg < map.segment_end && seg < NUM_BODY_SEGMENTS; ++seg) {
-            auto& s = body.segments()[seg];
-            double current = map.is_dorsal ?
-                s.dorsal_activation : s.ventral_activation;
-            double reduced = std::max(0.0, current - inhibition);
-            // Use direct access since we need to reduce
-            body.set_muscle_activation_direct(seg, map.is_dorsal, reduced);
+        if (map.is_inhibitory) {
+            double inhibition = release * 0.8; // GABA inhibition strength
+            for (int seg = map.segment_start; seg < map.segment_end && seg < NUM_BODY_SEGMENTS; ++seg) {
+                muscles.add_inhibitory(seg, map.is_dorsal, inhibition);
+            }
+        } else {
+            for (int seg = map.segment_start; seg < map.segment_end && seg < NUM_BODY_SEGMENTS; ++seg) {
+                muscles.add_excitatory(seg, map.is_dorsal, release);
+            }
         }
     }
 }

@@ -827,7 +827,16 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **RIV omega**: set_curvature_drive(seg 0-5, taper 100%→50%) 替代 set_curvature_bias
 - **SMB klinotaxis**: add_curvature_drive(seg 0-5) 替代 curvature_bias 叠加
 - **max_curv/max_dtheta**: 统一为物理极限(15.0/mm, 5.24 rad/s)，非行为开关
-- **regtest**: 20/20 PASS, omega=39/30s
+
+### Step 116: MuscleSystem 独立计算节点 + 力学速度模型 + SPEED_SCALE 移除 ✅ (2026-02-14)
+> 详细文档: [steps/step116_muscle_system_upgrade.md](steps/step116_muscle_system_upgrade.md)
+
+- **MuscleCell**: 独立计算节点，30ms 激活时间常数（Richmond & Jorgensen 1999）
+- **MuscleSystem**: 48 dorsal + 48 ventral 肌肉单元，max 兴奋 + sum 抑制
+- **力学速度**: v = mean_force × efficiency × tuning / drag（替代 v_max × scale × work）
+- **SPEED_SCALE 移除**: `ModulationEffect::MUSCLE_GAIN` 替代，5-HT/OA/PDF/FLP-11 通过肌肉力量
+- **as_factor 重校准**: 2.8→0.8（param_sweep: SAA/SIA/SIB 抬高 dorsal_tone）
+- **behavior_analyzer**: omega=11(92%), CI=0.898, speed=0.184mm/s, 曲率频率=0.81Hz
 
 ---
 
@@ -844,14 +853,14 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
   Step 84-91: VNC MN 完整互连 (交叉抑制/本体感觉波/后退波 全部完成)
 神经调质: 7 种 (5-HT, DA, OA, TA, NLP-12, PDF, FLP-11) — volume transmission + 饱食度(泵驱动)
   5-HT 源: NSM(食物) + HSN(产卵) — 4个源神经元 (Step 43: ADF 移除)
-  5-HT 靶标 (20个, 5种受体): MOD-1→AIY/AIB/AIZ/PVC(抑制) + SER-4→RIC(抑制)+speed(-0.60)+reversal(-0.50) + SER-1→RIA/RIC(兴奋) + SER-5→ASH(增敏) + LGC-50→RIA(SYNAPSE_GAIN)
+  5-HT 靶标 (20个, 5种受体): MOD-1→AIY/AIB/AIZ/PVC(抑制) + SER-4→RIC(抑制)+MUSCLE_GAIN(-0.60)+reversal(-0.50) + SER-1→RIA/RIC(兴奋) + SER-5→ASH(增敏) + LGC-50→RIA(SYNAPSE_GAIN)
   DA 源: CEP(4)+ADE(2)+PDE(2) = 8个 (完整), 27个靶标: DOP-3→DB01-07/VB01-11(-3pA)/AVA(-3)/AVB(-2) + DOP-1→DVA(+4)/RIA(+2) + DOP-2→CEP(-3, 自受体)
   TA 源: RIM (逃逸协调) — LGC-55→SMD/AVB/RIV抑制 + TYRA-3→ASH增敏 + SER-2→AIY抑制
   NLP-12 源: DVA (本体感觉) — CKR-1→SMD(+5pA, 头摆ARS) + CKR-2→AVA(+2pA) + DA→DOP-1→DVA(+4pA)
-  FLP-11 源: RIS (睡眠) — DMSR-1→AVA/AVB(-20)/MC(-18)/head_MN(-28)/body_MN(-42, 胆碱能only)/SPEED(-0.95) + FRPR-8→RIS(-8, 自抑制)
+  FLP-11 源: RIS (睡眠) — DMSR-1→AVA/AVB(-20)/MC(-18)/head_MN(-28)/body_MN(-42, 胆碱能only)/MUSCLE_GAIN(-0.95) + FRPR-8→RIS(-8, 自抑制)
 离子通道: 14 种 (EGL-19/UNC-2/CCA-1/SHL-1/KQT-3/SLO-1/NCA/MEC + EGL-36/IRK/TWK/SLO-2/OSM-9/EXP-2)
 神经元模型: 单隔室 HH 分级电位 (L2) + 多隔室 (RIA) + 钙动力学
-身体: 2D 弹性杆 48 段, 91 个运动神经元-肌肉映射, 体节间曲率扩散(弹性耦合)
+身体: 2D 弹性杆 48 段, MuscleSystem(48D+48V, 30ms τ), 91 个 MN 映射, 力学速度(mean_force×eff/drag), 曲率扩散(弹性耦合)
 环境: 50×50 mm, 4化学场(food_odor+soluble+repellent+pheromone) + 线性温度梯度 (0.5°C/mm) + O₂场(food派生) + 光场(高斯σ=8mm)
 内部状态: satiety_(泵驱动), sickness_(有毒食物), food_memory_(双通路ARS), fatigue_(睡眠驱动)
 学习: 盐学习(ASER w_mod) + 病原体学习(AWC翻转+WV反向+厌食) + 温度学习(Tc适应+AWC饥饿中断) + STP习惯化 + 睡眠巩固(Step 62) + INS-1厌食(Step 63)

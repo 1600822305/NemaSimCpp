@@ -43,7 +43,7 @@ public:
         float sensory_gain    = 1.0f;    // chemosensory transducer gain multiplier
         float bias_clamp      = 30.0f;   // Step 93: 12→30 pA. 20pA still saturating. 30pA allows full steering + aversion range.
         // Step 32: Runtime-tunable parameters (avoid recompile for parameter sweeps)
-        float as_factor       = 2.8f;    // AS dorsal resistance factor (Step 93: 1.7→2.8, DD/VD cross-inhibition lowered dorsal tone → 96% omega)
+        float as_factor       = 0.8f;    // AS dorsal resistance factor (Step 116: 2.8→0.8, SAA/SIA/SIB raised dorsal tone; param_sweep optimal)
         float pulse_amp       = 50.0f;   // RIV post-reversal pulse amplitude (Step 42C: 80→50, RIA↔RIV provides base drive)
         float omega_threshold = 0.5f;    // RIV release threshold for omega mode
         float riv_tonic       = 1.0f;    // RIV baseline tonic drive (pA)

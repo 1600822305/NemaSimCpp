@@ -410,7 +410,7 @@ void SimulationEngine::update_awc_pref_cache() {
 void SimulationEngine::step() {
     // 0. Sync tuning params to subsystems
     connectome_.set_synapse_scale(static_cast<double>(params.synapse_scale));
-    body_.set_speed_scale(static_cast<double>(params.speed_scale));
+    body_.set_speed_tuning(static_cast<double>(params.speed_scale));
     body_.clear_curvature_drives();  // reset per-step neural curvature forces
 
     // 1. Environment update
@@ -584,26 +584,14 @@ void SimulationEngine::step() {
     // Must be BEFORE neuron step() (applies current to AIY/PVC/RIC)
     apply_esr_modulation();
 
-    // Step 71: sleep speed suppression now handled by FLP-11 SPEED_SCALE target
-    // in NeuromodulationManager (P0-6 fix). Removed: sleep_speed_factor direct multiplication.
-    // FLP-11 SPEED_SCALE -0.95 achieves equivalent near-atonia during sleep.
-    // Step 44: clamp effective speed_scale to prevent extreme values
-    double effective_speed = params.speed_scale * neuromod_.get_speed_scale();
-
-    // Step 68: Basal slowing now emerges from DA→DOP-3→B-class motor neuron inhibition
-    // CEP on food → DA↑ → DOP-3(-6pA×14 motor neurons) → reduced ACh → less muscle → slower
-    // BSR direct multiplication REMOVED (P1 violation 1.4 fixed)
-    // ESR direct multiplication REMOVED — folds into DA×5-HT neuromod interaction
-    // REF: Chase 2004 Nat Neurosci — DOP-3 extrasynaptic on cholinergic motor neurons
-    //      Sawin 2000 — cat-2 mutants fail to slow; BSR ~30% reduction in WT
-
-    // Step 71: DMP speed modulation now EMERGENT (P0-5 fix)
-    // AVL/DVB fire during DMP → GABA inhibits B-class MN → speed reduction
-    // Removed: effective_speed *= dmp_speed_factor_
-
-    if (effective_speed > 3.0) effective_speed = 3.0;
-    if (effective_speed < 0.1) effective_speed = 0.1;
-    body_.set_speed_scale(effective_speed);
+    // Neuromodulator effects on muscle force (replaces old SPEED_SCALE bypass)
+    // 5-HT(-0.60), OA(+0.35), PDF(+0.25), FLP-11(-0.95) now modulate
+    // muscle force output via MuscleSystem::neuromod_gain_, not speed directly.
+    // Speed emerges from: muscle_force × locomotion_efficiency / drag
+    double muscle_gain = neuromod_.get_muscle_gain();
+    if (muscle_gain > 3.0) muscle_gain = 3.0;
+    if (muscle_gain < 0.05) muscle_gain = 0.05;
+    body_.muscles().set_neuromod_gain(muscle_gain);
 
     // 6. Update all neuron membrane potentials
     for (auto& neuron : neurons_) {

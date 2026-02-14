@@ -240,7 +240,7 @@ void VisApp::update_neuromod() {
     oa_history_.push_back(engine_.neuromodulation().get_concentration("OA"));
     satiety_history_.push_back(engine_.satiety());
     fmem_history_.push_back(engine_.food_memory());
-    speed_mod_history_.push_back(engine_.neuromodulation().get_speed_scale());
+    speed_mod_history_.push_back(engine_.neuromodulation().get_muscle_gain());
     // Keep last 60000 points (~600s at 10ms interval)
     if (neuromod_times_.size() > 60000) {
         neuromod_times_.erase(neuromod_times_.begin(), neuromod_times_.begin() + 30000);

@@ -20,41 +20,14 @@ void BodyModel::initialize(Vector2d head_pos, double heading) {
     prev_head_pos_ = head_pos;
 }
 
-void BodyModel::reset_activations() {
-    for (auto& seg : segments_) {
-        seg.dorsal_activation = 0.0;
-        seg.ventral_activation = 0.0;
-    }
-}
-
-void BodyModel::set_muscle_activation(int segment, bool dorsal, double activation) {
-    if (segment < 0 || segment >= NUM_BODY_SEGMENTS) return;
-    activation = std::clamp(activation, 0.0, 1.0);
-    if (dorsal) {
-        segments_[segment].dorsal_activation = std::max(segments_[segment].dorsal_activation, activation);
-    } else {
-        segments_[segment].ventral_activation = std::max(segments_[segment].ventral_activation, activation);
-    }
-}
-
-void BodyModel::set_muscle_activation_direct(int segment, bool dorsal, double activation) {
-    if (segment < 0 || segment >= NUM_BODY_SEGMENTS) return;
-    activation = std::clamp(activation, 0.0, 1.0);
-    if (dorsal) {
-        segments_[segment].dorsal_activation = activation;
-    } else {
-        segments_[segment].ventral_activation = activation;
-    }
-}
-
 void BodyModel::compute_curvatures(double dt) {
     for (int i = 0; i < NUM_BODY_SEGMENTS; ++i) {
         auto& seg = segments_[i];
-        // Curvature driven by differential muscle activation:
-        // dorsal > ventral -> positive curvature (dorsal bend)
-        // ventral > dorsal -> negative curvature (ventral bend)
-        double target_curvature = muscle_gain_ * (seg.dorsal_activation - seg.ventral_activation)
-                               + curvature_drive_[i];
+        // Curvature driven by muscle force differential + neural curvature drive
+        // force_diff > 0 → dorsal stronger → positive curvature (dorsal bend)
+        // force_diff < 0 → ventral stronger → negative curvature (ventral bend)
+        double force_diff = muscles_.get_force_differential(i);
+        double target_curvature = curvature_gain_ * force_diff + curvature_drive_[i];
 
         // Step 29: Passive elastic coupling between adjacent segments
         // REF: Boyle 2012 — body continuity allows curvature to spread
@@ -64,13 +37,10 @@ void BodyModel::compute_curvatures(double dt) {
 
         // Semi-implicit Euler (unconditionally stable for stiffness/damping):
         // dcurv/dt = stiffness*(target - curv) - damping*curv + diffusion
-        // Treat stiffness*curv and damping*curv implicitly:
-        // curv_new*(1 + (stiffness+damping)*dt) = curv + dt*(stiffness*target + diffusion)
         double denom = 1.0 + (stiffness_ + damping_) * dt;
         seg.curvature = (seg.curvature + dt * (stiffness_ * target_curvature + diffusion)) / denom;
+
         // Clamp curvature to physical limit: ~15/mm (head touching body in omega)
-        // During normal crawling, muscle_gain limits curvature to ~0.3/mm (never hits clamp)
-        // During omega, curvature_drive_[] pushes curvature to ~10-12/mm
         // REF: Gray 2005 PNAS — omega turn curvature ~15/mm
         double max_curv = 15.0;
         if (seg.curvature > max_curv) seg.curvature = max_curv;
@@ -80,22 +50,19 @@ void BodyModel::compute_curvatures(double dt) {
 
 void BodyModel::update_positions(double dt) {
     // ===================================================================
-    // C. elegans locomotion kinematics
+    // C. elegans locomotion — force-based speed model
     // REF: Pierce-Shimomura 1999 (pirouette model of chemotaxis)
     //      Padmanabhan 2012 (curvature wave representation)
     //      Fang-Yen 2010 (speed ~0.15 mm/s on agar)
     // ===================================================================
 
-    // --- 1. Forward speed from muscle activity ---
-    double muscle_work = 0.0;
-    for (auto& seg : segments_) {
-        muscle_work += std::abs(seg.dorsal_activation - seg.ventral_activation);
-    }
-    muscle_work /= NUM_BODY_SEGMENTS;
-
-    // REF: Fang-Yen 2010 — wild-type speed on agar ~0.15 mm/s
-    double v_max = 0.6 * speed_scale_; // mm/s; muscle_work ~0.3-0.5 → effective speed ~0.15-0.30
-    double forward_speed = v_max * muscle_work;
+    // --- 1. Forward speed from muscle force (low Reynolds number) ---
+    // Propulsive force ∝ mean |F_dorsal - F_ventral| (body undulation amplitude)
+    // At low Re: F_drag = C × v → v = F_propulsive / C_drag
+    // Neuromod gain already applied inside muscles_.get_mean_abs_force()
+    double mean_force = muscles_.get_mean_abs_force();
+    double forward_speed = mean_force * locomotion_efficiency_ * speed_tuning_
+                         / drag_coefficient_;
 
     // --- 1b. Locomotion direction from command neuron balance ---
     // Step 41: Implement backward locomotion during reversal
@@ -116,13 +83,9 @@ void BodyModel::update_positions(double dt) {
 
     // --- 2. Heading update: dθ/dt = v × direction × κ_head ---
     // REF: Padmanabhan 2012 — body with curvature κ moving at speed v turns at v·κ
-    // During reversal (direction=-1): heading change reverses, consistent with
-    // tail-first locomotion where the same curvature produces opposite turning
     double head_curv = segments_[0].curvature;
     double dtheta = forward_speed * direction * head_curv * dt;
     // Clamp heading change rate to physical limit
-    // Normal crawling: v×κ ≈ 0.2×0.3 = 0.06 rad/s (never hits clamp)
-    // Omega turn: v×κ ≈ 0.15×12 = 1.8 rad/s (within limit)
     // REF: Gray 2005 PNAS — omega turn angular velocity ~300°/s
     double max_dtheta = 5.24 * dt;
     if (dtheta > max_dtheta) dtheta = max_dtheta;
@@ -131,11 +94,6 @@ void BodyModel::update_positions(double dt) {
 
     // --- 4. Update head position ---
     // Step 41: direction=-1 during reversal → head moves backward
-    // This physical backward displacement is essential for pirouette function:
-    // the body position at omega turn onset depends on reversal duration,
-    // which varies stochastically, creating post-pirouette heading diversity
-    // REF: Pierce-Shimomura 1999 — "direction of new run after pirouette
-    //      was essentially random" (emerges from backward displacement + omega geometry)
     Vector2d head_dir = Vector2d::from_angle(segments_[0].angle);
     segments_[0].position += head_dir * forward_speed * direction * dt;
 
@@ -159,6 +117,16 @@ void BodyModel::update_positions(double dt) {
 }
 
 void BodyModel::update_physics(double dt) {
+    // 1. Muscle dynamics: neural inputs → activation → force
+    muscles_.step(dt * 1000.0);  // dt is in seconds, muscles expect ms
+
+    // 2. Sync segment activations from muscles (for visualization/diagnostics)
+    for (int i = 0; i < NUM_BODY_SEGMENTS; ++i) {
+        segments_[i].dorsal_activation = muscles_.get_dorsal_activation(i);
+        segments_[i].ventral_activation = muscles_.get_ventral_activation(i);
+    }
+
+    // 3. Body physics: curvature from muscle forces, position from kinematics
     compute_curvatures(dt);
     update_positions(dt);
 }

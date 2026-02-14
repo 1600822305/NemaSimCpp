@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/types.h"
+#include "body/muscle_system.h"
 #include <array>
 #include <vector>
 #include <random>
@@ -12,8 +13,8 @@ struct BodySegment {
     double angle = 0.0;           // orientation angle (rad)
     double curvature = 0.0;       // local curvature (1/mm)
     double prev_curvature = 0.0;  // previous frame curvature (for RFT)
-    double dorsal_activation = 0.0;  // dorsal muscle activation [0,1]
-    double ventral_activation = 0.0; // ventral muscle activation [0,1]
+    double dorsal_activation = 0.0;  // synced from MuscleSystem (for visualization)
+    double ventral_activation = 0.0; // synced from MuscleSystem (for visualization)
 };
 
 class BodyModel {
@@ -24,8 +25,9 @@ public:
 
     void update_physics(double dt);
 
-    // Set muscle activations from motor controller
-    void set_muscle_activation(int segment, bool dorsal, double activation);
+    // --- Muscle system access (motor controller writes here) ---
+    MuscleSystem& muscles() { return muscles_; }
+    const MuscleSystem& muscles() const { return muscles_; }
 
     // Getters for sensory feedback
     Vector2d get_head_position() const;
@@ -35,11 +37,13 @@ public:
     double get_local_stretch(int segment) const;
     Vector2d get_segment_position(int segment) const;
     double get_speed() const { return speed_; }
+
     // Per-segment curvature drive: RIV omega / SMB klinotaxis inject force
     // into physics integrator (replaces old curvature_bias_ heading bypass)
     void set_curvature_drive(int seg, double drive);
     void add_curvature_drive(int seg, double drive);
     void clear_curvature_drives();
+
     // Step 41: Post-pirouette heading perturbation (Pierce-Shimomura 1999)
     void perturb_heading(double dtheta) {
         segments_[0].angle += dtheta;
@@ -56,13 +60,11 @@ public:
     const std::array<BodySegment, NUM_BODY_SEGMENTS>& segments() const { return segments_; }
     std::array<BodySegment, NUM_BODY_SEGMENTS>& segments() { return segments_; }
 
-    // Direct set (for inhibitory reduction, bypasses max)
-    void set_muscle_activation_direct(int segment, bool dorsal, double activation);
-
-    // Reset all muscle activations
-    void reset_activations();
+    // Runtime physics tuning (not a biological pathway)
+    void set_speed_tuning(double t) { speed_tuning_ = t; }
 
 private:
+    MuscleSystem muscles_;
     std::array<BodySegment, NUM_BODY_SEGMENTS> segments_;
     double body_length_ = 1.0;       // mm
     double segment_length_ = 0.0;    // mm per segment
@@ -70,14 +72,11 @@ private:
     double stiffness_ = 10.0;        // body stiffness (nN·mm²)
     double damping_ = 0.5;           // damping coefficient
     double curvature_diffusion_ = 0.5; // Step 29: gentle elastic coupling (Boyle 2012)
-    double muscle_gain_ = 0.3;       // max curvature per unit activation
-    double drag_coeff_tangent_ = 1.0;   // tangential drag
-    double drag_coeff_normal_ = 10.0;   // normal drag (anisotropic for low Re)
+    double curvature_gain_ = 0.3;    // curvature per unit muscle force differential (1/mm)
+    double locomotion_efficiency_ = 0.6; // propulsive efficiency (low Re undulation)
+    double drag_coefficient_ = 1.0;     // effective drag (low Reynolds number)
+    double speed_tuning_ = 1.0;      // runtime calibration (not biological, physics tuning)
     double speed_ = 0.0;             // current locomotion speed (mm/s)
-public:
-    void set_speed_scale(double s) { speed_scale_ = s; }
-private:
-    double speed_scale_ = 1.0;       // runtime speed multiplier
     std::array<double, NUM_BODY_SEGMENTS> curvature_drive_{}; // per-segment neural curvature force (1/mm)
     Vector2d prev_head_pos_;
     double forward_drive_ = 0.5;     // AVB release rate (instantaneous)

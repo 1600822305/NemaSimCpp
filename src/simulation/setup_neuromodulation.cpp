@@ -118,7 +118,7 @@ void SimulationEngine::setup_neuromodulation() {
         // REF: Sawin 2000 — serotonin reduces locomotion speed
         //      Dag & Flavell 2023 Cell Fig 2 — SER-4 core slowing receptor
         serotonin.targets.push_back(
-            {-1, "SER-4", ModulationEffect::SPEED_SCALE, -0.60}); // Step 95: -0.40→-0.60 (Flavell 2013: dwelling speed ~50% of roaming)
+            {-1, "SER-4", ModulationEffect::MUSCLE_GAIN, -0.60}); // Step 95: -0.40→-0.60 (Flavell 2013: dwelling speed ~50% of roaming)
 
         // Target: RIC inhibition (cross-inhibit OA source during dwelling)
         // 5-HT → SER-4 on RIC → inhibit → no OA during active dwelling
@@ -331,7 +331,7 @@ void SimulationEngine::setup_neuromodulation() {
         // Target: global speed increase (antagonizes 5-HT/DA slowing)
         // REF: Churgin 2017 — OA mutants have reduced roaming
         octopamine.targets.push_back(
-            {-1, "SER-3", ModulationEffect::SPEED_SCALE, 0.35}); // Step 41: +35% speed (compensate stronger 5-HT/DA)
+            {-1, "SER-3", ModulationEffect::MUSCLE_GAIN, 0.35}); // Step 41: +35% muscle force (compensate stronger 5-HT/DA)
 
         // Target: AIY excitation (promotes forward runs)
         // SER-6 on AIY: excitatory → more forward → roaming
@@ -537,7 +537,7 @@ void SimulationEngine::setup_neuromodulation() {
         // Net: roaming (high PDF, low 5-HT) = fast; dwelling (high 5-HT, low PDF) = slow
         // REF: Flavell 2013 — pdf-1 mutants move slower on food
         pdf.targets.push_back(
-            {-1, "PDFR-1", ModulationEffect::SPEED_SCALE, 0.25}); // +25% speed at peak PDF
+            {-1, "PDFR-1", ModulationEffect::MUSCLE_GAIN, 0.25}); // +25% muscle force at peak PDF
 
         // Target 2: PDFR-1 → reversal rate increase (roaming = more turns)
         // Opposes 5-HT reversal suppression (-0.50)
@@ -673,12 +673,11 @@ void SimulationEngine::setup_neuromodulation() {
                 {id, "DMSR-1", ModulationEffect::EXCITABILITY, -42.0});
         }
 
-        // Target 5: DMSR-1 → speed scale (systemic locomotion suppression)
-        // Replaces sleep_speed_factor direct multiplication
-        // At conc ~0.7: speed_scale × (1 - 0.95×0.7) = ×0.335 (~67% reduction)
+        // Target 5: DMSR-1 → muscle gain suppression (systemic locomotion suppression)
+        // At conc ~0.7: muscle_gain × (1 - 0.95×0.7) = ×0.335 (~67% force reduction)
         // Combined with motor neuron inhibition → near-atonia during deep sleep
         flp11.targets.push_back(
-            {-1, "DMSR-1", ModulationEffect::SPEED_SCALE, -0.95});
+            {-1, "DMSR-1", ModulationEffect::MUSCLE_GAIN, -0.95});
 
         // Target 6: FRPR-8 → RIS self-inhibition (negative feedback)
         // FLP-11 acts on FRPR-8/DMSR-1 on RIS itself → limits sleep duration
