@@ -455,39 +455,39 @@ void BodyModel::update_physics(double dt_seconds) {
             }
         }
 
-        // Per-SEGMENT rotation from D/V force asymmetry
-        // Each segment’s D/V force difference (from muscles) creates a
-        // bending moment. Diagonal springs provide restoring torque.
-        // This is the Boyle-style rotation that the per-rod endpoint
-        // integration cannot capture (forces cancel on interior rods).
-        for (int s = 0; s < NSEG; ++s) {
-            double delta_f = seg_torque_[s];
-            if (std::abs(delta_f) < 1e-15) continue;
+    }
 
-            double R_avg = 0.5 * (rods_[s].radius + rods_[s + 1].radius);
-            double dphi = rods_[s].phi - rods_[s + 1].phi;
-            while (dphi >  PI) dphi -= 2.0 * PI;
-            while (dphi < -PI) dphi += 2.0 * PI;
+    // Per-SEGMENT rotation from D/V force asymmetry
+    // IMPORTANT: Applied ONCE per outer step (not per sub-step) to prevent
+    // numerical oscillation from rotation↔endpoint force fighting.
+    // seg_torque_[] was accumulated across all sub-steps above.
+    for (int s = 0; s < NSEG; ++s) {
+        double delta_f = seg_torque_[s] / n_steps;  // average over sub-steps
+        if (std::abs(delta_f) < 1e-15) continue;
 
-            // Muscle driving torque minus diagonal restoring torque
-            double tau_drive   = delta_f * R_avg;
-            double tau_restore = 2.0 * K_DE * R_avg * R_avg * dphi;
-            double tau_net = tau_drive - tau_restore;
+        double R_avg = 0.5 * (rods_[s].radius + rods_[s + 1].radius);
+        double dphi = rods_[s].phi - rods_[s + 1].phi;
+        while (dphi >  PI) dphi -= 2.0 * PI;
+        while (dphi < -PI) dphi += 2.0 * PI;
 
-            // Rotational drag (Boyle 2012): γ = cn_seg × 2π × R²
-            // cn_seg ≈ 2×cn_pt, so γ = 4π × cn_pt × R²
-            double gamma_rot = 4.0 * PI * cn_pt * R_avg * R_avg;
-            double omega_seg = tau_net / std::max(gamma_rot, 1e-15);
+        // Muscle driving torque minus diagonal restoring torque
+        double tau_drive   = delta_f * R_avg;
+        double tau_restore = 2.0 * K_DE * R_avg * R_avg * dphi;
+        double tau_net = tau_drive - tau_restore;
 
-            // Hard clamp on dphi to prevent runaway curvature
-            constexpr double DPHI_MAX = 0.04;  // ~1.9 /mm
-            double new_dphi = dphi + omega_seg * dt_sub;
-            new_dphi = std::clamp(new_dphi, -DPHI_MAX, DPHI_MAX);
-            double actual_omega = (new_dphi - dphi) / dt_sub;
+        // Rotational drag (Boyle 2012): γ = cn_seg × 2π × R²
+        // cn_seg ≈ 2×cn_pt, so γ = 4π × cn_pt × R²
+        double gamma_rot = 4.0 * PI * cn_pt * R_avg * R_avg;
+        double omega_seg = tau_net / std::max(gamma_rot, 1e-15);
 
-            rods_[s].phi     += actual_omega * dt_sub * 0.5;
-            rods_[s + 1].phi -= actual_omega * dt_sub * 0.5;
-        }
+        // Hard clamp on dphi to prevent runaway curvature
+        constexpr double DPHI_MAX = 0.04;  // ~1.9 /mm
+        double new_dphi = dphi + omega_seg * dt_seconds;
+        new_dphi = std::clamp(new_dphi, -DPHI_MAX, DPHI_MAX);
+        double actual_omega = (new_dphi - dphi) / dt_seconds;
+
+        rods_[s].phi     += actual_omega * dt_seconds * 0.5;
+        rods_[s + 1].phi -= actual_omega * dt_seconds * 0.5;
     }
 
     // Compute speed BEFORE phi-drive and center correction,

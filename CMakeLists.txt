@@ -125,6 +125,10 @@ if(CELEGANS_USE_OPENMP)
     target_link_libraries(celegans_diag PRIVATE OpenMP::OpenMP_CXX)
 endif()
 
+# Body physics diagnostics (rod/segment monitoring)
+add_executable(celegans_body_diag src/simulation/body_diag_main.cpp)
+target_link_libraries(celegans_body_diag PRIVATE celegans_simulation)
+
 # Regression test executable (automated bug detection + current tracing)
 add_executable(celegans_regtest src/simulation/regression_test.cpp)
 target_link_libraries(celegans_regtest PRIVATE celegans_simulation)
