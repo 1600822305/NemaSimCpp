@@ -36,6 +36,10 @@ public:
     double get_local_stretch(int segment) const;
     Vector2d get_segment_position(int segment) const;
     double get_speed() const { return speed_; }
+    // +1 forward, -1 backward (from smoothed AVA/AVB balance)
+    double get_direction() const {
+        return (smooth_rev_ > smooth_fwd_ + 0.1) ? -1.0 : 1.0;
+    }
 
     double get_body_length() const { return body_length_; }
 

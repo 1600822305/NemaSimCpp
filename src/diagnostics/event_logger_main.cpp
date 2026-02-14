@@ -55,6 +55,13 @@ public:
         int total_steps = (int)(duration_ms / sim.dt());
         int sample_interval = (int)(50.0 / sim.dt());  // 50ms
 
+        // Find RIVL/RIVR neuron indices for omega trace
+        int rivl_idx = -1, rivr_idx = -1;
+        for (int i = 0; i < (int)sim.neurons().size(); ++i) {
+            if (sim.neurons()[i]->name() == "RIVL") rivl_idx = i;
+            if (sim.neurons()[i]->name() == "RIVR") rivr_idx = i;
+        }
+
         // 上一帧状态（边沿检测用）
         bool prev_reversing = false;
         bool prev_omega = false;
@@ -67,6 +74,8 @@ public:
         double prev_satiety = 0;
         double prev_sickness = 0;
         double prev_food_mem = 0;
+        double omega_start_heading = 0;
+        double reversal_start_heading = 0;
 
         // 5-HT 状态追踪
         bool prev_high_5ht = false;
@@ -77,22 +86,53 @@ public:
 
             if ((s + 1) % sample_interval != 0) continue;
 
-            // === BEHAVIOR 事件 ===
+            // === BEHAVIOR 事件 (structured payload) ===
             bool curr_rev = sim.is_reversing();
             bool curr_omega = sim.is_omega_turning();
+            double heading_deg = sim.body().get_head_angle() * 180.0 / 3.14159265358979323846;
+            double speed = sim.body().get_speed();
+            double curv = sim.body().segments()[0].curvature;
+            double dir = sim.body().get_direction();
+            double food_dx = food.x - sim.body().get_head_position().x;
+            double food_dy = food.y - sim.body().get_head_position().y;
+            double food_dist = std::sqrt(food_dx*food_dx + food_dy*food_dy);
 
             if (curr_rev && !prev_reversing) {
-                log(t, "BEHAVIOR", "REVERSAL_START", "");
+                reversal_start_heading = heading_deg;
+                log(t, "BEHAVIOR", "REVERSAL_START",
+                    "heading=" + fmt(heading_deg, 1) + " speed=" + fmt(speed, 3)
+                    + " food_dist=" + fmt(food_dist, 1));
             }
             if (!curr_rev && prev_reversing) {
                 double dur = sim.reversal_duration();
-                log(t, "BEHAVIOR", "REVERSAL_END", "dur=" + fmt(dur, 0) + "ms");
+                double turn = heading_deg - reversal_start_heading;
+                while (turn > 180.0) turn -= 360.0;
+                while (turn < -180.0) turn += 360.0;
+                log(t, "BEHAVIOR", "REVERSAL_END",
+                    "dur=" + fmt(dur, 0) + "ms turn=" + fmt(turn, 1)
+                    + " heading=" + fmt(heading_deg, 1)
+                    + " food_dist=" + fmt(food_dist, 1));
             }
             if (curr_omega && !prev_omega) {
-                log(t, "BEHAVIOR", "OMEGA_START", "");
+                omega_start_heading = heading_deg;
+                std::string riv_info;
+                if (rivl_idx >= 0 && rivr_idx >= 0) {
+                    double rl = sim.neurons()[rivl_idx]->get_transmitter_release_rate();
+                    double rr = sim.neurons()[rivr_idx]->get_transmitter_release_rate();
+                    riv_info = " RIVL=" + fmt(rl, 3) + " RIVR=" + fmt(rr, 3);
+                }
+                log(t, "BEHAVIOR", "OMEGA_START",
+                    "heading=" + fmt(heading_deg, 1) + " dir=" + fmt(dir, 0)
+                    + " curv=" + fmt(curv, 2) + riv_info);
             }
             if (!curr_omega && prev_omega) {
-                log(t, "BEHAVIOR", "OMEGA_END", "");
+                double turn = heading_deg - omega_start_heading;
+                while (turn > 180.0) turn -= 360.0;
+                while (turn < -180.0) turn += 360.0;
+                log(t, "BEHAVIOR", "OMEGA_END",
+                    "heading=" + fmt(heading_deg, 1) + " turn=" + fmt(turn, 1)
+                    + " dir=" + fmt(dir, 0) + " curv=" + fmt(curv, 2)
+                    + " speed=" + fmt(speed, 3));
             }
 
             prev_reversing = curr_rev;

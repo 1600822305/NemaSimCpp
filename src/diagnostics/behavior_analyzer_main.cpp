@@ -41,6 +41,39 @@ struct BoutInfo {
     double turn_angle_deg;  // 状态结束时的累计转角
 };
 
+// === Event Trace Structs (--trace-events) ===
+struct OmegaTrace {
+    int index = 0;
+    double start_s = 0;
+    double end_s = 0;
+    double heading_start_deg = 0;
+    double heading_end_deg = 0;
+    double turn_angle_deg = 0;
+    double direction_at_start = 0;
+    double direction_at_end = 0;
+    double rivl_release = 0;
+    double rivr_release = 0;
+    double peak_curvature = 0;
+    double peak_speed = 0;
+    double muscle_d_max = 0;  // peak dorsal head activation
+    double muscle_v_max = 0;  // peak ventral head activation
+    bool toward_food = false;
+    double food_angle_deg = 0; // angle from heading to food at start
+};
+
+struct ReversalTrace {
+    int index = 0;
+    double start_s = 0;
+    double end_s = 0;
+    double heading_start_deg = 0;
+    double heading_end_deg = 0;
+    double turn_angle_deg = 0;
+    double speed_at_start = 0;
+    double food_dist_start = 0;
+    double food_dist_end = 0;
+    bool followed_by_omega = false;
+};
+
 struct BehaviorMetrics {
     // 运动学
     double mean_speed = 0;
@@ -90,8 +123,8 @@ struct BehaviorMetrics {
 
 class BehaviorAnalyzer {
 public:
-    BehaviorAnalyzer(double duration_s, unsigned int seed, Vector2d target)
-        : duration_s_(duration_s), seed_(seed), target_(target) {}
+    BehaviorAnalyzer(double duration_s, unsigned int seed, Vector2d target, bool trace_events = false)
+        : duration_s_(duration_s), seed_(seed), target_(target), trace_events_(trace_events) {}
     
     void run() {
         std::cout << "  运行仿真... " << std::flush;
@@ -112,6 +145,15 @@ public:
         int sample_interval = (int)(50.0 / sim.dt());  // 50ms 采样
         double dt_sample = 50.0;  // ms
         
+        // Trace: find RIVL/RIVR neuron indices
+        int rivl_idx = -1, rivr_idx = -1;
+        if (trace_events_) {
+            for (int i = 0; i < (int)sim.neurons().size(); ++i) {
+                if (sim.neurons()[i]->name() == "RIVL") rivl_idx = i;
+                if (sim.neurons()[i]->name() == "RIVR") rivr_idx = i;
+            }
+        }
+        
         // 互斥状态机
         MotionState curr_state = MotionState::FORWARD;
         MotionState prev_state = MotionState::FORWARD;
@@ -122,6 +164,14 @@ public:
         double forward_time = 0, reverse_time = 0, omega_time = 0, pause_time = 0;
         double roaming_time = 0, dwelling_time = 0;
         double near_target_time = 0;
+        
+        // Trace: active event tracking
+        OmegaTrace active_omega;
+        ReversalTrace active_reversal;
+        bool in_omega_trace = false;
+        bool in_reversal_trace = false;
+        int omega_trace_count = 0;
+        int reversal_trace_count = 0;
         
         for (int s = 0; s < total_steps; ++s) {
             sim.step();
@@ -149,6 +199,95 @@ public:
                     curr_state = MotionState::FORWARD;
                 } else {
                     curr_state = MotionState::PAUSE;
+                }
+                
+                // === Trace: collect per-sample data during active events ===
+                if (trace_events_) {
+                    // Omega trace: collect peak values each sample
+                    if (in_omega_trace && is_omega) {
+                        double curv = std::abs(pt.curvature);
+                        if (curv > active_omega.peak_curvature) active_omega.peak_curvature = curv;
+                        if (pt.speed > active_omega.peak_speed) active_omega.peak_speed = pt.speed;
+                        double d_act = sim.body().muscles().get_dorsal_activation(0);
+                        double v_act = sim.body().muscles().get_ventral_activation(0);
+                        if (d_act > active_omega.muscle_d_max) active_omega.muscle_d_max = d_act;
+                        if (v_act > active_omega.muscle_v_max) active_omega.muscle_v_max = v_act;
+                        active_omega.direction_at_end = sim.body().get_direction();
+                    }
+                    
+                    // Reversal trace: update end heading
+                    if (in_reversal_trace && is_rev) {
+                        // tracked at end below
+                    }
+                    
+                    // Omega START
+                    if (is_omega && !in_omega_trace) {
+                        in_omega_trace = true;
+                        active_omega = OmegaTrace{};
+                        active_omega.index = ++omega_trace_count;
+                        active_omega.start_s = t / 1000.0;
+                        active_omega.heading_start_deg = pt.heading;
+                        active_omega.direction_at_start = sim.body().get_direction();
+                        if (rivl_idx >= 0) active_omega.rivl_release = sim.neurons()[rivl_idx]->get_transmitter_release_rate();
+                        if (rivr_idx >= 0) active_omega.rivr_release = sim.neurons()[rivr_idx]->get_transmitter_release_rate();
+                        active_omega.peak_curvature = std::abs(pt.curvature);
+                        active_omega.peak_speed = pt.speed;
+                        active_omega.muscle_d_max = sim.body().muscles().get_dorsal_activation(0);
+                        active_omega.muscle_v_max = sim.body().muscles().get_ventral_activation(0);
+                        // Food direction relative to heading
+                        double to_food_x = target_.x - pt.position.x;
+                        double to_food_y = target_.y - pt.position.y;
+                        double food_angle = std::atan2(to_food_y, to_food_x) * 180.0 / M_PI;
+                        active_omega.food_angle_deg = food_angle - pt.heading;
+                        while (active_omega.food_angle_deg > 180.0) active_omega.food_angle_deg -= 360.0;
+                        while (active_omega.food_angle_deg < -180.0) active_omega.food_angle_deg += 360.0;
+                    }
+                    
+                    // Omega END
+                    if (!is_omega && in_omega_trace) {
+                        in_omega_trace = false;
+                        active_omega.end_s = t / 1000.0;
+                        active_omega.heading_end_deg = pt.heading;
+                        double ta = active_omega.heading_end_deg - active_omega.heading_start_deg;
+                        while (ta > 180.0) ta -= 360.0;
+                        while (ta < -180.0) ta += 360.0;
+                        active_omega.turn_angle_deg = ta;
+                        // Toward food: did the turn reduce the angle to food?
+                        double food_angle_after = active_omega.food_angle_deg - ta;
+                        while (food_angle_after > 180.0) food_angle_after -= 360.0;
+                        while (food_angle_after < -180.0) food_angle_after += 360.0;
+                        active_omega.toward_food = (std::abs(food_angle_after) < std::abs(active_omega.food_angle_deg));
+                        omega_traces_.push_back(active_omega);
+                    }
+                    
+                    // Reversal START
+                    if (is_rev && !in_reversal_trace) {
+                        in_reversal_trace = true;
+                        active_reversal = ReversalTrace{};
+                        active_reversal.index = ++reversal_trace_count;
+                        active_reversal.start_s = t / 1000.0;
+                        active_reversal.heading_start_deg = pt.heading;
+                        active_reversal.speed_at_start = pt.speed;
+                        double ddx = pt.position.x - target_.x;
+                        double ddy = pt.position.y - target_.y;
+                        active_reversal.food_dist_start = std::sqrt(ddx*ddx + ddy*ddy);
+                    }
+                    
+                    // Reversal END
+                    if (!is_rev && in_reversal_trace) {
+                        in_reversal_trace = false;
+                        active_reversal.end_s = t / 1000.0;
+                        active_reversal.heading_end_deg = pt.heading;
+                        double ta = active_reversal.heading_end_deg - active_reversal.heading_start_deg;
+                        while (ta > 180.0) ta -= 360.0;
+                        while (ta < -180.0) ta += 360.0;
+                        active_reversal.turn_angle_deg = ta;
+                        double ddx = pt.position.x - target_.x;
+                        double ddy = pt.position.y - target_.y;
+                        active_reversal.food_dist_end = std::sqrt(ddx*ddx + ddy*ddy);
+                        active_reversal.followed_by_omega = is_omega;
+                        reversal_traces_.push_back(active_reversal);
+                    }
                 }
                 
                 // 状态转换: 记录 bout
@@ -228,6 +367,8 @@ public:
     const BehaviorMetrics& metrics() const { return metrics_; }
     const std::vector<BehaviorEvent>& events() const { return events_; }
     const std::vector<TrajectoryPoint>& trajectory() const { return trajectory_; }
+    const std::vector<OmegaTrace>& omega_traces() const { return omega_traces_; }
+    const std::vector<ReversalTrace>& reversal_traces() const { return reversal_traces_; }
     
     void export_trajectory_csv(const std::string& filename) const {
         std::ofstream ofs(filename);
@@ -259,12 +400,15 @@ private:
     double duration_s_;
     unsigned int seed_;
     Vector2d target_;
+    bool trace_events_;
     
     std::vector<TrajectoryPoint> trajectory_;
     std::vector<BehaviorEvent> events_;
     std::vector<BoutInfo> forward_bouts_;
     std::vector<BoutInfo> reverse_bouts_;
     std::vector<BoutInfo> omega_bouts_;
+    std::vector<OmegaTrace> omega_traces_;
+    std::vector<ReversalTrace> reversal_traces_;
     BehaviorMetrics metrics_;
     
     static double bout_mean(const std::vector<BoutInfo>& bouts) {
@@ -413,6 +557,55 @@ private:
     }
 };
 
+void print_trace_events(const std::vector<OmegaTrace>& omegas, const std::vector<ReversalTrace>& reversals) {
+    std::cout << "========================================\n";
+    std::cout << "  EVENT TRACES\n";
+    std::cout << "========================================\n\n";
+    
+    // --- Omega Traces ---
+    if (!omegas.empty()) {
+        std::cout << "--- Omega Turns (" << omegas.size() << ") ---\n\n";
+        int toward_count = 0;
+        for (const auto& o : omegas) {
+            if (o.toward_food) toward_count++;
+            std::cout << "  OMEGA #" << o.index << " at t=" << std::fixed << std::setprecision(2) << o.start_s << "s:\n";
+            std::cout << "    heading:   " << std::setprecision(1) << o.heading_start_deg
+                      << "° → " << o.heading_end_deg << "°  (Δ=" << std::showpos << o.turn_angle_deg
+                      << std::noshowpos << "°, " << (o.toward_food ? "toward_food" : "away_food") << ")\n";
+            std::cout << "    direction: " << std::setprecision(0) << o.direction_at_start
+                      << " → " << o.direction_at_end << "\n";
+            std::cout << "    RIVL=" << std::setprecision(3) << o.rivl_release
+                      << "  RIVR=" << o.rivr_release
+                      << "  (" << (o.rivl_release > o.rivr_release ? "L>R→ventral_bias" : "R>L→dorsal_bias") << ")\n";
+            std::cout << "    peak_curv=" << std::setprecision(2) << o.peak_curvature << "/mm"
+                      << "  peak_speed=" << std::setprecision(3) << o.peak_speed << "mm/s\n";
+            std::cout << "    muscle D_max=" << std::setprecision(1) << o.muscle_d_max
+                      << "  V_max=" << o.muscle_v_max
+                      << "  food_angle=" << std::setprecision(0) << o.food_angle_deg << "°\n";
+            std::cout << "    duration:  " << std::setprecision(0) << (o.end_s - o.start_s) * 1000.0 << "ms\n\n";
+        }
+        std::cout << "  → Omega toward food: " << toward_count << "/" << (int)omegas.size()
+                  << " (" << std::setprecision(0) << (100.0 * toward_count / omegas.size()) << "%)\n\n";
+    }
+    
+    // --- Reversal Traces ---
+    if (!reversals.empty()) {
+        std::cout << "--- Reversals (" << reversals.size() << ") ---\n\n";
+        int omega_follow = 0;
+        for (const auto& r : reversals) {
+            if (r.followed_by_omega) omega_follow++;
+            std::cout << "  REV #" << r.index << " at t=" << std::fixed << std::setprecision(2) << r.start_s << "s:";
+            std::cout << "  dur=" << std::setprecision(0) << (r.end_s - r.start_s) * 1000.0 << "ms";
+            std::cout << "  Δheading=" << std::showpos << std::setprecision(1) << r.turn_angle_deg << std::noshowpos << "°";
+            std::cout << "  food_dist " << std::setprecision(1) << r.food_dist_start << "→" << r.food_dist_end << "mm";
+            if (r.followed_by_omega) std::cout << "  →OMEGA";
+            std::cout << "\n";
+        }
+        std::cout << "\n  → Followed by omega: " << omega_follow << "/" << (int)reversals.size()
+                  << " (" << std::setprecision(0) << (100.0 * omega_follow / reversals.size()) << "%)\n\n";
+    }
+}
+
 void print_metrics(const BehaviorMetrics& m, bool verbose) {
     std::cout << "========================================\n";
     std::cout << "  BEHAVIOR METRICS\n";
@@ -487,6 +680,7 @@ int main(int argc, char* argv[]) {
     unsigned int seed = 123;
     Vector2d target{35.0, 25.0};
     bool verbose = false;
+    bool trace_events = false;
     std::string export_trajectory, export_events;
     
     for (int i = 1; i < argc; ++i) {
@@ -501,6 +695,8 @@ int main(int argc, char* argv[]) {
             target.y = std::atof(argv[++i]);
         } else if (arg == "--verbose" || arg == "-v") {
             verbose = true;
+        } else if (arg == "--trace-events" || arg == "-t") {
+            trace_events = true;
         } else if (arg == "--export-trajectory" && i+1 < argc) {
             export_trajectory = argv[++i];
         } else if (arg == "--export-events" && i+1 < argc) {
@@ -514,6 +710,7 @@ int main(int argc, char* argv[]) {
                       << "  --target-x <mm>            目标X坐标 (默认: 35)\n"
                       << "  --target-y <mm>            目标Y坐标 (默认: 25)\n"
                       << "  --verbose / -v             详细输出\n"
+                      << "  --trace-events / -t        输出每个omega/reversal事件的详细轨迹\n"
                       << "  --export-trajectory <csv>  导出轨迹数据\n"
                       << "  --export-events <csv>      导出行为事件\n"
                       << "  --help / -h                显示帮助\n\n"
@@ -522,7 +719,8 @@ int main(int argc, char* argv[]) {
                       << "  - 行为事件: 反转、Omega转弯频率和时长\n"
                       << "  - 状态占比: Roaming/Dwelling/Reversing/Omega\n"
                       << "  - 趋化性: CI、目标距离、方向持续性\n"
-                      << "  - 头部运动: 摆动幅度和频率\n";
+                      << "  - 头部运动: 摆动幅度和频率\n"
+                      << "  - --trace-events: 每个omega/reversal的详细诊断数据\n";
             return 0;
         }
     }
@@ -534,10 +732,14 @@ int main(int argc, char* argv[]) {
     std::cout << "  随机种子:  " << seed << "\n";
     std::cout << "  目标位置:  (" << target.x << ", " << target.y << ")\n\n";
     
-    BehaviorAnalyzer analyzer(duration, seed, target);
+    BehaviorAnalyzer analyzer(duration, seed, target, trace_events);
     analyzer.run();
     
     print_metrics(analyzer.metrics(), verbose);
+    
+    if (trace_events) {
+        print_trace_events(analyzer.omega_traces(), analyzer.reversal_traces());
+    }
     
     if (!export_trajectory.empty()) {
         analyzer.export_trajectory_csv(export_trajectory);
