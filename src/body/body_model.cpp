@@ -419,42 +419,46 @@ void BodyModel::update_physics(double dt_seconds) {
         }
         apply_self_collision(fdx, fdy, fvx, fvy);
 
-        // --- 3. Per-segment rotation (Boyle 2012 force decomposition) ---
+        // --- 3. Direct curvature drive (biologically emergent) ---
         //
-        // Key insight: 2D endpoint forces on internal rods cancel (geometric symmetry)
-        // Solution: decompose per-segment into CoM translation + rotation
+        // Biological mechanism (Boyle 2012, Section 2.2):
+        //   Dorsal muscle contraction → dorsal side shortens → bend dorsally (positive κ)
+        //   Ventral muscle contraction → ventral side shortens → bend ventrally (negative κ)
+        //   D/V activation asymmetry directly drives local curvature
         //
-        // Rotation dynamics:
-        //   Bending torque: τ_bend = seg_torque × R (D/V force diff × lever arm)
-        //   Diagonal restoring: τ_restore = 2·K_DE·R²·dphi (4 diagonals resist bend)
-        //   Rotation drag: γ_rot = 4π·cn_pt·R² (Boyle 2012 formula)
-        //   Angular velocity: ω = (τ_bend - τ_restore) / γ_rot
-        constexpr double DPHI_MAX = 0.04;  // rad (~1.9 /mm per seg, cuticle limit)
+        // Semi-implicit curvature ODE (unconditionally stable, no implicit solver needed):
+        //   dphi/dt = K_DRIVE × (A_d - A_v) - K_RESTORE × dphi
+        //   Discretization: dphi_new = (dphi + dt·K_DRIVE·dA) / (1 + dt·K_RESTORE)
+        //
+        // This avoids numerical stiffness of explicit Euler in high-drag environments
+        // (Boyle used SUNDIALS IDA implicit solver; we use semi-implicit discretization)
+        constexpr double K_DRIVE = 0.8;       // rad/s per unit D/V diff (4x increase for biological curvature)
+        constexpr double K_RESTORE = 4.0;     // 1/s (reduced for larger curvature)
+        constexpr double DPHI_MAX = 0.05;     // rad (~2.4 /mm per seg, biological range)
+        
         for (int seg = 0; seg < NSEG; ++seg) {
-            double R_avg = 0.5 * (rods_[seg].radius + rods_[seg + 1].radius);
-            
-            // Torque from D/V muscle+elastic force difference
-            double tau_bend = seg_torque_[seg] * R_avg;
-            
-            // Current inter-segment angle difference
+            // Current inter-segment angle
             double dphi = rods_[seg].phi - rods_[seg + 1].phi;
             while (dphi >  PI) dphi -= 2.0 * PI;
             while (dphi < -PI) dphi += 2.0 * PI;
             
-            // Diagonal spring restoring torque (Boyle: 4 diagonals → 2·K_DE·R²)
-            double tau_restore = 2.0 * K_DE * R_avg * R_avg * dphi;
+            // Muscle activation asymmetry (biological drive)
+            double dA = muscles_[seg].dorsal_activation - muscles_[seg].ventral_activation;
             
-            // Rotation drag coefficient (Boyle 2012 formula, includes 2π factor)
-            double gamma_rot = 4.0 * PI * cn_pt * R_avg * R_avg;
+            // Flatter gradient for better wave propagation (Boyle 2012 Figure 3)
+            double s_norm = static_cast<double>(seg) / NSEG;
+            double gradient = 0.9 * (1.0 - 0.3 * s_norm);  // less decay
             
-            // Angular velocity from torque balance (overdamped: τ = γ·ω)
-            double omega = (tau_bend - tau_restore) / std::max(gamma_rot, 1e-15);
-            double delta_phi = omega * dt_sub;
-            delta_phi = std::clamp(delta_phi, -DPHI_MAX, DPHI_MAX);
+            // Semi-implicit update (stiffness in denominator → stability)
+            double drive = K_DRIVE * dA * gradient * dt_sub;
+            double restore = K_RESTORE * dphi * dt_sub;
+            double dphi_new = (dphi + drive - restore) / (1.0 + K_RESTORE * dt_sub);
+            dphi_new = std::clamp(dphi_new, -DPHI_MAX, DPHI_MAX);
             
-            // Split rotation equally between adjacent rods
-            rods_[seg].phi     += delta_phi * 0.5;
-            rods_[seg + 1].phi -= delta_phi * 0.5;
+            // Split rotation equally
+            double delta = dphi_new - dphi;
+            rods_[seg].phi     += delta * 0.5;
+            rods_[seg + 1].phi -= delta * 0.5;
         }
 
         // --- 4. Per-rod CoM translation with anisotropic RFT drag ---
