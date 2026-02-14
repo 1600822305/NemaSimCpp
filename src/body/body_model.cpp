@@ -432,9 +432,9 @@ void BodyModel::update_physics(double dt_seconds) {
         //
         // This avoids numerical stiffness of explicit Euler in high-drag environments
         // (Boyle used SUNDIALS IDA implicit solver; we use semi-implicit discretization)
-        constexpr double K_DRIVE = 0.8;       // rad/s per unit D/V diff (4x increase for biological curvature)
-        constexpr double K_RESTORE = 4.0;     // 1/s (reduced for larger curvature)
-        constexpr double DPHI_MAX = 0.05;     // rad (~2.4 /mm per seg, biological range)
+        constexpr double K_DRIVE = 3.0;       // rad/s per unit D/V diff (大幅提升到生物学范围)
+        constexpr double K_RESTORE = 2.5;     // 1/s (降低恢复力，允许更大曲率)
+        constexpr double DPHI_MAX = 0.08;     // rad (~3.8 /mm per seg, 生物学范围)
         
         for (int seg = 0; seg < NSEG; ++seg) {
             // Current inter-segment angle
@@ -461,37 +461,57 @@ void BodyModel::update_physics(double dt_seconds) {
             rods_[seg + 1].phi -= delta * 0.5;
         }
 
-        // --- 4. Per-rod CoM translation with anisotropic RFT drag ---
+        // --- 4. Uniform forward translation from undulatory wave ---
         //
-        // CoM forces: sum of D+V endpoint forces
-        // RFT decomposition:
-        //   tangent t̂ = (sin φ, −cos φ), normal n̂ = (cos φ, sin φ)
-        //   v_t = F_t / c_t,  v_n = F_n / c_n
+        // Biological mechanism (Fang-Yen 2010, Gray & Lissmann 1964):
+        //   Curvature wave × anisotropic drag (c_n >> c_t) → forward thrust
+        //   Speed ∝ muscle_work × curvature_amplitude × wavelength
         //
-        // Key: c_n >> c_t on agar → undulation generates forward thrust (emergent)
-        constexpr double V_MAX = 0.01;  // m/s velocity cap (stability in water)
+        // Problem: Endpoint forces on internal rods cancel (geometric symmetry)
+        // Solution: Compute speed from wave metrics, apply uniform translation
+        //
+        // Muscle work: integrated D/V activation over body
+        double muscle_work = 0.0;
+        for (int seg = 0; seg < NSEG; ++seg) {
+            double dA = std::abs(muscles_[seg].dorsal_activation - muscles_[seg].ventral_activation);
+            muscle_work += dA / NSEG;
+        }
+        
+        // Curvature amplitude: RMS of phi differences
+        double curv_rms = 0.0;
+        for (int seg = 0; seg < NSEG; ++seg) {
+            double dphi = rods_[seg].phi - rods_[seg + 1].phi;
+            while (dphi >  PI) dphi -= 2.0 * PI;
+            while (dphi < -PI) dphi += 2.0 * PI;
+            curv_rms += dphi * dphi / NSEG;
+        }
+        curv_rms = std::sqrt(curv_rms);
+        
+        // Speed model: work × curvature × RFT gain (agar: c_n/c_t ≈ 40)
+        constexpr double RFT_GAIN = 0.15;  // empirical (m/s per unit work×curv)
+        double speed = RFT_GAIN * muscle_work * curv_rms * (cn_pt / ct_pt);
+        speed = std::clamp(speed, 0.0, 0.003);  // 0-3 mm/s biological range
+        
+        // Head direction from first rod
+        double head_phi = rods_[0].phi;
+        double dx = speed * std::sin(head_phi) * dt_sub;
+        double dy = -speed * std::cos(head_phi) * dt_sub;
+        
+        // Uniform translation (head rod only — others reconstructed below)
         for (int i = 0; i < NBAR; ++i) {
-            double phi = rods_[i].phi;
-            double tx = std::sin(phi), ty = -std::cos(phi);
-            double nx = std::cos(phi), ny =  std::sin(phi);
-            
-            // Total CoM force = sum of endpoint forces
-            double fcx = fdx[i] + fvx[i];
-            double fcy = fdy[i] + fvy[i];
-            
-            // Decompose → anisotropic drag → velocity
-            double fc_t = fcx * tx + fcy * ty;
-            double fc_n = fcx * nx + fcy * ny;
-            double vcx = (fc_t / ct_pt) * tx + (fc_n / cn_pt) * nx;
-            double vcy = (fc_t / ct_pt) * ty + (fc_n / cn_pt) * ny;
-            double vc_mag = std::sqrt(vcx * vcx + vcy * vcy);
-            if (vc_mag > V_MAX) {
-                double s = V_MAX / vc_mag;
-                vcx *= s; vcy *= s;
-            }
-            
-            rods_[i].cx += vcx * dt_sub;
-            rods_[i].cy += vcy * dt_sub;
+            rods_[i].cx += dx;
+            rods_[i].cy += dy;
+        }
+
+        // --- 5. Reconstruct rod chain from head ---
+        // Forward kinematics: rod[0] position is authoritative (from translation),
+        // rod[1..N] centers computed from phi angles to maintain body connectivity.
+        // Without this, uniform translation preserves inter-rod vectors,
+        // causing get_head_angle() to return a constant → heading rate = 0.
+        for (int i = 0; i < NSEG; ++i) {
+            double avg_phi = 0.5 * (rods_[i].phi + rods_[i + 1].phi);
+            rods_[i + 1].cx = rods_[i].cx - std::sin(avg_phi) * seg_len_;
+            rods_[i + 1].cy = rods_[i].cy + std::cos(avg_phi) * seg_len_;
         }
     }
 

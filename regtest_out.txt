@@ -1,0 +1,29 @@
+========================================
+  REGRESSION TEST (30s simulation)
+  [CLI] as_factor=1.5 pulse_amp=50
+========================================
+
+  [OK] SMDDL V swing             40.8 mV
+  [OK] SMDVL V swing             41.1 mV
+  [OK] SMD diff amplitude        77.5 mV
+  [OK] SMDDL |I_syn| max         15.4 pA
+  [OK] SMDDL I_ext                3.0 pA
+  [OK] Curvature amplitude        5.3 /mm
+  [OK] Speed mean                 2.0 mm/s
+  [OK] Heading rate               7.3 deg/s
+  [OK] ASEL mean V              -42.7 mV
+  [OK] ASER mean V              -43.7 mV
+  [OK] Reversal count             6.0 
+  [OK] Omega count               40.0 
+  [OK] Fatigue @30s               0.1 
+  [OK] Sleep @30s                 0.0 
+  [OK] Midbody curv amp           3.1 /mm
+  [OK] Curv stability             0.8 Hz
+  [OK] Muscle work                0.1 
+  [OK] Neuron count             302.0 
+  [OK] Synapse count            696.0 
+  [OK] Gap junction count       247.0 
+
+  Result: 20 pass, 0 FAIL
+
+  All metrics within expected range. No regression detected.

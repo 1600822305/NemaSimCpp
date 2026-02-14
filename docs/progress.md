@@ -1075,6 +1075,15 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **架构**: 恢复Step 137端点力+reconstruct_rod生物学架构，放弃CoM+Rotation/RFT公式方法
 - **结果**: 速度1.9 mm/s, 航向9.8 deg/s, 曲率0.8/2.4 /mm, 无抽搐, 20/20 pass ✅
 
+### Step 144: 链式重建修复 Heading Rate = 0 ✅ (2026-02-14)
+> 详细文档: [steps/step144_chain_reconstruction.md](steps/step144_chain_reconstruction.md)
+
+- **问题**: 均匀平移保持杆间向量恒定 → cx/cy 不反映 phi 变化 → get_head_angle() 常量 → heading rate = 0
+- **修复**: 正向运动学链式重建 — phi 变化后从头部重新计算所有杆中心位置
+- **附加**: 温度采样添加 [5°C, 35°C] 钳位（防止线性梯度远距离产生 -126°C）
+- **结果**: heading rate 0→9.01 deg/s, heading range [0,0]→[-15.6, 21.6] deg, 温度 -126.5→5.0°C
+- **验证**: Regtest 20/20 pass ✅
+
 ---
 
 ## 当前系统状态

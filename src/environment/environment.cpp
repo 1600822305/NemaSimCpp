@@ -1,4 +1,5 @@
 #include <cmath>
+#include <algorithm>
 #include "core/fast_math.h"
 #include "environment/environment.h"
 
@@ -37,7 +38,8 @@ double Environment::sample_repellent(Vector2d pos) const {
 double Environment::sample_temperature(Vector2d pos) const {
     double cx = width_ / 2.0;
     double cy = height_ / 2.0;
-    return temp_center_ + temp_grad_x_ * (pos.x - cx) + temp_grad_y_ * (pos.y - cy);
+    double raw = temp_center_ + temp_grad_x_ * (pos.x - cx) + temp_grad_y_ * (pos.y - cy);
+    return std::clamp(raw, 5.0, 35.0);  // biological range clamp
 }
 
 Vector2d Environment::temperature_gradient(Vector2d pos) const {
