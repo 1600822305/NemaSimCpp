@@ -14,18 +14,24 @@ void BodyModel::initialize(Vector2d head_pos, double heading) {
         seg.angle = heading;
         seg.position = head_pos - Vector2d::from_angle(heading) * (i * segment_length_);
         seg.curvature = 0.0;
+        seg.prev_curvature = 0.0;
         seg.dorsal_activation = 0.0;
         seg.ventral_activation = 0.0;
     }
     prev_head_pos_ = head_pos;
+    direction_ = 1.0;
+    speed_ = 0.0;
 }
 
 void BodyModel::compute_curvatures(double dt) {
     for (int i = 0; i < NUM_BODY_SEGMENTS; ++i) {
         auto& seg = segments_[i];
-        // Curvature driven by muscle force differential + neural curvature drive
+        // Curvature driven by muscle force differential
         // force_diff > 0 → dorsal stronger → positive curvature (dorsal bend)
         // force_diff < 0 → ventral stronger → negative curvature (ventral bend)
+        // NOTE: neuromod_gain NOT applied here. In RFT, speed ∝ curvature²,
+        // so linear neuromod on curvature → quadratic speed scaling (too aggressive).
+        // Speed modulation comes from wave frequency (neural oscillation rate).
         double force_diff = muscles_.get_force_differential(i);
         double target_curvature = curvature_gain_ * force_diff;
 
@@ -40,9 +46,9 @@ void BodyModel::compute_curvatures(double dt) {
         double denom = 1.0 + (stiffness_ + damping_) * dt;
         seg.curvature = (seg.curvature + dt * (stiffness_ * target_curvature + diffusion)) / denom;
 
-        // Clamp curvature to physical limit: ~15/mm (head touching body in omega)
-        // REF: Gray 2005 PNAS — omega turn curvature ~15/mm
-        double max_curv = 15.0;
+        // Clamp curvature to physical limit: ~25/mm (head touching body in omega)
+        // REF: Gray 2005 PNAS — omega turn curvature 20-25/mm
+        double max_curv = 25.0;
         if (seg.curvature > max_curv) seg.curvature = max_curv;
         if (seg.curvature < -max_curv) seg.curvature = -max_curv;
     }
@@ -50,67 +56,130 @@ void BodyModel::compute_curvatures(double dt) {
 
 void BodyModel::update_positions(double dt) {
     // ===================================================================
-    // C. elegans locomotion — force-based speed model
-    // REF: Pierce-Shimomura 1999 (pirouette model of chemotaxis)
-    //      Padmanabhan 2012 (curvature wave representation)
-    //      Fang-Yen 2010 (speed ~0.15 mm/s on agar)
+    // Resistive Force Theory (RFT) — distributed locomotion mechanics
+    //
+    // At low Reynolds number (Re ~ 0.01), inertia is negligible.
+    // The force-free condition (Σ F_drag = 0, Σ τ_drag = 0) determines
+    // the rigid body motion (Vx, Vy, Ω) of the worm.
+    //
+    // Anisotropic drag (C_N > C_T) converts body undulation into net
+    // thrust. Forward/reverse direction emerges naturally from B/A-class
+    // motor neuron wave propagation direction. No direction flag needed.
+    //
+    // REF: Gray & Hancock 1955 — slender body RFT
+    //      Boyle et al. 2012 — C. elegans neuromechanical model
+    //      Fang-Yen et al. 2010 — locomotion on agar (C_N/C_T ≈ 1.5)
     // ===================================================================
 
-    // --- 1. Forward speed from muscle force (low Reynolds number) ---
-    // Propulsive force ∝ mean |F_dorsal - F_ventral| (body undulation amplitude)
-    // At low Re: F_drag = C × v → v = F_propulsive / C_drag
-    // Neuromod gain already applied inside muscles_.get_mean_abs_force()
-    double mean_force = muscles_.get_mean_abs_force();
-    double forward_speed = mean_force * locomotion_efficiency_
-                         / drag_coefficient_;
-    // Physical speed limit: adult C. elegans max ~500 μm/s (Fang-Yen 2010)
-    // During omega, head muscle boost inflates mean_force but translational
-    // speed is limited. Heading change (speed*curvature) still large due to
-    // moderate speed × extreme curvature.
-    if (forward_speed > 0.5) forward_speed = 0.5;
-
-    // --- 1b. Locomotion direction from command neuron balance ---
-    // Step 41: Implement backward locomotion during reversal
-    // REF: Fang-Yen 2010 — reverse speed ~60% of forward speed
-    //      Chalfie 1985 — AVA command neuron drives backward movement
-    // Smooth drives (tau=100ms) to avoid jitter at direction transitions
-    smooth_fwd_ += (forward_drive_ - smooth_fwd_) * dt / 0.1;
-    smooth_rev_ += (reverse_drive_ - smooth_rev_) * dt / 0.1;
-    mean_rev_ += (smooth_rev_ - mean_rev_) * dt / 5.0;
-
-    // Net direction: +1 forward, -1 backward
-    // Hysteresis: need 0.1 margin to switch (prevents oscillation at transition)
-    double direction = 1.0;
-    if (smooth_rev_ > smooth_fwd_ + 0.1) {
-        direction = -1.0;
-        forward_speed *= 0.6;  // reverse speed is ~60% of forward (Fang-Yen 2010)
+    // --- 1. Save old positions (before shape change) ---
+    std::array<Vector2d, NUM_BODY_SEGMENTS> old_pos;
+    for (int i = 0; i < NUM_BODY_SEGMENTS; ++i) {
+        old_pos[i] = segments_[i].position;
     }
 
-    // --- 2. Heading update: dθ/dt = v × direction × κ_head ---
-    // REF: Padmanabhan 2012 — body with curvature κ moving at speed v turns at v·κ
-    // During omega: heading change from body deformation, not curved-path translation.
-    // Use |direction| so curvature sign directly determines turn direction.
-    double head_curv = segments_[0].curvature;
-    double effective_dir = omega_active_ ? std::abs(direction) : direction;
-    double dtheta = forward_speed * effective_dir * head_curv * dt;
-    // Clamp heading change rate to physical limit
-    // REF: Gray 2005 PNAS — omega turn angular velocity ~300°/s
-    double max_dtheta = 5.24 * dt;
-    if (dtheta > max_dtheta) dtheta = max_dtheta;
-    if (dtheta < -max_dtheta) dtheta = -max_dtheta;
-    segments_[0].angle += dtheta;
+    // --- 2. Reconstruct body shape with NEW curvatures (head fixed) ---
+    // This captures internal deformation from curvature changes.
+    // Head position and angle stay at old values (reference frame).
+    for (int i = 1; i < NUM_BODY_SEGMENTS; ++i) {
+        segments_[i].angle = segments_[i - 1].angle - segments_[i].curvature * segment_length_;
+        Vector2d dir = Vector2d::from_angle(segments_[i].angle);
+        segments_[i].position = segments_[i - 1].position - dir * segment_length_;
+    }
 
-    // --- 4. Update head position ---
-    // Step 41: direction=-1 during reversal → head moves backward
-    Vector2d head_dir = Vector2d::from_angle(segments_[0].angle);
-    segments_[0].position += head_dir * forward_speed * direction * dt;
+    // --- 3. Compute shape change velocities ---
+    // v_shape[i] = velocity of segment i due to curvature changes alone
+    // (with head pinned in place — rigid body motion is solved separately)
+    std::array<Vector2d, NUM_BODY_SEGMENTS> v_shape;
+    v_shape[0] = {0.0, 0.0};  // head is reference point
+    for (int i = 1; i < NUM_BODY_SEGMENTS; ++i) {
+        v_shape[i] = (segments_[i].position - old_pos[i]) * (1.0 / dt);
+    }
 
-    // --- 5. Save curvatures ---
+    // --- 4. Build 3×3 linear system for rigid body motion ---
+    // Unknowns: Vx, Vy (head translation), Ω (body angular velocity)
+    //
+    // Total velocity of segment i:
+    //   v_i = (Vx, Vy) + Ω × d_i + v_shape_i
+    //   where d_i = segments_[i].position - head_position
+    //         Ω × d = (-Ω*d.y, Ω*d.x)
+    //
+    // RFT drag per segment (force per unit length × segment_length):
+    //   f_i = -ds × [C_T × (v_i·t_i) × t_i + C_N × (v_i·n_i) × n_i]
+    //   where t_i = tangent, n_i = normal (90° CCW from tangent)
+    //
+    // Force-free:  Σ f_i = 0        (2 equations)
+    // Torque-free: Σ (d_i × f_i) = 0 (1 equation)
+    //
+    // This is linear in (Vx, Vy, Ω) → standard 3×3 system.
+
+    double A[3][3] = {};
+    double b[3] = {};
+
+    for (int i = 0; i < NUM_BODY_SEGMENTS; ++i) {
+        Vector2d t = Vector2d::from_angle(segments_[i].angle);  // tangent
+        Vector2d n = {-t.y, t.x};                                // normal (CCW)
+        Vector2d d = segments_[i].position - segments_[0].position; // relative to head
+
+        // Cross products: d × t and d × n (z-component of 2D cross product)
+        double cdt = d.cross(t);  // d.x*t.y - d.y*t.x
+        double cdn = d.cross(n);  // d.x*n.y - d.y*n.x
+
+        // Shape velocity projections
+        double vs_t = v_shape[i].dot(t);  // tangential component
+        double vs_n = v_shape[i].dot(n);  // normal component
+
+        double ds = segment_length_;
+        double CT = drag_tangential_;
+        double CN = drag_normal_;
+
+        // Row 0: Force balance (x-component)
+        //   Σ [CT*vt*tx + CN*vn*nx] = 0
+        A[0][0] += ds * (CT * t.x * t.x + CN * n.x * n.x);
+        A[0][1] += ds * (CT * t.y * t.x + CN * n.y * n.x);
+        A[0][2] += ds * (CT * cdt * t.x + CN * cdn * n.x);
+        b[0]    -= ds * (CT * vs_t * t.x + CN * vs_n * n.x);
+
+        // Row 1: Force balance (y-component)
+        A[1][0] += ds * (CT * t.x * t.y + CN * n.x * n.y);
+        A[1][1] += ds * (CT * t.y * t.y + CN * n.y * n.y);
+        A[1][2] += ds * (CT * cdt * t.y + CN * cdn * n.y);
+        b[1]    -= ds * (CT * vs_t * t.y + CN * vs_n * n.y);
+
+        // Row 2: Torque balance about head
+        //   Σ (d × f) = 0
+        //   τ = d.x*fy - d.y*fx = -ds*[CT*vt*(d×t) + CN*vn*(d×n)]
+        A[2][0] += ds * (CT * t.x * cdt + CN * n.x * cdn);
+        A[2][1] += ds * (CT * t.y * cdt + CN * n.y * cdn);
+        A[2][2] += ds * (CT * cdt * cdt + CN * cdn * cdn);
+        b[2]    -= ds * (CT * vs_t * cdt + CN * vs_n * cdn);
+    }
+
+    // --- 5. Solve 3×3 system: A × [Vx, Vy, Ω]ᵀ = b ---
+    double Vx = 0.0, Vy = 0.0, Omega = 0.0;
+    solve_3x3(A, b, Vx, Vy, Omega);
+
+    // Proportional speed cap: scale ALL components equally to maintain
+    // force balance self-consistency. At very high speeds, nonlinear drag
+    // (not modeled) would limit motion. Cap at 0.8 mm/s translational.
+    double v_mag = std::sqrt(Vx * Vx + Vy * Vy);
+    if (v_mag > 0.8) {
+        double scale = 0.8 / v_mag;
+        Vx *= scale;
+        Vy *= scale;
+        Omega *= scale;
+    }
+
+    // --- 6. Apply rigid body motion to head ---
+    segments_[0].position.x += Vx * dt;
+    segments_[0].position.y += Vy * dt;
+    segments_[0].angle += Omega * dt;
+
+    // --- 7. Save prev curvatures (for next frame's shape change) ---
     for (int i = 0; i < NUM_BODY_SEGMENTS; ++i) {
         segments_[i].prev_curvature = segments_[i].curvature;
     }
 
-    // --- 6. Body segments follow head ---
+    // --- 8. Reconstruct body from head (kinematic chain) ---
     // REF: Padmanabhan 2012 — θ_i = θ_{i-1} - κ_i × ds
     for (int i = 1; i < NUM_BODY_SEGMENTS; ++i) {
         segments_[i].angle = segments_[i - 1].angle - segments_[i].curvature * segment_length_;
@@ -118,10 +187,57 @@ void BodyModel::update_positions(double dt) {
         segments_[i].position = segments_[i - 1].position - dir * segment_length_;
     }
 
-    // --- 7. Compute speed ---
+    // --- 9. Compute speed and direction (emergent from physics) ---
     Vector2d head_pos = segments_[0].position;
-    speed_ = (head_pos - prev_head_pos_).norm() / dt;
+    Vector2d velocity = (head_pos - prev_head_pos_) * (1.0 / dt);
+    speed_ = velocity.norm();
+
+    // Direction: project velocity onto heading vector
+    // +1 if moving in heading direction (forward), -1 if opposite (backward)
+    Vector2d heading_vec = Vector2d::from_angle(segments_[0].angle);
+    double v_along = velocity.dot(heading_vec);
+    direction_ = (v_along >= 0.0) ? 1.0 : -1.0;
+
     prev_head_pos_ = head_pos;
+}
+
+// 3×3 Gaussian elimination with partial pivoting
+bool BodyModel::solve_3x3(double A[3][3], double b[3],
+                           double& x0, double& x1, double& x2) {
+    // Forward elimination with partial pivoting
+    for (int col = 0; col < 3; ++col) {
+        // Find pivot
+        int pivot = col;
+        double max_val = std::abs(A[col][col]);
+        for (int row = col + 1; row < 3; ++row) {
+            if (std::abs(A[row][col]) > max_val) {
+                max_val = std::abs(A[row][col]);
+                pivot = row;
+            }
+        }
+        if (max_val < 1e-15) {
+            x0 = x1 = x2 = 0.0;
+            return false;  // singular
+        }
+        // Swap rows
+        if (pivot != col) {
+            std::swap(A[col], A[pivot]);
+            std::swap(b[col], b[pivot]);
+        }
+        // Eliminate
+        for (int row = col + 1; row < 3; ++row) {
+            double factor = A[row][col] / A[col][col];
+            for (int j = col; j < 3; ++j) {
+                A[row][j] -= factor * A[col][j];
+            }
+            b[row] -= factor * b[col];
+        }
+    }
+    // Back substitution
+    x2 = b[2] / A[2][2];
+    x1 = (b[1] - A[1][2] * x2) / A[1][1];
+    x0 = (b[0] - A[0][1] * x1 - A[0][2] * x2) / A[0][0];
+    return true;
 }
 
 void BodyModel::update_physics(double dt) {
@@ -138,7 +254,7 @@ void BodyModel::update_physics(double dt) {
         segments_[i].ventral_activation = (va > 1.0) ? 1.0 : va;
     }
 
-    // 3. Body physics: curvature from muscle forces, position from kinematics
+    // 3. Body physics: curvature from muscle forces, RFT locomotion
     compute_curvatures(dt);
     update_positions(dt);
 }

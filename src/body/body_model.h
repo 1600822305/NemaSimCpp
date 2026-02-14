@@ -11,7 +11,7 @@ struct BodySegment {
     Vector2d position;
     double angle = 0.0;           // orientation angle (rad)
     double curvature = 0.0;       // local curvature (1/mm)
-    double prev_curvature = 0.0;  // previous frame curvature (for RFT)
+    double prev_curvature = 0.0;  // previous frame curvature (for RFT shape change)
     double dorsal_activation = 0.0;  // synced from MuscleSystem (for visualization)
     double ventral_activation = 0.0; // synced from MuscleSystem (for visualization)
 };
@@ -36,23 +36,10 @@ public:
     double get_local_stretch(int segment) const;
     Vector2d get_segment_position(int segment) const;
     double get_speed() const { return speed_; }
-    // +1 forward, -1 backward (from smoothed AVA/AVB balance)
-    double get_direction() const {
-        return (smooth_rev_ > smooth_fwd_ + 0.1) ? -1.0 : 1.0;
-    }
+    // +1 forward, -1 backward — emergent from RFT velocity projection on heading
+    double get_direction() const { return direction_; }
 
     double get_body_length() const { return body_length_; }
-
-    // Forward/reverse state from command neuron balance
-    // forward_drive: AVB release rate, reverse_drive: AVA release rate
-    void set_locomotion_state(double forward_drive, double reverse_drive) {
-        forward_drive_ = forward_drive;
-        reverse_drive_ = reverse_drive;
-    }
-
-    // Omega state: heading change uses |direction| during omega (body deformation,
-    // not translation along curved path — direction sign irrelevant)
-    void set_omega_active(bool active) { omega_active_ = active; }
 
     const std::array<BodySegment, NUM_BODY_SEGMENTS>& segments() const { return segments_; }
     std::array<BodySegment, NUM_BODY_SEGMENTS>& segments() { return segments_; }
@@ -67,21 +54,26 @@ private:
     double stiffness_ = 10.0;        // body stiffness (nN·mm²)
     double damping_ = 0.5;           // damping coefficient
     double curvature_diffusion_ = 0.5; // Step 29: gentle elastic coupling (Boyle 2012)
-    double curvature_gain_ = 0.3;    // curvature per unit muscle force differential (1/mm)
-    double locomotion_efficiency_ = 0.7; // propulsive efficiency (low Re undulation, calibrated for boost architecture)
-    double drag_coefficient_ = 1.0;     // effective drag (low Reynolds number)
+    double curvature_gain_ = 4.0;    // curvature per unit muscle force differential (1/mm, calibrated for RFT)
+
+    // Resistive Force Theory (RFT) drag coefficients
+    // At low Reynolds number (Re ~ 0.01), anisotropic drag converts
+    // undulatory body waves into net thrust. C_N > C_T is essential.
+    // REF: Gray & Hancock 1955 — slender body RFT
+    //      Boyle 2012 — C. elegans neuromechanical model
+    //      Fang-Yen 2010 — C_N/C_T ≈ 1.5 on agar
+    double drag_tangential_ = 3.4;   // C_T — drag along body axis
+    double drag_normal_ = 5.1;       // C_N — drag perpendicular to body (ratio ≈ 1.5)
+
     double speed_ = 0.0;             // current locomotion speed (mm/s)
+    double direction_ = 1.0;         // +1 forward, -1 backward (from velocity · heading)
     Vector2d prev_head_pos_;
-    double forward_drive_ = 0.5;     // AVB release rate (instantaneous)
-    double reverse_drive_ = 0.0;     // AVA release rate (instantaneous)
-    double smooth_fwd_ = 0.5;        // smoothed forward drive (100ms tau)
-    double smooth_rev_ = 0.0;        // smoothed reverse drive (100ms tau)
-    double mean_rev_ = 0.0;          // running mean of AVA (2s tau, for adaptive threshold)
-    bool was_reversing_ = false;     // for detecting reversal transitions
-    bool omega_active_ = false;      // heading uses |direction| during omega
 
     void compute_curvatures(double dt);
     void update_positions(double dt);
+
+    // Solve 3×3 linear system Ax=b by Gaussian elimination with partial pivoting
+    static bool solve_3x3(double A[3][3], double b[3], double& x0, double& x1, double& x2);
 };
 
 } // namespace celegans

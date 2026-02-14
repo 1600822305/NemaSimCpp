@@ -598,14 +598,14 @@ void SimulationEngine::step() {
     apply_riv_omega();      // Step 117: RIV burst → head muscle boost (NMJ 40x)
     apply_smb_neck_bias();  // Step 117: klinotaxis → head muscle boost
 
-    // 8. Command neuron balance → locomotion direction (Step 66: SOLE mechanism)
-    // AVA dominant → reverse, AVB dominant → forward
-    // Step 66: Removed set_locomotion_state(0,1) override — AVA/AVB balance is now
-    // the ONLY source of locomotion direction. Reversals emerge from:
-    //   - Spontaneous: ion channel noise (3pA) → stochastic AVA activation (Roberts 2016)
-    //   - Sensory: ASE→AIB→AVA pathway (dC/dt modulation, Piggott 2011)
-    //   - Nociceptive: ASH→AVA direct (GLR-1, Piggott 2011)
-    //   - Food edge: AVA current injection (CEP→DA→AIB→AVA, eLife 2024)
+    // 8. Reversal state detection from command neuron balance
+    // Step 118: Locomotion direction now emerges from RFT (Resistive Force Theory).
+    // B-class wave (tail→head) → forward thrust, A-class wave (head→tail) → backward.
+    // No set_locomotion_state() needed — body physics determines direction.
+    // AVA/AVB are still read here to detect NEURAL reversal state for:
+    //   - RIV omega initiation (post-reversal burst)
+    //   - Reversal duration tracking
+    //   - Diagnostics (is_reversing_)
     // REF: Roberts 2016 eLife — neuronal flip-flop with reciprocal inhibition
     {
         double ava_rel = 0.0, avb_rel = 0.0;
@@ -615,8 +615,6 @@ void SimulationEngine::step() {
         if (nid("AVBL") >= 0 && nid("AVBL") < n) avb_rel += neurons_[nid("AVBL")]->get_transmitter_release_rate();
         if (nid("AVBR") >= 0 && nid("AVBR") < n) avb_rel += neurons_[nid("AVBR")]->get_transmitter_release_rate();
         ava_rel *= 0.5; avb_rel *= 0.5; // average L/R
-        body_.set_locomotion_state(avb_rel, ava_rel);
-        body_.set_omega_active(riv_omega_active_);
 
         // Step 66: Detect reversal state from AVA activity (for RIV omega tracking)
         // Schmitt trigger with hysteresis (Roberts 2016: AVA bistable -17/-32 mV)
