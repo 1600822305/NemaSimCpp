@@ -819,6 +819,16 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **性能剖析**: 108 us/step, 9236 steps/sec, 4.6x 实时, 突触计算占 37%
 - **参数扫描**: synapse_scale 灵敏度 — speed R²=0.91, 最优 CI 在 1.5
 
+### Step 120: 趋化瓶颈修复 — Omega方向 + dC/dt Klinokinesis + 并行分析器 ✅ (2026-02-15)
+> 详细文档: [steps/step120_chemotaxis_bottleneck_fixes.md](steps/step120_chemotaxis_bottleneck_fixes.md)
+
+- **Omega L/R→D/V RFT符号修复**: `peak_l→dorsal` (dorsal boost→LEFT turn in RFT, 由klinotaxis验证)
+- **Omega 梯度权重**: 0.3→0.6 grad, 0.3→0.1 posture; omega启动时重新采样梯度方向
+- **CCA-1 旁路**: 直接从梯度计算omega L/R, 绕过全或无爆发均等化
+- **dC/dt 方向性 klinokinesis**: 不对称AWC OFF型 (dC/dt<0→AVA↑, dC/dt>0→不抑制)
+- **chemotaxis_analyzer 并行化**: --seeds + --threads, 最多8线程, 汇总统计
+- **CI**: -0.068 → **+0.032±0.019** (8种子), Omega toward: 31.6% → **81.2%**, Klinokinesis: -0.004 → **0.268**
+
 ### Step 119: 本体感觉门控 + wave_analyzer 诊断工具 ✅ (2026-02-14)
 > 详细文档: [steps/step119_proprioceptive_gating.md](steps/step119_proprioceptive_gating.md)
 
@@ -912,7 +922,7 @@ P0/P1 违规全部修复:
   P0-6: FLP-11 直接注入移除 → NeuromodulationManager DMSR-1 框架 (Step 71)
 行为指标 (300s): CI≈0.44 (naive), CI≈-0.01 (sickness=1, 病原体回避生效), omega/reversal≈57%, reversal_rate≈0.14/s, speed≈0.15mm/s
 工具: celegans_diag.exe (信号链诊断+fitness) + celegans_regtest.exe (回归检测+电流溯源)
-诊断工具套件 (Step 114+119, 10个独立可执行文件):
+诊断工具套件 (Step 114+119+120, 11个独立可执行文件):
   health_check     — 快速健康扫描 (PASS/WARN/FAIL)
   neuron_monitor   — 神经元电压/释放率追踪
   circuit_probe    — 回路信号传播分析
@@ -923,6 +933,7 @@ P0/P1 违规全部修复:
   perf_profiler    — 性能剖析 (计时/瓶颈/内存/可扩展性)
   param_sweep      — 参数扫描 (范围搜索 + 灵敏度分析)
   wave_analyzer    — 行波传播诊断 (方向/门控/RFT分解/klinotaxis)
+  chemotaxis_analyzer — CI归因分析 (多种子并行, 信号链瓶颈定位)
 
 运动驱动 (Step 13 — 生物学机制):
   感觉基线: 12 感觉神经元 × 15pA 自发活动 (Bargmann 2006)

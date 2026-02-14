@@ -157,36 +157,80 @@ void SimulationEngine::update_food_memory() {
 }
 
 // ================================================================
-// Gradient-Dependent Klinokinesis (Step 21d)
+// Gradient-Dependent Klinokinesis (Step 21d + Step 120)
+// Two components:
+//   A) Gradient-magnitude klinokinesis: no gradient → high pirouette (Calhoun 2014)
+//   B) dC/dt directional klinokinesis: heading down-gradient → more reversals
+//      REF: Pierce-Shimomura 1999 J Neurosci — pirouette rate ∝ -dC/dt
+//           Iino & Yoshida 2009 J Neurosci — ASE temporal derivative sensing
+//           Chalasani 2007 Nature — AWC OFF-response triggers pirouettes
 // ================================================================
 void SimulationEngine::apply_gradient_klinokinesis() {
     Vector2d head_pos = body_.get_head_position();
     Vector2d grad = environment_.chemical_field().gradient(head_pos);
     double grad_mag = std::sqrt(grad.x * grad.x + grad.y * grad.y);
 
+    // --- Component A: gradient-magnitude (position-dependent local search) ---
     // Step 93: Pathogen learning flips klinokinesis polarity
     // Naive (awc_pref>0): no gradient → high pirouette → local search (Calhoun 2014)
     // Sick  (awc_pref<0): ON gradient → high pirouette → escape food zone
     // REF: Zhang 2005 Nature — learned aversion reverses chemotaxis strategy
     //      Ha 2010 Neuron — AWC→AIB pathway mediates aversive pirouettes
     double pref = awc_pref_cached_;
-    double kk_current = 0.0;
+    double kk_mag_current = 0.0;
     if (pref >= 0.0) {
-        // Naive: weak/no gradient → excite AVA → more pirouettes (explore)
         double no_signal_factor = fast_exp(-grad_mag / 0.002);
-        kk_current = 1.0 * no_signal_factor;
+        kk_mag_current = 1.0 * no_signal_factor;
     } else {
-        // Sick: strong gradient (near food) → excite AVA → pirouettes to escape
-        // Inverted: grad_mag high → kk_current high (opposite of naive)
-        // Step 93: 2→5 pA base, stronger escape drive near food
-        // REF: Ha 2010 — AWC→AIB aversive pirouettes are vigorous
         double on_signal_factor = 1.0 - fast_exp(-grad_mag / 0.002);
-        kk_current = 5.0 * on_signal_factor * (-pref);  // scale by aversion strength
+        kk_mag_current = 5.0 * on_signal_factor * (-pref);
     }
 
+    // --- Component B: dC/dt directional klinokinesis (heading-dependent) ---
+    // Temporal derivative of concentration experienced by the worm as it moves.
+    // dC/dt = ∇C · v: positive when heading up-gradient, negative when down.
+    // AWC is OFF-type: tonically active, suppressed by concentration increase.
+    //   dC/dt > 0 → AWC suppressed → less AIB → less AVA → fewer reversals
+    //   dC/dt < 0 → AWC activated → more AIB → more AVA → more reversals
+    // We model this directly: negative dC/dt → positive AVA current.
+    // Filter with τ=2s to match ASE/AWC sensory adaptation timescale.
+    // REF: Pierce-Shimomura 1999 — pirouette rate modulated by -dC/dt
+    double concentration = environment_.sample_chemical(head_pos);
+    double raw_dCdt = (concentration - prev_concentration_) / (dt_ * 0.001);  // per second
+    prev_concentration_ = concentration;
+    double tau_dCdt = 2000.0;  // 2s filter, matches ASE adaptation (Suzuki 2008)
+    dCdt_filtered_ += (raw_dCdt - dCdt_filtered_) * dt_ / tau_dCdt;
+
+    // Convert dC/dt to AVA current — ASYMMETRIC (biological):
+    //   dC/dt < 0 (down-gradient) → excite AVA → more reversals (pirouettes)
+    //   dC/dt > 0 (up-gradient) → NO suppression (baseline stochastic reversal rate)
+    // AWC is OFF-type: tonically active, fires MORE when concentration DROPS.
+    // AWC does NOT actively inhibit downstream when concentration rises — it simply
+    // returns to tonic baseline. Symmetric suppression would chronically suppress
+    // AVA when heading toward food, disrupting motor pattern and reducing speed.
+    // REF: Chalasani 2007 Nature — AWC OFF-response triggers pirouettes
+    //      Suzuki 2008 — asymmetric sensory processing in C. elegans
+    double kk_dCdt_gain = 300.0;  // pA / (conc/s)
+    double kk_dCdt_current = 0.0;
+    if (pref >= 0.0) {
+        // Naive: only excite AVA when dC/dt < 0 (going down-gradient)
+        if (dCdt_filtered_ < 0.0) {
+            kk_dCdt_current = -dCdt_filtered_ * kk_dCdt_gain;  // positive current
+            kk_dCdt_current = std::min(kk_dCdt_current, 3.0);  // clamp max excitation
+        }
+    } else {
+        // Sick/aversive: excite AVA when dC/dt > 0 (approaching noxious source)
+        if (dCdt_filtered_ > 0.0) {
+            kk_dCdt_current = dCdt_filtered_ * kk_dCdt_gain;
+            kk_dCdt_current = std::min(kk_dCdt_current, 3.0);
+        }
+    }
+
+    double kk_total = kk_mag_current + kk_dCdt_current;
+
     int n = static_cast<int>(neurons_.size());
-    if (nid("AVAL") >= 0 && nid("AVAL") < n) neurons_[nid("AVAL")]->add_synaptic_current(kk_current);
-    if (nid("AVAR") >= 0 && nid("AVAR") < n) neurons_[nid("AVAR")]->add_synaptic_current(kk_current);
+    if (nid("AVAL") >= 0 && nid("AVAL") < n) neurons_[nid("AVAL")]->add_synaptic_current(kk_total);
+    if (nid("AVAR") >= 0 && nid("AVAR") < n) neurons_[nid("AVAR")]->add_synaptic_current(kk_total);
 }
 
 // ================================================================

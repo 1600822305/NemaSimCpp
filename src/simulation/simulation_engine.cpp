@@ -657,12 +657,17 @@ void SimulationEngine::step() {
                 double base_amp = static_cast<double>(params.pulse_amp) * ta_conc;
                 double heading = body_.get_head_angle();
                 Vector2d grad = environment_.chemical_field().gradient(body_.get_head_position());
+                // Step 120: Gradient dominates omega direction, posture is weak cue
+                // Old: 0.3 grad + 0.3 posture → random posture dilutes gradient signal
+                // New: 0.6 grad + 0.1 posture → gradient reliably controls omega direction
+                // REF: Iino & Yoshida 2009 — omega direction correlates with gradient
+                //      Gray 2005 — posture contributes weakly to turn direction
                 double grad_perp = -std::sin(heading) * grad.x + std::cos(heading) * grad.y;
                 double grad_lr = std::tanh(grad_perp * 50.0);
-                double posture_lr = -pre_rev_dorsal_tone_ * 10.0;  // force_diff centered at 0
+                double posture_lr = -pre_rev_dorsal_tone_ * 10.0;
                 posture_lr = std::tanh(posture_lr);
-                double lr_grad = 0.3 * grad_lr;
-                double lr_posture = 0.3 * posture_lr;
+                double lr_grad = 0.6 * grad_lr;
+                double lr_posture = 0.1 * posture_lr;
                 riv_post_rev_amp_l_ = base_amp * (1.0 + lr_grad + lr_posture);
                 riv_post_rev_amp_r_ = base_amp * (1.0 - lr_grad - lr_posture);
             }

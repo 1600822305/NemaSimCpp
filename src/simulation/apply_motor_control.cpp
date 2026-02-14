@@ -367,21 +367,25 @@ void SimulationEngine::apply_riv_omega() {
             if (effective_riv > static_cast<double>(params.omega_threshold)) {
                 riv_omega_active_ = true;
                 riv_omega_start_ = current_time_;
-                // Latch peak release for sustained omega curvature
-                // Apply gradient-directed L/R bias directly to peak values:
+                // Step 120: Re-sample gradient at omega initiation (not reversal end)
+                // During reversal the worm moves backward → heading changes.
+                // Fresh gradient sample ensures omega direction matches current position.
                 // CCA-1 all-or-nothing bursting equalizes RIVL/RIVR release (~0.8),
-                // so the asymmetric post-rev pulse doesn't create proportional
-                // release asymmetry. We directly scale peaks by the post-rev
-                // amplitude ratio to ensure gradient controls omega direction.
+                // so we bypass neural asymmetry and directly compute L/R from gradient.
                 double mean_rel = (rivl_rel + rivr_rel) * 0.5;
+                double heading_now = body_.get_head_angle();
+                Vector2d grad_now = environment_.chemical_field().gradient(body_.get_head_position());
+                double gp = -std::sin(heading_now) * grad_now.x + std::cos(heading_now) * grad_now.y;
+                double fresh_lr = std::tanh(gp * 50.0);
+                // Blend: 70% fresh gradient + 30% post-rev amplitude ratio (carries TA gating)
                 double amp_total = riv_post_rev_amp_l_ + riv_post_rev_amp_r_;
+                double post_rev_lr = 0.0;
                 if (amp_total > 0.01) {
-                    riv_omega_peak_l_ = mean_rel * 2.0 * (riv_post_rev_amp_l_ / amp_total);
-                    riv_omega_peak_r_ = mean_rel * 2.0 * (riv_post_rev_amp_r_ / amp_total);
-                } else {
-                    riv_omega_peak_l_ = rivl_rel;
-                    riv_omega_peak_r_ = rivr_rel;
+                    post_rev_lr = (riv_post_rev_amp_l_ - riv_post_rev_amp_r_) / amp_total;
                 }
+                double combined_lr = 0.7 * fresh_lr + 0.3 * post_rev_lr;
+                riv_omega_peak_l_ = mean_rel * (1.0 + combined_lr);
+                riv_omega_peak_r_ = mean_rel * (1.0 - combined_lr);
             }
         }
     }
@@ -395,10 +399,14 @@ void SimulationEngine::apply_riv_omega() {
         double omega_elapsed = current_time_ - riv_omega_start_;
         double decay = std::exp(-omega_elapsed / 150.0);  // 150ms tau: muscle Ca²⁺ clearance (RFT calibrated)
         double omega_nmj_gain = 300.0 * decay;
+        // Step 120: RFT sign fix — dorsal boost → LEFT heading change
+        // Confirmed by klinotaxis (corr=+0.28): curvature_offset>0 → dorsal boost → LEFT turn
+        // peak_l (food-LEFT biased) → DORSAL → LEFT turn → toward food
+        // peak_r (food-RIGHT biased) → VENTRAL → RIGHT turn → toward food
         for (int seg = 0; seg < 6; ++seg) {
             double taper = 1.0 - 0.5 * (seg / 5.0);  // 100% at head, 50% at seg 5
-            body_.muscles().add_boost(seg, false, riv_omega_peak_l_ * omega_nmj_gain * taper);
-            body_.muscles().add_boost(seg, true,  riv_omega_peak_r_ * omega_nmj_gain * taper);
+            body_.muscles().add_boost(seg, true,  riv_omega_peak_l_ * omega_nmj_gain * taper);
+            body_.muscles().add_boost(seg, false, riv_omega_peak_r_ * omega_nmj_gain * taper);
         }
 
         // Termination: min 400ms, then end when RIV drops below threshold
