@@ -365,85 +365,14 @@ void BodyModel::update_physics(double dt_seconds) {
     update_muscle_activations(dt_seconds);
 
     for (int step = 0; step < n_steps; ++step) {
-        // === Step 137 biological architecture (restored) ===
-        // 1. Muscle endpoint forces → body wall mechanics
-        // 2. Anisotropic drag → medium interaction
-        // 3. reconstruct_rod() → naturally couples phi & cx/cy
-        // 4. Direct phi drive → neural oscillation from AC-coupled D/V
+        prev_rods_ = rods_;
 
-        // --- 1. Endpoint forces (body wall mechanics) ---
-        double fdx[NBAR] = {}, fdy[NBAR] = {};
-        double fvx[NBAR] = {}, fvy[NBAR] = {};
-        seg_torque_.fill(0.0);
+        // === Clean architecture (Step 143b) ===
+        // Body shape: neural D/V → phi (curvature) → phi-chain (positions)
+        // Translation: body wave intensity × locomotion drive × drag ratio
+        // No spring forces for positions — springs fight neural curvature.
 
-        for (int s = 0; s < NSEG; ++s) {
-            apply_lateral_forces(s, fdx, fdy, fvx, fvy);
-            apply_diagonal_forces(s, fdx, fdy, fvx, fvy);
-            apply_muscle_forces(s, fdx, fdy, fvx, fvy);
-        }
-        apply_self_collision(fdx, fdy, fvx, fvy);
-
-        // --- 2. Endpoint motion with anisotropic drag ---
-        for (int i = 0; i < NBAR; ++i) {
-            // Local body tangent for drag decomposition
-            double tx, ty;
-            if (i == 0) {
-                tx = rods_[0].cx - rods_[1].cx;
-                ty = rods_[0].cy - rods_[1].cy;
-            } else if (i == NBAR - 1) {
-                tx = rods_[NBAR-2].cx - rods_[NBAR-1].cx;
-                ty = rods_[NBAR-2].cy - rods_[NBAR-1].cy;
-            } else {
-                tx = rods_[i-1].cx - rods_[i+1].cx;
-                ty = rods_[i-1].cy - rods_[i+1].cy;
-            }
-            double tlen = std::sqrt(tx*tx + ty*ty);
-            if (tlen < 1e-15) { tx = 1.0; ty = 0.0; }
-            else { tx /= tlen; ty /= tlen; }
-            double nx = -ty, ny = tx;
-
-            // Dorsal endpoint
-            {
-                double ft = fdx[i]*tx + fdy[i]*ty;
-                double fn = fdx[i]*nx + fdy[i]*ny;
-                double vx = (ft / std::max(ct_pt, 1e-15)) * tx
-                          + (fn / std::max(cn_pt, 1e-15)) * nx;
-                double vy = (ft / std::max(ct_pt, 1e-15)) * ty
-                          + (fn / std::max(cn_pt, 1e-15)) * ny;
-                constexpr double V_MAX = 0.01;
-                vx = std::clamp(vx, -V_MAX, V_MAX);
-                vy = std::clamp(vy, -V_MAX, V_MAX);
-                double Dx = rods_[i].dx() + vx * dt_sub;
-                double Dy = rods_[i].dy() + vy * dt_sub;
-                // Ventral endpoint
-                ft = fvx[i]*tx + fvy[i]*ty;
-                fn = fvx[i]*nx + fvy[i]*ny;
-                vx = (ft / std::max(ct_pt, 1e-15)) * tx
-                   + (fn / std::max(cn_pt, 1e-15)) * nx;
-                vy = (ft / std::max(ct_pt, 1e-15)) * ty
-                   + (fn / std::max(cn_pt, 1e-15)) * ny;
-                vx = std::clamp(vx, -V_MAX, V_MAX);
-                vy = std::clamp(vy, -V_MAX, V_MAX);
-                double Vx = rods_[i].vx() + vx * dt_sub;
-                double Vy = rods_[i].vy() + vy * dt_sub;
-
-                // --- 3. reconstruct_rod for cx/cy only ---
-                // phi stays under direct neural control (step 4 below).
-                // Endpoint forces determine translation; neural D/V determines curvature.
-                double saved_phi = rods_[i].phi;
-                reconstruct_rod(i, Dx, Dy, Vx, Vy);
-                rods_[i].phi = saved_phi;
-            }
-
-            // NaN safety
-            if (std::isnan(rods_[i].cx) || std::isnan(rods_[i].cy)) {
-                rods_[i] = prev_rods_[i];
-            }
-        }
-
-        // --- 4. Direct phi drive from AC-coupled D/V input ---
-        // Biology: motor neuron D/V difference → muscle contraction pattern
-        // AC coupling removes static bias from mixed A/B class co-activation
+        // --- 1. Direct phi drive from AC-coupled D/V input ---
         for (int s = 0; s < NSEG; ++s) {
             double dphi = rods_[s].phi - rods_[s + 1].phi;
             while (dphi >  PI) dphi -= 2.0 * PI;
@@ -484,7 +413,33 @@ void BodyModel::update_physics(double dt_seconds) {
             rods_[s + 1].phi -= half_delta;
         }
 
-        prev_rods_ = rods_;
+        // --- 2. Phi-chain body shape reconstruction ---
+        // Rod 0 is the anchor (position from kinematic motion below).
+        // Rods 1..N follow the phi chain → body bends with neural curvature.
+        for (int i = 0; i < NSEG; ++i) {
+            double avg_phi = 0.5 * (rods_[i].phi + rods_[i + 1].phi);
+            double body_dir = avg_phi - PI * 0.5;
+            rods_[i + 1].cx = rods_[i].cx - seg_len_ * std::cos(body_dir);
+            rods_[i + 1].cy = rods_[i].cy - seg_len_ * std::sin(body_dir);
+        }
+
+        // --- 3. Kinematic forward motion ---
+        // Biology: body wave pushes against medium via anisotropic drag.
+        // Speed = K_SPEED × net_locomotion_drive × drag_anisotropy
+        // net_drive > 0 → forward (AVB dominant), < 0 → reverse (AVA dominant)
+        double net_drive = forward_drive_ - reverse_drive_;
+        double drag_ratio = (cn_pt - ct_pt) / std::max(cn_pt + ct_pt, 1e-15);
+        constexpr double K_SPEED = 0.02;  // m/s calibration → ~1-2 mm/s
+        double fwd_speed = K_SPEED * net_drive * drag_ratio;
+
+        // Move entire body along head heading
+        double heading = rods_[0].phi - PI * 0.5;
+        double dx = fwd_speed * std::cos(heading) * dt_sub;
+        double dy = fwd_speed * std::sin(heading) * dt_sub;
+        for (int i = 0; i < NBAR; ++i) {
+            rods_[i].cx += dx;
+            rods_[i].cy += dy;
+        }
     }
 
     // Speed from head displacement

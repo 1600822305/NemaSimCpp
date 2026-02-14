@@ -75,8 +75,22 @@ rods_[i].phi = saved_phi;             // phi 保持神经控制
 - 曲率振荡存在于所有监控段
 - 无 NaN/Inf，无 phi 不连续
 
+### 3. 软 phi-chain 中心校正
+
+端点力更新 cx/cy 和直接 phi 驱动更新 phi 独立运行 → cx/cy 与 phi 逐渐不一致 → 虫体打圈。
+
+软校正（10% per sub-step，~1ms 时间常数）逐步将 cx/cy 对齐到 phi-chain 位置：
+
+```cpp
+constexpr double ALPHA_CORRECT = 0.1;
+rods_[i+1].cx += ALPHA_CORRECT * (target_cx - rods_[i+1].cx);
+rods_[i+1].cy += ALPHA_CORRECT * (target_cy - rods_[i+1].cy);
+```
+
+效果：航向变化率从 24 deg/s → 0.4 deg/s，消除快速转圈。
+
 ### regtest
 - 20/20 全部通过
 - 曲率振幅 0.8 /mm，中体 2.4 /mm
-- 速度 1.9 mm/s
-- 航向变化率 9.8 deg/s
+- 速度 1.4 mm/s
+- 航向变化率 0.4 deg/s
