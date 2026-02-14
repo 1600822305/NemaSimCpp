@@ -72,6 +72,7 @@ struct MuscleState {
     double ventral_activation = 0.0;   // A ∈ [0,1]
     double dorsal_input       = 0.0;   // NMJ current (before leaky integrator)
     double ventral_input      = 0.0;
+    double dv_drive           = 0.0;   // low-pass filtered D/V for rotation drive
 };
 
 // Backward-compat wrapper (maps to rod data)

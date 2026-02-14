@@ -323,8 +323,11 @@ void BodyModel::update_muscle_activations(double dt) {
         auto& m = muscles_[i];
 
         // Scale by typical max input to keep activations in [0,1]
-        // while preserving D/V ratio. Raw inputs ~2-3 from multiple MNs.
-        constexpr double INPUT_SCALE = 3.0;
+        // while preserving D/V ratio.
+        // Head segments: 10 D + 10 V neurons (SMD+URA+SAA+SIA+SIB), input ~4-5
+        // Body segments: 2-3 MNs per side (DB/DA/AS + VB/VA), input ~1-2
+        // Must be large enough to prevent head saturation (which kills D-V oscillation)
+        constexpr double INPUT_SCALE = 6.0;
         double d_in = std::clamp(m.dorsal_input / INPUT_SCALE, 0.0, 1.0);
         double v_in = std::clamp(m.ventral_input / INPUT_SCALE, 0.0, 1.0);
 
@@ -446,17 +449,32 @@ void BodyModel::update_physics(double dt_seconds) {
         }
 
         // --- Per-segment rotation (inside sub-step: safe, phi only here) ---
+        // Drive rotation from D/V ACTIVATION difference (neural command),
+        // not from muscle force difference (which has geometric artifacts
+        // on bent bodies: unequal D/V spring lengths → self-reinforcing equilibrium).
         for (int s = 0; s < NSEG; ++s) {
-            double delta_f = seg_torque_[s];
             double R_avg = 0.5 * (rods_[s].radius + rods_[s + 1].radius);
             double dphi = rods_[s].phi - rods_[s + 1].phi;
             while (dphi >  PI) dphi -= 2.0 * PI;
             while (dphi < -PI) dphi += 2.0 * PI;
 
-            // Muscle driving torque
-            double tau_drive = delta_f * R_avg;
-            // Diagonal restoring torque (NOT double-counted: CoM integration
-            // only gets the symmetric force component, rotation is separate)
+            // D/V input → low-pass filtered drive signal
+            // Raw neural input preserves full oscillation amplitude from SMD,
+            // but changes every 0.5ms (too fast → twitching).
+            // Low-pass filter with tau=50ms smooths to ~1Hz locomotion band.
+            double dv_raw = muscles_[s].dorsal_input - muscles_[s].ventral_input;
+            constexpr double TAU_DRIVE = 0.05;  // 50ms — matches locomotion frequency
+            double alpha_drive = dt_sub / TAU_DRIVE;
+            if (alpha_drive > 1.0) alpha_drive = 1.0;
+            muscles_[s].dv_drive += alpha_drive * (dv_raw - muscles_[s].dv_drive);
+
+            // Head-to-tail gradient (Boyle 2012: anterior muscles stronger)
+            double grad = 1.0 - 0.4 * static_cast<double>(s) / NSEG;
+            // K_BEND: filtered_input → torque gain
+            constexpr double K_BEND = 6e-7;  // N
+            double tau_drive = K_BEND * muscles_[s].dv_drive * grad * R_avg;
+
+            // Diagonal restoring torque (antisymmetric component lost in CoM integration)
             double tau_restore = 2.0 * K_DE * R_avg * R_avg * dphi;
             double tau_net = tau_drive - tau_restore;
 
