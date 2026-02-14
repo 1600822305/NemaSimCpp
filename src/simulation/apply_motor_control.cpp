@@ -368,9 +368,20 @@ void SimulationEngine::apply_riv_omega() {
                 riv_omega_active_ = true;
                 riv_omega_start_ = current_time_;
                 // Latch peak release for sustained omega curvature
-                // Models muscle Ca²⁺ maintaining contraction after neural burst
-                riv_omega_peak_l_ = rivl_rel;
-                riv_omega_peak_r_ = rivr_rel;
+                // Apply gradient-directed L/R bias directly to peak values:
+                // CCA-1 all-or-nothing bursting equalizes RIVL/RIVR release (~0.8),
+                // so the asymmetric post-rev pulse doesn't create proportional
+                // release asymmetry. We directly scale peaks by the post-rev
+                // amplitude ratio to ensure gradient controls omega direction.
+                double mean_rel = (rivl_rel + rivr_rel) * 0.5;
+                double amp_total = riv_post_rev_amp_l_ + riv_post_rev_amp_r_;
+                if (amp_total > 0.01) {
+                    riv_omega_peak_l_ = mean_rel * 2.0 * (riv_post_rev_amp_l_ / amp_total);
+                    riv_omega_peak_r_ = mean_rel * 2.0 * (riv_post_rev_amp_r_ / amp_total);
+                } else {
+                    riv_omega_peak_l_ = rivl_rel;
+                    riv_omega_peak_r_ = rivr_rel;
+                }
             }
         }
     }
@@ -378,8 +389,12 @@ void SimulationEngine::apply_riv_omega() {
     // --- Omega EXECUTION + TERMINATION ---
     if (riv_omega_active_) {
         // Inject latched RIV burst force into head muscles via boost channel
-        // Uses peak release (not declining current value) for sustained deep bend
-        double omega_nmj_gain = 300.0;
+        // Exponential decay models muscle Ca²⁺ clearance after neural burst
+        // Without decay, curvature saturates at max_curv (25/mm) for entire omega
+        // → turns overshoot 130-170° vs biological target ~60° (Gray 2005)
+        double omega_elapsed = current_time_ - riv_omega_start_;
+        double decay = std::exp(-omega_elapsed / 150.0);  // 150ms tau: muscle Ca²⁺ clearance (RFT calibrated)
+        double omega_nmj_gain = 300.0 * decay;
         for (int seg = 0; seg < 6; ++seg) {
             double taper = 1.0 - 0.5 * (seg / 5.0);  // 100% at head, 50% at seg 5
             body_.muscles().add_boost(seg, false, riv_omega_peak_l_ * omega_nmj_gain * taper);
@@ -387,8 +402,9 @@ void SimulationEngine::apply_riv_omega() {
         }
 
         // Termination: min 400ms, then end when RIV drops below threshold
-        double omega_elapsed = current_time_ - riv_omega_start_;
-        if (omega_elapsed > 400.0 && riv_max < static_cast<double>(params.omega_threshold)) {
+        // OR when boost decays below effective threshold (gain < 10 → ~1% of peak)
+        if ((omega_elapsed > 400.0 && riv_max < static_cast<double>(params.omega_threshold))
+            || omega_nmj_gain < 10.0) {
             riv_omega_active_ = false;
         }
     }

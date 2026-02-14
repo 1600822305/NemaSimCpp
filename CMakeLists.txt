@@ -169,6 +169,10 @@ target_link_libraries(param_sweep PRIVATE celegans_simulation)
 add_executable(wave_analyzer src/diagnostics/wave_analyzer_main.cpp)
 target_link_libraries(wave_analyzer PRIVATE celegans_simulation)
 
+# Chemotaxis Analyzer executable (CI attribution & signal chain bottleneck)
+add_executable(chemotaxis_analyzer src/diagnostics/chemotaxis_analyzer_main.cpp)
+target_link_libraries(chemotaxis_analyzer PRIVATE celegans_simulation)
+
 # Visualization executable (Dear ImGui + ImPlot + SDL2 + OpenGL)
 if(CELEGANS_BUILD_VIS)
     find_package(imgui CONFIG REQUIRED)
