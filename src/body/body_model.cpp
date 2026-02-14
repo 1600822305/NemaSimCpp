@@ -395,12 +395,18 @@ void BodyModel::update_physics(double dt_seconds) {
         // Save current state for next velocity computation
         prev_rods_ = rods_;
 
-        // Per-endpoint integration with anisotropic drag
-        // Bending forces from muscle D/V asymmetry are already in the
-        // force arrays (applied as perpendicular force couples in
-        // apply_muscle_forces). Diagonal springs provide natural restoring.
+        // === Boyle-style CoM + Rotation decomposition ===
+        // Translation: CoM force (symmetric D+V component) → update cx, cy
+        // Rotation: Per-segment D/V torque → update phi
+        // These control DIFFERENT variables so they don't fight.
+
+        // --- CoM translation (per rod) ---
         for (int i = 0; i < NBAR; ++i) {
-            // Local body tangent at rod i
+            // CoM force = average of dorsal and ventral forces
+            double f_cx = (fdx[i] + fvx[i]) * 0.5;
+            double f_cy = (fdy[i] + fvy[i]) * 0.5;
+
+            // Local body tangent
             double tx, ty;
             if (i == 0) {
                 tx = rods_[0].cx - rods_[1].cx;
@@ -417,77 +423,57 @@ void BodyModel::update_physics(double dt_seconds) {
             else { tx /= tlen; ty /= tlen; }
             double nx = -ty, ny = tx;
 
-            // Dorsal point
-            double ft_d = fdx[i] * tx + fdy[i] * ty;
-            double fn_d = fdx[i] * nx + fdy[i] * ny;
-            double vdx = (ft_d / std::max(ct_pt, 1e-15)) * tx
-                       + (fn_d / std::max(cn_pt, 1e-15)) * nx;
-            double vdy = (ft_d / std::max(ct_pt, 1e-15)) * ty
-                       + (fn_d / std::max(cn_pt, 1e-15)) * ny;
+            // Anisotropic drag → translational velocity
+            double ft = f_cx * tx + f_cy * ty;
+            double fn = f_cx * nx + f_cy * ny;
+            double vcx = (ft / std::max(ct_pt, 1e-15)) * tx
+                       + (fn / std::max(cn_pt, 1e-15)) * nx;
+            double vcy = (ft / std::max(ct_pt, 1e-15)) * ty
+                       + (fn / std::max(cn_pt, 1e-15)) * ny;
 
-            // Ventral point
-            double ft_v = fvx[i] * tx + fvy[i] * ty;
-            double fn_v = fvx[i] * nx + fvy[i] * ny;
-            double vvx = (ft_v / std::max(ct_pt, 1e-15)) * tx
-                       + (fn_v / std::max(cn_pt, 1e-15)) * nx;
-            double vvy = (ft_v / std::max(ct_pt, 1e-15)) * ty
-                       + (fn_v / std::max(cn_pt, 1e-15)) * ny;
-
-            // Clamp velocities
             constexpr double V_MAX = 0.01;  // 10 mm/s
-            vdx = std::clamp(vdx, -V_MAX, V_MAX);
-            vdy = std::clamp(vdy, -V_MAX, V_MAX);
-            vvx = std::clamp(vvx, -V_MAX, V_MAX);
-            vvy = std::clamp(vvy, -V_MAX, V_MAX);
+            vcx = std::clamp(vcx, -V_MAX, V_MAX);
+            vcy = std::clamp(vcy, -V_MAX, V_MAX);
 
-            // Update endpoint positions
-            double new_Dx = rods_[i].dx() + vdx * dt_sub;
-            double new_Dy = rods_[i].dy() + vdy * dt_sub;
-            double new_Vx = rods_[i].vx() + vvx * dt_sub;
-            double new_Vy = rods_[i].vy() + vvy * dt_sub;
-
-            // Reconstruct rod from updated endpoints
-            reconstruct_rod(i, new_Dx, new_Dy, new_Vx, new_Vy);
+            rods_[i].cx += vcx * dt_sub;
+            rods_[i].cy += vcy * dt_sub;
 
             // NaN safety
-            if (std::isnan(rods_[i].cx) || std::isnan(rods_[i].cy) || std::isnan(rods_[i].phi)) {
-                rods_[i] = prev_rods_[i];
+            if (std::isnan(rods_[i].cx) || std::isnan(rods_[i].cy)) {
+                rods_[i].cx = prev_rods_[i].cx;
+                rods_[i].cy = prev_rods_[i].cy;
             }
         }
 
-    }
+        // --- Per-segment rotation (inside sub-step: safe, phi only here) ---
+        for (int s = 0; s < NSEG; ++s) {
+            double delta_f = seg_torque_[s];
+            double R_avg = 0.5 * (rods_[s].radius + rods_[s + 1].radius);
+            double dphi = rods_[s].phi - rods_[s + 1].phi;
+            while (dphi >  PI) dphi -= 2.0 * PI;
+            while (dphi < -PI) dphi += 2.0 * PI;
 
-    // Per-SEGMENT rotation from D/V force asymmetry
-    // IMPORTANT: Applied ONCE per outer step (not per sub-step) to prevent
-    // numerical oscillation from rotation↔endpoint force fighting.
-    // seg_torque_[] was accumulated across all sub-steps above.
-    for (int s = 0; s < NSEG; ++s) {
-        double delta_f = seg_torque_[s] / n_steps;  // average over sub-steps
-        if (std::abs(delta_f) < 1e-15) continue;
+            // Muscle driving torque
+            double tau_drive = delta_f * R_avg;
+            // Diagonal restoring torque (NOT double-counted: CoM integration
+            // only gets the symmetric force component, rotation is separate)
+            double tau_restore = 2.0 * K_DE * R_avg * R_avg * dphi;
+            double tau_net = tau_drive - tau_restore;
 
-        double R_avg = 0.5 * (rods_[s].radius + rods_[s + 1].radius);
-        double dphi = rods_[s].phi - rods_[s + 1].phi;
-        while (dphi >  PI) dphi -= 2.0 * PI;
-        while (dphi < -PI) dphi += 2.0 * PI;
+            // Rotational drag (Boyle 2012): γ = 4π × cn_pt × R²
+            // Structural damping (2×) for explicit Euler stability
+            double gamma_rot = 2.0 * 4.0 * PI * cn_pt * R_avg * R_avg;
+            double omega_seg = tau_net / std::max(gamma_rot, 1e-15);
 
-        // Muscle driving torque minus diagonal restoring torque
-        double tau_drive   = delta_f * R_avg;
-        double tau_restore = 2.0 * K_DE * R_avg * R_avg * dphi;
-        double tau_net = tau_drive - tau_restore;
+            // Hard clamp on dphi
+            constexpr double DPHI_MAX = 0.04;  // ~1.9 /mm
+            double new_dphi = dphi + omega_seg * dt_sub;
+            new_dphi = std::clamp(new_dphi, -DPHI_MAX, DPHI_MAX);
+            double actual_omega = (new_dphi - dphi) / dt_sub;
 
-        // Rotational drag (Boyle 2012): γ = cn_seg × 2π × R²
-        // cn_seg ≈ 2×cn_pt, so γ = 4π × cn_pt × R²
-        double gamma_rot = 4.0 * PI * cn_pt * R_avg * R_avg;
-        double omega_seg = tau_net / std::max(gamma_rot, 1e-15);
-
-        // Hard clamp on dphi to prevent runaway curvature
-        constexpr double DPHI_MAX = 0.04;  // ~1.9 /mm
-        double new_dphi = dphi + omega_seg * dt_seconds;
-        new_dphi = std::clamp(new_dphi, -DPHI_MAX, DPHI_MAX);
-        double actual_omega = (new_dphi - dphi) / dt_seconds;
-
-        rods_[s].phi     += actual_omega * dt_seconds * 0.5;
-        rods_[s + 1].phi -= actual_omega * dt_seconds * 0.5;
+            rods_[s].phi     += actual_omega * dt_sub * 0.5;
+            rods_[s + 1].phi -= actual_omega * dt_sub * 0.5;
+        }
     }
 
     // Compute speed BEFORE phi-drive and center correction,

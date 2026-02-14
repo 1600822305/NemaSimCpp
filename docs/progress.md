@@ -1046,6 +1046,15 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **结果**: 曲率 1.1-6.8 /mm, 中体曲率 2.6-6.5 /mm（波传播涌现）, 速度 2.8 mm/s
 - **验证**: Regtest 10/10 runs 全部 20/20 pass ✅
 
+### Step 142: CoM+Rotation 分离架构 + body_diag 诊断工具 ✅ (2026-02-14)
+> 详细文档: [steps/step142_com_rotation_split.md](steps/step142_com_rotation_split.md)
+
+- **问题**: Step 141 可视化中严重抽搐，phi 被端点积分和 per-segment 旋转双源控制
+- **诊断工具**: 新增 `celegans_body_diag` — 监控曲率/D-V激活/符号翻转/phi 不连续性
+- **修复**: CoM+Rotation 分离 — CoM 只更新 cx/cy（对称力），旋转只更新 phi（D/V 力矩）
+- **结构阻尼**: γ_rot = 2× Boyle 流体拖拽（explicit Euler 稳定性）
+- **结果**: Curv stability 0.0-0.5 Hz（Step 141: 3-6 Hz），10/10 runs 20/20 pass ✅
+
 ---
 
 ## 当前系统状态
