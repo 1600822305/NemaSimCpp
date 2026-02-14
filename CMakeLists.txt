@@ -177,6 +177,14 @@ target_link_libraries(chemotaxis_analyzer PRIVATE celegans_simulation)
 add_executable(signal_chain_debugger src/diagnostics/signal_chain_debugger_main.cpp)
 target_link_libraries(signal_chain_debugger PRIVATE celegans_simulation)
 
+# Current Decomposer executable (per-neuron synaptic current attribution)
+add_executable(current_decomposer src/diagnostics/current_decomposer_main.cpp)
+target_link_libraries(current_decomposer PRIVATE celegans_simulation)
+
+# Gain Profiler executable (signal chain transfer function gain analysis)
+add_executable(gain_profiler src/diagnostics/gain_profiler_main.cpp)
+target_link_libraries(gain_profiler PRIVATE celegans_simulation)
+
 # Visualization executable (Dear ImGui + ImPlot + SDL2 + OpenGL)
 if(CELEGANS_BUILD_VIS)
     find_package(imgui CONFIG REQUIRED)
