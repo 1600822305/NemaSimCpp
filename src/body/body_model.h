@@ -107,6 +107,7 @@ public:
     Vector2d get_segment_position(int segment) const;
     double get_speed() const { return speed_; }
     double get_body_length() const { return body_length_mm_; }
+    double get_heading() const { return heading_; }
 
     // Steering (curvature_bias retained for RIV omega only)
     void set_curvature_bias(double b) { curvature_bias_ = b; }
@@ -116,7 +117,7 @@ public:
 
     // Locomotion state (backward compat — not used by physics)
     void set_locomotion_state(double forward_drive, double reverse_drive);
-    void set_speed_scale(double /*s*/) { /* no-op in rod model */ }
+    void set_speed_scale(double s) { speed_scale_ = std::clamp(s, 0.0, 1.0); }
 
     // Medium: 0.0=water, 1.0=agar
     void set_medium(double m) { medium_ = std::clamp(m, 0.0, 1.0); }
@@ -187,6 +188,8 @@ private:
     Vector2d prev_head_pos_;
     double forward_drive_ = 0.5;
     double reverse_drive_ = 0.0;
+    double heading_ = 0.0;       // integrated trajectory heading (radians)
+    double speed_scale_ = 1.0;   // from enhanced slowing response
 
     // RFT coefficients (interpolated by medium_)
     double cn_ = 0.0;  // normal drag per rod

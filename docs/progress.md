@@ -1084,6 +1084,15 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **结果**: heading rate 0→9.01 deg/s, heading range [0,0]→[-15.6, 21.6] deg, 温度 -126.5→5.0°C
 - **验证**: Regtest 20/20 pass ✅
 
+### Step 145: Heading 积分 + Speed Scale 启用 — CI 26× 改善 ✅ (2026-02-14)
+> 详细文档: [steps/step145_heading_integration.md](steps/step145_heading_integration.md)
+
+- **问题**: 曲率驱动 K_RESTORE 使 dphi 收敛稳态 → heading 不积累 → 直线轨迹 (CI=-27); speed_scale no-op
+- **修复1**: heading_ 积分 — 头部曲率 DC 偏置 × HEADING_GAIN(0.05) × speed 积分到轨迹航向
+- **修复2**: 启用 speed_scale — enhanced slowing response (Sawin 2000) 实际生效
+- **结果**: CI -27.3→-1.02, final_dist 280→20mm, gradient_normal 双向交替, bias_current ±25pA
+- **验证**: Regtest 20/20 pass ✅
+
 ---
 
 ## 当前系统状态

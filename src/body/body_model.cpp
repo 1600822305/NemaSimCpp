@@ -97,6 +97,7 @@ void BodyModel::initialize(Vector2d head_pos, double heading) {
     cn_ = ((1.0 - medium_) * CN_WATER + medium_ * CN_AGAR) / (2.0 * NBAR);
     ct_ = ((1.0 - medium_) * CT_WATER + medium_ * CT_AGAR) / (2.0 * NBAR);
 
+    heading_ = heading;
     initialized_ = true;
     sync_segments_from_rods();
     prev_head_pos_ = head_pos;
@@ -490,12 +491,33 @@ void BodyModel::update_physics(double dt_seconds) {
         // Speed model: work × curvature × RFT gain (agar: c_n/c_t ≈ 40)
         constexpr double RFT_GAIN = 0.15;  // empirical (m/s per unit work×curv)
         double speed = RFT_GAIN * muscle_work * curv_rms * (cn_pt / ct_pt);
+        speed *= speed_scale_;  // enhanced slowing response (Sawin 2000)
         speed = std::clamp(speed, 0.0, 0.003);  // 0-3 mm/s biological range
         
-        // Head direction from first rod
-        double head_phi = rods_[0].phi;
-        double dx = speed * std::sin(head_phi) * dt_sub;
-        double dy = -speed * std::cos(head_phi) * dt_sub;
+        // --- Heading integration from head curvature bias ---
+        // In undulatory locomotion, the DC component of head curvature
+        // (from weathervane steering) accumulates into trajectory heading.
+        // The body wave AC oscillation cancels over each cycle (symmetric).
+        // REF: Iino & Yoshida 2009 — klinotaxis heading model
+        {
+            double dphi_head = rods_[0].phi - rods_[1].phi;
+            while (dphi_head >  PI) dphi_head -= 2.0 * PI;
+            while (dphi_head < -PI) dphi_head += 2.0 * PI;
+            // HEADING_GAIN converts body curvature bias to trajectory curvature.
+            // Only the asymmetric component of undulatory curvature produces
+            // net heading change in RFT (Boyle 2012). Full gain=1.0 would give
+            // ~660 deg/s from body wave; 0.05 gives ~3 deg/s from DC bias.
+            constexpr double HEADING_GAIN = 0.05;
+            double kappa_m = dphi_head / seg_len_;  // 1/m
+            heading_ += HEADING_GAIN * speed * kappa_m * dt_sub;
+            // Normalize to [-PI, PI]
+            while (heading_ >  PI) heading_ -= 2.0 * PI;
+            while (heading_ < -PI) heading_ += 2.0 * PI;
+        }
+        
+        // Forward translation using integrated heading
+        double dx = speed * std::cos(heading_) * dt_sub;
+        double dy = speed * std::sin(heading_) * dt_sub;
         
         // Uniform translation (head rod only — others reconstructed below)
         for (int i = 0; i < NBAR; ++i) {
@@ -605,7 +627,7 @@ void BodyModel::set_muscle_activation_direct(int segment, bool dorsal, double ac
 // Backward-compat API
 // ================================================================
 void BodyModel::perturb_heading(double dtheta) {
-    // In rod model: rotate head rod (non-physical but retained for compat)
+    heading_ += dtheta;
     rods_[0].phi += dtheta;
     sync_segments_from_rods();
 }
@@ -628,7 +650,7 @@ void BodyModel::set_position(double x, double y) {
 }
 
 void BodyModel::set_heading(double angle) {
-    // Rotate head rod to match angle
+    heading_ = angle;
     rods_[0].phi = angle + PI * 0.5;
     sync_segments_from_rods();
 }
