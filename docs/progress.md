@@ -922,7 +922,7 @@ P0/P1 违规全部修复:
   P0-6: FLP-11 直接注入移除 → NeuromodulationManager DMSR-1 框架 (Step 71)
 行为指标 (300s): CI≈0.44 (naive), CI≈-0.01 (sickness=1, 病原体回避生效), omega/reversal≈57%, reversal_rate≈0.14/s, speed≈0.15mm/s
 工具: celegans_diag.exe (信号链诊断+fitness) + celegans_regtest.exe (回归检测+电流溯源)
-诊断工具套件 (Step 114+119+120, 11个独立可执行文件):
+诊断工具套件 (Step 114+119+120, 12个独立可执行文件):
   health_check     — 快速健康扫描 (PASS/WARN/FAIL)
   neuron_monitor   — 神经元电压/释放率追踪
   circuit_probe    — 回路信号传播分析
@@ -934,6 +934,7 @@ P0/P1 违规全部修复:
   param_sweep      — 参数扫描 (范围搜索 + 灵敏度分析)
   wave_analyzer    — 行波传播诊断 (方向/门控/RFT分解/klinotaxis)
   chemotaxis_analyzer — CI归因分析 (多种子并行, 信号链瓶颈定位)
+  signal_chain_debugger — 事件级信号链快照 (omega/reversal全链路转储, AI辅助调试)
 
 运动驱动 (Step 13 — 生物学机制):
   感觉基线: 12 感觉神经元 × 15pA 自发活动 (Bargmann 2006)

@@ -173,6 +173,10 @@ target_link_libraries(wave_analyzer PRIVATE celegans_simulation)
 add_executable(chemotaxis_analyzer src/diagnostics/chemotaxis_analyzer_main.cpp)
 target_link_libraries(chemotaxis_analyzer PRIVATE celegans_simulation)
 
+# Signal Chain Debugger executable (event-level signal chain snapshots)
+add_executable(signal_chain_debugger src/diagnostics/signal_chain_debugger_main.cpp)
+target_link_libraries(signal_chain_debugger PRIVATE celegans_simulation)
+
 # Visualization executable (Dear ImGui + ImPlot + SDL2 + OpenGL)
 if(CELEGANS_BUILD_VIS)
     find_package(imgui CONFIG REQUIRED)

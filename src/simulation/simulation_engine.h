@@ -416,6 +416,21 @@ private:
 public:
     void set_rng_seed(unsigned int seed) { touch_rng_.seed(seed); }
 
+    // Step 120: Signal chain debugger accessors — expose internal state for diagnostics
+    double dCdt_filtered() const { return dCdt_filtered_; }
+    double prev_concentration() const { return prev_concentration_; }
+    double pre_rev_dorsal_tone() const { return pre_rev_dorsal_tone_; }
+    double riv_post_rev_amp_l() const { return riv_post_rev_amp_l_; }
+    double riv_post_rev_amp_r() const { return riv_post_rev_amp_r_; }
+    double riv_omega_peak_l() const { return riv_omega_peak_l_; }
+    double riv_omega_peak_r() const { return riv_omega_peak_r_; }
+    double riv_omega_start() const { return riv_omega_start_; }
+    double ria_ca_diff_filtered() const { return ria_ca_diff_filtered_; }
+    double ria_ca_diff_mean() const { return ria_ca_diff_mean_; }
+    double awc_pref_cached() const { return awc_pref_cached_; }
+    double reversal_start_time() const { return reversal_start_time_; }
+    double reversal_refractory_end() const { return reversal_refractory_end_; }
+
     // Step 67: Laser ablation — silence named neuron(s)
     // REF: Chalfie 1985, Bargmann & Horvitz 1991
     // Ablates both L/R if base name given (e.g. "AVA" → AVAL+AVAR)
