@@ -196,6 +196,7 @@ private:
     void apply_weathervane();            // gradient ⊥ heading → SMD bias (Iino & Yoshida 2009)
     void apply_ria_smd_modulation();     // RIA release → CCA-1 V_half shift on SMD (Step 19)
     void apply_smb_neck_bias();          // SMB D-V balance → neck curvature DC offset (Step 19 P2)
+    void apply_gradient_curv_bias();     // Step 130: direct gradient → head muscle curvature bias
     void apply_proprioceptive_stretch(); // body curvature → MEC channels in motor neurons
     void apply_head_tonic();             // tonic drive to head motor neurons (from upstream)
     void apply_touch_stimulus();         // wall collision → ALM/PLM activation (Chalfie 1985)
@@ -287,6 +288,13 @@ private:
     double reversal_refractory_end_ = 0.0; // no new reversal until this time (Schmitt trigger)
     double prev_concentration_ = 0.0;      // previous head concentration (kept for diagnostics)
     double dCdt_filtered_ = 0.0;           // filtered dC/dt (kept for diagnostics)
+    // Step 130: Smoothed centroid velocity for bearing-based klinokinesis
+    // Mid-body segment avoids 2Hz head oscillation; τ=500ms averages 1 body wave cycle
+    double prev_midpos_x_ = 25.0;          // previous mid-body x position
+    double prev_midpos_y_ = 25.0;          // previous mid-body y position
+    double smooth_vx_ = 0.0;              // smoothed centroid velocity x (mm/s)
+    double smooth_vy_ = 0.0;              // smoothed centroid velocity y (mm/s)
+    double bearing_parallel_ = 0.0;        // gradient component along movement direction
     double prev_temp_dev_ = 0.0;           // previous |T-Tc| (kept for diagnostics)
     double dTdev_filtered_ = 0.0;          // filtered d|T-Tc|/dt (kept for diagnostics)
     double riv_omega_threshold_ = 0.5;     // RIV release rate threshold for omega mode

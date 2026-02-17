@@ -169,6 +169,11 @@ void BodyModel::update_positions(double dt) {
     double Vx = 0.0, Vy = 0.0, Omega = 0.0;
     solve_3x3(A, b, Vx, Vy, Omega);
 
+    // Step 130: Add external angular velocity (weathervane heading correction)
+    // Applied post-solve: does NOT change force/torque balance, does NOT feed
+    // back to muscle dynamics or proprioception. Bypasses SMD oscillator entirely.
+    Omega += external_angular_velocity_;
+
     // Proportional speed cap: scale ALL components equally to maintain
     // force balance self-consistency. At very high speeds, nonlinear drag
     // (not modeled) would limit motion. Cap at 0.8 mm/s translational.

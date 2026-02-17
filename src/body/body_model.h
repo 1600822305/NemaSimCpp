@@ -45,6 +45,8 @@ public:
     // REF: Fang-Yen 2010 JEM, Berri 2009, Pierce-Shimomura 2008 PNAS
     //   1.0 = agar (crawling ~0.5 Hz), 0.01 = water (swimming ~1.7 Hz)
     void set_medium_viscosity(double v);
+    // Step 130: External angular velocity for weathervane (rad/s, bypasses muscles)
+    void set_external_angular_velocity(double omega) { external_angular_velocity_ = omega; }
     double get_medium_viscosity() const { return medium_viscosity_; }
 
     const std::array<BodySegment, NUM_BODY_SEGMENTS>& segments() const { return segments_; }
@@ -77,6 +79,11 @@ private:
     double speed_ = 0.0;             // current locomotion speed (mm/s)
     double direction_ = 1.0;         // +1 forward, -1 backward (from velocity · heading)
     Vector2d prev_head_pos_;
+
+    // Step 130: External angular velocity for weathervane heading correction
+    // Applied AFTER RFT solve, does NOT feed back to muscle/proprioception.
+    // Represents aggregate contribution of non-SMD weathervane pathways.
+    double external_angular_velocity_ = 0.0;  // rad/s
 
     void compute_curvatures(double dt);
     void update_positions(double dt);

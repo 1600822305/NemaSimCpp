@@ -186,6 +186,28 @@ void SimulationEngine::apply_gradient_klinokinesis() {
         kk_mag_current = 5.0 * on_signal_factor * (-pref);
     }
 
+    // --- Step 130: Smoothed centroid velocity → bearing for threshold modulation ---
+    // Use mid-body segment (seg 12) to avoid 2Hz head oscillation.
+    // τ=500ms smoothing averages 1 body wave cycle → clean velocity direction.
+    // bearing_parallel_ = ∇C · v̂: positive when moving up-gradient, negative down.
+    {
+        Vector2d mid = body_.get_segment_position(12);
+        double dt_s = dt_ * 0.001;
+        double vx = (mid.x - prev_midpos_x_) / dt_s;
+        double vy = (mid.y - prev_midpos_y_) / dt_s;
+        prev_midpos_x_ = mid.x;
+        prev_midpos_y_ = mid.y;
+        double alpha = dt_ / 500.0;  // τ=500ms (200ms picked up body oscillation → CI dropped)
+        smooth_vx_ += (vx - smooth_vx_) * alpha;
+        smooth_vy_ += (vy - smooth_vy_) * alpha;
+        double vmag = std::sqrt(smooth_vx_ * smooth_vx_ + smooth_vy_ * smooth_vy_);
+        if (vmag > 0.01 && grad_mag > 0.0005) {
+            bearing_parallel_ = (smooth_vx_ * grad.x + smooth_vy_ * grad.y) / (vmag * grad_mag);
+        } else {
+            bearing_parallel_ = 0.0;
+        }
+    }
+
     // --- Component B: dC/dt directional klinokinesis (heading-dependent) ---
     // Temporal derivative of concentration experienced by the worm as it moves.
     // dC/dt = ∇C · v: positive when heading up-gradient, negative when down.

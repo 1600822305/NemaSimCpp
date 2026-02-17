@@ -657,6 +657,7 @@ void SimulationEngine::step() {
     // These add on top of normal MN drive, not cleared by reset_inputs
     apply_riv_omega();      // Step 117: RIV burst → head muscle boost (NMJ 40x)
     apply_smb_neck_bias();  // Step 117: klinotaxis → head muscle boost
+    apply_gradient_curv_bias();  // Step 130: direct gradient → head curvature bias
 
     // 8. Reversal state detection from command neuron balance
     // Step 118: Locomotion direction now emerges from RFT (Resistive Force Theory).

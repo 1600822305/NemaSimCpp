@@ -245,6 +245,87 @@ void SimulationEngine::apply_smb_neck_bias() {
     }
 }
 
+void SimulationEngine::apply_gradient_curv_bias() {
+    // Step 130: Direct gradient-based curvature bias (supplements SMD weathervane)
+    // SMD oscillator pathway saturates at ~60 pA/(conc/mm) → WV_slope ~6°/s/rad.
+    // Biological weathervane needs ~18°/s/rad (Iino & Yoshida 2009).
+    // This adds the missing component via direct head muscle bias (segments 0-2).
+    //
+    // Biological basis: multiple parallel pathways contribute to weathervane:
+    //   - AWC→AIY→RIA→SMB (existing, via Ca²⁺ gate-and-switch)
+    //   - ASE→AIZ→SMD (existing, via oscillator bias)
+    //   - Proprioceptive + sensory integration (this pathway)
+    // Iino 2009: "both continuous weak biasing and abrupt steep curving"
+    //
+    // Uses bearing_parallel_ (smoothed centroid velocity, τ=500ms) to gate:
+    //   Only apply during forward movement in a gradient (avoids 2Hz head artifacts).
+
+    // Step 130: Direct angular velocity injection for weathervane
+    //
+    // Previous attempts that FAILED:
+    //   - DC muscle curvature bias → gait interference, speed drop, omega collapse
+    //   - Phase-selective muscle amplification → positive feedback through
+    //     proprioception destabilized SMD oscillator (even at 5% gain!)
+    //
+    // This approach: inject angular velocity AFTER RFT solve in body model.
+    // Completely bypasses muscle/oscillator system → no feedback loop.
+    //
+    // Biological justification: weathervane involves multiple parallel pathways
+    // (AWC→AIY→RIA→SMB, ASE→AIZ→SMD, proprioceptive shortcuts, etc.)
+    // that collectively produce heading correction. This represents the aggregate
+    // effect of pathways not fully modeled at the neural level.
+    //
+    // Calibration: target ~12°/s/rad additional WV_slope (on top of SMD ~6°/s/rad)
+    // to reach biological ~18°/s/rad (Iino & Yoshida 2009).
+    //
+    // ω_wv = gain × ∇C⊥ × preference × satiety_scale
+    // At 14mm, θ=45°: ∇C⊥ ≈ 0.035 conc/mm
+    // ω_wv = 16.0 × 0.035 × 1.0 × 1.0 = 0.56 → clamped to 0.50 rad/s = 29°/s
+    // At θ=90° (perpendicular): 0.05 × 16.0 = 0.80 → clamped to 0.50 rad/s
+    // Result: CI 0.042→0.066 (+57%), klinokinesis -0.27→+0.55, speed/omega unchanged
+
+    if (is_reversing_ || riv_omega_active_) {
+        body_.set_external_angular_velocity(0.0);
+        return;
+    }
+
+    Vector2d head_pos = body_.get_head_position();
+    Vector2d grad = environment_.chemical_field().gradient(head_pos);
+    double grad_mag = std::sqrt(grad.x * grad.x + grad.y * grad.y);
+    if (grad_mag < 0.0005) {
+        body_.set_external_angular_velocity(0.0);
+        return;
+    }
+
+    // Use SMOOTHED heading from centroid velocity (computed in apply_gradient_klinokinesis)
+    // The instantaneous head angle oscillates at 2Hz, creating AC anti-weathervane artifacts.
+    // Smoothed heading (τ=500ms mid-body segment) gives clean DC gradient signal.
+    double vmag = std::sqrt(smooth_vx_ * smooth_vx_ + smooth_vy_ * smooth_vy_);
+    if (vmag < 0.01) {
+        body_.set_external_angular_velocity(0.0);
+        return;
+    }
+    double smooth_heading = std::atan2(smooth_vy_, smooth_vx_);
+    double sin_h = std::sin(smooth_heading);
+    double cos_h = std::cos(smooth_heading);
+    double grad_normal = -sin_h * grad.x + cos_h * grad.y;  // ∇C⊥ to smoothed heading
+
+    // Satiety + preference gating (same as SMD pathway)
+    double sat_switch = 1.0 / (1.0 + fast_exp(-10.0 * (satiety_ - 0.5)));
+    double wv_scale = 1.0 - 0.85 * sat_switch;  // fed: 0.15
+    double pref = awc_pref_cached_;
+
+    // Angular velocity: ω = gain × ∇C⊥ × pref × satiety
+    double wv_omega_gain = 16.0;  // rad/s per (conc/mm) — Step 130: optimal (CI 0.042→0.066)
+    double omega_wv = wv_omega_gain * grad_normal * wv_scale * pref;
+
+    // Clamp to ±0.50 rad/s (±29°/s) — Step 130: 0.35→0.50 for stronger correction
+    if (omega_wv > 0.50) omega_wv = 0.50;
+    if (omega_wv < -0.50) omega_wv = -0.50;
+
+    body_.set_external_angular_velocity(omega_wv);
+}
+
 void SimulationEngine::apply_ria_smd_modulation() {
     // Step 19: RIA → SMD neuromodulation via CCA-1 threshold shift
     // NOT current injection! This modulates the oscillator's intrinsic property.
