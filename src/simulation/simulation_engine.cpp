@@ -686,7 +686,7 @@ void SimulationEngine::step() {
         double rev_scale = neuromod_.get_reversal_rate_scale();
         // rev_scale < 1.0 = suppress reversals: raise entry threshold
         // rev_scale > 1.0 = promote reversals: lower entry threshold
-        double entry_thresh = 0.45 / std::max(rev_scale, 0.3);  // Step 129: 0.35→0.45; on-food(5-HT~0.65): 0.45/0.65=0.69
+        double entry_thresh = 0.45 / std::max(rev_scale, 0.3);
         if (entry_thresh > 0.90) entry_thresh = 0.90;  // clamp sanity
         bool was_reversing = is_reversing_;
         if (!is_reversing_) {
@@ -695,7 +695,7 @@ void SimulationEngine::step() {
         } else {
             double rev_elapsed = current_time_ - reversal_start_time_;
             // Exit: AVA drops below low threshold after minimum duration
-            // Step 129: force-exit 2000→1200ms (bio: reversal ~0.8-1.2s, Wakabayashi 2004)
+            // Bio: reversal ~0.8-1.2s (Wakabayashi 2004). Force-exit at 1200ms.
             if ((rev_elapsed > 300.0 && ava_rel < 0.25) || rev_elapsed > 1200.0) {
                 is_reversing_ = false;
             }
@@ -715,7 +715,7 @@ void SimulationEngine::step() {
         }
         if (!is_reversing_ && was_reversing) {
             reversal_duration_ = current_time_ - reversal_start_time_;
-            reversal_refractory_end_ = current_time_ + 1500.0;  // Step 129: 2s→1.5s refractory
+            reversal_refractory_end_ = current_time_ + 1500.0;  // Step 129: refractory period
             // Only fire RIV pulse if reversal was at least 200ms (filter out transients)
             if (reversal_duration_ > 200.0) {
                 riv_post_rev_time_ = current_time_;

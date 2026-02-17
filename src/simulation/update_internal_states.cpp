@@ -216,12 +216,13 @@ void SimulationEngine::apply_gradient_klinokinesis() {
     double kk_dCdt_gain = 800.0;  // pA / (conc/s)
     double kk_dCdt_current = 0.0;
     if (pref >= 0.0) {
-        // Naive: excite AVA when dC/dt < 0 (going down-gradient)
-        // Asymmetric: no suppression when dC/dt > 0 (avoids rebound in bistable AVA)
         if (dCdt_filtered_ < 0.0) {
+            // Naive: excite AVA when dC/dt < 0 (going down-gradient → more reversals)
             kk_dCdt_current = -dCdt_filtered_ * kk_dCdt_gain;
             kk_dCdt_current = std::min(kk_dCdt_current, 10.0);
         }
+        // dC/dt > 0: no injection (asymmetric). Bidirectional suppression tried and
+        // worsened klinokinesis (-0.352) — AVA bistable dynamics cause rebound.
     } else {
         // Sick/aversive: excite AVA when dC/dt > 0 (approaching noxious source)
         if (dCdt_filtered_ > 0.0) {

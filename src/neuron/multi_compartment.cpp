@@ -95,7 +95,18 @@ void MultiCompartmentNeuron::step(double dt) {
         // Depolarizing synaptic current (I_syn > 0) triggers local store release
         // This is the key mechanism for compartmentalized calcium signals
         if (comp.store_release_rate > 0.0 && comp.I_syn > 0.0) {
-            double dCa_store = comp.store_release_rate * comp.I_syn * dt;
+            // Step 129d: Sensory × motor multiplication (Hendricks 2012)
+            // Soma voltage (comp 0) reflects AIY sensory input (phase-locked to head sweep).
+            // Modulate store release by soma depolarization: when soma is more depolarized
+            // (higher sensory input), motor-driven Ca²⁺ store release is amplified.
+            // Ca_nrD - Ca_nrV ∝ sensory_mod × motor_diff → encodes ∇C_⊥
+            double sensory_mod = 1.0;
+            if (i > 0 && !compartments_.empty()) {
+                double soma_dV = compartments_[0].V - compartments_[0].E_leak;
+                sensory_mod = 1.0 + 0.50 * soma_dV;  // +50% per mV above rest
+                if (sensory_mod < 0.1) sensory_mod = 0.1;
+            }
+            double dCa_store = comp.store_release_rate * sensory_mod * comp.I_syn * dt;
             double current_Ca = comp.calcium.get_concentration();
             comp.calcium.set_concentration(current_Ca + dCa_store);
         }

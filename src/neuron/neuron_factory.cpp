@@ -200,8 +200,11 @@ std::unique_ptr<MultiCompartmentNeuron> NeuronFactory::create_ria_multi(const Ne
     // Axial coupling: soma ↔ axon domains
     // Moderate coupling allows global signals to spread but preserves local activity
     // REF: Hendricks 2012 — "simultaneously present and additive"
-    neuron->add_axial_coupling(soma, nrV, 0.15);  // soma ↔ nrV: weak (isolate feedback)
-    neuron->add_axial_coupling(soma, nrD, 0.15);  // soma ↔ nrD: weak
+    // Step 129d: 0.15→0.5 nS. Old value too weak: AIY sensory signal barely
+    // reached nrV/nrD (gain_profiler: Ca²⁺ AC gain=0.008). Stronger coupling
+    // lets soma depolarization modulate store release via sensory_mod.
+    neuron->add_axial_coupling(soma, nrV, 0.5);   // soma ↔ nrV
+    neuron->add_axial_coupling(soma, nrD, 0.5);   // soma ↔ nrD
     neuron->add_axial_coupling(nrV, nrD, 0.01);   // nrV ↔ nrD: very weak (independent)
 
     return neuron;

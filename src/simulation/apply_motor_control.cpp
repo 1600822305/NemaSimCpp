@@ -78,9 +78,9 @@ void SimulationEngine::apply_weathervane() {
 
     // Step 23c: Satiety modulates chemotaxis weathervane gain
     double sat_switch_wv = 1.0 / (1.0 + fast_exp(-10.0 * (satiety_ - 0.5)));
-    double chemo_wv_gain = 1.0 - 0.75 * sat_switch_wv;  // Step 129: 0.85→0.75; fed: 0.25, effective=87pA/(conc/mm) (linear SMD regime)
-    // NOTE: SMD oscillator linear regime is <60 effective pA/(conc/mm).
-    // At 0.75 (eff=87) WV_slope is marginal. Future: fix SMD dynamics for wider linear range.
+    // Step 129d: Satiety suppression. Fed worms: 0.15 effective gain.
+    // Higher values (0.50) tested but didn't improve CI.
+    double chemo_wv_gain = 1.0 - 0.85 * sat_switch_wv;  // fed: 0.15
 
     // Step 26b: DUAL-CHANNEL WEATHERVANE
     // Channel 1: Food odor (volatile, AWC/AWA) — modulated by learned preference
@@ -156,22 +156,18 @@ void SimulationEngine::apply_weathervane() {
     // Step 129: 5-HT weathervane scaling MUST stay ≥0.7 to keep SMD bias in linear regime.
     // Without it (effective gain ~400 pA/(conc/mm)), SMD oscillator gets captured →
     // WV_slope flips negative (anti-chemotaxis). With scale=0.7: effective ~280 → linear.
+    // Step 129d: SMD weathervane bias injection with CORRECTED sign.
+    // Diagnostic: old sign (SMDD=-drive, SMDV=+drive) caused anti-chemotaxis
+    // (heading_bias=-0.009, SMD ablation improved CI). REVERSED sign below.
+    // REF: Half-center oscillator has paradoxical sign in SMD→muscle→curvature chain.
     if (!is_reversing_ && !riv_omega_active_) {
-        double sht_conc_wv = neuromod_.get_concentration("5-HT");
-        double smd_wv_scale = 0.7 + 0.3 * std::max(0.0, 1.0 - sht_conc_wv / 0.7);
-        if (smd_wv_scale > 1.0) smd_wv_scale = 1.0;
-        double smd_drive = bias_current * smd_wv_scale;
-        // Sign: positive grad_normal (food to left) → positive smd_drive
-        // SMDD gets -drive: suppress dorsal → extend ventral phase → curve LEFT toward food
-        // SMDV gets +drive: enhance ventral → same effect
-        // (Inverted vs naive expectation because SMD→muscle→curvature chain has sign inversion)
-        if (nid("SMDDL") >= 0 && nid("SMDDL") < n) neurons_[nid("SMDDL")]->add_synaptic_current(-smd_drive);
-        if (nid("SMDDR") >= 0 && nid("SMDDR") < n) neurons_[nid("SMDDR")]->add_synaptic_current(-smd_drive);
-        if (nid("SMDVL") >= 0 && nid("SMDVL") < n) neurons_[nid("SMDVL")]->add_synaptic_current( smd_drive);
-        if (nid("SMDVR") >= 0 && nid("SMDVR") < n) neurons_[nid("SMDVR")]->add_synaptic_current( smd_drive);
+        double smd_drive = bias_current;  // already satiety-modulated via chemo_wv_gain
+        // Reversed: SMDD gets +drive, SMDV gets -drive (opposite of original wrong sign)
+        if (nid("SMDDL") >= 0 && nid("SMDDL") < n) neurons_[nid("SMDDL")]->add_synaptic_current( smd_drive);
+        if (nid("SMDDR") >= 0 && nid("SMDDR") < n) neurons_[nid("SMDDR")]->add_synaptic_current( smd_drive);
+        if (nid("SMDVL") >= 0 && nid("SMDVL") < n) neurons_[nid("SMDVL")]->add_synaptic_current(-smd_drive);
+        if (nid("SMDVR") >= 0 && nid("SMDVR") < n) neurons_[nid("SMDVR")]->add_synaptic_current(-smd_drive);
     }
-
-    // Step 117: curvature_drive removed — RIV/SMB now drive muscles directly
 }
 
 void SimulationEngine::apply_smb_neck_bias() {
@@ -396,17 +392,10 @@ void SimulationEngine::apply_riv_omega() {
 
     // --- Omega EXECUTION + TERMINATION ---
     if (riv_omega_active_) {
-        // Inject latched RIV burst force into head muscles via boost channel
-        // Exponential decay models muscle Ca²⁺ clearance after neural burst
-        // Without decay, curvature saturates at max_curv (25/mm) for entire omega
-        // → turns overshoot 130-170° vs biological target ~60° (Gray 2005)
         double omega_elapsed = current_time_ - riv_omega_start_;
-        double decay = std::exp(-omega_elapsed / 150.0);  // 150ms tau: muscle Ca²⁺ clearance (RFT calibrated)
+        double decay = std::exp(-omega_elapsed / 150.0);  // 150ms tau: muscle Ca²⁺ clearance
         double omega_nmj_gain = 300.0 * decay;
-        // Step 120: RFT sign fix — dorsal boost → LEFT heading change
-        // Confirmed by klinotaxis (corr=+0.28): curvature_offset>0 → dorsal boost → LEFT turn
-        // peak_l (food-LEFT biased) → DORSAL → LEFT turn → toward food
-        // peak_r (food-RIGHT biased) → VENTRAL → RIGHT turn → toward food
+        // Latched peak L/R from omega initiation (gradient-sampled direction)
         for (int seg = 0; seg < 6; ++seg) {
             double taper = 1.0 - 0.5 * (seg / 5.0);  // 100% at head, 50% at seg 5
             body_.muscles().add_boost(seg, true,  riv_omega_peak_l_ * omega_nmj_gain * taper);
