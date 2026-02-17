@@ -180,7 +180,7 @@ void SimulationEngine::apply_gradient_klinokinesis() {
     double kk_mag_current = 0.0;
     if (pref >= 0.0) {
         double no_signal_factor = fast_exp(-grad_mag / 0.002);
-        kk_mag_current = 1.0 * no_signal_factor;
+        kk_mag_current = 0.3 * no_signal_factor;  // Step 129: 1.0→0.3 (reduce tonic reversal drive)
     } else {
         double on_signal_factor = 1.0 - fast_exp(-grad_mag / 0.002);
         kk_mag_current = 5.0 * on_signal_factor * (-pref);
@@ -210,19 +210,23 @@ void SimulationEngine::apply_gradient_klinokinesis() {
     // AVA when heading toward food, disrupting motor pattern and reducing speed.
     // REF: Chalasani 2007 Nature — AWC OFF-response triggers pirouettes
     //      Suzuki 2008 — asymmetric sensory processing in C. elegans
-    double kk_dCdt_gain = 300.0;  // pA / (conc/s)
+    // Step 129: gain 300→800, clamp 3→10pA. Ablation showed AWC/ASE ablation
+    // has ZERO effect on CI — klinokinesis signal was too weak to influence AVA.
+    // At 10mm from food: dC/dt~0.005/s → I=800×0.005=4pA (meaningful vs AVA ~10pA baseline)
+    double kk_dCdt_gain = 800.0;  // pA / (conc/s)
     double kk_dCdt_current = 0.0;
     if (pref >= 0.0) {
-        // Naive: only excite AVA when dC/dt < 0 (going down-gradient)
+        // Naive: excite AVA when dC/dt < 0 (going down-gradient)
+        // Asymmetric: no suppression when dC/dt > 0 (avoids rebound in bistable AVA)
         if (dCdt_filtered_ < 0.0) {
-            kk_dCdt_current = -dCdt_filtered_ * kk_dCdt_gain;  // positive current
-            kk_dCdt_current = std::min(kk_dCdt_current, 3.0);  // clamp max excitation
+            kk_dCdt_current = -dCdt_filtered_ * kk_dCdt_gain;
+            kk_dCdt_current = std::min(kk_dCdt_current, 10.0);
         }
     } else {
         // Sick/aversive: excite AVA when dC/dt > 0 (approaching noxious source)
         if (dCdt_filtered_ > 0.0) {
             kk_dCdt_current = dCdt_filtered_ * kk_dCdt_gain;
-            kk_dCdt_current = std::min(kk_dCdt_current, 3.0);
+            kk_dCdt_current = std::min(kk_dCdt_current, 10.0);
         }
     }
 

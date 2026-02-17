@@ -975,6 +975,20 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **无回归**: touch_analyzer 4/4, multisensory 6/6 通过
 - REF: Chalfie 1985, Chatzigeorgiou 2010, Jang 2012, L'Etoile 2002, Hill 2014, Colbert 1995
 
+### Step 129: 定量校准 — 消融引导的 CI 改善 ✅ (2026-02-17)
+> 详细文档: [steps/step129_quantitative_calibration.md](steps/step129_quantitative_calibration.md)
+
+- **新工具**: `ablation_analyzer` — 虚拟激光消融归因分析 (20 目标 × 8 线程并行)
+- **Bug 1**: `reversal_rate_scale_` 死代码 — 5-HT 反转率调制从未接入 Schmitt trigger
+- **Bug 2**: SER-4→AVA 直接抑制缺失 — 5-HT 无法直接抑制反转命令神经元
+- **Bug 3**: 5-HT MUSCLE_GAIN -0.60 过度减速 → -0.30 (Sawin 2000: ~30%)
+- **参数校准**: entry_thresh 0.35→0.45, exit 0.15→0.25, max_rev 2000→1200ms
+- **klinokinesis**: gain 300→800, clamp 3→10pA (消融证明原信号太弱)
+- **关键发现**: SMD 振荡器线性区极窄 (<60 effective pA/(conc/mm)), 限制 klinotaxis 贡献
+- **结果**: CI 0.010→0.036 (3.6×↑), Omega 向食物 71→94%, 瓶颈 5→4
+- **消融验证**: AVA→Rev=0% ✓, RIV→Omega=0% ✓, AIY→CI↓ ✓ (修复前 AIY 消融反而↑CI)
+- REF: Flavell 2013, Harris 2009, Dag & Flavell 2023, Wakabayashi 2004, Pierce-Shimomura 1999
+
 ---
 
 ## 当前系统状态

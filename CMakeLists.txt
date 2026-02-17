@@ -198,6 +198,10 @@ target_link_libraries(eigenworm_analyzer PRIVATE celegans_simulation)
 add_executable(touch_analyzer src/diagnostics/touch_analyzer_main.cpp)
 target_link_libraries(touch_analyzer PRIVATE celegans_simulation)
 
+# Ablation Analyzer executable (virtual laser ablation CI attribution)
+add_executable(ablation_analyzer src/diagnostics/ablation_analyzer_main.cpp)
+target_link_libraries(ablation_analyzer PRIVATE celegans_simulation)
+
 # Multisensory Analyzer executable (multi-cue conflict decision-making)
 add_executable(multisensory_analyzer src/diagnostics/multisensory_analyzer_main.cpp)
 target_link_libraries(multisensory_analyzer PRIVATE celegans_simulation)

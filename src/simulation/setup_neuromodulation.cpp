@@ -103,13 +103,31 @@ void SimulationEngine::setup_neuromodulation() {
             {pvcr, "MOD-1", ModulationEffect::EXCITABILITY, -5.0});
 
         // Target: reversal rate suppression (dwelling = fewer pirouettes)
-        // On food: 5-HT → MOD-1 → fewer reversals → stay on food (dwelling)
-        // Off food: no 5-HT → full reversal rate → area-restricted search
+        // 5-HT globally suppresses reversal probability when on food (dwelling)
+        // At full 5-HT: reversal rate drops ~50% (Gray 2005: 6/min → 3/min on food)
         // REF: Gray 2005 PNAS — off-food reversal rate 6/min vs on-food 3/min
         //      Campbell 2016 PLOS Genetics — wild-type 2× reversal rate off food
         //      Flavell 2013 Cell — 5-HT promotes dwelling (low reversal) state
         serotonin.targets.push_back(
             {-1, "MOD-1", ModulationEffect::REVERSAL_RATE, -0.50}); // 50% fewer reversals at peak 5-HT
+
+        // Step 129: SER-4 → AVA direct inhibition (Gαi/o inhibitory GPCR)
+        // Ablation analysis revealed: AWC/ASE ablation has ZERO CI effect because
+        // AVA reversal threshold was fixed (5-HT REVERSAL_RATE was dead code).
+        // SER-4 on AVA directly suppresses spontaneous reversals on food.
+        // -5pA: at 5-HT~0.7 (on food): -5×0.7 = -3.5pA shift → measurable AVA suppression
+        // Combined with reversal_rate_scale Schmitt trigger modulation for robust effect.
+        // REF: Harris 2009 J Neurosci — SER-4 inhibits command neuron activity
+        //      Flavell 2013 Cell — SER-4 Gαi/o mediates dwelling
+        //      Dag & Flavell 2023 Cell — SER-4 is core inhibitory 5-HT receptor
+        {
+            int aval = connectome_.get_neuron_id("AVAL");
+            int avar = connectome_.get_neuron_id("AVAR");
+            if (aval >= 0) serotonin.targets.push_back(
+                {aval, "SER-4", ModulationEffect::EXCITABILITY, -3.0}); // Step 129: -5→-3 (avoid over-suppression)
+            if (avar >= 0) serotonin.targets.push_back(
+                {avar, "SER-4", ModulationEffect::EXCITABILITY, -3.0});
+        }
 
         // Target: speed reduction (enhanced slowing on food)
         // Step 49: label fix SER-7→SER-4. SER-7 is pharynx-specific (Song & Avery 2012).
@@ -118,7 +136,7 @@ void SimulationEngine::setup_neuromodulation() {
         // REF: Sawin 2000 — serotonin reduces locomotion speed
         //      Dag & Flavell 2023 Cell Fig 2 — SER-4 core slowing receptor
         serotonin.targets.push_back(
-            {-1, "SER-4", ModulationEffect::MUSCLE_GAIN, -0.60}); // Step 95: -0.40→-0.60 (Flavell 2013: dwelling speed ~50% of roaming)
+            {-1, "SER-4", ModulationEffect::MUSCLE_GAIN, -0.30}); // Step 129: -0.60→-0.30 (Sawin 2000: ~30% slowing, not 60%)
 
         // Target: RIC inhibition (cross-inhibit OA source during dwelling)
         // 5-HT → SER-4 on RIC → inhibit → no OA during active dwelling

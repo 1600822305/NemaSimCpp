@@ -78,7 +78,9 @@ void SimulationEngine::apply_weathervane() {
 
     // Step 23c: Satiety modulates chemotaxis weathervane gain
     double sat_switch_wv = 1.0 / (1.0 + fast_exp(-10.0 * (satiety_ - 0.5)));
-    double chemo_wv_gain = 1.0 - 0.85 * sat_switch_wv;  // fed: 0.15, hungry: 1.0
+    double chemo_wv_gain = 1.0 - 0.75 * sat_switch_wv;  // Step 129: 0.85→0.75; fed: 0.25, effective=87pA/(conc/mm) (linear SMD regime)
+    // NOTE: SMD oscillator linear regime is <60 effective pA/(conc/mm).
+    // At 0.75 (eff=87) WV_slope is marginal. Future: fix SMD dynamics for wider linear range.
 
     // Step 26b: DUAL-CHANNEL WEATHERVANE
     // Channel 1: Food odor (volatile, AWC/AWA) — modulated by learned preference
@@ -151,7 +153,9 @@ void SimulationEngine::apply_weathervane() {
     // Now: SMD=49mV → bias effective → CI from neural circuit → emergent!
     //
     // Skip during reversal/omega (Iino 2009: klinotaxis = run-phase behavior)
-    // 5-HT modulation: on-food → slightly reduced weathervane (dwelling = less exploration)
+    // Step 129: 5-HT weathervane scaling MUST stay ≥0.7 to keep SMD bias in linear regime.
+    // Without it (effective gain ~400 pA/(conc/mm)), SMD oscillator gets captured →
+    // WV_slope flips negative (anti-chemotaxis). With scale=0.7: effective ~280 → linear.
     if (!is_reversing_ && !riv_omega_active_) {
         double sht_conc_wv = neuromod_.get_concentration("5-HT");
         double smd_wv_scale = 0.7 + 0.3 * std::max(0.0, 1.0 - sht_conc_wv / 0.7);

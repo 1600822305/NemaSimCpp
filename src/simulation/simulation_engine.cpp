@@ -678,18 +678,25 @@ void SimulationEngine::step() {
 
         // Step 66: Detect reversal state from AVA activity (for RIV omega tracking)
         // Schmitt trigger with hysteresis (Roberts 2016: AVA bistable -17/-32 mV)
-        // Enter reversal: ava_rel > 0.35 AND ava_rel > avb_rel AND not in refractory
-        // Exit reversal: ava_rel < 0.15 AND min duration 300ms elapsed
-        // Refractory: 2000ms after reversal end (prevents rapid re-triggering)
+        // Step 129: Wire reversal_rate_scale_ into Schmitt trigger.
+        // 5-HT REVERSAL_RATE modulation was computed but NEVER consumed (dead code!).
+        // Now: on-food 5-HT → scale~0.5 → entry_thresh rises 0.35→0.70 → far fewer reversals
+        // This implements SER-4→AVA reversal suppression (Flavell 2013 Cell)
+        // Refractory: 1500ms after reversal end
+        double rev_scale = neuromod_.get_reversal_rate_scale();
+        // rev_scale < 1.0 = suppress reversals: raise entry threshold
+        // rev_scale > 1.0 = promote reversals: lower entry threshold
+        double entry_thresh = 0.45 / std::max(rev_scale, 0.3);  // Step 129: 0.35→0.45; on-food(5-HT~0.65): 0.45/0.65=0.69
+        if (entry_thresh > 0.90) entry_thresh = 0.90;  // clamp sanity
         bool was_reversing = is_reversing_;
         if (!is_reversing_) {
             bool past_refractory = (current_time_ > reversal_refractory_end_);
-            is_reversing_ = past_refractory && (ava_rel > 0.35) && (ava_rel > avb_rel);
+            is_reversing_ = past_refractory && (ava_rel > entry_thresh) && (ava_rel > avb_rel);
         } else {
             double rev_elapsed = current_time_ - reversal_start_time_;
             // Exit: AVA drops below low threshold after minimum duration
-            // Force-exit after 2000ms (balance: TA buildup for omega + forward time)
-            if ((rev_elapsed > 300.0 && ava_rel < 0.15) || rev_elapsed > 2000.0) {
+            // Step 129: force-exit 2000→1200ms (bio: reversal ~0.8-1.2s, Wakabayashi 2004)
+            if ((rev_elapsed > 300.0 && ava_rel < 0.25) || rev_elapsed > 1200.0) {
                 is_reversing_ = false;
             }
         }
@@ -708,7 +715,7 @@ void SimulationEngine::step() {
         }
         if (!is_reversing_ && was_reversing) {
             reversal_duration_ = current_time_ - reversal_start_time_;
-            reversal_refractory_end_ = current_time_ + 2000.0;  // 2s refractory
+            reversal_refractory_end_ = current_time_ + 1500.0;  // Step 129: 2s→1.5s refractory
             // Only fire RIV pulse if reversal was at least 200ms (filter out transients)
             if (reversal_duration_ > 200.0) {
                 riv_post_rev_time_ = current_time_;

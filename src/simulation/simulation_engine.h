@@ -37,7 +37,7 @@ public:
     // Tunable parameters (live-adjustable from visualization or CLI)
     struct TuningParams {
         float weathervane_gain = 500.0f;  // pA per (conc/mm) — gradient → SMD bias
-                                          // Step 19: 300→500. At gradient 0.01: bias=5pA.
+                                          // Step 129: keep at 500. At 800 SMD enters nonlinear regime → WV flips.
         float synapse_scale   = 1.0f;    // global synapse weight multiplier
         float speed_scale     = 1.0f;    // Step 117: 2.0→1.0 (absorbed into locomotion_efficiency_=1.2)
         float sensory_gain    = 1.0f;    // chemosensory transducer gain multiplier
