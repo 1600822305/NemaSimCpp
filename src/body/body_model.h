@@ -41,6 +41,12 @@ public:
 
     double get_body_length() const { return body_length_; }
 
+    // Swimming gait: medium viscosity controls muscle dynamics + drag
+    // REF: Fang-Yen 2010 JEM, Berri 2009, Pierce-Shimomura 2008 PNAS
+    //   1.0 = agar (crawling ~0.5 Hz), 0.01 = water (swimming ~1.7 Hz)
+    void set_medium_viscosity(double v);
+    double get_medium_viscosity() const { return medium_viscosity_; }
+
     const std::array<BodySegment, NUM_BODY_SEGMENTS>& segments() const { return segments_; }
     std::array<BodySegment, NUM_BODY_SEGMENTS>& segments() { return segments_; }
 
@@ -64,6 +70,9 @@ private:
     //      Fang-Yen 2010 — C_N/C_T ≈ 1.5 on agar
     double drag_tangential_ = 3.4;   // C_T — drag along body axis
     double drag_normal_ = 5.1;       // C_N — drag perpendicular to body (ratio ≈ 1.5)
+
+    double medium_viscosity_ = 1.0;  // 1.0 = agar, 0.01 = water
+    double speed_cap_ = 0.8;         // mm/s, adjusts with medium
 
     double speed_ = 0.0;             // current locomotion speed (mm/s)
     double direction_ = 1.0;         // +1 forward, -1 backward (from velocity · heading)

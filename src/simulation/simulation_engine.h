@@ -72,8 +72,10 @@ public:
             cm.transducer.reset(cm.uses_food_density ? food : vol);
         }
         double rep = environment_.sample_repellent(body_.get_head_position());
+        double osmo = environment_.sample_osmolarity(body_.get_head_position());
+        double noci_reset = std::max(rep, osmo);  // Step 127: polymodal ASH
         for (auto& nm : noci_mappings_) {
-            nm.transducer.reset(rep);
+            nm.transducer.reset(noci_reset);
         }
         neuromod_.reset_concentrations();
     }
@@ -128,6 +130,34 @@ public:
     // Step 96: NPR-1 override for social/solitary strain simulation
     void set_npr1_rmg(double pA) { npr1_rmg_ = pA; }
     double npr1_rmg() const { return npr1_rmg_; }
+
+    // Step 122: Social O₂ reduction from nearby conspecifics
+    // Each nearby worm consumes O₂ → local [O₂] drops → URX/RMG responds
+    // REF: Ding 2019 eLife, Rogers 2006, Gray 2004
+    // Social O₂ reduction: computed SEPARATELY at head and tail positions
+    // Head/tail differential creates directional gradient for O₂ taxis toward clusters
+    // Hawaiian (no NPR-1): URX/AQR/PQR respond to gradient → taxis toward low O₂
+    // N2 (NPR-1 active): URX/AQR/PQR suppressed → no O₂ taxis
+    // REF: Ding 2019 eLife, Gray 2004 Nature, Busch 2012
+    void set_social_o2_reduction(double head_pct, double tail_pct) {
+        social_o2_reduction_head_ = head_pct;
+        social_o2_reduction_tail_ = tail_pct;
+    }
+    double social_o2_reduction_head() const { return social_o2_reduction_head_; }
+    double social_o2_reduction_tail() const { return social_o2_reduction_tail_; }
+    // RMG-gated social behavioral modulation (works on-food, O₂-independent)
+    // Tonic: neighbor density → RMG gate → AIY inhibition → dwelling promotion
+    // Phasic: tail_density > head_density → heading AWAY from cluster → AVA reversal
+    // REF: Macosko 2009 — RMG hub; Rogers 2006 — density-dependent locomotion
+    void set_social_neighbor_density(double head_d, double tail_d) {
+        social_neighbor_density_ = head_d;
+        social_neighbor_density_tail_ = tail_d;
+    }
+    double social_neighbor_density() const { return social_neighbor_density_; }
+    void reinitialize_body(Vector2d pos, double heading) { body_.initialize(pos, heading); }
+    // Swimming gait: set medium viscosity (1.0=agar, 0.01=water)
+    void set_medium_viscosity(double v) { body_.set_medium_viscosity(v); }
+    double get_medium_viscosity() const { return body_.get_medium_viscosity(); }
     double learning_sleep_drive() const { return learning_sleep_drive_; }
     // Step 63: INS-1 insulin concentration
     double ins1_conc() const { return ins1_conc_; }
@@ -204,6 +234,10 @@ private:
     double npr1_tonic_ = -28.0; // NPR-1 tonic inhibition on URX (N2 = constitutively active)
     double npr1_aua_ = -12.0;  // NPR-1 inhibition on AUA (dampens O₂ relay)
     double npr1_rmg_ = -20.0;  // Step 96: NPR-1 inhibition on RMG (N2 social hub dampening, Macosko 2009)
+    double social_o2_reduction_head_ = 0.0; // Step 122: % O₂ reduction at head from nearby worms
+    double social_o2_reduction_tail_ = 0.0; // Step 122: % O₂ reduction at tail from nearby worms
+    double social_neighbor_density_ = 0.0;      // Step 122: weighted neighbor count at HEAD
+    double social_neighbor_density_tail_ = 0.0; // Step 122: weighted neighbor count at TAIL
     double co2_gain_ = 40.0;   // max pA for CO₂ transduction
     double co2_threshold_ = 0.5; // % CO₂ activation threshold
     double prev_co2_head_ = 0.04; // previous CO₂ for phasic response
@@ -211,6 +245,7 @@ private:
     double pvd_harsh_thresh_ = 1.0; // mm, harsh touch distance threshold (closer than ALM 2mm)
     double pvd_harsh_current_ = 60.0; // pA, harsh touch stimulus (PVD→AVA 2 sec already strong)
     double pvd_proprio_gain_ = 8.0;  // pA per unit posterior |curvature|
+    double ala_stress_ = 0.0;          // Step 128: ALA stress plateau [0,1] (tau ~30s)
     double egg_pressure_ = 0.0;    // 0-1, egg accumulation pressure (slow ramp)
     double egg_tau_fill_ = 120000.0;  // ms (120s) to fill — eggs accumulate ~10min/egg
     double egg_threshold_ = 0.7;   // egg_pressure threshold for HSN activation
@@ -324,6 +359,7 @@ private:
     double mod1_aiz_gain_ = -10.0;       // pA, ADF sickness 5-HT → MOD-1 ⊣ AIZ (Step 93: -6→-10)
     void update_sickness();              // accumulate sickness from toxic food intake
     void update_pathogen_learning();     // AWC→AIY w_mod↓, AWC→AIB w_mod↑
+    void update_olfactory_conditioning(); // Step 128: butanone adaptation (odor+starvation→avoidance)
 
     // Step 63: INS-1 insulin signaling (Lin 2010 JNeurosci, Comm Bio 2022)
     // INS-1 released from ASI/AIA as starvation/sickness signal.
@@ -417,6 +453,10 @@ private:
     double riv_post_rev_amp_r_ = 0.0;  // RIVR pulse amplitude (gradient-biased)
     std::mt19937 touch_rng_{123};
 
+    // Step 124: Diagnostic current injection queue
+    struct DiagInjection { int neuron_id; double current_pA; };
+    std::vector<DiagInjection> diag_injections_;
+
     // === Neuron ID cache (auto-populated from connectome, Step 52) ===
     std::unordered_map<std::string, int> nid_;                    // exact name → ID
     std::unordered_map<std::string, std::vector<int>> nids_;      // group key → IDs
@@ -460,6 +500,28 @@ public:
     double awc_pref_cached() const { return awc_pref_cached_; }
     double reversal_start_time() const { return reversal_start_time_; }
     double reversal_refractory_end() const { return reversal_refractory_end_; }
+
+    // Step 124: Diagnostic current injection — override external current for named neurons
+    // Applied AFTER sensory processing in step(), so it overrides wall-touch/baseline.
+    // Injections persist until clear_injections() is called.
+    // Usage: sim.inject_neuron_current("ALM", 50.0);  // 50pA to both ALML+ALMR
+    //        sim.step();  // injection applied during this step
+    //        sim.clear_injections();  // stop injection
+    void inject_neuron_current(const std::string& name, double current_pA) {
+        int nn = static_cast<int>(neurons_.size());
+        // Try exact name
+        int id = nid(name.c_str());
+        if (id >= 0 && id < nn) {
+            diag_injections_.push_back({id, current_pA});
+            return;
+        }
+        // Try L/R pair
+        int idL = nid((name + "L").c_str());
+        int idR = nid((name + "R").c_str());
+        if (idL >= 0 && idL < nn) diag_injections_.push_back({idL, current_pA});
+        if (idR >= 0 && idR < nn) diag_injections_.push_back({idR, current_pA});
+    }
+    void clear_injections() { diag_injections_.clear(); }
 
     // Step 67: Laser ablation — silence named neuron(s)
     // REF: Chalfie 1985, Bargmann & Horvitz 1991

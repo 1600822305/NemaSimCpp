@@ -27,6 +27,14 @@ public:
         : type_(type), gain_(gain), baseline_(baseline),
           fast_tau_(fast_tau), slow_tau_(slow_tau), half_max_(half_max) {}
 
+    // Step 128: Enable/disable long-term adaptation (EGL-4/PKG pathway)
+    // Only for olfactory neurons (AWC/AWA), not taste (ASE) or food detectors
+    void set_long_term_adaptation(bool enable, double tau = 300000.0, double max_reduction = 0.7) {
+        lta_enabled_ = enable;
+        lta_tau_ = tau;              // ms, ~300s (5min) to fully adapt
+        lta_max_reduction_ = max_reduction;  // max 70% gain reduction
+    }
+
     // Update with new concentration sample, returns input current (pA)
     // Uses fast-slow dual filter: detects RELATIVE concentration changes
     // REF: Suzuki 2008, Clark 2006 - Weber-Fechner law in C. elegans chemosensation
@@ -60,8 +68,20 @@ public:
             ? response / (response + half_max_)  // half-max configurable
             : response / (1.0 + std::abs(response) * 2.0);
 
+        // Step 128: Long-term adaptation (minutes timescale)
+        // Prolonged exposure → EGL-4 nuclear entry → gain reduction
+        // REF: Colbert & Bargmann 1995, L'Etoile 2002 Neuron
+        double effective_gain = gain_;
+        if (lta_enabled_) {
+            // Track sustained exposure level (very slow filter)
+            lta_exposure_ += (fast_ - lta_exposure_) * dt / lta_tau_;
+            // Gain reduction proportional to sustained exposure
+            double adapt_frac = lta_exposure_ / (lta_exposure_ + 0.2);
+            effective_gain = gain_ * (1.0 - lta_max_reduction_ * adapt_frac);
+        }
+
         // Total current = baseline + modulation (clamped)
-        double I_out = baseline_ + gain_ * sat_response;
+        double I_out = baseline_ + effective_gain * sat_response;
         if (I_out < 0.0) I_out = 0.0;
         if (I_out > 80.0) I_out = 80.0;
 
@@ -83,6 +103,12 @@ private:
 
     double fast_ = 0.0;     // fast-tracking filter
     double slow_ = 0.0;     // slow-adapting filter
+
+    // Step 128: Long-term olfactory adaptation (EGL-4/PKG)
+    bool lta_enabled_ = false;
+    double lta_tau_ = 300000.0;       // ms, 5min adaptation timescale
+    double lta_max_reduction_ = 0.7;  // max 70% gain reduction
+    double lta_exposure_ = 0.0;       // ultra-slow exposure tracker
 };
 
 // Mechanosensory transduction: rapid adaptation touch response

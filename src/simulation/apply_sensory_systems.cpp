@@ -67,17 +67,39 @@ void SimulationEngine::apply_sensory_input() {
         neurons_[sm.neuron_id]->set_external_current(I_sol);
     }
 
-    // Step 25: ASH nociceptors sample repellent field
-    // ASH is ON-type: excited by repellent concentration increase
-    // REF: Summers 2015 — ASH→AIB→AVA nociceptive avoidance circuit
+    // Step 25+127: ASH polymodal nociceptors — repellent + osmolarity
+    // ASH is excited by: (1) chemical repellents (2) high osmolarity (3) nose touch
+    // All three modalities converge on the same OSM-9/TRPV channel → use max
+    // REF: Kaplan & Horvitz 1993 — ASH is polymodal nociceptor
+    //      Colbert 1997 — OSM-9 mediates both osmotic and chemical avoidance
+    //      Summers 2015 — ASH→AIB→AVA nociceptive avoidance circuit
     double repellent_conc = environment_.sample_repellent(sample_pos);
+    double osmo_conc = environment_.sample_osmolarity(sample_pos);
+    double noci_input = std::max(repellent_conc, osmo_conc);  // polymodal: max of stimuli
     for (auto& nm : noci_mappings_) {
         if (nm.neuron_id < 0 || nm.neuron_id >= n) continue;
-        double I_noci = nm.transducer.update(repellent_conc, dt_);
+        double I_noci = nm.transducer.update(noci_input, dt_);
         I_noci *= static_cast<double>(params.sensory_gain);
         // No satiety modulation: nociception is not suppressed by feeding state
         // (5-HT suppresses downstream AIB instead — Summers 2015)
         neurons_[nm.neuron_id]->set_external_current(I_noci);
+    }
+
+    // Step 128: ADL pheromone sensing — ascarosides from pheromone field
+    // ADL is polymodal: chemical repellent (ON response via chemo_mappings) + pheromone
+    // Pheromone drives avoidance: ADL→AVA reversal, ADL→RMG social integration
+    // REF: Jang 2012, Troemel 1997 Cell, Macosko 2009 Nature
+    if (environment_.has_pheromone()) {
+        double phero_conc = environment_.sample_pheromone(sample_pos);
+        if (phero_conc > 0.01) {
+            double phero_drive = 20.0 * phero_conc / (phero_conc + 0.3);  // saturating, max 20pA
+            for (int id : nids("ADL")) {
+                if (id >= 0 && id < n) {
+                    double existing = neurons_[id]->get_I_ext();
+                    neurons_[id]->set_external_current(std::max(existing, phero_drive));
+                }
+            }
+        }
     }
 
     // Step 26: ADF serotonin neurons — driven by sickness state
@@ -307,6 +329,7 @@ void SimulationEngine::apply_touch_stimulus() {
     for (int id : nids("ALM")) { if (id >= 0 && id < n) neurons_[id]->set_external_current(0.0); }
     for (int id : nids("PLM")) { if (id >= 0 && id < n) neurons_[id]->set_external_current(0.0); }
     { int avm = nid("AVM"); if (avm >= 0 && avm < n) neurons_[avm]->set_external_current(0.0); }
+    { int pvm = nid("PVM"); if (pvm >= 0 && pvm < n) neurons_[pvm]->set_external_current(0.0); }  // Step 128
     for (int id : nids("OLQ")) { if (id >= 0 && id < n) neurons_[id]->set_external_current(0.0); }
     for (int id : nids("FLP")) { if (id >= 0 && id < n) neurons_[id]->set_external_current(0.0); }
     for (int id : nids("IL1")) { if (id >= 0 && id < n) neurons_[id]->set_external_current(0.0); }
@@ -416,6 +439,32 @@ void SimulationEngine::apply_touch_stimulus() {
                 neurons_[id]->set_external_current(touch_current_);
             }
         }
+        // Step 128: PVM — posterior ventral gentle touch (complement to AVM)
+        // Weaker than PLM (40 vs 80pA): PVM contributes ~5-10% of posterior response
+        // PVM→PVC promotes forward; PVM→AVA weak backward (Step 106 connectome)
+        // REF: Chalfie 1985, Way & Chalfie 1989
+        { int pvm = nid("PVM"); if (pvm >= 0 && pvm < n) neurons_[pvm]->set_external_current(40.0); }
+    }
+
+    // Step 128: FLP thermal nociception — noxious heat (>33°C) via TRPA-1
+    // FLP is polymodal: mechanical (MEC-10) + thermal (TRPA-1)
+    // Distinct from AFD thermotaxis: AFD=navigation, FLP=pain escape
+    // REF: Chatzigeorgiou & Schafer 2010 Neuron, Liu 2012 Nature
+    {
+        double temperature = environment_.sample_temperature(head);
+        double heat_thresh = 33.0;  // °C, TRPA-1 activation threshold
+        if (temperature > heat_thresh) {
+            double heat_excess = (temperature - heat_thresh) / 5.0;  // normalized: 5°C above → 1.0
+            if (heat_excess > 1.0) heat_excess = 1.0;
+            double flp_heat = 40.0 * heat_excess;  // up to 40pA thermal drive
+            for (int id : nids("FLP")) {
+                if (id >= 0 && id < n) {
+                    // Add to existing mechanical drive (polymodal: max of stimuli)
+                    double existing = neurons_[id]->get_I_ext();
+                    neurons_[id]->set_external_current(std::max(existing, flp_heat));
+                }
+            }
+        }
     }
 
     // Step 47b: CEP binary tactile drive REMOVED.
@@ -473,6 +522,18 @@ void SimulationEngine::apply_touch_stimulus() {
         // O₂ = 21% - 13% × food_density → range [8%, 21%]
         double o2_head = 21.0 - 13.0 * std::min(food_at_head, 1.0);
         double o2_tail = 21.0 - 13.0 * std::min(food_at_tail, 1.0);
+
+        // Step 122: Social O₂ reduction — nearby worms consume O₂
+        // Computed SEPARATELY at head and tail to create directional gradient
+        // Head closer to cluster → more reduction → less URX → less aversion → continue
+        // Tail closer to cluster → more reduction → less PQR → less forward escape
+        // REF: Ding 2019 eLife, Rogers 2006 — O₂ depletion inside worm clusters
+        if (social_o2_reduction_head_ > 0.0) {
+            o2_head = std::max(o2_head - social_o2_reduction_head_, 5.0);
+        }
+        if (social_o2_reduction_tail_ > 0.0) {
+            o2_tail = std::max(o2_tail - social_o2_reduction_tail_, 5.0);
+        }
 
         // URX transduction: activated when O₂ > 14% (hyperoxia threshold)
         // Linear ramp: 0 at 14%, max (o2_gain_) at 21%
@@ -536,7 +597,11 @@ void SimulationEngine::apply_touch_stimulus() {
     // ======================================================================
     {
         double food_at_head = environment_.sample_food_density(head);
-        double co2_head = 0.04 + 3.0 * std::min(food_at_head, 1.0);  // range [0.04%, 3.04%]
+        double food_co2 = 0.04 + 3.0 * std::min(food_at_head, 1.0);  // range [0.04%, 3.04%]
+        // Step 127: independent CO₂ field (external source, not food-derived)
+        // External CO₂ scaled to % range: strength 1.0 → 5% CO₂ (well above 0.5% threshold)
+        double ext_co2 = environment_.sample_co2(head) * 5.0;  // [0, ~5%]
+        double co2_head = std::max(food_co2, ext_co2);  // polymodal: max of sources
 
         // Phasic component: BAG responds to CO₂ CHANGES more than absolute level
         // dCO₂/dt > 0 (entering food) → strong activation
@@ -648,6 +713,43 @@ void SimulationEngine::apply_touch_stimulus() {
             }
 
             neurons_[id]->set_external_current(I_pvd);
+        }
+    }
+
+    // ======================================================================
+    // Step 128: ALA stress-induced quiescence (Van Buskirk 2007, Hill 2014)
+    // ALA generates calcium plateau potential upon harsh stimulation → sustained
+    // neuropeptide release (FLP-13/NLP-22) → global locomotion suppression.
+    // Distinct from RIS fatigue sleep: ALA = acute stress protection.
+    // Input: harsh touch (FLP→ALA already wired) + thermal stress + UV
+    // REF: Van Buskirk & Bhatt 2007, Hill 2014 Curr Biol, Nath 2016
+    // ======================================================================
+    {
+        int ala_id = nid("ALA");
+        if (ala_id >= 0 && ala_id < n) {
+            // Stress signals: (1) noxious heat >33°C (2) strong ASH nociception
+            // FLP→ALA wired in connectome already provides mechanical harsh touch path
+            double temperature = environment_.sample_temperature(body_.get_head_position());
+            double thermal_stress = 0.0;
+            if (temperature > 33.0) {
+                thermal_stress = std::min((temperature - 33.0) / 5.0, 1.0);
+            }
+            // ASH strong activation as proxy for chemical noxious stress
+            double ash_stress = 0.0;
+            for (int id : nids("ASH")) {
+                if (id >= 0 && id < n) {
+                    double s = neurons_[id]->get_transmitter_release_rate();
+                    ash_stress = std::max(ash_stress, s);
+                }
+            }
+            double stress_drive = std::max(thermal_stress, ash_stress > 0.5 ? ash_stress : 0.0);
+            // ALA plateau: once triggered, sustains for seconds (calcium plateau)
+            // Modeled as slow ramp-up, slow decay (tau ~30s)
+            ala_stress_ += (stress_drive - ala_stress_) * dt_ / 30000.0;
+            if (ala_stress_ < 0.0) ala_stress_ = 0.0;
+            if (ala_stress_ > 1.0) ala_stress_ = 1.0;
+            double I_ala = 25.0 * ala_stress_;  // up to 25pA → ALA⊣AVA, ALA→RID
+            neurons_[ala_id]->set_external_current(I_ala);
         }
     }
 

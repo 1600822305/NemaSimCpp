@@ -12,6 +12,7 @@ void Environment::initialize(double width, double height) {
     chem_field_.initialize(width, height, 100, 100);
     soluble_field_.initialize(width, height, 100, 100);  // Step 26b: salt/amino acids
     repellent_field_.initialize(width, height, 100, 100);
+    co2_field_.initialize(width, height, 100, 100);         // Step 127: independent CO₂
     pheromone_field_.initialize(width, height, 100, 100);  // Step 64: ascaroside pheromones
 }
 
@@ -19,6 +20,7 @@ void Environment::step(double dt) {
     chem_field_.step(dt);
     soluble_field_.step(dt);
     repellent_field_.step(dt);
+    if (has_co2_) co2_field_.step(dt);
     if (has_pheromone_) pheromone_field_.step(dt);
 }
 
@@ -101,6 +103,39 @@ void Environment::set_pheromone_source(Vector2d pos, double intensity) {
     // Pheromone diffuses broadly (σ=6mm, intermediate between food lawn and volatile)
     // REF: Srinivasan 2008 — ascarosides are water-soluble, moderate diffusion
     pheromone_field_.add_point_source(pos, intensity, 36.0); // σ²=36mm²
+}
+
+// Step 127: CO₂ field — independent CO₂ source
+// REF: Hallem & Sternberg 2008 — CO₂ gradient avoidance assay
+// CO₂ diffuses broadly (σ=15mm) — gas phase diffusion is fast
+double Environment::sample_co2(Vector2d pos) const {
+    if (!has_co2_) return 0.0;
+    return co2_field_.sample(pos);
+}
+
+void Environment::set_co2_source(Vector2d pos, double strength) {
+    has_co2_ = true;
+    co2_field_.add_point_source(pos, strength, 225.0);  // σ²=225mm² (σ=15mm, broad gas diffusion)
+}
+
+// Step 127: Osmotic field — circular high-osmolarity region
+// REF: Colbert 1997 — ring assay: worm encounters sharp osmolarity boundary
+// Modeled as sigmoid step: concentration=0 inside, ramps to strength at boundary
+// Transition width ~1mm (worm body diameter) for realistic spatial sensing
+double Environment::sample_osmolarity(Vector2d pos) const {
+    if (osmo_strength_ <= 0.0) return 0.0;
+    double dx = pos.x - osmo_center_.x;
+    double dy = pos.y - osmo_center_.y;
+    double r = std::sqrt(dx * dx + dy * dy);
+    // Sigmoid at boundary: 0 inside, 1 outside (transition ~1mm)
+    double edge = 1.0 / (1.0 + std::exp(-(r - osmo_radius_) * 4.0));  // 4.0/mm steepness
+    return osmo_strength_ * edge;
+}
+
+void Environment::set_osmotic_region(Vector2d center, double radius, double strength) {
+    osmo_center_ = center;
+    osmo_radius_ = radius;
+    osmo_strength_ = strength;
 }
 
 } // namespace celegans

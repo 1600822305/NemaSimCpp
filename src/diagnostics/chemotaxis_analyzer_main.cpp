@@ -77,6 +77,9 @@ struct SeedResult {
     double heading_rate_abs;    // mean |dθ/dt| (forward)
     double fwd_fraction;        // forward time fraction
     double mean_speed;          // mean speed
+    double time_near_food;      // fraction of time within 5mm of food
+    double curving_rate_mean;   // mean |dθ/dt| forward (°/s)
+    double weathervane_slope;   // dθ/dt vs food_angle regression slope (°/s per rad, Iino 2009)
     bool converging;            // food angle trend Q4 < Q1
     int bottleneck_count;
 };
@@ -259,17 +262,45 @@ static SeedResult run_single_seed(int seed, double duration_s, double target_x, 
         res.omega_toward_pct = (omega_n > 0) ? 100.0 * omega_tw / omega_n : 50.0;
     }
 
-    // Signal chain
+    // Signal chain + new metrics (time_near_food, curving_rate, weathervane_slope)
     {
         double ria_abs_sum = 0, hc_sum = 0, hr_sum = 0; int sn = 0;
-        for (auto& cs : samples) {
-            if (cs.is_reversing || cs.is_omega) continue;
-            ria_abs_sum += std::abs(cs.ria_ca_diff);
-            hc_sum += cs.head_curv;
-            hr_sum += std::abs(cs.heading_rate);
+        int near_food_count = 0;
+        constexpr double NEAR_FOOD_RADIUS = 5.0;  // mm (bacterial lawn ~4mm σ)
+        // Accumulators for weathervane slope: linear regression of heading_rate on food_angle
+        double wv_sx = 0, wv_sy = 0, wv_sxx = 0, wv_sxy = 0; int wv_n = 0;
+        for (size_t i = 0; i < samples.size(); ++i) {
+            if (samples[i].food_dist < NEAR_FOOD_RADIUS) near_food_count++;
+            if (samples[i].is_reversing || samples[i].is_omega) continue;
+            ria_abs_sum += std::abs(samples[i].ria_ca_diff);
+            hc_sum += samples[i].head_curv;
+            hr_sum += std::abs(samples[i].heading_rate);
             sn++;
+            // Weathervane slope: dθ/dt (°/s) vs food_angle (rad)
+            // REF: Iino & Yoshida 2009 — curving rate = slope × ∇C_⊥
+            // food_angle is a proxy for ∇C_⊥ (proportional when gradient exists)
+            if (i > 0) {
+                double fa = samples[i].food_angle;
+                double hr = samples[i].heading_rate;  // already in °/s
+                wv_sx += fa; wv_sy += hr;
+                wv_sxx += fa * fa; wv_sxy += fa * hr;
+                wv_n++;
+            }
         }
-        if (sn > 0) { res.ria_ca_diff_abs = ria_abs_sum / sn; res.head_curv = hc_sum / sn; res.heading_rate_abs = hr_sum / sn; }
+        if (sn > 0) {
+            res.ria_ca_diff_abs = ria_abs_sum / sn;
+            res.head_curv = hc_sum / sn;
+            res.heading_rate_abs = hr_sum / sn;
+            res.curving_rate_mean = hr_sum / sn;  // same as heading_rate_abs
+        }
+        res.time_near_food = (samples.size() > 0)
+            ? static_cast<double>(near_food_count) / samples.size() : 0;
+        // Weathervane slope via least-squares: slope = (n*Σxy - Σx*Σy) / (n*Σx² - (Σx)²)
+        if (wv_n > 2) {
+            double denom = wv_n * wv_sxx - wv_sx * wv_sx;
+            res.weathervane_slope = (denom > 1e-12)
+                ? (wv_n * wv_sxy - wv_sx * wv_sy) / denom : 0;
+        }
     }
 
     // Food angle convergence
@@ -389,8 +420,8 @@ int main(int argc, char* argv[]) {
     std::cout << "========================================\n\n";
 
     std::cout << std::fixed;
-    std::cout << "  Seed   CI      Ktx_r   H_bias  Klnk    RunR    Omg%    Omg#  Fwd%    Spd    Conv\n";
-    std::cout << "  ----   ------  ------  ------  ------  ------  ------  ----  ------  ------  ----\n";
+    std::cout << "  Seed   CI      Ktx_r   H_bias  Klnk    RunR    Omg%    Omg#  TNF%    WV_slp  Spd    Conv\n";
+    std::cout << "  ----   ------  ------  ------  ------  ------  ------  ----  ------  ------  ------  ----\n";
     for (auto& r : results) {
         auto mark = [](double v, double ok, bool higher) -> const char* {
             return (higher ? v >= ok : v <= ok) ? " " : "*";
@@ -406,8 +437,9 @@ int main(int argc, char* argv[]) {
                   << mark(r.omega_toward_pct, 55.0, true)
                   << " " << std::setw(5) << std::setprecision(1) << r.omega_toward_pct
                   << "  " << std::setw(4) << r.omega_count
-                  << "  " << std::setw(5) << std::setprecision(1) << r.fwd_fraction * 100
-                  << "%  " << std::setw(5) << std::setprecision(3) << r.mean_speed
+                  << "  " << std::setw(5) << std::setprecision(1) << r.time_near_food * 100
+                  << "%  " << std::setw(5) << std::setprecision(1) << r.weathervane_slope
+                  << "  " << std::setw(5) << std::setprecision(3) << r.mean_speed
                   << "  " << (r.converging ? "  Y" : "  N")
                   << "\n";
     }
@@ -432,6 +464,9 @@ int main(int argc, char* argv[]) {
     double ot_mean = avg([](const SeedResult& r) { return r.omega_toward_pct; });
     double spd_mean = avg([](const SeedResult& r) { return r.mean_speed; });
     double ria_mean = avg([](const SeedResult& r) { return r.ria_ca_diff_abs; });
+    double tnf_mean = avg([](const SeedResult& r) { return r.time_near_food; });
+    double wvs_mean = avg([](const SeedResult& r) { return r.weathervane_slope; });
+    double cr_mean = avg([](const SeedResult& r) { return r.curving_rate_mean; });
     int n_converge = 0;
     for (auto& r : results) if (r.converging) n_converge++;
 
@@ -446,22 +481,28 @@ int main(int argc, char* argv[]) {
     std::cout << "  Run ratio:        " << std::setprecision(2) << rr_mean << "\n";
     std::cout << "  Omega toward%:    " << std::setprecision(1) << ot_mean << "%\n";
     std::cout << "  Mean speed:       " << std::setprecision(3) << spd_mean << " mm/s\n";
-    std::cout << "  RIA |Ca²⁺ AC|:    " << std::setprecision(4) << ria_mean << "\n";
+    std::cout << "  Time near food:   " << std::setprecision(1) << tnf_mean * 100 << "%  (r<5mm)\n";
+    std::cout << "  Curving rate:     " << std::setprecision(1) << cr_mean << " \xc2\xb0/s  (fwd |d\xce\xb8/dt|)\n";
+    std::cout << "  WV slope:         " << std::setprecision(2) << wvs_mean << " \xc2\xb0/s/rad  (Iino 2009)\n";
+    std::cout << "  RIA |Ca\xc2\xb2\xe2\x81\xba AC|:    " << std::setprecision(4) << ria_mean << "\n";
     std::cout << "  Converging:       " << n_converge << "/" << n_seeds << "\n\n";
 
     // --- Bottleneck summary ---
     std::cout << "--- 信号链瓶颈汇总 ---\n";
-    struct { const char* name; double val; double ok; bool higher; const char* hint; } checks[] = {
+    struct BnCheck { const char* name; double val; double ok; bool higher; const char* hint; };
+    BnCheck checks[] = {
         {"RIA Ca²⁺ |AC|", ria_mean, 0.005, true, "AWC/ASE→AIY→RIA 通路"},
         {"Klinotaxis corr", ktx_mean, 0.05, true, "RIA→SMB→肌肉→曲率 信号链"},
         {"Heading bias", hb_mean, 0.02, true, "smb_muscle_gain / klinotaxis_gain"},
         {"Klinokinesis", kk_mean, 0.1, true, "dC/dt→ASER→AIB→AVA 通路"},
         {"Run ratio", rr_mean, 1.2, true, "反转梯度调制"},
         {"Omega toward%", ot_mean, 55.0, true, "RIV L/R gradient bias"},
+        {"Time near food", tnf_mean * 100, 5.0, true, "\xe5\xaf\xbc\xe8\x88\xaa\xe6\x95\x88\xe7\x8e\x87 (\xe8\x99\xab\xe6\x9c\xaa\xe5\x88\xb0\xe8\xbe\xbe\xe9\xa3\x9f\xe7\x89\xa9\xe5\x8c\xba)"},
     };
 
     int total_bn = 0;
-    for (auto& c : checks) {
+    for (int ci = 0; ci < 7; ++ci) {
+        BnCheck& c = checks[ci];
         bool ok = c.higher ? c.val >= c.ok : c.val <= c.ok;
         std::cout << "  " << (ok ? "✓" : "✗") << " " << c.name << " = " << std::setprecision(3) << c.val;
         if (!ok) { std::cout << "  → " << c.hint; total_bn++; }

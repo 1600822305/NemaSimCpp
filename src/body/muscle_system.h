@@ -29,12 +29,12 @@ struct MuscleCell {
     double boost_input = 0.0;       // sum semantics (specialized MNs: RIV, SMB)
     double inhibitory_input = 0.0;  // sum semantics (D-class GABAergic)
 
-    static constexpr double TAU = 30.0;  // ms — contraction time constant
+    double tau = 30.0;  // ms — contraction time constant (was static constexpr)
 
     void step(double dt_ms) {
         double drive = excitatory_input + boost_input - inhibitory_input;
         if (drive < 0.0) drive = 0.0;
-        activation += (drive - activation) * dt_ms / TAU;
+        activation += (drive - activation) * dt_ms / tau;
         if (activation < 0.0) activation = 0.0;
     }
 
@@ -89,6 +89,10 @@ public:
     // --- Raw activation (for diagnostics/visualization) ---
     double get_dorsal_activation(int seg) const;
     double get_ventral_activation(int seg) const;
+
+    // Swimming gait: set muscle time constant for all cells
+    // REF: Fang-Yen 2010 — muscles contract faster in low-viscosity media
+    void set_muscle_tau(double tau_ms);
 
 private:
     std::array<MuscleCell, NUM_BODY_SEGMENTS> dorsal_{};

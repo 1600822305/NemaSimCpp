@@ -133,6 +133,58 @@ void SimulationEngine::update_pathogen_learning() {
 }
 
 // ================================================================
+// Step 128: Olfactory Associative Conditioning (Colbert & Bargmann 1995)
+// "Butanone adaptation": prolonged odor exposure while hungry → reduced attraction
+// Mechanism: AWC active + hungry → AWC→AIY w_mod ↓ (reduce attraction)
+//            AWC active + fed   → AWC→AIY w_mod ↑ (reinforce attraction)
+// Different from pathogen learning: does NOT require sickness/toxin ingestion
+// Just needs odor+starvation pairing (classical conditioning of olfactory memory)
+// REF: Colbert & Bargmann 1995, Cho 2016 Cell Rep, Torayama 2007
+// ================================================================
+void SimulationEngine::update_olfactory_conditioning() {
+    // Only update every 200ms
+    if (static_cast<int>(current_time_ / dt_) % 400 != 0) return;
+
+    int n = static_cast<int>(neurons_.size());
+    auto& synapses = connectome_.synapses_mut();
+    const auto& ninfos = connectome_.neuron_infos();
+
+    // Conditioning signal: fed → positive (reinforce), hungry → negative (weaken)
+    // Distinct from pathogen learning which uses sickness_
+    // Only active when AWC is actually sensing odor (S_pre > threshold)
+    double condition_signal = satiety_ - 0.3;  // threshold at 0.3 (hungrier threshold than salt)
+
+    // Step 62: Sleep boosts learning rate
+    double sleep_factor = is_sleeping_ ? sleep_learn_boost_ : 1.0;
+    // Slower than pathogen learning (0.0005 vs 0.003): conditioning takes longer
+    double lr = 0.0005 * sleep_factor;
+
+    for (size_t idx : awc_syn_indices_) {
+        auto& syn = synapses[idx];
+        int pre = syn.pre_id();
+        int post = syn.post_id();
+        const std::string& post_name = ninfos[post].name;
+
+        double V_pre = neurons_[pre]->get_membrane_potential();
+        double S_pre = 1.0 / (1.0 + fast_exp(-(V_pre - (-35.0)) / 5.0));
+        if (S_pre < 0.1) continue;  // AWC must be active (sensing odor)
+
+        // AWC→AIY: hungry → weaken (reduce forward runs toward odor)
+        //           fed → strengthen (reinforce attraction)
+        if (post_name.compare(0, 3, "AIY") == 0) {
+            syn.adjust_weight_mod(lr * condition_signal * S_pre);
+        }
+        // AWC→AIB: hungry → strengthen (increase turns away from odor)
+        //           fed → weaken (reduce aversion)
+        if (post_name.compare(0, 3, "AIB") == 0) {
+            syn.adjust_weight_mod(-lr * condition_signal * S_pre);
+        }
+    }
+
+    update_awc_pref_cache();
+}
+
+// ================================================================
 // Step 62: Synaptic forgetting — slow w_mod drift toward 1.0
 // ================================================================
 void SimulationEngine::apply_synaptic_forgetting() {

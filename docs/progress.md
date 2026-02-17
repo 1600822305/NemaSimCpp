@@ -885,6 +885,96 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
 - **behavior_analyzer**: R/D 指标 (roaming_fraction, foraging_transitions, bout durations)
 - **验证**: Roaming 2-10%, Dwelling 90-98%, 转换~2次, bout~6s (3种子, 60-300s)
 
+### Step 122: Eigenworm PCA 分析工具 ✅ (2026-02-17)
+> 详细文档: [steps/step122_eigenworm_pca.md](steps/step122_eigenworm_pca.md)
+
+- **eigenworm_analyzer**: 新诊断工具, 对仿真体姿进行主成分分析 (PCA)
+- **方法**: 前进帧曲率谱 → 相关矩阵 (standardized PCA) → Jacobi 特征分解 (48×48)
+- **结果**: Top-4 eigenworms 解释 78-81% 方差, 集中度 9.4-10.4x (远超均匀基准 8.3%)
+- **频率分析**: 4段自相关 + 过零检测, 中位频率取值, 爬行/游泳/过渡三态分类
+- **CLI**: `--duration`, `--seed`, `--viscosity`, `--verbose`, `--export FILE`
+- REF: Stephens 2008 PLoS Comput Biol — 4 eigenworms capture >95% variance
+
+### Step 123: 游泳步态切换 — 介质黏度参数化 ✅ (2026-02-17)
+> 详细文档: [steps/step123_swimming_gait.md](steps/step123_swimming_gait.md)
+
+- **BodyModel::set_medium_viscosity(v)**: 1.0=琼脂爬行, 0.01=水中游泳
+- **机制** (3 层联动):
+  - 肌肉时间常数: TAU = 30×(0.3+0.7v) ms — 水中肌肉响应 3× 更快
+  - 曲率动力学: effective_stiffness × (1+2(1-v)) — 水中身体更快跟随肌肉目标
+  - 拖曳比: C_N/C_T = 1.5 (琼脂) → 2.0 (水, Lighthill 1976)
+- **涌现验证** (seed=42, 30s):
+  - 琼脂 (v=1.0): 0.35 Hz, 0.18 mm/s — ✓ 爬行步态
+  - 水 (v=0.01): 1.01 Hz, 0.52 mm/s — ✓ 频率 3.5× 升高, 速度 3× 升高
+- **SimulationEngine**: `set_medium_viscosity()` 转发, 所有诊断工具可用 `--viscosity`
+- REF: Fang-Yen 2010, Berri 2009, Pierce-Shimomura 2008
+
+### Step 124: 触觉回避回路验证 — 配对对照实验 ✅ (2026-02-17)
+> 详细文档: [steps/step124_touch_avoidance.md](steps/step124_touch_avoidance.md)
+
+- **诊断注入接口**: `inject_neuron_current()` / `clear_injections()` — 在 step() 中 apply_touch_stimulus() 后应用
+- **touch_analyzer** (17th 诊断工具): 配对对照实验设计 (control→gap→stimulus)
+- **4 个测试** (各 30 trials):
+  - AVA 直接注入 (60pA) — 正控 ✓ 100% 反转
+  - ALM+AVM (50pA) — 单通路 ✓ 100% 反转
+  - 完整前触 ALM+AVM+OLQ+FLP+IL1 — 真实壁碰撞 ✓ 100%
+  - ALM 消融后完整前触 — 冗余验证 ✓ 100% (FLP/OLQ 补偿)
+- **方法学**: 稳定前进检查(≥500ms) + 对照窗口 0% → 消除自发反转假阳性
+- REF: Chalfie 1985, Porto 2019, Kumar 2023
+
+### Step 125: 多感觉整合测试 — 冲突场景决策 ✅ (2026-02-17)
+> 详细文档: [steps/step125_multisensory_integration.md](steps/step125_multisensory_integration.md)
+
+- **multisensory_analyzer** (18th 诊断工具): 4 场景 × 300s 仿真
+- **场景与结果**:
+  - A. 基线趋化 (仅食物 10mm): CI=-0.005, 路径 57.8mm
+  - B. 食物+斥力 (ASH 激活): 路径 +20% (69.2mm) — ASH 增加探索活动量 ✓
+  - C. 食物+温差 (+0.5°C/mm): 均距 9.6mm — 温度影响不显著
+  - D. 食物在边缘 (高O₂): 均距 18.7mm — 虫不趋近边缘 ✓
+- **整合回路**: AIA 巧合检测 (AWA+ASH) + RMG hub-and-spoke (URX+ASK)
+- REF: Ghosh 2017, Shinkai 2011, Gray 2004
+
+### Step 126: Klinotaxis 符号修正与增益校准 ✅ (2026-02-17)
+> 详细文档: [steps/step126_klinotaxis_sign_fix.md](steps/step126_klinotaxis_sign_fix.md)
+
+- **Bug 1**: `apply_smb_neck_bias()` 中 `ca_nrV - ca_nrD` 符号反转 → 修正为 `ca_nrD - ca_nrV`
+  - Pathway 2 (SMB boost) 原与 Pathway 1 (SMD weathervane) 方向相反，互相抵消
+- **Bug 2**: `max_bias=0.5/mm` 过大 (生物值 ~0.04/mm, Iino 2009) → 修正为 0.05
+  - `smb_muscle_gain` 15→8 (两通路协作后需减小)
+- **修正效果** (8 种子, 300s):
+  - CI: -0.005±0.011 → **+0.024±0.002** (从负转正)
+  - Omega toward%: 35.7% → **95.3%** (趋化主要由 omega 转向驱动)
+  - Speed: 0.209 → 0.175 mm/s (回归正常范围)
+- **无回归**: touch_analyzer 4/4 通过, multisensory 4 场景 CI 均为正
+- REF: Iino & Yoshida 2009, Hendricks 2012
+
+### Step 127: 渗透压回避 + CO₂回避 + Tier 1 行为审计 ✅ (2026-02-17)
+> 详细文档: [steps/step127_osmotic_co2_avoidance.md](steps/step127_osmotic_co2_avoidance.md)
+
+- **文献调研**: 6 个教科书级缺失行为的回路/机制/参数 → 发现 4/6 已实现
+- **渗透压回避** (新增): ASH 多模态整合 `max(repellent, osmolarity)` (共用 OSM-9/TRPV)
+  - `Environment::sample_osmolarity()` — sigmoid 边界圆形高渗区域
+  - Colbert 1997 环形实验验证: CI 0.028→0.022 (渗透压阻碍趋化)
+- **CO₂回避** (新增): 独立 CO₂ 化学场 → BAG `max(food_co2, ext_co2)` 多源整合
+  - `Environment::co2_field()` — σ=15mm 广扩散 (气体)
+  - `set_co2_source()` API 支持实验级 CO₂ 梯度测试
+- **已有行为确认**: 鼻触 (Step33+73), PVD粗触 (Step36), DMP (Step56+71), 产卵 (Step38)
+- **无回归**: touch_analyzer 4/4 通过
+- REF: Colbert 1997, Hallem 2008, Kaplan 1993, Way 1989, Thomas 1990, Collins 2016
+
+### Step 128: Tier 2 行为 — 6 个感觉/学习增强 ✅ (2026-02-17)
+> 详细文档: [steps/step128_tier2_behaviors.md](steps/step128_tier2_behaviors.md)
+
+- **代码审计**: 识别 6 个 Tier 2 缺失行为 (连接组已有但感觉传导缺失)
+- **PVM 后体轻触** (★☆): rear_touch → PVM=40pA (PLM 的 50%)
+- **FLP 热伤害** (★★): T>33°C → TRPA-1 → FLP 热电流 (max 40pA), 与机械多模态 max
+- **ADL 信息素采样** (★★): pheromone_field → ADL 检测 ascaroside (max 20pA)
+- **长期嗅觉适应** (★★): ChemoTransducer 加超慢 LTA 滤波器 (AWC τ=300s/70%, AWA τ=600s/50%)
+- **ALA 应激静止** (★★): 热/伤害 → ALA 钙平台 (τ=30s) → ALA⊣AVA + ALA↔RIS
+- **嗅觉联想条件化** (★★★): odor+starvation → AWC→AIY w_mod↓ (丁酮适应范式)
+- **无回归**: touch_analyzer 4/4, multisensory 6/6 通过
+- REF: Chalfie 1985, Chatzigeorgiou 2010, Jang 2012, L'Etoile 2002, Hill 2014, Colbert 1995
+
 ---
 
 ## 当前系统状态
@@ -907,9 +997,10 @@ Connectome 管理器: build() + compute_synaptic_currents() (化学突触 + 间�
   FLP-11 源: RIS (睡眠) — DMSR-1→AVA/AVB(-20)/MC(-18)/head_MN(-28)/body_MN(-42, 胆碱能only)/MUSCLE_GAIN(-0.95) + FRPR-8→RIS(-8, 自抑制)
 离子通道: 14 种 (EGL-19/UNC-2/CCA-1/SHL-1/KQT-3/SLO-1/NCA/MEC + EGL-36/IRK/TWK/SLO-2/OSM-9/EXP-2)
 神经元模型: 单隔室 HH 分级电位 (L2) + 多隔室 (RIA) + 钙动力学
-身体: 2D 弹性杆 48 段, MuscleSystem(48D+48V, 30ms τ, 双通道:max+boost), 91 MN 映射
-  RFT 分布式力学 (Step 118): 3×3 力平衡求解, C_N/C_T≈1.5, 方向涌现, 无 direction flag
-  曲率纯肌肉涌现(force_diff无neuromod), curvature_gain=4.0, max_curv=25, speed_cap=0.8mm/s
+身体: 2D 弹性杆 48 段, MuscleSystem(48D+48V, 可变τ, 双通道:max+boost), 91 MN 映射
+  RFT 分布式力学 (Step 118): 3×3 力平衡求解, C_N/C_T≈1.5-2.0, 方向涌现, 无 direction flag
+  曲率纯肌肉涌现(force_diff无neuromod), curvature_gain=4.0, max_curv=25
+  介质黏度 (Step 123): medium_viscosity 1.0(琼脂)→0.01(水), 肌肉τ+曲率刚度+拖曳比 三层联动
 环境: 50×50 mm, 4化学场(food_odor+soluble+repellent+pheromone) + 线性温度梯度 (0.5°C/mm) + O₂场(food派生) + 光场(高斯σ=8mm)
 内部状态: satiety_(泵驱动), sickness_(有毒食物), food_memory_(双通路ARS), fatigue_(睡眠驱动), foraging_state_(roaming/dwelling双稳态)
 学习: 盐学习(ASER w_mod) + 病原体学习(AWC翻转+WV反向+厌食) + 温度学习(Tc适应+AWC饥饿中断) + STP习惯化 + 睡眠巩固(Step 62) + INS-1厌食(Step 63)
@@ -929,9 +1020,10 @@ P0/P1 违规全部修复:
   P1-1.5: set_locomotion_state 覆盖移除 → 完全神经回路驱动 (Step 66)
   P0-5: DMP speed_factor 移除 → AVL/DVB GABA→B-class MN 涌现减速 (Step 71)
   P0-6: FLP-11 直接注入移除 → NeuromodulationManager DMSR-1 框架 (Step 71)
-行为指标 (300s): CI≈0.44 (naive), CI≈-0.01 (sickness=1, 病原体回避生效), omega/reversal≈57%, reversal_rate≈0.14/s, speed≈0.15mm/s
+行为指标 (300s): CI≈0.024 (naive, 8-seed mean), omega_toward≈95%, reversal_rate≈0.14/s, speed≈0.175mm/s
+  Step 126: CI从-0.005→+0.024 (ca_diff符号修正+max_bias校准), omega从35.7%→95.3%
 工具: celegans_diag.exe (信号链诊断+fitness) + celegans_regtest.exe (回归检测+电流溯源)
-诊断工具套件 (Step 114+119+120, 14个独立可执行文件):
+诊断工具套件 (Step 114+119+120+122+124+125, 18个独立可执行文件):
   health_check     — 快速健康扫描 (PASS/WARN/FAIL)
   neuron_monitor   — 神经元电压/释放率追踪
   circuit_probe    — 回路信号传播分析
@@ -942,10 +1034,14 @@ P0/P1 违规全部修复:
   perf_profiler    — 性能剖析 (计时/瓶颈/内存/可扩展性)
   param_sweep      — 参数扫描 (范围搜索 + 灵敏度分析)
   wave_analyzer    — 行波传播诊断 (方向/门控/RFT分解/klinotaxis)
-  chemotaxis_analyzer — CI归因分析 (多种子并行, 信号链瓶颈定位)
+  chemotaxis_analyzer — CI归因分析 (多种子并行, 信号链瓶颈定位, WV slope/TNF%/curving rate)
   signal_chain_debugger — 事件级信号链快照 (omega/reversal全链路转储, AI辅助调试)
   current_decomposer — 突触电流归因 (分解每个神经元输入电流来源, 排名+百分比)
   gain_profiler    — 信号链增益剖析 (klinokinesis/klinotaxis/omega三条链, 瓶颈检测)
+  eigenworm_analyzer — Eigenworm PCA + 步态频率分析 (相关矩阵PCA, --viscosity步态切换)
+  social_analyzer  — N2 vs Hawaiian品系社会行为对比 (聚集/分散指标)
+  touch_analyzer   — 触觉回避回路验证 (配对对照实验, 4测试×30trials)
+  multisensory_analyzer — 多感觉整合冲突决策 (4场景: 基线/斥力/温度/O₂)
 
 运动驱动 (Step 13 — 生物学机制):
   感觉基线: 12 感觉神经元 × 15pA 自发活动 (Bargmann 2006)

@@ -43,8 +43,19 @@ void BodyModel::compute_curvatures(double dt) {
 
         // Semi-implicit Euler (unconditionally stable for stiffness/damping):
         // dcurv/dt = stiffness*(target - curv) - damping*curv + diffusion
-        double denom = 1.0 + (stiffness_ + damping_) * dt;
-        seg.curvature = (seg.curvature + dt * (stiffness_ * target_curvature + diffusion)) / denom;
+        //
+        // Medium viscosity effect on curvature dynamics:
+        // In water: less external friction → body shape responds faster to muscle
+        // forces → effective stiffness increases (body follows target more quickly).
+        // This is the primary mechanism for crawling→swimming gait transition.
+        // REF: Fang-Yen 2010 — curvature response scales with medium load
+        //      Boyle 2012 — external load modulates body wave frequency
+        double visc_factor = 1.0 + 2.0 * (1.0 - medium_viscosity_);  // 1.0 agar, 2.98 water
+        double effective_stiffness = stiffness_ * visc_factor;
+        double effective_damping = damping_ * (0.3 + 0.7 * medium_viscosity_);
+        double effective_diffusion = diffusion * visc_factor;  // wave propagates faster in water
+        double denom = 1.0 + (effective_stiffness + effective_damping) * dt;
+        seg.curvature = (seg.curvature + dt * (effective_stiffness * target_curvature + effective_diffusion)) / denom;
 
         // Clamp curvature to physical limit: ~25/mm (head touching body in omega)
         // REF: Gray 2005 PNAS — omega turn curvature 20-25/mm
@@ -162,8 +173,8 @@ void BodyModel::update_positions(double dt) {
     // force balance self-consistency. At very high speeds, nonlinear drag
     // (not modeled) would limit motion. Cap at 0.8 mm/s translational.
     double v_mag = std::sqrt(Vx * Vx + Vy * Vy);
-    if (v_mag > 0.8) {
-        double scale = 0.8 / v_mag;
+    if (v_mag > speed_cap_) {
+        double scale = speed_cap_ / v_mag;
         Vx *= scale;
         Vy *= scale;
         Omega *= scale;
@@ -286,6 +297,23 @@ double BodyModel::get_local_stretch(int segment) const {
 Vector2d BodyModel::get_segment_position(int segment) const {
     if (segment < 0 || segment >= NUM_BODY_SEGMENTS) return {0, 0};
     return segments_[segment].position;
+}
+
+void BodyModel::set_medium_viscosity(double v) {
+    medium_viscosity_ = v;
+
+    // Muscle dynamics: less external load → faster contraction in water
+    // Agar (v=1.0): tau=30ms. Water (v=0.01): tau≈9ms.
+    // REF: Fang-Yen 2010 — muscle dynamics scale with external load
+    double tau = 30.0 * (0.3 + 0.7 * v);
+    muscles_.set_muscle_tau(tau);
+
+    // Drag ratio: agar C_N/C_T≈1.5, water C_N/C_T≈2.0 (Lighthill 1976)
+    drag_tangential_ = 3.4;
+    drag_normal_ = (v < 0.5) ? drag_tangential_ * 2.0 : drag_tangential_ * 1.5;
+
+    // Speed cap: swimming can achieve higher linear velocity
+    speed_cap_ = 0.8 + 1.2 * (1.0 - v);  // 0.8 agar → 2.0 water
 }
 
 } // namespace celegans

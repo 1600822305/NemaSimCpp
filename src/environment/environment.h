@@ -15,8 +15,21 @@ public:
     double sample_chemical(Vector2d pos) const;      // food odor (volatile, AWC/AWA)
     double sample_soluble(Vector2d pos) const;        // salt/amino acids (ASE)
     double sample_repellent(Vector2d pos) const;
+    double sample_osmolarity(Vector2d pos) const;     // Step 127: osmotic avoidance (ASH/OSM-9)
+    double sample_co2(Vector2d pos) const;              // Step 127: independent CO₂ source (BAG/GCY-9)
     double sample_temperature(Vector2d pos) const;
     Vector2d temperature_gradient(Vector2d pos) const;
+
+    // Step 127: Osmotic field — high osmolarity regions (Colbert 1997, Kunitomo 2017)
+    // Sharp-edged region: worm crosses boundary → ASH detects via OSM-9/TRPV
+    void set_osmotic_region(Vector2d center, double radius, double strength = 1.0);
+    bool has_osmotic_field() const { return osmo_strength_ > 0.0; }
+
+    // Step 127: CO₂ field — independent CO₂ source (Hallem 2008)
+    ChemicalField& co2_field() { return co2_field_; }
+    const ChemicalField& co2_field() const { return co2_field_; }
+    bool has_co2_field() const { return has_co2_; }
+    void set_co2_source(Vector2d pos, double strength);
 
     // Food density: narrow Gaussian around food sources (σ²=9mm², σ≈3mm)
     // Biologically: volatile attractants diffuse widely (σ≈12mm) for navigation,
@@ -58,6 +71,13 @@ private:
     ChemicalField chem_field_;        // food odor (volatile, bacteria-specific) → AWC/AWA
     ChemicalField soluble_field_;      // Step 26b: salt/amino acids (water-soluble) → ASE
     ChemicalField repellent_field_;    // Step 25: noxious chemicals → ASH
+    ChemicalField co2_field_;            // Step 127: independent CO₂ source → BAG
+    bool has_co2_ = false;
+
+    // Step 127: Osmotic field — circular high-osmolarity region
+    Vector2d osmo_center_ = {-1.0, -1.0};
+    double osmo_radius_ = 0.0;        // mm
+    double osmo_strength_ = 0.0;       // normalized [0,1]
     ChemicalField pheromone_field_;    // Step 64: ascaroside pheromones → ADL
     bool has_pheromone_ = false;        // flag for pheromone presence
 

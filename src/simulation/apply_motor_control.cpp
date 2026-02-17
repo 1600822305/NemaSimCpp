@@ -200,7 +200,7 @@ void SimulationEngine::apply_smb_neck_bias() {
         if (!mc || mc->num_compartments() < 3) continue;
         double ca_nrV = mc->get_compartment_calcium(1);  // nrV = compartment 1
         double ca_nrD = mc->get_compartment_calcium(2);  // nrD = compartment 2
-        ca_diff += (ca_nrV - ca_nrD);  // sign: ventral Ca > dorsal → curve toward food
+        ca_diff += (ca_nrD - ca_nrV);  // sign: dorsal Ca > ventral → dorsal boost → curve toward food
         count++;
     }
 
@@ -224,7 +224,7 @@ void SimulationEngine::apply_smb_neck_bias() {
     // Clamp
     // Step 28: reduced from 2.0 to 0.9 because Ca2+ signal is cleaner
     // than old AC/DC approximation (less noise -> hits clamp more often)
-    double max_bias = 0.5;
+    double max_bias = 0.05;  // Step 126: 0.5→0.05 (bio: ~0.04/mm klinotaxis curvature, Iino 2009)
     if (curvature_offset > max_bias) curvature_offset = max_bias;
     if (curvature_offset < -max_bias) curvature_offset = -max_bias;
 
@@ -235,7 +235,7 @@ void SimulationEngine::apply_smb_neck_bias() {
     if (!riv_omega_active_) {
         // Convert curvature offset (/mm) to muscle force via boost
         // Gain calibrated so ±0.5/mm offset → force_diff ~1.5 → curvature ~0.45/mm
-        double smb_muscle_gain = 15.0; // Step 119: 5x increase for RFT torque dilution (head lever arm ~12% of body)
+        double smb_muscle_gain = 8.0; // Step 126: 15→8 after ca_diff sign fix + max_bias reduction
         double dorsal_boost = curvature_offset > 0 ? curvature_offset * smb_muscle_gain : 0.0;
         double ventral_boost = curvature_offset < 0 ? -curvature_offset * smb_muscle_gain : 0.0;
         for (int seg = 0; seg < 6; ++seg) {

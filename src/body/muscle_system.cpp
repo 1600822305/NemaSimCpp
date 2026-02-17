@@ -70,4 +70,9 @@ double MuscleSystem::get_ventral_activation(int seg) const {
     return ventral_[seg].activation;
 }
 
+void MuscleSystem::set_muscle_tau(double tau_ms) {
+    for (auto& m : dorsal_)  m.tau = tau_ms;
+    for (auto& m : ventral_) m.tau = tau_ms;
+}
+
 } // namespace celegans

@@ -89,12 +89,16 @@ void SimulationEngine::initialize_default() {
             // AWC→AIB(GLR-1 excit.) + AWC→AIY(GLC-3 inhib.) + AWC⊣AIA(Cl⁻ disinhibit.)
             // REF: Chalasani 2007 Nature, Kakaria 2019 eLife, Tsunozaki 2008
             chemo_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::OFF, 80.0, 5.0, 100.0)});
+            // Step 128: Enable long-term olfactory adaptation (EGL-4/PKG, Colbert 1995)
+            chemo_mappings_.back().transducer.set_long_term_adaptation(true, 300000.0, 0.7);
         } else if (starts_with(info.name, "AWA")) {
             // AWA: ON-cell — excited by odor ADDITION (Larsch 2015 Cell Reports)
             // Desensitizes within 10s at high conc. (1.15µM), retains sensitivity to increases
             // AWA→AIA via gap junction (Kakaria 2019) — excitatory half of AND-gate
             // REF: Larsch 2015 Cell Reports, Kakaria 2019 eLife, Bargmann 1993
             chemo_mappings_.push_back({info.id, ChemoTransducer(ChemoTransducer::ResponseType::ON, 80.0, 5.0, 100.0)});
+            // Step 128: AWA also shows long-term adaptation (slower than AWC)
+            chemo_mappings_.back().transducer.set_long_term_adaptation(true, 600000.0, 0.5);
         } else if (starts_with(info.name, "ASH")) {
             // Step 25: ASH nociceptors sample REPELLENT field (not attractant)
             // TONIC: responds to absolute repellent concentration (not dC/dt)
@@ -425,6 +429,13 @@ void SimulationEngine::step() {
     apply_touch_stimulus();
     apply_sensitization();  // Step 79: nociceptive sensitization → touch pool boost
 
+    // 2d. Diagnostic current injection (Step 124) — overrides sensory processing
+    // Applied AFTER all sensory/touch processing so diagnostic tools have final say
+    for (auto& inj : diag_injections_) {
+        if (inj.neuron_id >= 0 && inj.neuron_id < static_cast<int>(neurons_.size()))
+            neurons_[inj.neuron_id]->set_external_current(inj.current_pA);
+    }
+
     // 3. Head motor tonic: upstream interneuron drive (RIA→SMD already in connectome)
     // Uses set_external_current() → I_ext_ → survives reset
     apply_head_tonic();
@@ -477,6 +488,53 @@ void SimulationEngine::step() {
         for (int id : nids("RMG")) {
             if (id >= 0 && id < nn)
                 neurons_[id]->add_synaptic_current(npr1_rmg_);
+        }
+    }
+
+    // Step 122: RMG-gated social behavioral modulation (O₂-independent)
+    // Works on-food where O₂ < 14% and URX is inactive
+    // RMG hub amplifies conspecific signals → modulates locomotion circuits
+    // Hawaiian (RMG release ~0.23): strong social modulation
+    // N2 (RMG release ~0.007): negligible social modulation
+    // REF: Macosko 2009 — RMG hub gate; Ding 2019 — density-dependent behavior
+    if (social_neighbor_density_ > 0.01) {
+        int nn = static_cast<int>(neurons_.size());
+
+        // RMG gate: average transmitter release of RMG L/R
+        double rmg_gate = 0.0;
+        int rmg_count = 0;
+        for (int id : nids("RMG")) {
+            if (id >= 0 && id < nn) {
+                rmg_gate += neurons_[id]->get_transmitter_release_rate();
+                rmg_count++;
+            }
+        }
+        if (rmg_count > 0) rmg_gate /= rmg_count;
+
+        // (1) TONIC: dwelling promotion via AIY inhibition
+        // More neighbors → more RMG-gated AIY inhibition → suppresses roaming circuit
+        // AIY is the key roaming-promoting interneuron (Ji 2021 eLife, Step 121)
+        // Hawaiian: density × 0.23 × 50 ≈ -11.5 pA per unit density (significant)
+        // N2: density × 0.007 × 50 ≈ -0.35 pA (negligible)
+        constexpr double social_aiy_gain = 50.0;
+        double aiy_inhib = social_neighbor_density_ * rmg_gate * social_aiy_gain;
+        for (int id : nids("AIY")) {
+            if (id >= 0 && id < nn)
+                neurons_[id]->add_synaptic_current(-aiy_inhib);
+        }
+
+        // (2) PHASIC: cluster-edge reversal via AVA excitation
+        // Spatial gradient: tail_density > head_density → heading AWAY from cluster
+        // This triggers reversal to keep worm in cluster
+        // Hawaiian: strong edge reversal; N2: negligible
+        if (social_neighbor_density_tail_ > social_neighbor_density_ + 0.05) {
+            constexpr double social_ava_gain = 40.0;
+            double gradient = social_neighbor_density_tail_ - social_neighbor_density_;
+            double ava_excite = gradient * rmg_gate * social_ava_gain;
+            for (int id : nids("AVA")) {
+                if (id >= 0 && id < nn)
+                    neurons_[id]->add_synaptic_current(ava_excite);
+            }
         }
     }
 
@@ -553,6 +611,7 @@ void SimulationEngine::step() {
     // 5b5. Step 26: Pathogen avoidance learning (Zhang 2005 Nature)
     update_sickness();           // accumulate sickness from toxic food
     update_pathogen_learning();  // AWC synapse plasticity flip
+    update_olfactory_conditioning(); // Step 128: butanone adaptation (odor+starvation→avoidance)
     apply_synaptic_forgetting(); // Step 62: slow w_mod→1.0 drift (sleep suppresses)
 
     // 5b5b. Step 63: INS-1 insulin signaling (Lin 2010 JNeurosci)

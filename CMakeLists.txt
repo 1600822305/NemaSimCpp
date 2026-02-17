@@ -112,6 +112,7 @@ add_library(celegans_simulation STATIC
     src/simulation/apply_sensory_systems.cpp
     src/simulation/apply_motor_control.cpp
     src/simulation/setup_gpu_stp.cpp
+    src/simulation/multi_worm_simulation.cpp
 )
 target_link_libraries(celegans_simulation PUBLIC
     celegans_connectome
@@ -184,6 +185,22 @@ target_link_libraries(current_decomposer PRIVATE celegans_simulation)
 # Gain Profiler executable (signal chain transfer function gain analysis)
 add_executable(gain_profiler src/diagnostics/gain_profiler_main.cpp)
 target_link_libraries(gain_profiler PRIVATE celegans_simulation)
+
+# Social Analyzer executable (multi-worm aggregation behavior)
+add_executable(social_analyzer src/diagnostics/social_analyzer_main.cpp)
+target_link_libraries(social_analyzer PRIVATE celegans_simulation)
+
+# Eigenworm Analyzer executable (PCA posture analysis + gait classification)
+add_executable(eigenworm_analyzer src/diagnostics/eigenworm_analyzer_main.cpp)
+target_link_libraries(eigenworm_analyzer PRIVATE celegans_simulation)
+
+# Touch Analyzer executable (touch avoidance circuit verification)
+add_executable(touch_analyzer src/diagnostics/touch_analyzer_main.cpp)
+target_link_libraries(touch_analyzer PRIVATE celegans_simulation)
+
+# Multisensory Analyzer executable (multi-cue conflict decision-making)
+add_executable(multisensory_analyzer src/diagnostics/multisensory_analyzer_main.cpp)
+target_link_libraries(multisensory_analyzer PRIVATE celegans_simulation)
 
 # Visualization executable (Dear ImGui + ImPlot + SDL2 + OpenGL)
 if(CELEGANS_BUILD_VIS)
