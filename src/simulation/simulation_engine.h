@@ -195,6 +195,7 @@ private:
     void apply_sensory_input();          // chemosensory neurons sample gradient, others get baseline
     void apply_weathervane();            // gradient ⊥ heading → SMD bias (Iino & Yoshida 2009)
     void apply_ria_smd_modulation();     // RIA release → CCA-1 V_half shift on SMD (Step 19)
+    void apply_smb_proprioception();     // body wave phase → SMB current (Izquierdo 2013 Eq 7)
     void apply_smb_neck_bias();          // SMB D-V balance → neck curvature DC offset (Step 19 P2)
     void apply_gradient_curv_bias();     // Step 130: direct gradient → head muscle curvature bias
     void apply_proprioceptive_stretch(); // body curvature → MEC channels in motor neurons
@@ -303,6 +304,9 @@ private:
     // REF: Hendricks 2012 Nature — nrV/nrD compartmentalized calcium
     double ria_ca_diff_filtered_ = 0.0; // filtered (nrV-nrD) Ca2+ AC component
     double ria_ca_diff_mean_ = 0.0;     // DC baseline of Ca2+ diff (2s tau, for removal)
+
+    // Cascaded low-pass filter intermediate stage for RIA Ca²⁺ gradient extraction
+    double ria_ca_diff_stage1_ = 0.0;   // 1st stage of 2nd-order LP (τ=1s each)
 
     // Thermosensory transduction (Step 23 — Mori 1995)
     struct ThermoMapping {

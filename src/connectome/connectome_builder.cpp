@@ -812,8 +812,8 @@ void build_chemotaxis(CB& b) {
     // C↑ → ASEL active → AIB directly inhibited → fewer reversals
     // Cook 2019: ASEL→AIB ~3 EM sections; scaled to 2
     // REF: Kuramochi 2018 Front Mol Neurosci, Suzuki 2008 Nature, Cook 2019
-    b.syn("ASER", "AIBL", 1); b.syn("ASER", "AIBR", 1);
-    b.inh("ASEL", "AIBL", 1); b.inh("ASEL", "AIBR", 1);
+    b.syn("ASER", "AIBL", 3); b.syn("ASER", "AIBR", 3);
+    b.inh("ASEL", "AIBL", 2); b.inh("ASEL", "AIBR", 2);
     b.syn("AWCL", "AIBL", 4); b.syn("AWCL", "AIYL", 6);
     b.syn("AWCR", "AIBR", 4); b.syn("AWCR", "AIYR", 6);
     // Step 72: AWA→AIA via GAP JUNCTIONS (Kakaria 2019 eLife)
@@ -1114,6 +1114,11 @@ void build_interneuron(CB& b) {
     b.syn("AIYL", "RIAR", 5); b.syn("AIYR", "RIAL", 5);
     // Step 42: Cook 2019 weights: AIYL→AIZL=67, AIYR→AIZR=70
     b.syn("AIYL", "AIZL", 3); b.syn("AIYR", "AIZR", 3);
+    // AIZ→RIA: CRITICAL for weathervane (Iino 2009: AIZ ablation kills klinotaxis)
+    // Cook 2019: AIZL→RIAL≈6, AIZR→RIAR≈6 EM sections (scale ÷2 → weight 3)
+    // Provides additional sensory pathway to RIA for klinotaxis gradient detection.
+    // Safe with EGL-19=0.1nS (compartment Ca²⁺ is store-release-dominated).
+    b.syn("AIZL", "RIAL", 3); b.syn("AIZR", "RIAR", 3);
     // AIY → AVB: promotes forward locomotion
     // REF: Gray 2005 — AIY ablation reduces forward runs
     b.syn("AIYL", "AVBL", 3); b.syn("AIYR", "AVBR", 3);

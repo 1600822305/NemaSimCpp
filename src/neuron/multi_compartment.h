@@ -159,6 +159,13 @@ private:
 
     double release_threshold_ = -35.0;
     double release_slope_ = 5.0;
+
+    // IP3 concentration integrator for store release modulation
+    // Models: PLC → IP3 production (∝ soma depolarization) - IP3 phosphatase degradation
+    // The integration time constant (τ_IP3 ≈ 3s) acts as LP filter before Hill nonlinearity,
+    // separating slow gradient signals from fast motor oscillations (~0.37 Hz)
+    // REF: Bhatt 2000 — IP3 dynamics in C. elegans neurons
+    double ip3_level_ = 0.0;
 };
 
 } // namespace celegans

@@ -39,7 +39,12 @@ void BodyModel::compute_curvatures(double dt) {
         // REF: Boyle 2012 — body continuity allows curvature to spread
         double curv_left  = (i > 0) ? segments_[i - 1].curvature : seg.curvature;
         double curv_right = (i < NUM_BODY_SEGMENTS - 1) ? segments_[i + 1].curvature : seg.curvature;
-        double diffusion = curvature_diffusion_ * (curv_left - 2.0 * seg.curvature + curv_right);
+        // Segment-dependent diffusion: head (seg 0-11) uses base value to
+        // preserve klinotaxis phase relationships; body (seg 12+) uses 4×
+        // stronger coupling for wave propagation. Models neck flexibility
+        // vs continuous body wall elasticity. REF: Boyle 2012, Wen 2012
+        double local_diffusion = (i < 12) ? curvature_diffusion_ : curvature_diffusion_ * 4.0;
+        double diffusion = local_diffusion * (curv_left - 2.0 * seg.curvature + curv_right);
 
         // Semi-implicit Euler (unconditionally stable for stiffness/damping):
         // dcurv/dt = stiffness*(target - curv) - damping*curv + diffusion

@@ -58,6 +58,10 @@ struct ChemoSample {
     double head_curv;
     double heading_rate;
     double ava_rel, avb_rel;
+    double aib_release;   // AIB transmitter release (reversal attribution)
+    double aser_release;  // ASER individual release (pathway correlation)
+    double asel_release;  // ASEL individual release
+    double aiy_release;   // AIY release (klinokinesis: AIY→AVB run promotion)
 };
 
 // ================================================================
@@ -82,6 +86,23 @@ struct SeedResult {
     double weathervane_slope;   // dθ/dt vs food_angle regression slope (°/s per rad, Iino 2009)
     bool converging;            // food angle trend Q4 < Q1
     int bottleneck_count;
+    // Enhancement: reversal attribution
+    double rev_sensory_pct;     // % reversals with AIB above forward P75 (sensory-driven)
+    double rev_stochastic_pct;  // % reversals with AIB below forward P75 (noise-driven)
+    double aib_fwd_mean;        // mean AIB release during forward movement
+    double aib_fwd_p75;         // 75th percentile AIB release during forward movement
+    double aib_at_rev_mean;     // mean AIB release at reversal onset
+    // Enhancement: pathway correlation
+    double aser_aib_corr;       // ASER↔AIB release rate correlation
+    // Enhancement: klinokinesis pathway (AIY→AVB)
+    double aiy_fwd_mean;        // mean AIY release during forward runs
+    double aiy_toward_mean;     // AIY release when heading toward food
+    double aiy_away_mean;       // AIY release when heading away from food
+    double aiy_avb_corr;        // AIY↔AVB release correlation
+    // Enhancement: CI phase decomposition
+    double ci_fwd;              // CI contribution from forward runs
+    double ci_rev;              // CI contribution from reversals
+    double ci_omega;            // CI contribution from omega turns
 };
 
 // ================================================================
@@ -111,6 +132,8 @@ static SeedResult run_single_seed(int seed, double duration_s, double target_x, 
     int asel = fid("ASEL"), aser = fid("ASER");
     int aval = fid("AVAL"), avar = fid("AVAR");
     int avbl = fid("AVBL"), avbr = fid("AVBR");
+    int aibl = fid("AIBL"), aibr = fid("AIBR");
+    int aiyl = fid("AIYL"), aiyr = fid("AIYR");
     int smddl = fid("SMDDL");
     int rial = fid("RIAL"), riar = fid("RIAR");
 
@@ -162,6 +185,10 @@ static SeedResult run_single_seed(int seed, double duration_s, double target_x, 
         cs.head_curv = hc / 6.0;
         cs.ava_rel = (rel(aval) + rel(avar)) * 0.5;
         cs.avb_rel = (rel(avbl) + rel(avbr)) * 0.5;
+        cs.aib_release = (rel(aibl) + rel(aibr)) * 0.5;
+        cs.aser_release = rel(aser);
+        cs.asel_release = rel(asel);
+        cs.aiy_release = (rel(aiyl) + rel(aiyr)) * 0.5;
         cs.heading_rate = 0;
         samples.push_back(cs);
     }
@@ -300,6 +327,128 @@ static SeedResult run_single_seed(int seed, double duration_s, double target_x, 
             double denom = wv_n * wv_sxx - wv_sx * wv_sx;
             res.weathervane_slope = (denom > 1e-12)
                 ? (wv_n * wv_sxy - wv_sx * wv_sy) / denom : 0;
+        }
+    }
+
+    // --- Enhancement 1: Reversal attribution ---
+    // Adaptive threshold: compute P75 of AIB release during forward movement.
+    // Reversals where AIB > P75 are "sensory-driven" (AIB elevated above baseline).
+    // This avoids the fixed 0.3 threshold which may miss low-amplitude modulation.
+    {
+        // Collect AIB release during forward movement for baseline distribution
+        std::vector<double> aib_fwd;
+        for (size_t i = 1; i < samples.size(); ++i) {
+            if (!samples[i].is_reversing && !samples[i].is_omega)
+                aib_fwd.push_back(samples[i].aib_release);
+        }
+        std::sort(aib_fwd.begin(), aib_fwd.end());
+        double aib_p75 = (!aib_fwd.empty()) ? aib_fwd[aib_fwd.size() * 3 / 4] : 0.3;
+        double aib_fwd_sum = 0;
+        for (double v : aib_fwd) aib_fwd_sum += v;
+        res.aib_fwd_mean = (!aib_fwd.empty()) ? aib_fwd_sum / aib_fwd.size() : 0;
+        res.aib_fwd_p75 = aib_p75;
+
+        // Classify reversals
+        int rev_sensory = 0, rev_stochastic = 0;
+        double aib_at_rev_sum = 0; int rev_count = 0;
+        bool was_reversing = false;
+        for (size_t i = 1; i < samples.size(); ++i) {
+            if (samples[i].is_reversing && !was_reversing) {
+                double aib_val = samples[i].aib_release;
+                aib_at_rev_sum += aib_val; rev_count++;
+                if (aib_val > aib_p75) rev_sensory++;
+                else rev_stochastic++;
+            }
+            was_reversing = samples[i].is_reversing;
+        }
+        int rev_total = rev_sensory + rev_stochastic;
+        res.rev_sensory_pct = (rev_total > 0) ? 100.0 * rev_sensory / rev_total : 0;
+        res.rev_stochastic_pct = (rev_total > 0) ? 100.0 * rev_stochastic / rev_total : 0;
+        res.aib_at_rev_mean = (rev_count > 0) ? aib_at_rev_sum / rev_count : 0;
+    }
+
+    // --- Enhancement 2: ASER→AIB pathway correlation ---
+    // Pearson correlation between ASER release and AIB release (lagged 1 sample = 50ms)
+    // Positive correlation means the biological pathway is transmitting
+    {
+        double sx = 0, sy = 0, sxx = 0, syy = 0, sxy_val = 0; int cn = 0;
+        for (size_t i = 2; i < samples.size(); ++i) {
+            if (samples[i].is_omega || samples[i-1].is_omega) continue;
+            double x = samples[i-1].aser_release;  // ASER at time t-1
+            double y = samples[i].aib_release;       // AIB at time t (50ms lag)
+            sx += x; sy += y; sxx += x*x; syy += y*y; sxy_val += x*y; cn++;
+        }
+        if (cn > 2) {
+            double mx2 = sx/cn, my2 = sy/cn;
+            double vx2 = sxx/cn - mx2*mx2, vy2 = syy/cn - my2*my2;
+            double cov = sxy_val/cn - mx2*my2;
+            res.aser_aib_corr = (vx2 > 1e-12 && vy2 > 1e-12) ? cov/std::sqrt(vx2*vy2) : 0;
+        } else {
+            res.aser_aib_corr = 0;
+        }
+    }
+
+    // --- Enhancement 2b: AIY klinokinesis pathway (Luo 2014, Gray 2005) ---
+    // Klinokinesis works through AIY→AVB (run promotion), NOT AIB→AVA.
+    // Luo 2014: "AIB peaks at END of reorientation" (omega turn, not reversal trigger).
+    // Gray 2005: "AIY ablation → failed to suppress reversals" (AIY is the key node).
+    // Pathway: ASEL(ON)→AIY(excit) + ASER(OFF)⊣AIY(inhib) → AIY→AVB → forward drive
+    // When heading toward food: ASEL active → AIY↑ → AVB↑ → suppress reversals
+    // When heading away: ASER active → AIY↓ → AVB↓ → permit reversals
+    {
+        double aiy_toward_sum = 0, aiy_away_sum = 0;
+        int toward_n = 0, away_n = 0;
+        double aiy_fwd_sum = 0; int fwd_n = 0;
+        for (size_t i = 1; i < samples.size(); ++i) {
+            if (samples[i].is_reversing || samples[i].is_omega) continue;
+            aiy_fwd_sum += samples[i].aiy_release; fwd_n++;
+            bool toward = std::abs(samples[i].food_angle) < M_PI / 2;
+            if (toward) { aiy_toward_sum += samples[i].aiy_release; toward_n++; }
+            else { aiy_away_sum += samples[i].aiy_release; away_n++; }
+        }
+        res.aiy_fwd_mean = (fwd_n > 0) ? aiy_fwd_sum / fwd_n : 0;
+        res.aiy_toward_mean = (toward_n > 0) ? aiy_toward_sum / toward_n : 0;
+        res.aiy_away_mean = (away_n > 0) ? aiy_away_sum / away_n : 0;
+
+        // AIY↔AVB correlation (should be positive: AIY promotes forward drive)
+        double sx2 = 0, sy2 = 0, sxx2 = 0, syy2 = 0, sxy2 = 0; int cn2 = 0;
+        for (size_t i = 1; i < samples.size(); ++i) {
+            if (samples[i].is_omega) continue;
+            double x = samples[i].aiy_release;
+            double y = samples[i].avb_rel;
+            sx2 += x; sy2 += y; sxx2 += x*x; syy2 += y*y; sxy2 += x*y; cn2++;
+        }
+        if (cn2 > 2) {
+            double mx3 = sx2/cn2, my3 = sy2/cn2;
+            double vx3 = sxx2/cn2 - mx3*mx3, vy3 = syy2/cn2 - my3*my3;
+            double cov2 = sxy2/cn2 - mx3*my3;
+            res.aiy_avb_corr = (vx3 > 1e-12 && vy3 > 1e-12) ? cov2/std::sqrt(vx3*vy3) : 0;
+        } else {
+            res.aiy_avb_corr = 0;
+        }
+    }
+
+    // --- Enhancement 3: CI phase decomposition ---
+    // Break total displacement into forward/reversal/omega contributions
+    {
+        double fwd_disp = 0, rev_disp = 0, omg_disp = 0;
+        for (size_t i = 1; i < samples.size(); ++i) {
+            double dx = samples[i].pos.x - samples[i-1].pos.x;
+            double dy = samples[i].pos.y - samples[i-1].pos.y;
+            // Project displacement onto food direction
+            double fdx = food_pos.x - samples[i-1].pos.x;
+            double fdy = food_pos.y - samples[i-1].pos.y;
+            double fd = std::sqrt(fdx*fdx + fdy*fdy);
+            double proj = (fd > 0.01) ? (dx*fdx + dy*fdy) / fd : 0;
+            if (samples[i].is_omega) omg_disp += proj;
+            else if (samples[i].is_reversing) rev_disp += proj;
+            else fwd_disp += proj;
+        }
+        // Normalize by total path length
+        if (total_path > 0) {
+            res.ci_fwd = fwd_disp / total_path;
+            res.ci_rev = rev_disp / total_path;
+            res.ci_omega = omg_disp / total_path;
         }
     }
 
@@ -486,6 +635,43 @@ int main(int argc, char* argv[]) {
     std::cout << "  WV slope:         " << std::setprecision(2) << wvs_mean << " \xc2\xb0/s/rad  (Iino 2009)\n";
     std::cout << "  RIA |Ca\xc2\xb2\xe2\x81\xba AC|:    " << std::setprecision(4) << ria_mean << "\n";
     std::cout << "  Converging:       " << n_converge << "/" << n_seeds << "\n\n";
+
+    // --- Enhancement output ---
+    double rs_mean = avg([](const SeedResult& r) { return r.rev_sensory_pct; });
+    double rn_mean = avg([](const SeedResult& r) { return r.rev_stochastic_pct; });
+    double aa_mean = avg([](const SeedResult& r) { return r.aser_aib_corr; });
+    double cf_mean = avg([](const SeedResult& r) { return r.ci_fwd; });
+    double crv_mean = avg([](const SeedResult& r) { return r.ci_rev; });
+    double co_mean = avg([](const SeedResult& r) { return r.ci_omega; });
+
+    double aib_fm = avg([](const SeedResult& r) { return r.aib_fwd_mean; });
+    double aib_p75m = avg([](const SeedResult& r) { return r.aib_fwd_p75; });
+    double aib_rev = avg([](const SeedResult& r) { return r.aib_at_rev_mean; });
+
+    std::cout << "--- \xe5\x8f\x8d\xe8\xbd\xac\xe5\xbd\x92\xe5\x9b\xa0 & CI\xe5\x88\x86\xe8\xa7\xa3 ---\n";
+    std::cout << "  AIB release:      fwd_mean=" << std::setprecision(4) << aib_fm
+              << "  P75=" << aib_p75m
+              << "  at_rev=" << aib_rev << "\n";
+    std::cout << "  Rev attribution:  " << std::setprecision(1)
+              << rs_mean << "% sensory (AIB>P75)  "
+              << rn_mean << "% stochastic\n";
+    std::cout << "  ASER\xe2\x86\x92""AIB corr:   " << std::setprecision(3) << aa_mean
+              << "  (" << (aa_mean > 0.1 ? "\xe2\x9c\x93 pathway active" : "\xe2\x9c\x97 weak/broken") << ")\n";
+    double aiy_fm = avg([](const SeedResult& r) { return r.aiy_fwd_mean; });
+    double aiy_tw = avg([](const SeedResult& r) { return r.aiy_toward_mean; });
+    double aiy_aw = avg([](const SeedResult& r) { return r.aiy_away_mean; });
+    double aiy_avb = avg([](const SeedResult& r) { return r.aiy_avb_corr; });
+
+    std::cout << "  AIY klinokinesis: toward=" << std::setprecision(4) << aiy_tw
+              << "  away=" << aiy_aw
+              << "  delta=" << std::setprecision(4) << (aiy_tw - aiy_aw)
+              << "  (" << (aiy_tw > aiy_aw ? "\xe2\x9c\x93 correct" : "\xe2\x9c\x97 inverted") << ")\n";
+    std::cout << "  AIY\xe2\x86\x92""AVB corr:    " << std::setprecision(3) << aiy_avb
+              << "  (" << (aiy_avb > 0.1 ? "\xe2\x9c\x93 pathway active" : "\xe2\x9c\x97 weak/broken") << ")\n";
+    std::cout << "  CI decomposition: fwd=" << std::setprecision(4) << cf_mean
+              << "  rev=" << crv_mean
+              << "  omega=" << co_mean
+              << "  (sum=" << std::setprecision(3) << (cf_mean + crv_mean + co_mean) << ")\n\n";
 
     // --- Bottleneck summary ---
     std::cout << "--- 信号链瓶颈汇总 ---\n";

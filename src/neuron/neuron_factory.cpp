@@ -182,20 +182,25 @@ std::unique_ptr<MultiCompartmentNeuron> NeuronFactory::create_ria_multi(const Ne
     // Receives ACh from SMDVL → GAR-3 → IP3 → local Ca²⁺ release
     // Sensitive calcium dynamics: IP3-mediated stores are fast and local
     int nrV = neuron->add_compartment("nrV", 0.8, 0.2, -55.0);
-    neuron->add_channel_to_compartment(nrV, std::make_unique<EGL19Channel>(1.2));  // L-type Ca for local signal
-    neuron->add_channel_to_compartment(nrV, std::make_unique<SHL1Channel>(0.8));
+    // Hendricks 2012: compartmentalized Ca²⁺ is from IP3-mediated ER store release,
+    // NOT voltage-gated channels. "ionotropic receptors unlikely" (neurons isopotential).
+    // Minimal EGL-19 for voltage propagation only; Ca²⁺ from stores.
+    neuron->add_channel_to_compartment(nrV, std::make_unique<EGL19Channel>(0.1));
+    neuron->add_channel_to_compartment(nrV, std::make_unique<SHL1Channel>(0.1));
     neuron->set_compartment_calcium_params(nrV, 0.05, 80.0, 0.15);  // fast, sensitive Ca²⁺
     neuron->set_compartment_noise(nrV, 1.5);  // less noise in axon
-    neuron->compartment_mut(nrV).store_release_rate = 0.0003;  // GAR-3 → IP3 → Ca²⁺ store
+    // GAR-3 → Gαq → PLCβ/EGL-8 → IP3 → ER Ca²⁺ store release (Hendricks 2012)
+    // This is the PRIMARY Ca²⁺ source for compartmentalized activity.
+    neuron->compartment_mut(nrV).store_release_rate = 0.001;
 
     // Compartment 2: nrD (dorsal axon domain)
     // Same as nrV but receives ACh from SMDDL
     int nrD = neuron->add_compartment("nrD", 0.8, 0.2, -55.0);
-    neuron->add_channel_to_compartment(nrD, std::make_unique<EGL19Channel>(1.2));
-    neuron->add_channel_to_compartment(nrD, std::make_unique<SHL1Channel>(0.8));
+    neuron->add_channel_to_compartment(nrD, std::make_unique<EGL19Channel>(0.1));
+    neuron->add_channel_to_compartment(nrD, std::make_unique<SHL1Channel>(0.1));
     neuron->set_compartment_calcium_params(nrD, 0.05, 80.0, 0.15);
     neuron->set_compartment_noise(nrD, 1.5);
-    neuron->compartment_mut(nrD).store_release_rate = 0.0003;  // GAR-3 → IP3 → Ca²⁺ store
+    neuron->compartment_mut(nrD).store_release_rate = 0.001;
 
     // Axial coupling: soma ↔ axon domains
     // Moderate coupling allows global signals to spread but preserves local activity

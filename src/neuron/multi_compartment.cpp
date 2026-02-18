@@ -57,6 +57,20 @@ void MultiCompartmentNeuron::step(double dt) {
         I_axial[b] += I;  // B gains current
     }
 
+    // 1b. IP3 integration for store release modulation (computed once per step)
+    //     Models: soma depolarization → PLC → IP3 production - IP3 phosphatase degradation
+    //     τ_IP3 ≈ 3s LP-filters motor oscillations (0.37Hz → 14% pass),
+    //     preserving slow gradient signals (0.03Hz → 87% pass)
+    //     REF: Slusarski 1997, Bhatt 2000 — IP3 signaling dynamics
+    if (nc >= 3) {  // only for multi-compartment neurons (RIA)
+        constexpr double tau_ip3 = 3000.0;  // ms, IP3 degradation time constant
+        constexpr double V_half = 2.0;      // mV above rest for normalized IP3=1.0
+        double soma_dV = compartments_[0].V - compartments_[0].E_leak;
+        double ip3_production = std::max(0.0, soma_dV) / V_half;  // normalized
+        ip3_level_ += (ip3_production - ip3_level_) * dt / tau_ip3;
+        if (ip3_level_ < 0.0) ip3_level_ = 0.0;
+    }
+
     // 2. Step each compartment independently
     for (int i = 0; i < nc; ++i) {
         auto& comp = compartments_[i];
@@ -95,17 +109,24 @@ void MultiCompartmentNeuron::step(double dt) {
         // Depolarizing synaptic current (I_syn > 0) triggers local store release
         // This is the key mechanism for compartmentalized calcium signals
         if (comp.store_release_rate > 0.0 && comp.I_syn > 0.0) {
-            // Step 129d: Sensory × motor multiplication (Hendricks 2012)
-            // Soma voltage (comp 0) reflects AIY sensory input (phase-locked to head sweep).
-            // Modulate store release by soma depolarization: when soma is more depolarized
-            // (higher sensory input), motor-driven Ca²⁺ store release is amplified.
+            // Sensory × motor multiplication (Hendricks 2012)
+            // Soma voltage reflects AIY/AIZ sensory input + axial backflow.
+            // The backflow amplifies the sensory signal (necessary for detectable Ca²⁺ AC).
+            // While this creates a random DC bias in Ca²⁺ difference, the DC removal
+            // (τ=2s) in apply_smb_neck_bias() handles that. The remaining AC component
+            // correctly encodes gradient ⊥ heading (measured AC=0.12, heading_bias=0.098).
             // Ca_nrD - Ca_nrV ∝ sensory_mod × motor_diff → encodes ∇C_⊥
-            double sensory_mod = 1.0;
-            if (i > 0 && !compartments_.empty()) {
-                double soma_dV = compartments_[0].V - compartments_[0].E_leak;
-                sensory_mod = 1.0 + 0.50 * soma_dV;  // +50% per mV above rest
-                if (sensory_mod < 0.1) sensory_mod = 0.1;
-            }
+            // REF: Hendricks 2012 Nature — compartmentalized Ca²⁺ in RIA
+            // IP3R cooperative gating — Hill on LP-filtered IP3 level
+            // ip3_level_ is pre-integrated (τ=3s LP filter on soma_dV/V_half)
+            // This preserves multiplicative coding:
+            //   sensory_mod (slow, gradient) × I_syn (fast, motor) → Ca²⁺
+            // REF: Bhatt 2000, Bezprozvanny 1991 — IP3R Hill n=3-4
+            constexpr double mod_max = 20.0;
+            constexpr double mod_min = 0.1;
+            double ip3 = ip3_level_;
+            double ip3_3 = ip3 * ip3 * ip3;  // Hill n=3
+            double sensory_mod = mod_min + (mod_max - mod_min) * ip3_3 / (1.0 + ip3_3);
             double dCa_store = comp.store_release_rate * sensory_mod * comp.I_syn * dt;
             double current_Ca = comp.calcium.get_concentration();
             comp.calcium.set_concentration(current_Ca + dCa_store);

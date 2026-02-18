@@ -37,18 +37,12 @@ void SimulationEngine::update_satiety() {
         }
     }
 
-    // Effect 3: Satiety suppresses chemotaxis (ASE/AWC)
-    if (satiety_ > 0.3) {
-        double suppress = -5.0 * (satiety_ - 0.3) / 0.7;
-        const auto& ninfos = connectome_.neuron_infos();
-        for (size_t i = 0; i < chemo_mappings_.size(); ++i) {
-            int nid = chemo_mappings_[i].neuron_id;
-            if (nid < 0 || nid >= n) continue;
-            if (starts_with(ninfos[nid].name, "ASE") || starts_with(ninfos[nid].name, "AWC")) {
-                neurons_[nid]->add_synaptic_current(suppress);
-            }
-        }
-    }
+    // REMOVED: satiety → ASE/AWC direct suppression (redundant engineering bypass)
+    // Fed-state chemotaxis suppression is already implemented through 3 biological pathways:
+    //   1. chemo_sat_gain in apply_sensory_input(): sensory gain × 0.15 when fed
+    //   2. INS-1 → DAF-2 on AWC/AIA/AIY in apply_ins1_modulation() (Lin 2010)
+    //   3. 5-HT → MOD-1 on AIY in neuromodulation system (Flavell 2013)
+    // REF: Sengupta 2012 Curr Opin Neurobiol — feeding state modulates peripheral chemosensory
 }
 
 // ================================================================
@@ -145,15 +139,15 @@ void SimulationEngine::update_food_memory() {
     if (food_memory_ < 0.0) food_memory_ = 0.0;
     if (food_memory_ > 1.0) food_memory_ = 1.0;
 
-    int n = static_cast<int>(neurons_.size());
-    if (nid("AVAL") >= 0 && nid("AVAL") < n) {
-        double ars_current = 4.0 * food_memory_;
-        neurons_[nid("AVAL")]->add_synaptic_current(ars_current);
-    }
-    if (nid("DVA") >= 0 && nid("DVA") < n) {
-        double ars_dva_current = 5.0 * food_memory_;
-        neurons_[nid("DVA")]->add_synaptic_current(ars_dva_current);
-    }
+    // REMOVED: food_memory → AVA/DVA direct current injections (engineering bypass)
+    // ARS is biologically mediated by: DA → DOP-1 → DVA → NLP-12 → CKR-2
+    // This pathway is already implemented in the neuromodulation system:
+    //   - CEP detects food → DA release (setup_neuromodulation.cpp)
+    //   - DOP-1 on DVA: +4pA excitatory (setup_neuromodulation.cpp L282)
+    //   - DVA proprioceptive input drives NLP-12 release (connectome)
+    // food_memory_ variable retained for sickness ARS suppression logic.
+    // REF: Bhattacharya 2014 PLOS Genetics — DA→DOP-1→DVA→NLP-12→CKR-2
+    //      Hills 2004 J Neurosci — DA + GLR-1 control ARS
 }
 
 // ================================================================
@@ -170,20 +164,30 @@ void SimulationEngine::apply_gradient_klinokinesis() {
     Vector2d grad = environment_.chemical_field().gradient(head_pos);
     double grad_mag = std::sqrt(grad.x * grad.x + grad.y * grad.y);
 
-    // --- Component A: gradient-magnitude (position-dependent local search) ---
-    // Step 93: Pathogen learning flips klinokinesis polarity
-    // Naive (awc_pref>0): no gradient → high pirouette → local search (Calhoun 2014)
-    // Sick  (awc_pref<0): ON gradient → high pirouette → escape food zone
-    // REF: Zhang 2005 Nature — learned aversion reverses chemotaxis strategy
-    //      Ha 2010 Neuron — AWC→AIB pathway mediates aversive pirouettes
+    // --- Component A: DA-mediated area-restricted search (Hills 2004) ---
+    // REPLACED: direct gradient magnitude → AVA injection (engineering bypass)
+    // BIOLOGICAL: DA (from CEP food detection) → GLR-1 modulation → more reversals
+    //   On food: CEP active → DA high → GLR-1 enhanced → more sensory-driven reversals
+    //   Off food (recent): DA decaying → diminishing reversal bias → transition
+    //   Off food (long): DA≈0 → no extra drive → global search
+    // cat-2 mutant (no DA synthesis) → no ARS (Hills 2004 J Neurosci)
+    // REF: Hills 2004 — DA + GLR-1 control ARS
+    //      Chase 2004 — DOP-1/DOP-3 antagonistic on command neurons
+    //      Bhattacharya 2014 — DOP-1 on DVA regulates NLP-12 for ARS
+    double da_conc = neuromod_.get_concentration("DA");
     double pref = awc_pref_cached_;
     double kk_mag_current = 0.0;
     if (pref >= 0.0) {
-        double no_signal_factor = fast_exp(-grad_mag / 0.002);
-        kk_mag_current = 0.3 * no_signal_factor;  // Step 129: 1.0→0.3 (reduce tonic reversal drive)
+        // Naive: DA level encodes food memory → drives local search
+        // DA≈0.3-0.5 on food → 0.09-0.15 pA extra AVA drive (mild)
+        // DA≈0 off food → 0 pA → global search
+        kk_mag_current = 0.3 * da_conc;
     } else {
-        double on_signal_factor = 1.0 - fast_exp(-grad_mag / 0.002);
-        kk_mag_current = 5.0 * on_signal_factor * (-pref);
+        // Sick: AWC synapse plasticity (w_mod flip) already handles food
+        // avoidance through AWC→AIY inhibition → less AVB → more reversals.
+        // DA amplifies escape: DA high near food → stronger escape drive
+        // REF: Zhang 2005 Nature — learned aversion reverses chemotaxis
+        kk_mag_current = 2.0 * da_conc * (-pref);
     }
 
     // --- Step 130: Smoothed centroid velocity → bearing for threshold modulation ---
@@ -208,52 +212,25 @@ void SimulationEngine::apply_gradient_klinokinesis() {
         }
     }
 
-    // --- Component B: dC/dt directional klinokinesis (heading-dependent) ---
-    // Temporal derivative of concentration experienced by the worm as it moves.
-    // dC/dt = ∇C · v: positive when heading up-gradient, negative when down.
-    // AWC is OFF-type: tonically active, suppressed by concentration increase.
-    //   dC/dt > 0 → AWC suppressed → less AIB → less AVA → fewer reversals
-    //   dC/dt < 0 → AWC activated → more AIB → more AVA → more reversals
-    // We model this directly: negative dC/dt → positive AVA current.
-    // Filter with τ=2s to match ASE/AWC sensory adaptation timescale.
-    // REF: Pierce-Shimomura 1999 — pirouette rate modulated by -dC/dt
+    // --- Component B: REMOVED (was engineering bypass) ---
+    // Previously: direct dC/dt → AVA current injection, bypassing the biological
+    // ASER→AIB→AVA neural pathway. This pathway now works through the connectome:
+    //   ASER (OFF-cell) activated by dC/dt < 0 → excites AIB (GLR-1, weight=3)
+    //   ASER also inhibits AIA (weight=2) → disinhibits AIB (AIA⊣AIB weight=5)
+    //   AIB → AVA (weight=2) → reversal
+    // The direct injection conflicted with the neural pathway, causing
+    // klinokinesis sign inversion when weathervane was strengthened.
+    // REF: Luo 2014 Neuron — ASER→AIB→AVA encodes motor output, not sensory input
+    //      Pierce-Shimomura 1999 — pirouette rate ∝ -dC/dt (emerges from pathway)
+
+    // Keep dC/dt filter for diagnostics (chemotaxis_analyzer reads dCdt_filtered_)
     double concentration = environment_.sample_chemical(head_pos);
-    double raw_dCdt = (concentration - prev_concentration_) / (dt_ * 0.001);  // per second
+    double raw_dCdt = (concentration - prev_concentration_) / (dt_ * 0.001);
     prev_concentration_ = concentration;
-    double tau_dCdt = 2000.0;  // 2s filter, matches ASE adaptation (Suzuki 2008)
+    double tau_dCdt = 2000.0;
     dCdt_filtered_ += (raw_dCdt - dCdt_filtered_) * dt_ / tau_dCdt;
 
-    // Convert dC/dt to AVA current — ASYMMETRIC (biological):
-    //   dC/dt < 0 (down-gradient) → excite AVA → more reversals (pirouettes)
-    //   dC/dt > 0 (up-gradient) → NO suppression (baseline stochastic reversal rate)
-    // AWC is OFF-type: tonically active, fires MORE when concentration DROPS.
-    // AWC does NOT actively inhibit downstream when concentration rises — it simply
-    // returns to tonic baseline. Symmetric suppression would chronically suppress
-    // AVA when heading toward food, disrupting motor pattern and reducing speed.
-    // REF: Chalasani 2007 Nature — AWC OFF-response triggers pirouettes
-    //      Suzuki 2008 — asymmetric sensory processing in C. elegans
-    // Step 129: gain 300→800, clamp 3→10pA. Ablation showed AWC/ASE ablation
-    // has ZERO effect on CI — klinokinesis signal was too weak to influence AVA.
-    // At 10mm from food: dC/dt~0.005/s → I=800×0.005=4pA (meaningful vs AVA ~10pA baseline)
-    double kk_dCdt_gain = 800.0;  // pA / (conc/s)
-    double kk_dCdt_current = 0.0;
-    if (pref >= 0.0) {
-        if (dCdt_filtered_ < 0.0) {
-            // Naive: excite AVA when dC/dt < 0 (going down-gradient → more reversals)
-            kk_dCdt_current = -dCdt_filtered_ * kk_dCdt_gain;
-            kk_dCdt_current = std::min(kk_dCdt_current, 10.0);
-        }
-        // dC/dt > 0: no injection (asymmetric). Bidirectional suppression tried and
-        // worsened klinokinesis (-0.352) — AVA bistable dynamics cause rebound.
-    } else {
-        // Sick/aversive: excite AVA when dC/dt > 0 (approaching noxious source)
-        if (dCdt_filtered_ > 0.0) {
-            kk_dCdt_current = dCdt_filtered_ * kk_dCdt_gain;
-            kk_dCdt_current = std::min(kk_dCdt_current, 10.0);
-        }
-    }
-
-    double kk_total = kk_mag_current + kk_dCdt_current;
+    double kk_total = kk_mag_current;  // only Component A remains
 
     int n = static_cast<int>(neurons_.size());
     if (nid("AVAL") >= 0 && nid("AVAL") < n) neurons_[nid("AVAL")]->add_synaptic_current(kk_total);

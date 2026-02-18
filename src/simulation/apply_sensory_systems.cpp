@@ -23,6 +23,10 @@ void SimulationEngine::apply_sensory_input() {
     double head_curv = body_.get_local_curvature(0);
     double sweep_radius = 1.5;  // mm, curv→displacement gain
     double lateral_offset = head_curv * sweep_radius;
+    // Clamp to prevent extreme offsets at high curvature_gain
+    // Current peak: ~5.9mm (curvature_gain=4). Clamp at 8mm is safely above.
+    if (lateral_offset > 8.0) lateral_offset = 8.0;
+    if (lateral_offset < -8.0) lateral_offset = -8.0;
     double nx = -std::sin(head_angle);
     double ny =  std::cos(head_angle);
     Vector2d sample_pos = {head_pos.x + lateral_offset * nx,
@@ -836,20 +840,32 @@ void SimulationEngine::apply_touch_stimulus() {
         if (currently_on_lawn) was_on_lawn_ = true;
         if (food_at_head < 0.3) was_on_lawn_ = false;
 
-        // Always inject AVA on food edge exit (no probability gate)
+        // Biological replacement: food edge → AWC OFF-response transient
+        // AWC is an OFF-cell that fires when food odor decreases (Gordus 2015,
+        // Cho 2016). At the bacterial lawn boundary, volatile concentration drops
+        // sharply (bacteria are the odor source). The model's broad chemical field
+        // (σ=12mm) doesn't capture this local edge, so we inject a transient into
+        // AWC when food_density crosses the lawn boundary threshold.
+        // AWC transient → AWC→AIB→AVA (reversal circuit, Summers 2015)
+        // State-dependence EMERGES from circuit: dwelling → AIB→AVA strong → reverse;
+        // roaming → AIY→AVB strong → no reverse → leave lawn.
+        // REF: Gordus 2015 Cell — AWC activation produces reversal bouts
+        //      Flavell 2024 eLife — head poke reversal ~55%, state-dependent
+        //      Cho 2016 — AWC OFF dynamics encode food removal
         // 2s refractory prevents rapid re-triggering
         if (food_edge_exit && current_time_ > food_edge_ava_end_ + 2000.0) {
-            food_edge_ava_end_ = current_time_ + 500.0;  // 500ms pulse
+            food_edge_ava_end_ = current_time_ + 500.0;  // 500ms transient
         }
 
-        // Sustained food-edge AVA injection (during pulse window)
-        // 25pA: moderate — whether reversal occurs depends on AVA-AVB balance
-        // (emergent from 5-HT/PDF/DA neuromodulation on circuit)
+        // Inject food-edge transient into AWC (not directly into AVA)
+        // 30pA matches AWC OFF-response amplitude (Gordus 2015: ~20-40pA Ca²⁺ transient)
+        // The circuit determines reversal vs leaving based on AVA-AVB balance
         if (current_time_ < food_edge_ava_end_) {
             int n = static_cast<int>(neurons_.size());
-            double ava_pulse = 40.0;  // Step 70: 40pA reliable activation (state-dependence from AVA-AVB balance)
-            if (nid("AVAL") >= 0 && nid("AVAL") < n) neurons_[nid("AVAL")]->add_synaptic_current(ava_pulse);
-            if (nid("AVAR") >= 0 && nid("AVAR") < n) neurons_[nid("AVAR")]->add_synaptic_current(ava_pulse);
+            double awc_edge_pulse = 30.0;
+            for (int id : nids("AWC")) {
+                if (id >= 0 && id < n) neurons_[id]->add_synaptic_current(awc_edge_pulse);
+            }
         }
     }
 }

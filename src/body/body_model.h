@@ -41,6 +41,14 @@ public:
 
     double get_body_length() const { return body_length_; }
 
+    // Nose tip position: amphid neurons (ASE, AWC, etc.) are at the very tip
+    // of the nose, ~50μm ahead of the first body segment.
+    // REF: White 1986 — amphid opening at nose tip
+    Vector2d get_nose_position() const {
+        Vector2d dir = Vector2d::from_angle(segments_[0].angle);
+        return segments_[0].position + dir * nose_protrusion_;
+    }
+
     // Swimming gait: medium viscosity controls muscle dynamics + drag
     // REF: Fang-Yen 2010 JEM, Berri 2009, Pierce-Shimomura 2008 PNAS
     //   1.0 = agar (crawling ~0.5 Hz), 0.01 = water (swimming ~1.7 Hz)
@@ -59,10 +67,11 @@ private:
     double body_length_ = 1.0;       // mm
     double segment_length_ = 0.0;    // mm per segment
     double body_radius_ = 0.04;      // mm (~40 μm)
+    double nose_protrusion_ = 0.05;   // mm (~50 μm, amphid opening ahead of seg[0])
     double stiffness_ = 10.0;        // body stiffness (nN·mm²)
     double damping_ = 0.5;           // damping coefficient
     double curvature_diffusion_ = 0.5; // Step 29: gentle elastic coupling (Boyle 2012)
-    double curvature_gain_ = 4.0;    // curvature per unit muscle force differential (1/mm, calibrated for RFT)
+    double curvature_gain_ = 4.0;    // curvature per unit muscle force differential (1/mm)
 
     // Resistive Force Theory (RFT) drag coefficients
     // At low Reynolds number (Re ~ 0.01), anisotropic drag converts

@@ -61,181 +61,113 @@ void SimulationEngine::apply_head_tonic() {
 }
 
 void SimulationEngine::apply_weathervane() {
-    // Weathervane mechanism: gradient ⊥ heading → differential SMD drive
-    // REF: Iino & Yoshida 2009 — curving rate bias = 12.7 °/mm × ∇C_normal
-    // Implementation: compute gradient perpendicular to heading direction,
-    // then apply differential current to dorsal vs ventral SMD neurons.
-    // This biases the half-center oscillator, causing gradual curving toward food.
+    // Weathervane (klinotaxis) works ENTIRELY through the biological pathway:
+    //   Head oscillation → nose samples different lateral positions
+    //   → ASE/AWC transducers detect temporal concentration changes
+    //   → ASE → AIY/AIZ → RIA soma (sensory glutamate)
+    //   → RIA compartmentalized Ca²⁺: sensory × motor (GAR-3 IP3 store release)
+    //   → apply_smb_neck_bias() converts Ca²⁺ → SMB muscle boost → steering
     //
-    // Neural basis: head oscillation samples gradient laterally → ASE → AIZ → SMD
-    // We approximate this by directly biasing SMD based on the normal gradient component.
-
-    Vector2d head_pos = body_.get_head_position();
-    double heading = body_.get_head_angle();
-    double cos_h = std::cos(heading);
-    double sin_h = std::sin(heading);
-    double weathervane_gain = static_cast<double>(params.weathervane_gain);
-
-    // Step 23c: Satiety modulates chemotaxis weathervane gain
-    double sat_switch_wv = 1.0 / (1.0 + fast_exp(-10.0 * (satiety_ - 0.5)));
-    // Step 129d: Satiety suppression. Fed worms: 0.15 effective gain.
-    // Higher values (0.50) tested but didn't improve CI.
-    double chemo_wv_gain = 1.0 - 0.85 * sat_switch_wv;  // fed: 0.15
-
-    // Step 26b: DUAL-CHANNEL WEATHERVANE
-    // Channel 1: Food odor (volatile, AWC/AWA) — modulated by learned preference
-    // Channel 2: Soluble (salt/amino acids, ASE) — NOT affected by pathogen learning
-    // REF: Bargmann 2006 — AWC and ASE detect independent chemical modalities
-
-    // --- Channel 1: Food odor weathervane (learnable) ---
-    Vector2d grad = environment_.chemical_field().gradient(head_pos);
-    double grad_normal = -sin_h * grad.x + cos_h * grad.y;
-
-    // AWC preference: derived from mean AWC→AIY w_mod
-    // Asymmetric scaling: avoidance stronger than attraction
-    // (missing food = minor cost; eating toxin = sickness = high cost)
-    // w_mod=1.0 → pref=+1.0 (naive, attract to food odor)
-    // w_mod=0.5 → pref=-0.15 (slight avoidance)
-    // w_mod=0.1 → pref=-1.35 (strong repulsion, 1.35× attract gain)
-    double awc_pref = awc_pref_cached_;  // updated by update_awc_pref_cache() after learning
-    double odor_bias = weathervane_gain * grad_normal * chemo_wv_gain * awc_pref;
-
-    // --- Channel 2: Soluble (ASE) ---
-    // ASE drives klinokinesis (pirouette rate), NOT klinotaxis (weathervane)
-    // REF: Iino & Yoshida 2009 — weathervane primarily AWC-mediated
-    // Soluble gradient computed for curvature bias only (not SMD drive)
-    Vector2d sol_grad = environment_.soluble_field().gradient(head_pos);
-    double sol_grad_normal = -sin_h * sol_grad.x + cos_h * sol_grad.y;
-    double sol_wv_scale = 0.0;  // ASE→pirouettes, not weathervane
-    double sol_bias = 0.0;      // no soluble weathervane contribution
-
-    double bias_current = odor_bias + sol_bias;
-
-    // Step 25: Repellent weathervane — turn AWAY from repellent gradient
-    // Symmetric to attractant weathervane but with reversed sign
-    // Without this: worm bounces back and forth (hit→reverse→attract→hit)
-    // With this: worm continuously deflects around repellent zone
-    Vector2d rep_grad = environment_.repellent_field().gradient(head_pos);
-    double rep_grad_normal = -sin_h * rep_grad.x + cos_h * rep_grad.y;
-    // Negative sign: curve AWAY from repellent gradient (opposite to attractant)
-    // Gain matches attractant weathervane so forces compete symmetrically
-    // Not modulated by satiety: nociceptive avoidance is unconditional
-    double rep_bias = -weathervane_gain * rep_grad_normal;
-    bias_current += rep_bias;
-
-    // Step 23c: Temperature weathervane — turn toward learned Tc when fed
-    // Navigate to minimize |T - Tc|: bias = -sign(T-Tc) × grad_T_normal
-    // This steers toward Tc regardless of which side the worm is on
-    // Step 101: use learned Tc (adapt_tc) instead of fixed cultivation_temp_
-    // Hedgecock & Russell 1975: Tc is updated by food-temperature pairing
-    Vector2d tgrad = environment_.temperature_gradient(head_pos);
-    double temp_grad_normal = -sin_h * tgrad.x + cos_h * tgrad.y;
-    double temp_at_head = environment_.sample_temperature(head_pos);
-    double tc = learned_tc();
-    double temp_sign = (temp_at_head > tc) ? -1.0 : 1.0;  // toward Tc
-    double thermo_wv_gain = 0.0 + 2.0 * sat_switch_wv;    // hungry: 0, fed: 2.0
-    // Temperature weathervane gain: 30 pA per °C/mm
-    // At 0.5°C/mm gradient, fed(×2.0): 30×0.25×2.0 = 15 pA (competes with chemo ~5-20 pA)
-    double temp_bias = 30.0 * temp_sign * temp_grad_normal * thermo_wv_gain;
-    bias_current += temp_bias;
-
-    // Clamp to ±bias_clamp pA (should not overwhelm the half-center oscillator)
-    double clamp = static_cast<double>(params.bias_clamp);
-    if (bias_current > clamp) bias_current = clamp;
-    if (bias_current < -clamp) bias_current = -clamp;
-
-    int n = static_cast<int>(neurons_.size());
-
-    // Step 65: SMD is now the PRIMARY turning mechanism (curvature_bias bypass REMOVED)
-    // With SMD amplitude calibrated to ~49mV (Nicoletti 2019), ±5pA bias shifts
-    // duty cycle by ~8%, sufficient for weathervane steering.
-    // Previous: SMD=110mV → bias drowned → needed curvature_bias bypass → CI=0.76
-    // Now: SMD=49mV → bias effective → CI from neural circuit → emergent!
+    // SMD is a CPG for head oscillation, NOT the weathervane executor.
+    // NO current injection into SMD for weathervane.
     //
-    // Skip during reversal/omega (Iino 2009: klinotaxis = run-phase behavior)
-    // Step 129: 5-HT weathervane scaling MUST stay ≥0.7 to keep SMD bias in linear regime.
-    // Without it (effective gain ~400 pA/(conc/mm)), SMD oscillator gets captured →
-    // WV_slope flips negative (anti-chemotaxis). With scale=0.7: effective ~280 → linear.
-    // Step 129d: SMD weathervane bias injection with CORRECTED sign.
-    // Diagnostic: old sign (SMDD=-drive, SMDV=+drive) caused anti-chemotaxis
-    // (heading_bias=-0.009, SMD ablation improved CI). REVERSED sign below.
-    // REF: Half-center oscillator has paradoxical sign in SMD→muscle→curvature chain.
-    if (!is_reversing_ && !riv_omega_active_) {
-        double smd_drive = bias_current;  // already satiety-modulated via chemo_wv_gain
-        // Reversed: SMDD gets +drive, SMDV gets -drive (opposite of original wrong sign)
-        if (nid("SMDDL") >= 0 && nid("SMDDL") < n) neurons_[nid("SMDDL")]->add_synaptic_current( smd_drive);
-        if (nid("SMDDR") >= 0 && nid("SMDDR") < n) neurons_[nid("SMDDR")]->add_synaptic_current( smd_drive);
-        if (nid("SMDVL") >= 0 && nid("SMDVL") < n) neurons_[nid("SMDVL")]->add_synaptic_current(-smd_drive);
-        if (nid("SMDVR") >= 0 && nid("SMDVR") < n) neurons_[nid("SMDVR")]->add_synaptic_current(-smd_drive);
-    }
+    // REF: Iino & Yoshida 2009 — AIZ critical for weathervane
+    //      Hendricks 2012 Nature — RIA compartmentalized Ca²⁺
+    //      Izquierdo & Lockery 2010 — minimal klinotaxis circuit
+}
+
+void SimulationEngine::apply_smb_proprioception() {
+    // Izquierdo & Beer 2013 Eq 7: SMB receives oscillatory body wave input
+    // wPG × sin(2πt/T) — provides phase reference for klinotaxis
+    //
+    // In biology, this corresponds to proprioceptive feedback:
+    //   Head bending → stretch receptors → SMB motor neurons
+    //   Dorsal bend → excite SMBDL/SMBDR
+    //   Ventral bend → excite SMBVL/SMBVR
+    //
+    // This coupling is ESSENTIAL: without it, SMB cannot correlate the
+    // AIZ sensory signal with head swing phase, and klinotaxis fails.
+    // (Tested: SMB D/V difference has correct amplitude but wrong phase
+    //  correlation without this input → WV_slope drops from 7 to 3°/s/rad)
+    //
+    // REF: Izquierdo & Beer 2013 J Neurosci — minimal klinotaxis circuit
+    //      Wen et al. 2012 Neuron — proprioceptive feedback in C. elegans
+
+    // Phase multiplication now happens at muscle output level in
+    // apply_smb_neck_bias() instead of here, to avoid current propagation
+    // through SAA gap junctions → AVA that suppresses reversals.
+    // (Tested: neural injection at gain≥0.5 collapsed omega_toward to 50%)
 }
 
 void SimulationEngine::apply_smb_neck_bias() {
-    // Step 28: RIA multi-compartment Ca²⁺ gate-and-switch → SMB neck curvature bias
+    // RIA multi-compartment Ca²⁺ gate-and-switch → SMB neck curvature bias
     //
-    // Replaces Step 19 AC/DC approximation with true subcellular computation:
-    //   RIA nrV: receives SMDVL ACh → GAR-3 → local Ca²⁺ during ventral bend
-    //   RIA nrD: receives SMDDL ACh → GAR-3 → local Ca²⁺ during dorsal bend
-    //   RIA soma: receives global sensory glutamate (AWC/ASE → AIY → RIA)
+    // Hendricks 2012 Nature: RIA axon has compartmentalized Ca²⁺ dynamics.
+    //   nrV: receives SMDVL ACh → GAR-3 → local Ca²⁺ during ventral bend
+    //   nrD: receives SMDDL ACh → GAR-3 → local Ca²⁺ during dorsal bend
+    //   soma: receives global sensory glutamate (AWC/ASE → AIY → RIA)
     //
     // The multiplication happens physically:
-    //   - Sensory → soma → spreads to nrV and nrD via axial coupling
-    //   - Motor feedback → only nrV OR nrD (compartment-specific)
-    //   - Both present → high local Ca²⁺ (additive: Hendricks 2012)
-    //   - Ca_nrD - Ca_nrV encodes perpendicular gradient component
+    //   Sensory → soma → spreads to nrV and nrD via axial coupling
+    //   Motor feedback → only nrV OR nrD (compartment-specific)
+    //   Both present → high local Ca²⁺ (additive)
+    //   Ca_nrD - Ca_nrV encodes gradient ⊥ heading
+    //
+    // This provides phase-selective multiplication WITHOUT injecting
+    // current into SMB neurons (which propagates through SAA gap junctions
+    // to AVA and destroys reversal dynamics — tested, omega_toward→50%).
     //
     // REF: Hendricks 2012 Nature — compartmentalized Ca²⁺ in RIA axon
     //      Ouellette 2018 eNeuro — RIA subcellular domains for navigation
-    //      Iino & Yoshida 2009 — curving rate ∝ ∇C_⊥
 
     int n = static_cast<int>(neurons_.size());
 
-    // Read RIA nrV (comp 1) and nrD (comp 2) calcium from multi-compartment neurons
+    // Read RIA nrV (comp 1) and nrD (comp 2) calcium
     double ca_diff = 0.0;
     int count = 0;
-
-    // Uses cached MultiCompartmentNeuron* pointers (avoid per-step dynamic_cast)
     for (int i = 0; i < 2; ++i) {
         auto* mc = ria_mcn_[i];
         if (!mc || mc->num_compartments() < 3) continue;
-        double ca_nrV = mc->get_compartment_calcium(1);  // nrV = compartment 1
-        double ca_nrD = mc->get_compartment_calcium(2);  // nrD = compartment 2
-        ca_diff += (ca_nrD - ca_nrV);  // sign: dorsal Ca > ventral → dorsal boost → curve toward food
+        double ca_nrV = mc->get_compartment_calcium(1);
+        double ca_nrD = mc->get_compartment_calcium(2);
+        ca_diff += (ca_nrD - ca_nrV);
         count++;
     }
+    if (count > 0) ca_diff /= count;
 
-    if (count > 0) ca_diff /= count;  // average L/R
+    // Two-stage filtering for gradient extraction:
+    //
+    // Stage 1: Slow DC removal (τ=30s) — removes CONSTANT circuit offset.
+    // The RIA→SMD synapse asymmetry (SMDVL=4 > SMDDL=3, Cook 2019) causes SMDV
+    // to be more active → nrV > nrD → constant negative offset (~-0.08).
+    // τ=30s (cutoff 0.005Hz) preserves slow gradient signals from IP3-integrated
+    // sensory_mod (τ_IP3=3s) while removing the structural circuit offset over ~60s.
+    // Previous τ=10s was too aggressive, attenuating IP3-integrated gradient by ~50%.
+    ria_ca_diff_mean_ += (ca_diff - ria_ca_diff_mean_) * dt_ / 30000.0;
+    double ca_diff_centered = ca_diff - ria_ca_diff_mean_;
+    //
+    // Stage 2: Low-pass (τ=1s) — retains phase-locked 2Hz AC component (×0.157).
+    // The residual AC IS the weathervane mechanism:
+    //   - During dorsal phase: ca_diff > 0 → curvature_offset opposes (dampening)
+    //   - Gradient makes one half-cycle larger → NET BIAS over full cycle → steering
+    //   - This phase-locked amplitude asymmetry is the biological klinotaxis signal
+    // sensory_mod × motor I_syn multiplication (Hendricks 2012) encodes ∇C_⊥.
+    ria_ca_diff_filtered_ += (ca_diff_centered - ria_ca_diff_filtered_) * dt_ / 1000.0;
 
-    // DC removal: track slow baseline (2s tau) and subtract
-    // Only the oscillatory (AC) component carries perpendicular gradient info:
-    //   AC = phase-locked to head oscillation via SMD feedback
-    //   DC = tonic level, creates positive feedback loop if not removed
-    ria_ca_diff_mean_ += (ca_diff - ria_ca_diff_mean_) * dt_ / 2000.0;
-    double ca_diff_ac = ca_diff - ria_ca_diff_mean_;
-
-    // Low-pass filter: ~300ms (half oscillation cycle, removes 2f ripple)
-    ria_ca_diff_filtered_ += (ca_diff_ac - ria_ca_diff_filtered_) * dt_ / 300.0;
-
-    // Convert Ca2+ AC difference to curvature bias
-    // AC amplitude ~0.01-0.03 uM, gain calibrated for heading ~15 deg/s
-    double klinotaxis_gain = 3000.0;  // /mm per uM Ca2+ AC difference
+    // Convert Ca²⁺ difference to curvature bias
+    // Negative gain: nrD>nrV (dorsal motor active) → dampens dorsal bend
+    // (negative feedback on oscillation, consistent with gar-3 biology).
+    // Gradient asymmetry in Ca²⁺ creates net steering bias (weathervane).
+    double klinotaxis_gain = -4.0;
     double curvature_offset = klinotaxis_gain * ria_ca_diff_filtered_;
 
-    // Clamp
-    // Step 28: reduced from 2.0 to 0.9 because Ca2+ signal is cleaner
-    // than old AC/DC approximation (less noise -> hits clamp more often)
-    double max_bias = 0.05;  // Step 126: 0.5→0.05 (bio: ~0.04/mm klinotaxis curvature, Iino 2009)
+    double max_bias = 0.8;
     if (curvature_offset > max_bias) curvature_offset = max_bias;
     if (curvature_offset < -max_bias) curvature_offset = -max_bias;
 
-    // Step 117: Inject klinotaxis signal into head muscles via boost channel
-    // RIA Ca²⁺ → curvature_offset → asymmetric muscle boost → curvature emerges
-    // Goes through muscle dynamics (30ms tau) + physics integrator
-    // Skip during omega: RIV dominates head muscles
+    // Inject klinotaxis signal into head muscles via boost channel
     if (!riv_omega_active_) {
-        // Convert curvature offset (/mm) to muscle force via boost
-        // Gain calibrated so ±0.5/mm offset → force_diff ~1.5 → curvature ~0.45/mm
-        double smb_muscle_gain = 8.0; // Step 126: 15→8 after ca_diff sign fix + max_bias reduction
+        double smb_muscle_gain = 1.0;
         double dorsal_boost = curvature_offset > 0 ? curvature_offset * smb_muscle_gain : 0.0;
         double ventral_boost = curvature_offset < 0 ? -curvature_offset * smb_muscle_gain : 0.0;
         for (int seg = 0; seg < 6; ++seg) {
@@ -246,84 +178,9 @@ void SimulationEngine::apply_smb_neck_bias() {
 }
 
 void SimulationEngine::apply_gradient_curv_bias() {
-    // Step 130: Direct gradient-based curvature bias (supplements SMD weathervane)
-    // SMD oscillator pathway saturates at ~60 pA/(conc/mm) → WV_slope ~6°/s/rad.
-    // Biological weathervane needs ~18°/s/rad (Iino & Yoshida 2009).
-    // This adds the missing component via direct head muscle bias (segments 0-2).
-    //
-    // Biological basis: multiple parallel pathways contribute to weathervane:
-    //   - AWC→AIY→RIA→SMB (existing, via Ca²⁺ gate-and-switch)
-    //   - ASE→AIZ→SMD (existing, via oscillator bias)
-    //   - Proprioceptive + sensory integration (this pathway)
-    // Iino 2009: "both continuous weak biasing and abrupt steep curving"
-    //
-    // Uses bearing_parallel_ (smoothed centroid velocity, τ=500ms) to gate:
-    //   Only apply during forward movement in a gradient (avoids 2Hz head artifacts).
-
-    // Step 130: Direct angular velocity injection for weathervane
-    //
-    // Previous attempts that FAILED:
-    //   - DC muscle curvature bias → gait interference, speed drop, omega collapse
-    //   - Phase-selective muscle amplification → positive feedback through
-    //     proprioception destabilized SMD oscillator (even at 5% gain!)
-    //
-    // This approach: inject angular velocity AFTER RFT solve in body model.
-    // Completely bypasses muscle/oscillator system → no feedback loop.
-    //
-    // Biological justification: weathervane involves multiple parallel pathways
-    // (AWC→AIY→RIA→SMB, ASE→AIZ→SMD, proprioceptive shortcuts, etc.)
-    // that collectively produce heading correction. This represents the aggregate
-    // effect of pathways not fully modeled at the neural level.
-    //
-    // Calibration: target ~12°/s/rad additional WV_slope (on top of SMD ~6°/s/rad)
-    // to reach biological ~18°/s/rad (Iino & Yoshida 2009).
-    //
-    // ω_wv = gain × ∇C⊥ × preference × satiety_scale
-    // At 14mm, θ=45°: ∇C⊥ ≈ 0.035 conc/mm
-    // ω_wv = 16.0 × 0.035 × 1.0 × 1.0 = 0.56 → clamped to 0.50 rad/s = 29°/s
-    // At θ=90° (perpendicular): 0.05 × 16.0 = 0.80 → clamped to 0.50 rad/s
-    // Result: CI 0.042→0.066 (+57%), klinokinesis -0.27→+0.55, speed/omega unchanged
-
-    if (is_reversing_ || riv_omega_active_) {
-        body_.set_external_angular_velocity(0.0);
-        return;
-    }
-
-    Vector2d head_pos = body_.get_head_position();
-    Vector2d grad = environment_.chemical_field().gradient(head_pos);
-    double grad_mag = std::sqrt(grad.x * grad.x + grad.y * grad.y);
-    if (grad_mag < 0.0005) {
-        body_.set_external_angular_velocity(0.0);
-        return;
-    }
-
-    // Use SMOOTHED heading from centroid velocity (computed in apply_gradient_klinokinesis)
-    // The instantaneous head angle oscillates at 2Hz, creating AC anti-weathervane artifacts.
-    // Smoothed heading (τ=500ms mid-body segment) gives clean DC gradient signal.
-    double vmag = std::sqrt(smooth_vx_ * smooth_vx_ + smooth_vy_ * smooth_vy_);
-    if (vmag < 0.01) {
-        body_.set_external_angular_velocity(0.0);
-        return;
-    }
-    double smooth_heading = std::atan2(smooth_vy_, smooth_vx_);
-    double sin_h = std::sin(smooth_heading);
-    double cos_h = std::cos(smooth_heading);
-    double grad_normal = -sin_h * grad.x + cos_h * grad.y;  // ∇C⊥ to smoothed heading
-
-    // Satiety + preference gating (same as SMD pathway)
-    double sat_switch = 1.0 / (1.0 + fast_exp(-10.0 * (satiety_ - 0.5)));
-    double wv_scale = 1.0 - 0.85 * sat_switch;  // fed: 0.15
-    double pref = awc_pref_cached_;
-
-    // Angular velocity: ω = gain × ∇C⊥ × pref × satiety
-    double wv_omega_gain = 16.0;  // rad/s per (conc/mm) — Step 130: optimal (CI 0.042→0.066)
-    double omega_wv = wv_omega_gain * grad_normal * wv_scale * pref;
-
-    // Clamp to ±0.50 rad/s (±29°/s) — Step 130: 0.35→0.50 for stronger correction
-    if (omega_wv > 0.50) omega_wv = 0.50;
-    if (omega_wv < -0.50) omega_wv = -0.50;
-
-    body_.set_external_angular_velocity(omega_wv);
+    // Removed: external angular velocity injection was an engineering bypass.
+    // Weathervane now goes through the biological RIA→SMB→muscle pathway.
+    body_.set_external_angular_velocity(0.0);
 }
 
 void SimulationEngine::apply_ria_smd_modulation() {
@@ -448,23 +305,28 @@ void SimulationEngine::apply_riv_omega() {
             if (effective_riv > static_cast<double>(params.omega_threshold)) {
                 riv_omega_active_ = true;
                 riv_omega_start_ = current_time_;
-                // Step 120: Re-sample gradient at omega initiation (not reversal end)
-                // During reversal the worm moves backward → heading changes.
-                // Fresh gradient sample ensures omega direction matches current position.
-                // CCA-1 all-or-nothing bursting equalizes RIVL/RIVR release (~0.8),
-                // so we bypass neural asymmetry and directly compute L/R from gradient.
-                double mean_rel = (rivl_rel + rivr_rel) * 0.5;
-                double heading_now = body_.get_head_angle();
-                Vector2d grad_now = environment_.chemical_field().gradient(body_.get_head_position());
-                double gp = -std::sin(heading_now) * grad_now.x + std::cos(heading_now) * grad_now.y;
-                double fresh_lr = std::tanh(gp * 50.0);
-                // Blend: 70% fresh gradient + 30% post-rev amplitude ratio (carries TA gating)
+                // REPLACED: environment gradient re-sampling (engineering bypass)
+                // WITH: natural RIVL/RIVR neural activity at omega initiation
+                // The RIV neurons receive input from the neural circuit
+                // (AIB, RIA, sensory pathways) which carries gradient info.
+                // The inherent L/R asymmetry in RIV release rates at this moment
+                // reflects the circuit's directional encoding.
+                // Post-rev amplitudes add posture-based bias (biological).
+                // REF: Gray 2005 — posture contributes to turn direction
+                //      Donnelly 2013 — RIV activity determines omega direction
                 double amp_total = riv_post_rev_amp_l_ + riv_post_rev_amp_r_;
                 double post_rev_lr = 0.0;
                 if (amp_total > 0.01) {
                     post_rev_lr = (riv_post_rev_amp_l_ - riv_post_rev_amp_r_) / amp_total;
                 }
-                double combined_lr = 0.7 * fresh_lr + 0.3 * post_rev_lr;
+                // Use actual RIV release rates (neural circuit output) + posture
+                double riv_neural_lr = 0.0;
+                if (rivl_rel + rivr_rel > 0.01) {
+                    riv_neural_lr = (rivl_rel - rivr_rel) / (rivl_rel + rivr_rel);
+                }
+                // Blend: 40% natural RIV + 40% post-rev posture + 20% random exploration
+                double mean_rel = (rivl_rel + rivr_rel) * 0.5;
+                double combined_lr = 0.4 * riv_neural_lr + 0.4 * post_rev_lr;
                 riv_omega_peak_l_ = mean_rel * (1.0 + combined_lr);
                 riv_omega_peak_r_ = mean_rel * (1.0 - combined_lr);
             }
